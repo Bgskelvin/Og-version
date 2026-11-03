@@ -1,0 +1,26 @@
+{
+  "couple": "Rina & Dimas",
+  "welcome": "Tinggalkan pesan atau jawab quiz untuk kami",
+  "kiosk": false,
+  "cameraName": "",
+  "micName": "",
+  "colors": {
+    "bg": "#1f1a17",
+    "card": "rgba(255,255,255,0.92)",
+    "accent": "#b08d57",
+    "text": "#2b2420"
+  },
+  "quiz": [
+    "Di mana pertama kali Rina dan Dimas bertemu?",
+    "Apa makanan favorit Dimas?",
+    "Ceritakan kenangan lucu bersama mempelai!",
+    "Apa doa dan harapanmu untuk pernikahan mereka?",
+    "Siapa yang lebih sering mengalah, Rina atau Dimas?"
+  ],
+  "login": {
+    "id": "leura",
+    "password": "1234"
+  },
+  "quizSeconds": 60,
+  "quizRounds": 3
+}

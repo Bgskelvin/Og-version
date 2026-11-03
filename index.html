@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Videobooth</title>
+<style>
+  /* ============ Token ============ */
+  :root {
+    --bg: #F5F5F7;              /* putih khas Apple */
+    --text: #1D1D1F;
+    --text-2: #6E6E73;
+    --accent: #B08D57;          /* bisa diganti lewat config.json -> colors.accent */
+    --green: #34C759;
+    --red: #FF3B30;
+    --orange: #FF9F0A;
+    --glass: rgba(255,255,255,.56);
+    --glass-strong: rgba(255,255,255,.72);
+    --glass-line: rgba(255,255,255,.7);
+    --glass-dark: rgba(28,28,30,.42);
+    --fill: rgba(120,120,128,.12);  /* latar kolom isian & grup */
+    --hair: rgba(60,60,67,.14);
+    --blur: blur(30px) saturate(180%);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --r-card: 34px; --r-group: 18px; --r-field: 12px;
+  }
+  * { box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; touch-action:manipulation; background:var(--bg);
+    font-family:var(--font); color:var(--text); -webkit-font-smoothing:antialiased; }
+  svg.i { width:1.15em; height:1.15em; flex:none; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* ============ Latar: cahaya lembut di belakang kaca ============ */
+  .atmo { position:fixed; inset:0; overflow:hidden; pointer-events:none; }
+  .atmo b { position:absolute; border-radius:50%; filter:blur(90px); opacity:.75; animation:drift 28s ease-in-out infinite alternate; }
+  .atmo b:nth-child(1) { width:55vw; height:55vw; left:-12vw; top:-18vw; background:#EBD7AE; }
+  .atmo b:nth-child(2) { width:48vw; height:48vw; right:-14vw; top:8vh; background:#F4C7D0; animation-delay:-9s; }
+  .atmo b:nth-child(3) { width:60vw; height:60vw; left:22vw; bottom:-34vw; background:#CADDF4; animation-delay:-17s; }
+  @keyframes drift { to { transform:translate(4vw,3vh) scale(1.08); } }
+
+  /* ============ Kamera ============ */
+  #cam { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); display:none; }
+  .shade { position:absolute; inset:0; pointer-events:none; display:none;
+    background:linear-gradient(to bottom, rgba(0,0,0,.18), transparent 22%, transparent 55%, rgba(0,0,0,.38)); }
+  body.camOn #cam, body.camOn .shade { display:block; }
+  body.camOn .atmo { display:none; }
+
+  /* ============ Halaman ============ */
+  .screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:flex-end;
+    padding:5vh 5vw 6vh; gap:2.4vh; text-align:center; }
+  .screen.on { display:flex; }
+  .screen.mid { justify-content:center; }
+  .part { display:flex; flex-direction:column; align-items:center; gap:2.4vh; width:100%; }
+
+  /* ============ Kaca ============ */
+  .glass { background:var(--glass); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur);
+    border:1px solid var(--glass-line);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.75), 0 24px 60px rgba(20,20,40,.14), 0 2px 8px rgba(20,20,40,.06); }
+  body.camOn .glass { background:var(--glass-strong); }
+  .card { border-radius:var(--r-card); padding:3.4vh 3.4vw; max-width:880px; width:100%; }
+
+  h1 { margin:0; font-size:clamp(30px,4.6vw,58px); font-weight:700; letter-spacing:-.025em; line-height:1.08; }
+  h2 { margin:0; font-size:clamp(22px,2.4vw,30px); font-weight:700; letter-spacing:-.02em; }
+  p  { margin:.6vh 0 0; font-size:clamp(17px,2vw,24px); line-height:1.4; color:var(--text-2); letter-spacing:-.01em; }
+
+  /* ============ Tombol ============ */
+  .row { display:flex; gap:16px; width:100%; max-width:880px; }
+  button { font-family:inherit; cursor:pointer; border:0; }
+  .btn { flex:1; display:inline-flex; align-items:center; justify-content:center; gap:.5em; min-height:96px;
+    padding:0 1.4em; border-radius:999px; font-size:clamp(21px,2.5vw,29px); font-weight:600; letter-spacing:-.015em;
+    color:var(--text); transition:transform .18s cubic-bezier(.3,.7,.4,1.4), filter .18s; }
+  .btn:active { transform:scale(.965); filter:brightness(.92); }
+  .btn:focus-visible, .chip:focus-visible, .field:focus-visible { outline:3px solid rgba(10,132,255,.6); outline-offset:3px; }
+  .btn.primary { background:var(--accent); color:#fff; box-shadow:0 10px 30px color-mix(in srgb, var(--accent) 40%, transparent), inset 0 1px 0 rgba(255,255,255,.25); }
+  .btn.go { background:var(--green); color:#fff; box-shadow:0 10px 30px rgba(52,199,89,.35); }
+  .btn.glassy { background:var(--glass); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur);
+    border:1px solid var(--glass-line); box-shadow:inset 0 1px 0 rgba(255,255,255,.7), 0 10px 30px rgba(20,20,40,.1); }
+  body.camOn .btn.glassy { background:var(--glass-strong); }
+  .btn.sm { flex:none; min-height:44px; padding:0 18px; font-size:17px; font-weight:600; }
+  .btn.tint { background:var(--fill); color:var(--text); box-shadow:none; }
+  .btn.danger { color:var(--red); }
+  .btn:disabled { opacity:.4; pointer-events:none; }
+
+  /* chip kecil di pojok (gaya tombol kontrol di atas video) */
+  .chip { position:absolute; top:22px; z-index:20; display:inline-flex; align-items:center; gap:8px; height:46px; padding:0 18px;
+    border-radius:999px; font-size:17px; font-weight:600; color:#fff; background:var(--glass-dark);
+    -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border:1px solid rgba(255,255,255,.18); }
+  .chip:active { transform:scale(.95); }
+  .chip.left { left:22px; } .chip.right { right:22px; }
+
+  /* ============ Halaman Start ============ */
+  #btnStart { position:relative; width:min(46vh,380px); height:min(46vh,380px); border-radius:50%; flex:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:var(--text); }
+  #btnStart .t { font-size:clamp(46px,7vh,72px); font-weight:700; letter-spacing:-.035em; }
+  #btnStart .s { font-size:clamp(16px,2.2vh,20px); color:var(--text-2); font-weight:500; }
+  #btnStart::before { content:""; position:absolute; inset:-18px; border-radius:50%; border:2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    animation:halo 3.2s ease-out infinite; }
+  @keyframes halo { 0% { transform:scale(.94); opacity:.9; } 100% { transform:scale(1.16); opacity:0; } }
+  #btnStart:active { transform:scale(.96); }
+
+  /* ============ Rekaman & quiz ============ */
+  .rec { position:absolute; top:22px; left:50%; transform:translateX(-50%); z-index:15; display:flex; align-items:center; gap:10px;
+    height:46px; padding:0 20px; border-radius:999px; color:#fff; font-size:19px; font-weight:600; font-variant-numeric:tabular-nums;
+    background:var(--glass-dark); -webkit-backdrop-filter:var(--blur); backdrop-filter:var(--blur); border:1px solid rgba(255,255,255,.18); }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--red); box-shadow:0 0 0 4px rgba(255,59,48,.25); animation:blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity:.35; } }
+
+  #countOverlay { position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center; }
+  #countOverlay .glass { width:min(42vh,320px); height:min(42vh,320px); border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:min(24vh,190px); font-weight:700; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+  #countNum { animation:tick 1s ease-out infinite; }
+  @keyframes tick { 0% { transform:scale(1.25); opacity:0; } 25% { transform:scale(1); opacity:1; } }
+
+  .bar { height:6px; background:var(--fill); border-radius:3px; overflow:hidden; margin-top:2.4vh; }
+  .bar > div { height:100%; width:100%; background:var(--accent); border-radius:3px; transition:width .2s linear; }
+  #qTime { font-variant-numeric:tabular-nums; }
+  .shuffling #qText { animation:jiggle .12s infinite; filter:blur(2px); opacity:.6; }
+  @keyframes jiggle { 0% { transform:translateY(-4px); } 50% { transform:translateY(4px); } }
+  .reveal { animation:pop .5s cubic-bezier(.3,.7,.4,1.3); }
+  @keyframes pop { 0% { transform:scale(.92); opacity:.4; } 100% { transform:scale(1); opacity:1; } }
+
+  /* ============ Lembar (Admin / Tambah) gaya Settings ============ */
+  .sheet { width:min(820px,100%); max-height:88vh; border-radius:var(--r-card); display:flex; flex-direction:column; overflow:hidden; text-align:left; }
+  .sheet-head { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; padding:16px 18px;
+    border-bottom:1px solid var(--hair); }
+  .sheet-head > :first-child { justify-self:start; } .sheet-head > :last-child { justify-self:end; }
+  .sheet-body { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+    touch-action:pan-y; padding:6px 22px 26px; }
+  .sheet-head { flex:none; }
+  .group-title { margin:22px 6px 8px; font-size:15px; font-weight:600; color:var(--text-2); letter-spacing:-.005em; }
+  .group { background:rgba(255,255,255,.62); border-radius:var(--r-group); overflow:hidden; border:1px solid rgba(255,255,255,.8); }
+  .item { padding:12px 16px; border-bottom:1px solid var(--hair); font-size:17px; }
+  .item:last-child { border-bottom:0; }
+  .item.split { display:flex; align-items:center; gap:14px; }
+  .item.split > span { width:110px; flex:none; font-weight:500; }
+  .item.actions { display:flex; flex-wrap:wrap; gap:10px; }
+  .muted { font-size:15px; color:var(--text-2); word-break:break-all; }
+  .note { font-size:15px; min-height:20px; margin:8px 6px 0; }
+  .err { color:var(--red); } .ok { color:#248A3D; }
+
+  .field, select { -webkit-user-select:text; user-select:text; width:100%; font-family:inherit; font-size:18px; color:var(--text);
+    padding:11px 14px; border-radius:var(--r-field); border:0; background:var(--fill); outline:none; }
+  .field:focus, select:focus { box-shadow:0 0 0 3px rgba(10,132,255,.35); }
+  select { appearance:none; -webkit-appearance:none; padding-right:40px; cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 9l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center; }
+  .item .field, .item select { background-color:transparent; padding:6px 0; border-radius:0; }
+  .item select { padding-right:30px; background-position:right 2px center; }
+  .item .field:focus, .item select:focus, .item .field:focus-visible { box-shadow:none; outline:none; }
+  .item.split:focus-within { background:rgba(10,132,255,.06); }
+  .item.split > .qnum { width:26px; text-align:right; font-weight:500; color:var(--text-2); }
+
+  #camPrev { width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; background:#1C1C1E; transform:scaleX(-1); display:block; }
+  #stats { margin:0; font-size:17px; color:var(--text); }
+  #sessList { margin:0; padding-left:28px; max-height:26vh; overflow:auto; font-size:15px; color:var(--text-2); line-height:1.7; font-variant-numeric:tabular-nums; }
+
+  .qnum { width:26px; flex:none; text-align:right; color:var(--text-2); font-variant-numeric:tabular-nums; font-size:16px; }
+
+  .swatches { display:flex; gap:12px; flex-wrap:wrap; padding:4px 0; }
+  .sw { width:34px; height:34px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12); transition:transform .15s; }
+  .sw:active { transform:scale(.9); }
+  .sw.on { box-shadow:0 0 0 3px rgba(255,255,255,.95), 0 0 0 5px var(--c); }
+
+  /* sakelar gaya iOS */
+  .switch { position:relative; width:51px; height:31px; flex:none; }
+  .switch input { opacity:0; width:100%; height:100%; margin:0; position:absolute; z-index:1; cursor:pointer; }
+  .switch i { position:absolute; inset:0; border-radius:999px; background:rgba(120,120,128,.3); transition:background .2s; }
+  .switch i::after { content:""; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff;
+    box-shadow:0 3px 8px rgba(0,0,0,.18); transition:transform .22s cubic-bezier(.3,.7,.4,1.2); }
+  .switch input:checked + i { background:var(--green); }
+  .switch input:checked + i::after { transform:translateX(20px); }
+
+  /* ============ Login ============ */
+  #adminLogin { max-width:460px; text-align:center; }
+  #adminLogin .group { margin-top:3vh; text-align:left; }
+
+  /* ============ Menyimpan & Terima kasih ============ */
+  .spinner { width:64px; height:64px; margin:0 auto 2.6vh; border-radius:50%; border:5px solid var(--fill); border-top-color:var(--accent);
+    animation:spin .9s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #saveBar { height:6px; background:var(--fill); border-radius:3px; overflow:hidden; margin-top:3vh; }
+  #saveBar > div { height:100%; width:0; background:var(--accent); }
+  #saveBar.run > div { animation:fill 3s linear forwards; }
+  @keyframes fill { to { width:100%; } }
+  .badge { width:96px; height:96px; margin:0 auto 2.4vh; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--green); color:#fff; box-shadow:0 12px 30px rgba(52,199,89,.35); }
+  .badge svg.i { width:52px; height:52px; stroke-width:2.6; }
+
+  /* ============ Notifikasi gaya Dynamic Island ============ */
+  #notice { display:none; position:absolute; top:18px; left:50%; transform:translateX(-50%); z-index:40; max-width:min(720px,90vw);
+    padding:12px 22px 12px 40px; border-radius:999px; background:rgba(0,0,0,.86); color:#fff; font-size:16px; font-weight:500;
+    line-height:1.35; box-shadow:0 12px 34px rgba(0,0,0,.25); animation:island .35s cubic-bezier(.3,.7,.4,1.3); }
+  #notice::before { content:""; position:absolute; left:18px; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--orange); }
+  @keyframes island { from { transform:translateX(-50%) scale(.6); opacity:0; } }
+
+  /* Tanpa dukungan blur: kaca dibuat lebih pekat supaya tetap terbaca */
+  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+    .glass, .btn.glassy { background:rgba(255,255,255,.92); }
+    .chip, .rec { background:rgba(28,28,30,.8); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .atmo b, #btnStart::before, .dot, #countNum, .spinner { animation:none; }
+    .shuffling #qText { animation:none; }
+  }
+</style>
+</head>
+<body>
+<!-- Ikon garis (gaya SF Symbols) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4.5 5h15A1.5 1.5 0 0 1 21 6.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V17h-1A1.5 1.5 0 0 1 3 15.5v-9A1.5 1.5 0 0 1 4.5 5z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3.5l1.9 4.9 4.9 1.9-4.9 1.9L11 17.1l-1.9-4.9-4.9-1.9 4.9-1.9z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3c4.5 0 6.5 10 11 10h3"/><path d="M3.5 17h3c1.6 0 2.8-1.3 3.8-3M13.7 10c1-1.7 2.2-3 3.8-3h3"/><path d="M18 4.5L20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4.5 19.5l1-4L16 5l3 3L8.5 18.5z"/><path d="M14 7l3 3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/></symbol>
+</svg>
+
+<div class="atmo" aria-hidden="true"><b></b><b></b><b></b></div>
+<video id="cam" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video>
+<div class="shade"></div>
+<div id="notice" role="status"></div>
+<div id="countOverlay"><div class="glass"><span id="countNum">3</span></div></div>
+
+<!-- 1. HALAMAN START -->
+<div class="screen mid on" id="start">
+  <button id="btnStart" class="glass"><span class="t">Start</span><span class="s">Sentuh untuk mulai</span></button>
+</div>
+
+<!-- 2. HALAMAN UTAMA -->
+<div class="screen" id="utama">
+  <button class="chip right" id="btnAdminOpen"><svg class="i"><use href="#i-sliders"/></svg>Admin</button>
+  <div class="card glass"><h1 id="couple"></h1><p id="welcome"></p></div>
+  <div class="row">
+    <button id="btnToPesan" class="btn primary"><svg class="i"><use href="#i-msg"/></svg>Kirim pesan</button>
+    <button id="btnToQuiz" class="btn glassy"><svg class="i"><use href="#i-spark"/></svg>Quick quiz</button>
+  </div>
+</div>
+
+<!-- 3. HALAMAN PESAN -->
+<div class="screen" id="pesan">
+  <div class="part" id="pesanPre">
+    <button class="chip left" id="btnPesanBack"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
+    <div class="card glass"><h1>Kirim pesan</h1><p>Tekan Mulai, sampaikan pesanmu untuk mempelai, lalu tekan Selesai.</p></div>
+    <div class="row"><button id="btnPesanMulai" class="btn primary"><svg class="i"><use href="#i-mic"/></svg>Mulai</button></div>
+  </div>
+  <div class="part" id="pesanRec" style="display:none">
+    <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
+    <div class="row"><button id="btnFinish" class="btn go"><svg class="i"><use href="#i-check"/></svg>Selesai</button></div>
+  </div>
+</div>
+
+<!-- 4. HALAMAN QUIZ -->
+<div class="screen" id="quiz">
+  <div class="part" id="quizPre">
+    <button class="chip left" id="btnQuizBack"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
+    <div class="card glass"><h1>Quick quiz</h1><p id="quizInfo"></p></div>
+    <div class="row"><button id="btnQuizMulai" class="btn primary"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button></div>
+  </div>
+  <div class="part" id="quizRun" style="display:none">
+    <div class="rec"><span class="dot"></span><span id="qRound"></span></div>
+    <div class="card glass" id="qCard">
+      <h1 id="qText" style="font-size:clamp(26px,3.8vw,46px)"></h1>
+      <div class="bar" id="qBarWrap"><div id="qBar"></div></div>
+      <p id="qTime"></p>
+    </div>
+    <div class="row"><button id="btnNext" class="btn glassy">Lanjut</button></div>
+  </div>
+</div>
+
+<!-- 5. HALAMAN ADMIN -->
+<div class="screen mid" id="admin">
+  <div class="card glass" id="adminLogin">
+    <h1 style="font-size:clamp(30px,3.6vw,42px)">Admin</h1>
+    <p>Masuk untuk mengatur videobooth</p>
+    <div class="group">
+      <div class="item split"><span>ID</span><input id="uid" class="field" autocomplete="off"></div>
+      <div class="item split"><span>Password</span><input id="pw" class="field" type="password" autocomplete="off"></div>
+    </div>
+    <div class="note err" id="loginErr"></div>
+    <div class="row" style="margin-top:6px">
+      <button id="btnLoginBack" class="btn glassy" style="min-height:58px;font-size:19px">Kembali</button>
+      <button id="btnLogin" class="btn primary" style="min-height:58px;font-size:19px">Masuk</button>
+    </div>
+  </div>
+
+  <div class="sheet glass" id="adminPanel" style="display:none">
+    <div class="sheet-head">
+      <button id="btnAdminBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Halaman utama</button>
+      <h2>Admin</h2>
+      <button id="btnRefresh" class="btn sm tint"><svg class="i"><use href="#i-retry"/></svg>Segarkan</button>
+    </div>
+    <div class="sheet-body">
+      <div class="group-title">Couple aktif</div>
+      <div class="group">
+        <div class="item"><select id="coupleSel"></select></div>
+        <div class="item muted" id="coupleInfo"></div>
+        <div class="item actions">
+          <button id="btnEditCouple" class="btn sm tint"><svg class="i"><use href="#i-pencil"/></svg>Edit</button>
+          <button id="btnAddCouple" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Tambah couple</button>
+          <button id="btnCoupleFolder" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Folder couple</button>
+          <button id="btnDelCouple" class="btn sm tint danger"><svg class="i"><use href="#i-trash"/></svg><span id="delLabel">Hapus</span></button>
+        </div>
+      </div>
+      <div class="note ok" id="coupleMsg"></div>
+
+      <div class="group-title">Kamera dan mikrofon</div>
+      <div class="group">
+        <div class="item"><video id="camPrev" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video></div>
+        <div class="item split"><span>Kamera</span><select id="camSel"></select></div>
+        <div class="item split"><span>Mikrofon</span><select id="micSel"></select></div>
+      </div>
+
+      <div class="group-title">Penyimpanan</div>
+      <div class="group">
+        <div class="item"><div class="muted" id="outDir"></div><div class="note err" id="dirMsg" style="margin:4px 0 0;min-height:0"></div></div>
+        <div class="item actions">
+          <button id="btnChooseDir" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Ubah folder</button>
+          <button id="btnResetDir" class="btn sm tint">Kembalikan default</button>
+          <button id="btnFolder" class="btn sm tint">Buka folder</button>
+        </div>
+      </div>
+
+      <div class="group-title">Pengaturan</div>
+      <div class="group">
+        <div class="item split"><span>Waktu jawab</span><select id="setSeconds" aria-label="Waktu menjawab per pertanyaan"></select></div>
+        <div class="item split"><span>Jumlah soal</span><select id="setRounds" aria-label="Jumlah pertanyaan per sesi quiz"></select></div>
+        <div class="item split"><span>Warna</span><div class="swatches" id="swatches"></div></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Layar penuh terkunci (kiosk)</span>
+          <label class="switch"><input type="checkbox" id="setKiosk"><i></i></label></div>
+      </div>
+      <div class="note ok" id="setMsg"></div>
+
+      <div class="group-title">Login Admin</div>
+      <div class="group">
+        <div class="item split"><span>ID</span><input id="setId" class="field" autocomplete="off"></div>
+        <div class="item split"><span>Password lama</span><input id="setOld" class="field" type="password" autocomplete="off"></div>
+        <div class="item split"><span>Password baru</span><input id="setNew" class="field" type="password" autocomplete="off" placeholder="Minimal 4 karakter"></div>
+        <div class="item split"><span>Ulangi</span><input id="setNew2" class="field" type="password" autocomplete="off"></div>
+        <div class="item actions"><button id="btnSaveLogin" class="btn sm primary">Ganti login</button></div>
+      </div>
+      <div class="note ok" id="loginMsg"></div>
+
+      <div class="group-title">Sesi</div>
+      <div class="group">
+        <div class="item"><p id="stats"></p></div>
+        <div class="item"><ol id="sessList"></ol></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. HALAMAN TAMBAH (tambah / edit couple) -->
+<div class="screen mid" id="tambah">
+  <div class="sheet glass">
+    <div class="sheet-head">
+      <button id="btnTambahBatal" class="btn sm tint">Batal</button>
+      <h2 id="tambahTitle">Tambah couple</h2>
+      <button id="btnTambahSimpan" class="btn sm primary">Simpan</button>
+    </div>
+    <div class="sheet-body">
+      <div class="group-title">Couple</div>
+      <div class="group">
+        <div class="item split"><span>Nama</span><input id="fName" class="field" maxlength="80" placeholder="Rina &amp; Dimas" autocomplete="off"></div>
+        <div class="item split"><span>Sambutan</span><input id="fWelcome" class="field" maxlength="160" placeholder="Opsional" autocomplete="off"></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Jadikan couple aktif</span>
+          <label class="switch"><input type="checkbox" id="fActive"><i></i></label></div>
+      </div>
+      <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span></div>
+      <div class="group" id="qInputs"></div>
+      <div class="note err" id="tambahErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HALAMAN MENYIMPAN (loading setelah pesan / quiz) -->
+<div class="screen mid" id="saving">
+  <div class="card glass" style="max-width:560px">
+    <div class="spinner"></div>
+    <h1 style="font-size:clamp(26px,3.4vw,40px)">Menyimpan rekamanmu</h1>
+    <p>Mohon tunggu sebentar</p>
+    <div id="saveBar"><div></div></div>
+  </div>
+</div>
+
+<!-- 6. HALAMAN THANK YOU -->
+<div class="screen mid" id="thanks">
+  <div class="card glass" style="max-width:640px">
+    <div class="badge"><svg class="i"><use href="#i-check"/></svg></div>
+    <h1>Terima kasih</h1>
+    <p>Rekamanmu sudah tersimpan.</p>
+  </div>
+  <div class="row" style="max-width:640px">
+    <button id="btnCobaLagi" class="btn glassy"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
+    <button id="btnSelesai" class="btn primary">Selesai</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'admin', 'tambah', 'saving', 'thanks'];
+const MAX_Q = 10;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+let cfg, mediaStream = null, rec = null, lastSave = Promise.resolve(), recT0 = 0, recTick = null;
+let sessionToken = 0, cancelTimer = null, noticeTimer = null;
+let busy = false, noCam = false, current = 'start', idleTimer = null;
+let couplesData = null, activeCouple = null, editingId = null, delArmed = null;
+
+/* ---------- Navigasi & idle ---------- */
+function show(name) {
+  current = name;
+  SCREENS.forEach(s => $(s).classList.toggle('on', s === name));
+  document.body.classList.toggle('camOn', ['utama', 'pesan', 'quiz'].includes(name));
+  resetIdle();
+}
+function resetIdle() {
+  clearTimeout(idleTimer);
+  if (busy) return;
+  const wait = { utama: 60000, pesan: 60000, quiz: 60000, admin: 180000, tambah: 600000, thanks: 20000 }[current];
+  if (wait) idleTimer = setTimeout(() => show('start'), wait);
+}
+function setNotice(t, ms) {
+  clearTimeout(noticeTimer);
+  $('notice').textContent = t; $('notice').style.display = t ? 'block' : 'none';
+  if (t && ms) noticeTimer = setTimeout(() => setNotice(''), ms);
+}
+
+/* ---------- Kamera & mic ---------- */
+async function openStream() {
+  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+  mediaStream = null;
+  const camId = store.get('camId'), micId = store.get('micId');
+  const size = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  const audio = micId ? { deviceId: { exact: micId } } : true;
+  const video = camId ? { deviceId: { exact: camId }, ...size } : size;
+  let s = null;
+  for (const c of [{ video, audio }, { video: true, audio: true }, { video: false, audio: true }]) {
+    try { s = await navigator.mediaDevices.getUserMedia(c); break; } catch (e) { console.log('Gagal buka perangkat: ' + e.name); }
+  }
+  if (!s) { setNotice('Tidak ada kamera/mic yang bisa dipakai'); return; }
+  noCam = s.getVideoTracks().length === 0;
+  setNotice(noCam ? 'MODE TES: tanpa kamera (hanya suara)' : '');
+  mediaStream = s;
+  $('cam').srcObject = s;
+  $('camPrev').srcObject = s;
+}
+async function initDevices() {
+  await openStream();
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  console.log('PERANGKAT TERDETEKSI:\n' + devs.filter(d => d.kind !== 'audiooutput').map(d => `  ${d.kind}: ${d.label}`).join('\n'));
+  const byName = (kind, name) => name ? devs.find(d => d.kind === kind && d.label.toLowerCase().includes(name.toLowerCase())) : null;
+  let changed = false;
+  if (!store.get('camId')) { const c = byName('videoinput', cfg.cameraName); if (c) { store.set('camId', c.deviceId); changed = true; } }
+  if (!store.get('micId')) { const m = byName('audioinput', cfg.micName); if (m) { store.set('micId', m.deviceId); changed = true; } }
+  if (changed) await openStream();
+}
+async function fillDevices() {
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  const cur = kind => {
+    const t = mediaStream && (kind === 'videoinput' ? mediaStream.getVideoTracks()[0] : mediaStream.getAudioTracks()[0]);
+    return t ? t.getSettings().deviceId : '';
+  };
+  const fill = (sel, kind, name, emptyText) => {
+    sel.innerHTML = '';
+    const list = devs.filter(d => d.kind === kind);
+    sel.disabled = !list.length;
+    if (!list.length) { const o = document.createElement('option'); o.textContent = emptyText; sel.appendChild(o); return; }
+    list.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId; o.textContent = d.label || `${name} ${i + 1}`;
+      if (d.deviceId === cur(kind)) o.selected = true;
+      sel.appendChild(o);
+    });
+  };
+  fill($('camSel'), 'videoinput', 'Kamera', 'Tidak ada kamera terdeteksi');
+  fill($('micSel'), 'audioinput', 'Mikrofon', 'Tidak ada mikrofon terdeteksi');
+}
+
+/* ---------- Perekaman ---------- */
+// Setiap rekaman punya objek & ID sendiri, jadi rekaman baru tidak bisa menimpa yang sedang disimpan.
+async function startRecording(label) {
+  await lastSave.catch(() => {});                 // tunggu rekaman sebelumnya selesai disimpan
+  const r = await api.recStart(label);
+  if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
+  if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
+  const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null };
+  try {
+    cur.recorder = new MediaRecorder(mediaStream, noCam ? { mimeType: 'audio/webm;codecs=opus' }
+      : { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 5000000 });
+  } catch (err) {
+    await api.recAbort(r.id);
+    throw err;
+  }
+  cur.recorder.ondataavailable = e => {
+    if (!e.data.size) return;
+    cur.pending = cur.pending
+      .then(async () => api.recChunk(cur.id, new Uint8Array(await e.data.arrayBuffer())))
+      .catch(err => console.log('Gagal mengirim potongan rekaman: ' + err.message));
+  };
+  cur.recorder.onerror = ev => {
+    if (rec === cur) abortSession('Perekaman berhenti karena kamera/mic bermasalah. Cek perangkat di Admin.');
+  };
+  cur.recorder.start(1000);
+  rec = cur;
+  recT0 = cur.t0;
+}
+function stopRecording(meta) {
+  const cur = rec;
+  rec = null;
+  if (!cur) return Promise.resolve();
+  const seconds = Math.round((Date.now() - cur.t0) / 1000);
+  const info = { couple: activeCouple ? activeCouple.name : '', ...(meta || {}) };
+  const p = new Promise(resolve => {
+    const finish = async () => {
+      try {
+        await cur.pending;
+        const res = await api.recEnd(cur.id, seconds, info);
+        if (res && !res.ok) setNotice('Rekaman terakhir gagal disimpan: ' + res.error, 15000);
+      } catch (err) { setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000); }
+      resolve();
+    };
+    if (cur.recorder.state === 'inactive') finish();
+    else { cur.recorder.onstop = finish; cur.recorder.stop(); }
+  });
+  lastSave = p;
+  return p;
+}
+async function countdown() {
+  $('countOverlay').style.display = 'flex';
+  for (let i = 3; i >= 1; i--) { $('countNum').textContent = i; await sleep(1000); }
+  $('countOverlay').style.display = 'none';
+}
+// Setelah pesan/quiz: layar "Menyimpan" minimal 3 detik, dan sampai rekaman benar-benar tersimpan.
+// Tamu tidak bisa menekan apa pun di layar ini, jadi tidak bisa langsung "Coba Lagi".
+const SAVE_MIN_MS = 3000, SAVE_MAX_MS = 15000;
+let finishing = false;
+async function finishSession(meta) {
+  if (finishing) return;                       // cegah tombol Finish tertekan dua kali
+  finishing = true;
+  sessionToken++;
+  clearInterval(recTick);
+  const bar = $('saveBar');
+  bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+  show('saving');
+  const saved = stopRecording(meta);
+  // Batas atas 15 detik supaya layar tidak pernah tertahan; penyimpanan tetap lanjut di belakang
+  await Promise.all([sleep(SAVE_MIN_MS), Promise.race([saved, sleep(SAVE_MAX_MS)])]);
+  finishing = false;
+  busy = false;
+  show('thanks');
+}
+// Dipanggil kalau sesuatu gagal: simpan yang sempat terekam, lalu kembali ke Halaman Utama.
+// Aplikasi tidak pernah tertahan di layar tanpa tombol.
+async function abortSession(msg) {
+  sessionToken++;
+  clearInterval(recTick);
+  if (cancelTimer) cancelTimer();
+  $('countOverlay').style.display = 'none';
+  const saving = stopRecording({ aborted: true });
+  busy = false;
+  setNotice(msg, 15000);
+  show('utama');
+  await saving;
+}
+function needStream() {
+  if (mediaStream) return true;
+  setNotice('Tidak ada kamera/mic. Atur di halaman Admin.', 8000);
+  return false;
+}
+
+/* ---------- Halaman Pesan ---------- */
+function openPesan() {
+  $('pesanPre').style.display = 'flex';
+  $('pesanRec').style.display = 'none';
+  show('pesan');
+}
+async function mulaiPesan() {
+  if (busy || !needStream()) return;
+  busy = true; resetIdle();
+  const token = ++sessionToken;
+  $('pesanPre').style.display = 'none';
+  try {
+    await countdown();
+    if (token !== sessionToken) return;
+    await startRecording('pesan');
+    if (token !== sessionToken) return;
+    $('pesanTime').textContent = '0:00';
+    $('pesanRec').style.display = 'flex';
+    recTick = setInterval(() => { $('pesanTime').textContent = fmt(Math.floor((Date.now() - recT0) / 1000)); }, 250);
+  } catch (err) {
+    console.log('Gagal memulai pesan: ' + err.message);
+    if (token === sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
+  }
+}
+
+/* ---------- Halaman Quiz ---------- */
+const quizRounds = () => Math.min(cfg.quizRounds, cfg.quiz.length);
+function openQuiz() {
+  $('btnQuizMulai').disabled = !cfg.quiz.length;
+  if (!cfg.quiz.length) {
+    $('quizInfo').textContent = 'Belum ada pertanyaan untuk couple ini. Tambahkan lewat halaman Admin.';
+    $('quizPre').style.display = 'flex'; $('quizRun').style.display = 'none'; show('quiz'); return;
+  }
+  $('quizInfo').textContent = `Akan muncul ${quizRounds()} pertanyaan acak. Kamu punya ${cfg.quizSeconds} detik untuk menjawab setiap pertanyaan.`;
+  $('quizPre').style.display = 'flex';
+  $('quizRun').style.display = 'none';
+  show('quiz');
+}
+function pickQuestions(n) {
+  const idx = cfg.quiz.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  const out = idx.slice(0, n);
+  while (out.length < n) out.push(Math.floor(Math.random() * cfg.quiz.length));
+  return out;
+}
+async function shuffleTo(qi) {
+  const card = $('qCard');
+  $('qBarWrap').style.visibility = 'hidden'; $('qTime').style.visibility = 'hidden'; $('btnNext').style.visibility = 'hidden';
+  card.classList.remove('reveal'); card.classList.add('shuffling');
+  for (let d = 60; d < 320; d *= 1.15) {
+    $('qText').textContent = cfg.quiz[Math.floor(Math.random() * cfg.quiz.length)];
+    await sleep(d);
+  }
+  $('qText').textContent = cfg.quiz[qi];
+  card.classList.remove('shuffling');
+  void card.offsetWidth; card.classList.add('reveal');
+  await sleep(500);
+}
+function answerTimer(isLast) {
+  const secs = cfg.quizSeconds;
+  $('qBarWrap').style.visibility = 'visible'; $('qTime').style.visibility = 'visible'; $('btnNext').style.visibility = 'visible';
+  $('btnNext').textContent = isLast ? 'Selesai' : 'Lanjut';
+  return new Promise(resolve => {
+    const t0 = Date.now();
+    const iv = setInterval(() => {
+      const remain = Math.max(0, secs - (Date.now() - t0) / 1000);
+      $('qBar').style.width = (remain / secs * 100) + '%';
+      $('qTime').textContent = `Sisa waktu ${fmt(Math.ceil(remain))}`;
+      if (remain <= 0) done();
+    }, 200);
+    const done = () => { clearInterval(iv); $('btnNext').onclick = null; cancelTimer = null; resolve(); };
+    $('btnNext').onclick = done;
+    cancelTimer = done;
+  });
+}
+async function mulaiQuiz() {
+  if (busy || !needStream() || !cfg.quiz.length) return;
+  busy = true; resetIdle();
+  const token = ++sessionToken;
+  $('quizPre').style.display = 'none';
+  $('quizRun').style.display = 'flex';
+  try {
+    await startRecording('quiz');
+    const picks = pickQuestions(quizRounds());
+    for (let r = 0; r < picks.length; r++) {
+      if (token !== sessionToken) return;
+      $('qRound').textContent = `Pertanyaan ${r + 1} dari ${picks.length}`;
+      await shuffleTo(picks[r]);
+      if (token !== sessionToken) return;
+      await answerTimer(r === picks.length - 1);
+    }
+    if (token !== sessionToken) return;
+    finishSession({ questions: picks.map(i => cfg.quiz[i]) });
+  } catch (err) {
+    console.log('Gagal menjalankan quiz: ' + err.message);
+    if (token === sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
+  }
+}
+
+/* ---------- Couple aktif ---------- */
+function applyCouples(d) {
+  couplesData = d;
+  activeCouple = d.couples.find(c => c.id === d.activeId) || d.couples[0] || null;
+  $('couple').textContent = activeCouple ? activeCouple.name : '';
+  $('welcome').textContent = (activeCouple && activeCouple.welcome) || cfg.welcome || '';
+  cfg.quiz = activeCouple ? activeCouple.questions.slice() : [];
+}
+function fillCoupleSel() {
+  const sel = $('coupleSel'); sel.innerHTML = '';
+  couplesData.couples.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.name;
+    if (c.id === couplesData.activeId) o.selected = true;
+    sel.appendChild(o);
+  });
+  const n = activeCouple ? activeCouple.questions.length : 0;
+  $('coupleInfo').textContent = activeCouple
+    ? `${n} pertanyaan · ${couplesData.couples.length} couple tersimpan`
+    : 'Belum ada couple.';
+  disarmDelete();
+}
+function flash(id, text, isErr) {
+  const el = $(id);
+  el.className = 'note ' + (isErr ? 'err' : 'ok');
+  el.textContent = text;
+  clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, 4000);
+}
+async function changeActive(id) {
+  const r = await api.setActiveCouple(id);
+  if (r.error) return flash('coupleMsg', r.error, true);
+  applyCouples(r.data); fillCoupleSel(); await loadSessions();
+  flash('coupleMsg', `Couple aktif sekarang: ${activeCouple.name}`);
+}
+function disarmDelete() {
+  clearTimeout(delArmed); delArmed = null;
+  $('delLabel').textContent = 'Hapus';
+}
+async function deleteCouple() {
+  const target = couplesData.couples.find(c => c.id === $('coupleSel').value);
+  if (!target) return;
+  if (!delArmed) {  // tekan dua kali untuk konfirmasi
+    $('delLabel').textContent = 'Yakin hapus?';
+    delArmed = setTimeout(disarmDelete, 3000);
+    return;
+  }
+  disarmDelete();
+  const r = await api.deleteCouple(target.id);
+  if (r.error) return flash('coupleMsg', r.error, true);
+  applyCouples(r.data); fillCoupleSel(); await loadSessions();
+  flash('coupleMsg', `"${target.name}" dihapus. Rekamannya tetap tersimpan.`);
+}
+
+/* ---------- Halaman Tambah ---------- */
+function buildQInputs() {
+  const box = $('qInputs'); box.innerHTML = '';
+  for (let i = 0; i < MAX_Q; i++) {
+    const row = document.createElement('div'); row.className = 'item split';
+    const n = document.createElement('span'); n.className = 'qnum'; n.textContent = i + 1;
+    const inp = document.createElement('input');
+    inp.className = 'field qIn'; inp.maxLength = 200; inp.autocomplete = 'off';
+    inp.placeholder = i === 0 ? 'Pertanyaan pertama (wajib)' : 'Opsional';
+    inp.addEventListener('input', updateQCount);
+    row.appendChild(n); row.appendChild(inp); box.appendChild(row);
+  }
+}
+function updateQCount() {
+  const n = [...document.querySelectorAll('.qIn')].filter(i => i.value.trim()).length;
+  $('qCount').textContent = `(${n}/${MAX_Q} terisi)`;
+}
+function openTambah(c) {
+  editingId = c ? c.id : null;
+  $('tambahTitle').textContent = c ? 'Edit couple' : 'Tambah couple';
+  $('fName').value = c ? c.name : '';
+  $('fWelcome').value = c ? (c.welcome || '') : '';
+  const qs = c ? c.questions : [];
+  document.querySelectorAll('.qIn').forEach((inp, i) => { inp.value = qs[i] || ''; });
+  $('fActive').checked = c ? c.id === couplesData.activeId : true;
+  $('tambahErr').textContent = '';
+  updateQCount();
+  show('tambah');
+  setTimeout(() => $('fName').focus(), 50);
+}
+async function saveTambah() {
+  const data = {
+    id: editingId || undefined,
+    name: $('fName').value,
+    welcome: $('fWelcome').value,
+    questions: [...document.querySelectorAll('.qIn')].map(i => i.value)
+  };
+  const r = await api.saveCouple(data);
+  if (r.error) { $('tambahErr').textContent = r.error; return; }
+  let d = r.data;
+  if ($('fActive').checked && d.activeId !== r.couple.id) d = (await api.setActiveCouple(r.couple.id)).data;
+  applyCouples(d);
+  show('admin');
+  fillCoupleSel(); await loadSessions();
+  flash('coupleMsg', `"${r.couple.name}" tersimpan${d.activeId === r.couple.id ? ' dan aktif' : ''}.`);
+}
+
+/* ---------- Pengaturan (Admin) ---------- */
+const SWATCHES = [['#B08D57', 'Emas'], ['#C47A86', 'Rose'], ['#7C9A7E', 'Sage'], ['#3E6E9E', 'Biru'], ['#48484A', 'Grafit']];
+const SECONDS = [20, 30, 45, 60, 90, 120, 180];
+const secLabel = v => v < 60 ? `${v} detik` : `${String(v / 60).replace('.', ',')} menit`;
+function fillSelect(sel, values, current, label) {
+  sel.innerHTML = '';
+  [...new Set([...values, current])].sort((a, b) => a - b).forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = label(v); o.selected = v === current;
+    sel.appendChild(o);
+  });
+}
+function renderSwatches(accent) {
+  const box = $('swatches'); box.innerHTML = '';
+  const list = SWATCHES.some(([c]) => c.toLowerCase() === accent.toLowerCase()) ? SWATCHES : [...SWATCHES, [accent, 'Warna saat ini']];
+  list.forEach(([c, name]) => {
+    const b = document.createElement('button');
+    b.className = 'sw' + (c.toLowerCase() === accent.toLowerCase() ? ' on' : '');
+    b.style.background = c; b.style.setProperty('--c', c);
+    b.title = name; b.setAttribute('aria-label', 'Warna ' + name);
+    b.onclick = () => saveSetting({ accent: c }, `Warna diganti ke ${name}.`);
+    box.appendChild(b);
+  });
+}
+function applySettings(s) {
+  cfg.quizSeconds = s.quizSeconds;
+  cfg.quizRounds = s.quizRounds;
+  document.documentElement.style.setProperty('--accent', s.accent);
+}
+async function loadSettings() {
+  const s = await api.getSettings();
+  applySettings(s);
+  fillSelect($('setSeconds'), SECONDS, s.quizSeconds, secLabel);
+  fillSelect($('setRounds'), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], s.quizRounds, v => `${v} pertanyaan`);
+  renderSwatches(s.accent);
+  $('setKiosk').checked = s.kiosk;
+  $('setId').value = s.loginId;
+  $('setOld').value = $('setNew').value = $('setNew2').value = '';
+}
+// Pengaturan langsung tersimpan dan berlaku, tanpa menutup aplikasi
+async function saveSetting(patch, msg) {
+  const s = await api.saveSettings(patch);
+  applySettings(s);
+  renderSwatches(s.accent);
+  $('setKiosk').checked = s.kiosk;
+  flash('setMsg', msg || 'Tersimpan.');
+}
+async function saveLogin() {
+  if (!$('setOld').value) return flash('loginMsg', 'Isi password lama dulu.', true);
+  if ($('setNew').value !== $('setNew2').value) return flash('loginMsg', 'Password baru dan ulangannya tidak sama.', true);
+  const r = await api.changeLogin($('setOld').value, $('setId').value, $('setNew').value);
+  if (r.error) return flash('loginMsg', r.error, true);
+  $('setOld').value = $('setNew').value = $('setNew2').value = '';
+  flash('loginMsg', `Login diganti. Masuk berikutnya pakai ID "${r.id}" dan password baru.`);
+}
+
+/* ---------- Halaman Admin ---------- */
+function openAdmin() {
+  $('adminLogin').style.display = 'block';
+  $('adminPanel').style.display = 'none';
+  $('uid').value = ''; $('pw').value = ''; $('loginErr').textContent = '';
+  show('admin');
+  setTimeout(() => $('uid').focus(), 50);
+}
+async function doLogin() {
+  if (await api.login($('uid').value.trim(), $('pw').value)) {
+    $('adminLogin').style.display = 'none';
+    $('adminPanel').style.display = 'flex';
+    $('pw').value = '';
+    await refreshAdmin();
+  } else { $('loginErr').textContent = 'ID atau password salah'; $('pw').value = ''; }
+}
+async function loadOutDir() {
+  const r = await api.getOutDir();
+  $('outDir').textContent = r.dir + (r.isDefault ? '  (default)' : '');
+  $('dirMsg').textContent = r.ok ? '' : 'Folder ini tidak tersedia. Rekaman akan disimpan di folder default.';
+}
+async function loadSessions() {
+  const list = await api.getSessions();
+  const today = list.filter(s => new Date(s.time).toDateString() === new Date().toDateString()).length;
+  const forActive = activeCouple ? list.filter(s => s.couple === activeCouple.name).length : 0;
+  $('stats').textContent = `Total sesi: ${list.length}  ·  Hari ini: ${today}  ·  ${activeCouple ? activeCouple.name : '-'}: ${forActive}`;
+  const ol = $('sessList'); ol.innerHTML = '';
+  if (!list.length) { const li = document.createElement('li'); li.textContent = 'Belum ada sesi.'; ol.appendChild(li); return; }
+  list.map((s, i) => ({ s, n: i + 1 })).reverse().forEach(({ s, n }) => {
+    const d = new Date(s.time);
+    const jam = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const jenis = s.label === 'pesan' ? 'Pesan' : s.label === 'quiz' ? 'Quiz' : 'Quiz #' + String(s.label).split('-')[1];
+    const st = { processing: ' · memproses MP4', done: ' · MP4 siap', failed: ' · gagal konversi (.webm tersimpan)',
+      'write-error': ' · gagal disimpan (' + (s.error || 'error disk') + ')' }[s.status] || '';
+    const li = document.createElement('li');
+    li.value = n;
+    li.textContent = `${jam} · ${s.couple ? s.couple + ' · ' : ''}${jenis} · ${fmt(s.seconds || 0)}${st}`;
+    ol.appendChild(li);
+  });
+}
+async function refreshAdmin() {
+  applyCouples(await api.getCouples()); fillCoupleSel();
+  await loadSettings();
+  await fillDevices(); await loadOutDir(); await loadSessions();
+}
+
+/* ---------- Mulai ---------- */
+(async () => {
+  cfg = await api.getConfig();
+  cfg.quiz = cfg.quiz || [];
+  cfg.quizSeconds = Number(cfg.quizSeconds) || 60;
+  cfg.quizRounds = Number(cfg.quizRounds) || 3;
+  if (cfg.colors) {
+    const r = document.documentElement.style;
+    if (cfg.colors.accent) r.setProperty('--accent', cfg.colors.accent);
+  }
+  applyCouples(await api.getCouples());
+  buildQInputs();
+
+  $('btnStart').onclick = () => show('utama');
+  $('btnToPesan').onclick = openPesan;
+  $('btnToQuiz').onclick = openQuiz;
+  $('btnAdminOpen').onclick = openAdmin;
+
+  $('btnPesanBack').onclick = () => show('utama');
+  $('btnPesanMulai').onclick = mulaiPesan;
+  $('btnFinish').onclick = () => finishSession();
+
+  $('btnQuizBack').onclick = () => show('utama');
+  $('btnQuizMulai').onclick = mulaiQuiz;
+
+  $('btnLogin').onclick = doLogin;
+  $('btnLoginBack').onclick = () => show('utama');
+  $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  $('uid').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
+  $('btnAdminBack').onclick = () => show('utama');
+  $('camSel').onchange = async e => { store.set('camId', e.target.value); await openStream(); await fillDevices(); };
+  $('micSel').onchange = async e => { store.set('micId', e.target.value); await openStream(); await fillDevices(); };
+  $('btnChooseDir').onclick = async () => {
+    const r = await api.chooseOutDir();
+    if (r.error) $('dirMsg').textContent = r.error; else if (!r.canceled) await loadOutDir();
+  };
+  $('btnResetDir').onclick = async () => { await api.resetOutDir(); await loadOutDir(); };
+  $('btnFolder').onclick = () => api.openFolder();
+  $('setSeconds').onchange = e => saveSetting({ quizSeconds: Number(e.target.value) }, `Waktu jawab: ${secLabel(Number(e.target.value))}.`);
+  $('setRounds').onchange = e => saveSetting({ quizRounds: Number(e.target.value) }, `Jumlah soal per sesi: ${e.target.value}.`);
+  $('setKiosk').onchange = e => saveSetting({ kiosk: e.target.checked },
+    e.target.checked ? 'Layar penuh aktif. Untuk keluar, matikan lagi di sini.' : 'Layar penuh dimatikan.');
+  $('btnSaveLogin').onclick = saveLogin;
+  $('btnRefresh').onclick = async () => { await openStream(); await refreshAdmin(); };
+
+  $('coupleSel').onchange = e => changeActive(e.target.value);
+  $('btnAddCouple').onclick = () => openTambah(null);
+  $('btnEditCouple').onclick = () => openTambah(couplesData.couples.find(c => c.id === $('coupleSel').value));
+  $('btnDelCouple').onclick = deleteCouple;
+  $('btnCoupleFolder').onclick = async () => {
+    const r = await api.openCoupleFolder();
+    if (r) flash('coupleMsg', r, true);
+  };
+  $('btnTambahBatal').onclick = () => show('admin');
+  $('btnTambahSimpan').onclick = saveTambah;
+
+  $('btnCobaLagi').onclick = () => show('utama');
+  $('btnSelesai').onclick = () => show('start');
+
+  // Penyimpanan gagal di tengah rekaman (disk penuh / SSD tercabut)
+  api.onRecError((id, msg) => {
+    if (rec && rec.id === id) abortSession('Rekaman gagal disimpan: ' + msg + '. Cek ruang disk / folder penyimpanan di Admin.');
+    else setNotice('Rekaman gagal disimpan: ' + msg, 15000);
+  });
+  window.addEventListener('unhandledrejection', e => console.log('Error: ' + (e.reason && e.reason.message || e.reason)));
+
+  document.addEventListener('pointerdown', resetIdle);
+  document.addEventListener('keydown', resetIdle);
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.querySelectorAll('video').forEach(v => { v.disableRemotePlayback = true; });
+
+  try { await initDevices(); } catch (err) { setNotice('Gagal membuka kamera/mic: ' + err.message); }
+})();
+</script>
+</body>
+</html>

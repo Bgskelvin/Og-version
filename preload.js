@@ -1,0 +1,23 @@
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('api', {
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  login: (id, pw) => ipcRenderer.invoke('login', id, pw),
+  getSessions: () => ipcRenderer.invoke('get-sessions'),
+  getCouples: () => ipcRenderer.invoke('get-couples'),
+  saveCouple: c => ipcRenderer.invoke('save-couple', c),
+  deleteCouple: id => ipcRenderer.invoke('delete-couple', id),
+  setActiveCouple: id => ipcRenderer.invoke('set-active-couple', id),
+  openFolder: () => ipcRenderer.invoke('open-folder'),
+  openCoupleFolder: () => ipcRenderer.invoke('open-couple-folder'),
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  saveSettings: patch => ipcRenderer.invoke('save-settings', patch),
+  changeLogin: (oldPw, id, pw) => ipcRenderer.invoke('change-login', oldPw, id, pw),
+  getOutDir: () => ipcRenderer.invoke('get-outdir'),
+  chooseOutDir: () => ipcRenderer.invoke('choose-outdir'),
+  resetOutDir: () => ipcRenderer.invoke('reset-outdir'),
+  recStart: label => ipcRenderer.invoke('rec-start', label),
+  recChunk: (id, buf) => ipcRenderer.send('rec-chunk', id, buf),
+  recEnd: (id, seconds, meta) => ipcRenderer.invoke('rec-end', id, seconds, meta),
+  recAbort: id => ipcRenderer.invoke('rec-abort', id),
+  onRecError: cb => ipcRenderer.on('rec-error', (e, id, msg) => cb(id, msg))
+});

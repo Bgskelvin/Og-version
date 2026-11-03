@@ -1,0 +1,8 @@
+# Komponen yang diunduh ulang dengan "npm install"
+node_modules/
+# Hasil build installer
+dist/
+# File sistem macOS
+.DS_Store
+# File sementara
+*.log
