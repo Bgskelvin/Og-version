@@ -361,6 +361,41 @@ ipcMain.handle('rec-abort', async (e, id) => {
   try { writeSessions(readSessions().filter(x => x.id !== rec.sid)); } catch (err) {}
 });
 
+// ---------- Photo Booth: simpan 4 foto asli + 1 hasil edit ----------
+// Lokasi: <folder penyimpanan>/<nama couple>/Foto/
+ipcMain.handle('save-photos', async (e, payload) => {
+  try {
+    const { originals = [], result, meta = {} } = payload || {};
+    if (!result || !originals.length) return { ok: false, error: 'Data foto kosong' };
+    const name = activeCoupleName();
+    let base = getOutDir();
+    if (!usableDir(base)) { base = defaultDir; if (!usableDir(base)) return { ok: false, error: 'Folder penyimpanan tidak bisa ditulisi.' }; }
+    const dir = path.join(coupleDir(base, name), 'Foto');
+    if (!usableDir(dir)) return { ok: false, error: 'Folder foto tidak bisa dibuat.' };
+    const prefix = (safeName(name) ? safeName(name) + '_' : '') + stamp();
+    let tag = '', n = 2;
+    while (fs.existsSync(path.join(dir, `${prefix}${tag}_hasil.jpg`))) tag = '_' + n++;
+    const files = [];
+    for (let i = 0; i < originals.length; i++) {
+      const f = `${prefix}${tag}_foto-${i + 1}.jpg`;
+      await fs.promises.writeFile(path.join(dir, f), Buffer.from(originals[i]));
+      files.push(f);
+    }
+    const hasil = `${prefix}${tag}_hasil.jpg`;
+    await fs.promises.writeFile(path.join(dir, hasil), Buffer.from(result));
+    try {
+      const list = readSessions();
+      list.push({ id: Date.now() * 1000 + Math.floor(Math.random() * 1000), time: new Date().toISOString(), label: 'foto',
+        file: hasil, dir, couple: name, seconds: 0, status: 'photo', photos: originals.length, originalFiles: files, ...meta });
+      writeSessions(list);
+    } catch (err) { console.log('Gagal mencatat sesi foto: ' + err.message); }
+    return { ok: true, file: path.join(dir, hasil) };
+  } catch (err) {
+    console.log('Gagal menyimpan foto: ' + err.message);
+    return { ok: false, error: err.message };
+  }
+});
+
 // Pulihkan rekaman yang terputus (aplikasi ditutup paksa, crash, atau listrik mati saat merekam).
 // Potongan rekaman sudah tertulis ke disk setiap detik, jadi isinya bisa diselamatkan.
 function recoverInterrupted() {

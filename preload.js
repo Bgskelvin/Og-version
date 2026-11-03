@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
   openFolder: () => ipcRenderer.invoke('open-folder'),
   openCoupleFolder: () => ipcRenderer.invoke('open-couple-folder'),
   getStartupInfo: () => ipcRenderer.invoke('get-startup-info'),
+  savePhotos: payload => ipcRenderer.invoke('save-photos', payload),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: patch => ipcRenderer.invoke('save-settings', patch),
   changeLogin: (oldPw, id, pw) => ipcRenderer.invoke('change-login', oldPw, id, pw),
