@@ -23,7 +23,7 @@
       <div class="row pb-actions" id="pbActions" style="display:none">
         <button id="pbFinish" class="btn primary"><svg class="i"><use href="#i-wand"/></svg>Finish &amp; edit</button>
       </div>
-      <div class="pb-strip glass" id="pbStrip"></div>
+      <div class="pb-strip" id="pbStrip"></div>
     </div>
   </div>
 
