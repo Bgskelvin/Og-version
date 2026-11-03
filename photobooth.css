@@ -31,6 +31,17 @@
 .pb-count .glass { width:min(42vh,320px); height:min(42vh,320px); border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-size:min(24vh,190px); font-weight:700; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
 .pb-count span { animation:tick 1s ease-out infinite; }
+.pb-preview { position:absolute; inset:0 0 14vh 0; z-index:31; display:none; align-items:center; justify-content:center; pointer-events:none; }
+.pb-preview.on { display:flex; }
+.pb-preview-card { position:relative; width:min(62vw,880px); padding:10px; border-radius:22px; background:#fff;
+  box-shadow:0 24px 70px rgba(0,0,0,.4); animation:pbIn .35s cubic-bezier(.3,.7,.4,1.2); }
+.pb-preview.out .pb-preview-card { animation:pbOut .25s ease-in forwards; }
+.pb-preview-card img { width:100%; max-height:62vh; object-fit:contain; display:block; border-radius:14px; background:#000; }
+.pb-preview-card span { position:absolute; top:22px; left:22px; padding:6px 14px; border-radius:999px; background:rgba(0,0,0,.55);
+  color:#fff; font-size:16px; font-weight:600; }
+@keyframes pbIn { from { transform:scale(.85); opacity:0; } }
+@keyframes pbOut { to { transform:scale(.6) translateY(30vh); opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .pb-preview-card, .pb-preview.out .pb-preview-card { animation:none; } }
 #pbFlash { position:fixed; inset:0; z-index:60; background:#fff; opacity:0; pointer-events:none; }
 #pbFlash.on { opacity:1; transition:none; }
 #pbFlash.go { opacity:0; transition:opacity .5s ease-out; }

@@ -8,6 +8,7 @@
 (() => {
   const SHOTS = 4;            // jumlah foto per sesi
   const COUNTDOWN = 5;        // detik hitung mundur sebelum setiap foto
+  const PREVIEW_MS = 2000;    // lama pratinjau foto setelah jepret
 
   /* ---------------- Markup ---------------- */
   document.body.insertAdjacentHTML('beforeend', `
@@ -80,6 +81,7 @@
   </div>
 
   <div class="pb-count" id="pbCount"><div class="glass"><span id="pbCountNum">5</span></div></div>
+  <div class="pb-preview" id="pbPreview"><div class="pb-preview-card"><img id="pbPreviewImg" alt="Pratinjau foto"><span id="pbPreviewLabel"></span></div></div>
   <div id="pbFlash"></div>`);
   SCREENS.push('photo', 'editphoto');
 
@@ -109,6 +111,18 @@
     try { return grabFrame(); }
     finally { fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('go'); }
   }
+  // Tampilkan foto yang baru diambil sebentar, lalu lanjut ke hitungan berikutnya
+  async function preview(i, token) {
+    const box = $('pbPreview');
+    $('pbPreviewImg').src = thumbURL(photos[i], 1600);
+    $('pbPreviewLabel').textContent = `Foto ${i + 1}`;
+    box.classList.remove('out'); box.classList.add('on');
+    await sleep(PREVIEW_MS);
+    box.classList.add('out');
+    await sleep(250);
+    box.classList.remove('on', 'out');
+    return token === pbToken;
+  }
   async function countdown(token) {
     $('pbCount').style.display = 'flex';
     for (let i = COUNTDOWN; i >= 1; i--) {
@@ -119,9 +133,9 @@
     $('pbCount').style.display = 'none';
     return true;
   }
-  function thumbURL(c) {
+  function thumbURL(c, width = 480) {
     const t = document.createElement('canvas');
-    t.width = 480; t.height = Math.round(480 * c.height / c.width);
+    t.width = Math.min(width, c.width); t.height = Math.round(t.width * c.height / c.width);
     t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
     return t.toDataURL('image/jpeg', 0.85);
   }
@@ -168,8 +182,7 @@
         if (!(await countdown(token))) return;
         photos[i] = await snap();
         renderSlot(i);
-        await sleep(600);
-        if (token !== pbToken) return;
+        if (!(await preview(i, token))) return;
       }
     } catch (err) {
       console.log('Photo booth gagal: ' + err.message);
