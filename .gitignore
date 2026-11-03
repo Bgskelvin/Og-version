@@ -6,3 +6,6 @@ dist/
 .DS_Store
 # File sementara
 *.log
+
+# SDK kamera (berlisensi, jangan masuk Git)
+sdk/
