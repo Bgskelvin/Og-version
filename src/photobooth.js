@@ -1,7 +1,10 @@
 /* =====================================================================
-   Photo Booth: halamanPhoto (4 foto + hitung mundur) & halamanEditPhoto
-   Memakai fungsi bersama dari index.html: $, show, sleep, busy, resetIdle,
-   noCam, activeCouple, setNotice, setThanks, needStream, SCREENS.
+   photobooth.js — halamanPhoto (4 foto + hitung mundur) & halamanEditPhoto
+   Markup halamannya ada di index.html (#photo dan #editphoto).
+   Memakai data & fungsi bersama: $, show, sleep, busy, resetIdle, noCam,
+   activeCouple, setNotice, setThanks, needStream (lihat state.js, app.js,
+   rekaman.js). Semua isi file ini dibungkus supaya namanya tidak bentrok
+   dengan fitur lain; yang dibuka ke luar hanya pasangPhotobooth().
    Pengambil foto ada di grabFrame(). Nanti kalau SDK kamera sudah siap,
    cukup fungsi ini yang diganti (jepret kamera + flash), sisanya tetap.
    ===================================================================== */
@@ -10,80 +13,6 @@
   const COUNTDOWN = 5;        // detik hitung mundur sebelum setiap foto
   const PREVIEW_MS = 2000;    // lama pratinjau foto setelah jepret
 
-  /* ---------------- Markup ---------------- */
-  document.body.insertAdjacentHTML('beforeend', `
-  <div class="screen" id="photo">
-    <button class="chip left" id="pbBack"><svg class="i"><use href="#i-back"/></svg><span id="pbBackLabel">Kembali</span></button>
-    <div class="rec pb-pill" id="pbPill" style="display:none"><svg class="i"><use href="#i-camera"/></svg><span id="pbPillText"></span></div>
-    <div class="part" id="pbPre">
-      <div class="card glass"><h1>Photo booth</h1>
-        <p>Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN} detik, jadi siapkan gayamu.</p></div>
-      <div class="row"><button id="pbStart" class="btn primary"><svg class="i"><use href="#i-camera"/></svg>Mulai</button></div>
-    </div>
-    <div class="pb-bottom" id="pbBottom" style="display:none">
-      <div class="row pb-actions" id="pbActions" style="display:none">
-        <button id="pbFinish" class="btn primary"><svg class="i"><use href="#i-wand"/></svg>Finish &amp; edit</button>
-      </div>
-      <div class="pb-strip" id="pbStrip"></div>
-    </div>
-  </div>
-
-  <div class="screen mid" id="editphoto">
-    <div class="pe-wrap">
-      <div class="pe-stage glass" id="peStage">
-        <div class="pe-box" id="peBox"><canvas id="peCanvas"></canvas><canvas id="peDraw"></canvas><div id="peStickers"></div></div>
-      </div>
-      <div class="sheet glass pe-panel">
-        <div class="sheet-head">
-          <button id="peBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Foto</button>
-          <h2>Edit foto</h2>
-          <button id="peDone" class="btn sm primary">Selesai</button>
-        </div>
-        <div class="pe-tabs" id="peTabs">
-          <button class="pe-tab on" data-tab="layout"><svg class="i"><use href="#i-layout"/></svg>Layout</button>
-          <button class="pe-tab" data-tab="filter"><svg class="i"><use href="#i-drop"/></svg>Filter</button>
-          <button class="pe-tab" data-tab="frame"><svg class="i"><use href="#i-frame"/></svg>Bingkai</button>
-          <button class="pe-tab" data-tab="sticker"><svg class="i"><use href="#i-smile"/></svg>Stiker</button>
-          <button class="pe-tab" data-tab="draw"><svg class="i"><use href="#i-pen"/></svg>Coret</button>
-        </div>
-        <div class="sheet-body">
-          <div class="pe-pane on" data-pane="layout"><div class="pe-sec">Susunan foto</div><div class="pe-grid" id="peLayouts"></div></div>
-          <div class="pe-pane" data-pane="filter"><div class="pe-sec">Filter untuk semua foto</div><div class="pe-grid" id="peFilters"></div></div>
-          <div class="pe-pane" data-pane="frame">
-            <div class="pe-sec">Warna bingkai</div><div class="pe-grid" id="peFrames"></div>
-            <div class="group" style="margin-top:16px"><div class="item split" style="justify-content:space-between">
-              <span style="width:auto">Nama couple &amp; tanggal</span>
-              <label class="switch"><input type="checkbox" id="peShowText" checked><i></i></label></div></div>
-          </div>
-          <div class="pe-pane" data-pane="sticker">
-            <div class="pe-sec">Ketuk untuk menambahkan</div><div class="pe-grid" id="peStickerList" style="grid-template-columns:repeat(4,1fr)"></div>
-            <div class="pe-sec">Stiker terpilih</div>
-            <div class="pe-row">
-              <button class="btn sm tint" id="peStkSmaller">Perkecil</button>
-              <button class="btn sm tint" id="peStkBigger">Perbesar</button>
-              <button class="btn sm tint" id="peStkRotate">Putar</button>
-              <button class="btn sm tint danger" id="peStkDelete"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
-            </div>
-            <p class="pe-hint">Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.</p>
-          </div>
-          <div class="pe-pane" data-pane="draw">
-            <div class="pe-sec">Warna</div><div class="pe-row" id="peColors"></div>
-            <div class="pe-sec">Ukuran</div><div class="pe-row" id="peSizes"></div>
-            <div class="pe-row" style="margin-top:16px">
-              <button class="btn sm tint" id="peUndo"><svg class="i"><use href="#i-undo"/></svg>Urungkan</button>
-              <button class="btn sm tint danger" id="peClear">Hapus semua</button>
-            </div>
-            <p class="pe-hint">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="pb-count" id="pbCount"><div class="glass"><span id="pbCountNum">5</span></div></div>
-  <div class="pb-preview" id="pbPreview"><div class="pb-preview-card"><img id="pbPreviewImg" alt="Pratinjau foto"><span id="pbPreviewLabel"></span></div></div>
-  <div id="pbFlash"></div>`);
-  SCREENS.push('photo', 'editphoto');
 
   /* ---------------- Status ---------------- */
   const photos = new Array(SHOTS).fill(null);   // kanvas resolusi penuh setiap foto
@@ -531,29 +460,25 @@
     show('thanks');
   }
 
-  /* ---------------- Sambungan tombol ---------------- */
-  $('btnToPhoto').onclick = openPhoto;
-  $('pbStart').onclick = startSession;
-  $('pbBack').onclick = backFromPhoto;
-  $('pbFinish').onclick = () => { if (photos.every(Boolean) && !running) openEdit(); };
-  $('peBack').onclick = () => { show('photo'); showDone(); };
-  $('peDone').onclick = finishEdit;
-  document.querySelectorAll('.pe-tab').forEach(t => t.onclick = () => setTab(t.dataset.tab));
-  $('peShowText').onchange = e => { ed.showText = e.target.checked; redraw(); buildPanel(); };
-  $('peStkSmaller').onclick = () => tweakSticker(s => { s.size = Math.max(.04, s.size * .8); });
-  $('peStkBigger').onclick = () => tweakSticker(s => { s.size = Math.min(.6, s.size * 1.25); });
-  $('peStkRotate').onclick = () => tweakSticker(s => { s.rot += 15; });
-  $('peStkDelete').onclick = () => tweakSticker(s => { ed.stickers = ed.stickers.filter(x => x !== s); ed.sel = null; });
-  $('peUndo').onclick = () => { ed.strokes.pop(); redrawInk(); };
-  $('peClear').onclick = () => { ed.strokes = []; redrawInk(); };
-  $('peBox').addEventListener('pointerdown', e => { if (e.target.id === 'peCanvas' || e.target.id === 'peStickers') select(null); });
-  attachDrawing();
-  window.addEventListener('resize', () => { if ($('editphoto').classList.contains('on')) fitStage(); });
-
-  // Halaman Terima kasih untuk video tidak menampilkan foto
-  const baseSetThanks = window.setThanks;
-  window.setThanks = function (result) {
-    $('thanksPhoto').style.display = 'none'; $('thanksBadge').style.display = '';
-    return baseSetThanks(result);
+  /* ---------------- Sambungan tombol (dipanggil sekali dari mulai.js) ---------------- */
+  window.pasangPhotobooth = function () {
+    $('pbIntro').textContent = `Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN} detik, jadi siapkan gayamu.`;
+    $('btnToPhoto').onclick = openPhoto;
+    $('pbStart').onclick = startSession;
+    $('pbBack').onclick = backFromPhoto;
+    $('pbFinish').onclick = () => { if (photos.every(Boolean) && !running) openEdit(); };
+    $('peBack').onclick = () => { show('photo'); showDone(); };
+    $('peDone').onclick = finishEdit;
+    document.querySelectorAll('.pe-tab').forEach(t => t.onclick = () => setTab(t.dataset.tab));
+    $('peShowText').onchange = e => { ed.showText = e.target.checked; redraw(); buildPanel(); };
+    $('peStkSmaller').onclick = () => tweakSticker(s => { s.size = Math.max(.04, s.size * .8); });
+    $('peStkBigger').onclick = () => tweakSticker(s => { s.size = Math.min(.6, s.size * 1.25); });
+    $('peStkRotate').onclick = () => tweakSticker(s => { s.rot += 15; });
+    $('peStkDelete').onclick = () => tweakSticker(s => { ed.stickers = ed.stickers.filter(x => x !== s); ed.sel = null; });
+    $('peUndo').onclick = () => { ed.strokes.pop(); redrawInk(); };
+    $('peClear').onclick = () => { ed.strokes = []; redrawInk(); };
+    $('peBox').addEventListener('pointerdown', e => { if (e.target.id === 'peCanvas' || e.target.id === 'peStickers') select(null); });
+    attachDrawing();
+    window.addEventListener('resize', () => { if ($('editphoto').classList.contains('on')) fitStage(); });
   };
 })();

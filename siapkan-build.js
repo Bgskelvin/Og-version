@@ -9,12 +9,13 @@ pkg.version = pkg.version || '1.0.0';
 pkg.description = 'Wedding videobooth';
 pkg.author = pkg.author || 'Leura';
 pkg.main = 'main.js';
-pkg.scripts = { ...(pkg.scripts || {}), start: 'electron main.js', build: 'electron-builder' };
+pkg.scripts = { ...(pkg.scripts || {}), start: 'electron main.js', build: 'electron-builder',
+  test: 'node tests/uji-utama.js && node tests/uji-tampilan.js', 'test:utama': 'node tests/uji-utama.js' };
 pkg.build = {
   appId: 'com.leura.videobooth',
   productName: 'Videobooth',
   // Semua file aplikasi yang ikut ke installer. Tambahkan di sini kalau ada file baru.
-  files: ['main.js', 'preload.js', 'index.html', 'photobooth.js', 'photobooth.css', 'config.json', 'package.json'],
+  files: ['main.js', 'preload.js', 'index.html', 'config.json', 'package.json', 'main/**/*', 'src/**/*', 'styles/**/*'],
   asarUnpack: ['node_modules/ffmpeg-static/**/*'],
   win: { target: 'nsis' },
   nsis: { oneClick: false, allowToChangeInstallationDirectory: true },

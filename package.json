@@ -2,9 +2,12 @@
   "name": "leura",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron main.js",
+    "test": "node tests/uji-utama.js && node tests/uji-tampilan.js",
+    "test:utama": "node tests/uji-utama.js",
+    "test:tampilan": "node tests/uji-tampilan.js"
   },
   "keywords": [],
   "author": "",
