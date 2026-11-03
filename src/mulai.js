@@ -5,8 +5,7 @@
 (async () => {
   cfg = await api.getConfig();
   cfg.quiz = cfg.quiz || [];
-  cfg.quizSeconds = Number(cfg.quizSeconds) || 60;
-  cfg.quizRounds = Number(cfg.quizRounds) || 3;
+  normalisasiCfg(cfg);
   if (cfg.colors) {
     const r = document.documentElement.style;
     if (cfg.colors.accent) r.setProperty('--accent', cfg.colors.accent);
@@ -19,6 +18,8 @@
   pasangQuiz();
   pasangAdmin();
   pasangPengaturan();
+  pasangPengaturanBooth();
+  terapkanMenu();
   pasangCouple();
   pasangRekaman();
   pasangPhotobooth();

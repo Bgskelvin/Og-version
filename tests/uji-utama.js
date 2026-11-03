@@ -48,6 +48,22 @@ const KASUS = {
     cek(!fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8').includes('rahasia'), 'password tidak tersimpan sebagai teks biasa');
   },
 
+  async 'pengaturan videobooth & photobooth'() {
+    const { panggil } = nyalakanAplikasi();
+    const s = await panggil('get-settings');
+    cek(s.pesanCountdown === 3 && s.pesanMaxSeconds === 0 && s.photoCountdown === 5 && s.photoPreview === 2, 'nilai bawaan angka benar', s);
+    cek(s.enablePesan && s.enableQuiz && s.enablePhoto && s.photoFlash, 'semua menu & efek kilat aktif secara bawaan');
+    let r = await panggil('save-settings', { pesanCountdown: 0, pesanMaxSeconds: 120, photoCountdown: 3, photoPreview: 0, photoFlash: false, enableQuiz: false });
+    cek(r.pesanCountdown === 0 && r.pesanMaxSeconds === 120 && r.photoCountdown === 3 && r.photoPreview === 0 && !r.photoFlash && !r.enableQuiz, 'pengaturan baru tersimpan', r);
+    r = await panggil('save-settings', { pesanCountdown: 99, pesanMaxSeconds: 9999, photoCountdown: 1, photoPreview: -2 });
+    cek(r.pesanCountdown === 10 && r.pesanMaxSeconds === 600 && r.photoCountdown === 2 && r.photoPreview === 0, 'nilai di luar batas dibatasi', r);
+    await panggil('save-settings', { enablePhoto: false });
+    r = await panggil('save-settings', { enablePesan: false });
+    cek(r.error && r.enablePesan === true, 'menu terakhir tidak bisa dimatikan', r);
+    const c = await panggil('get-config');
+    cek(c.pesanMaxSeconds === 600 && c.enableQuiz === false && c.photoFlash === false && c.loginId === undefined, 'get-config membawa pengaturan booth');
+  },
+
   async 'file data rusak tidak menghapus data'() {
     const { panggil, dataDir } = nyalakanAplikasi();
     await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] });

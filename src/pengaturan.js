@@ -1,5 +1,6 @@
 /* =====================================================================
-   pengaturan.js — grup "Pengaturan" dan "Login Admin" di halaman Admin
+   pengaturan.js — grup "Tampilan" dan "Login Admin" di halaman Admin,
+   serta penerapan semua pengaturan ke aplikasi (applySettings)
    ===================================================================== */
 
 const SWATCHES = [['#B08D57', 'Emas'], ['#C47A86', 'Rose'], ['#7C9A7E', 'Sage'], ['#3E6E9E', 'Biru'], ['#48484A', 'Grafit']];
@@ -25,16 +26,30 @@ function renderSwatches(accent) {
     box.appendChild(b);
   });
 }
+// Nilai bawaan kalau ada pengaturan yang belum tersedia
+const BAWAAN = { quizSeconds: 60, quizRounds: 3, pesanCountdown: 3, pesanMaxSeconds: 0, photoCountdown: 5, photoPreview: 2,
+                 photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true };
+function normalisasiCfg(src) {
+  for (const [k, d] of Object.entries(BAWAAN)) {
+    const v = src[k];
+    cfg[k] = typeof d === 'boolean' ? (typeof v === 'boolean' ? v : d) : (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
+  }
+}
+// Tombol menu di Halaman Utama mengikuti Pengaturan videobooth & photobooth
+function terapkanMenu() {
+  $('btnToPesan').style.display = cfg.enablePesan ? '' : 'none';
+  $('btnToQuiz').style.display = cfg.enableQuiz ? '' : 'none';
+  $('btnToPhoto').style.display = cfg.enablePhoto ? '' : 'none';
+}
+// Terapkan pengaturan terbaru ke aplikasi tanpa perlu menutupnya
 function applySettings(s) {
-  cfg.quizSeconds = s.quizSeconds;
-  cfg.quizRounds = s.quizRounds;
-  document.documentElement.style.setProperty('--accent', s.accent);
+  normalisasiCfg(s);
+  terapkanMenu();
+  if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
 }
 async function loadSettings() {
   const s = await api.getSettings();
   applySettings(s);
-  fillSelect($('setSeconds'), SECONDS, s.quizSeconds, secLabel);
-  fillSelect($('setRounds'), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], s.quizRounds, v => `${v} pertanyaan`);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
   $('setId').value = s.loginId;
@@ -59,8 +74,6 @@ async function saveLogin() {
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
 function pasangPengaturan() {
-  $('setSeconds').onchange = e => saveSetting({ quizSeconds: Number(e.target.value) }, `Waktu jawab: ${secLabel(Number(e.target.value))}.`);
-  $('setRounds').onchange = e => saveSetting({ quizRounds: Number(e.target.value) }, `Jumlah soal per sesi: ${e.target.value}.`);
   $('setKiosk').onchange = e => saveSetting({ kiosk: e.target.checked },
     e.target.checked ? 'Layar penuh aktif. Untuk keluar, matikan lagi di sini.' : 'Layar penuh dimatikan.');
   $('btnSaveLogin').onclick = saveLogin;

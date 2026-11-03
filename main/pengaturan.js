@@ -7,15 +7,28 @@ const crypto = require('crypto');
 const { config, defaultDir, readSettings, writeSettings, getOutDir, usableDir } = require('./penyimpanan');
 const { getWin } = require('./jendela-aktif');
 
-/* ---------- Pengaturan (diubah dari Admin, disimpan di settings.json) ---------- */
-const LIMITS = { quizSeconds: [10, 300], quizRounds: [1, 10] };
+/* ---------- Pengaturan (diubah dari Admin & halaman Pengaturan Videobooth/Photobooth) ---------- */
+// Angka: [terkecil, terbesar, bawaan]. Saklar: nilai bawaan.
+const ANGKA = {
+  quizSeconds:     [10, 300, 60],   // Videobooth: detik menjawab per pertanyaan quiz
+  quizRounds:      [1, 10, 3],      // Videobooth: jumlah pertanyaan per sesi quiz
+  pesanCountdown:  [0, 10, 3],      // Videobooth: hitung mundur sebelum merekam pesan (0 = langsung)
+  pesanMaxSeconds: [0, 600, 0],     // Videobooth: batas durasi pesan (0 = tanpa batas)
+  photoCountdown:  [2, 10, 5],      // Photobooth: hitung mundur sebelum setiap foto
+  photoPreview:    [0, 5, 2],       // Photobooth: detik pratinjau setelah jepret (0 = tanpa)
+};
+const SAKLAR = {
+  enablePesan: true, enableQuiz: true,   // Videobooth: menu di Halaman Utama
+  enablePhoto: true, photoFlash: true,   // Photobooth: menu & efek kilat layar
+};
+const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
 const clampInt = (v, [lo, hi], dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
 const isColor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 function effective() {
   const s = readSettings();
   return {
-    quizSeconds: clampInt(s.quizSeconds ?? config.quizSeconds, LIMITS.quizSeconds, 60),
-    quizRounds: clampInt(s.quizRounds ?? config.quizRounds, LIMITS.quizRounds, 3),
+    ...Object.fromEntries(Object.entries(ANGKA).map(([k, [lo, hi, d]]) => [k, clampInt(s[k] ?? config[k], [lo, hi], d)])),
+    ...Object.fromEntries(Object.entries(SAKLAR).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
     accent: isColor(s.accent) ? s.accent : ((config.colors && isColor(config.colors.accent)) ? config.colors.accent : '#B08D57'),
     loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin'
@@ -37,16 +50,19 @@ function checkLogin(id, pw) {
 function daftarkan() {
   ipcMain.handle('get-config', () => {
     const e = effective();
-    return { ...config, login: undefined, quizSeconds: e.quizSeconds, quizRounds: e.quizRounds, kiosk: e.kiosk,
-      colors: { ...(config.colors || {}), accent: e.accent } };
+    const { loginId, accent, ...booth } = e;
+    return { ...config, login: undefined, ...booth, colors: { ...(config.colors || {}), accent } };
   });
   ipcMain.handle('login', (e, id, pw) => checkLogin(id, pw));
 
   ipcMain.handle('get-settings', () => effective());
   ipcMain.handle('save-settings', (e, patch) => {
     const s = readSettings();
-    if ('quizSeconds' in patch) s.quizSeconds = clampInt(patch.quizSeconds, LIMITS.quizSeconds, 60);
-    if ('quizRounds' in patch) s.quizRounds = clampInt(patch.quizRounds, LIMITS.quizRounds, 3);
+    for (const [k, [lo, hi, d]] of Object.entries(ANGKA)) if (k in patch) s[k] = clampInt(patch[k], [lo, hi], d);
+    for (const k of Object.keys(SAKLAR)) if (k in patch) s[k] = !!patch[k];
+    // Minimal satu menu harus tetap tampil di Halaman Utama
+    const now = effective(), next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
+    if (!MENU.some(k => next[k])) return { ...now, error: 'Minimal satu menu harus tetap tampil di Halaman Utama.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
     if ('kiosk' in patch) {
       s.kiosk = !!patch.kiosk;

@@ -54,9 +54,11 @@ function stopRecording(meta) {
   lastSave = p;
   return p;
 }
-async function countdown() {
+// Hitung mundur sebelum merekam pesan (lamanya diatur di Pengaturan videobooth; 0 = langsung)
+async function countdown(detik = 3) {
+  if (detik <= 0) return;
   $('countOverlay').style.display = 'flex';
-  for (let i = 3; i >= 1; i--) { $('countNum').textContent = i; await sleep(1000); }
+  for (let i = detik; i >= 1; i--) { $('countNum').textContent = i; await sleep(1000); }
   $('countOverlay').style.display = 'none';
 }
 // Setelah pesan/quiz: layar "Menyimpan" minimal 3 detik, dan sampai rekaman benar-benar tersimpan.
@@ -79,7 +81,7 @@ async function finishSession(meta) {
   if (finishing) return;                       // cegah tombol Finish tertekan dua kali
   finishing = true;
   sessionToken++;
-  clearInterval(recTick);
+  clearInterval(recTick); clearTimeout(pesanLimit);
   const bar = $('saveBar');
   bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
   show('saving');
@@ -95,7 +97,7 @@ async function finishSession(meta) {
 // Aplikasi tidak pernah tertahan di layar tanpa tombol.
 async function abortSession(msg) {
   sessionToken++;
-  clearInterval(recTick);
+  clearInterval(recTick); clearTimeout(pesanLimit);
   if (cancelTimer) cancelTimer();
   $('countOverlay').style.display = 'none';
   const saving = stopRecording({ aborted: true });

@@ -17,7 +17,7 @@ const store = {
 
 // ---------- Daftar halaman ----------
 // Setiap halaman di index.html (div.screen) harus terdaftar di sini.
-const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'tambah', 'saving', 'thanks'];
+const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'setvideo', 'setphoto', 'tambah', 'saving', 'thanks'];
 const MAX_Q = 10;                     // maksimal pertanyaan quiz per couple
 
 // ---------- Status aplikasi ----------
@@ -34,6 +34,7 @@ let noCam = false;                    // true kalau hanya mic (tanpa kamera)
 let rec = null;                       // rekaman yang sedang berjalan
 let lastSave = Promise.resolve();     // penyimpanan rekaman terakhir
 let recT0 = 0, recTick = null;        // waktu mulai & timer tampilan durasi
+let pesanLimit = null;                // timer batas durasi pesan (Pengaturan videobooth)
 let sessionToken = 0;                 // naik setiap sesi selesai/batal, untuk menghentikan alur lama
 let cancelTimer = null;               // menghentikan timer jawaban quiz
 

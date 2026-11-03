@@ -10,8 +10,9 @@
    ===================================================================== */
 (() => {
   const SHOTS = 4;            // jumlah foto per sesi
-  const COUNTDOWN = 5;        // detik hitung mundur sebelum setiap foto
-  const PREVIEW_MS = 2000;    // lama pratinjau foto setelah jepret
+  // Lama hitung mundur, pratinjau, dan efek kilat diatur di Pengaturan photobooth (cfg)
+  const COUNTDOWN = () => cfg.photoCountdown;
+  const PREVIEW_MS = () => cfg.photoPreview * 1000;
 
 
   /* ---------------- Status ---------------- */
@@ -34,6 +35,7 @@
     return c;
   }
   async function snap() {
+    if (!cfg.photoFlash) return grabFrame();                // efek kilat dimatikan di Pengaturan photobooth
     const fl = $('pbFlash');
     fl.classList.remove('go'); fl.classList.add('on');   // layar putih sesaat sebagai "flash"
     await sleep(90);
@@ -42,11 +44,12 @@
   }
   // Tampilkan foto yang baru diambil sebentar, lalu lanjut ke hitungan berikutnya
   async function preview(i, token) {
+    if (PREVIEW_MS() <= 0) { await sleep(400); return token === pbToken; }   // pratinjau dimatikan
     const box = $('pbPreview');
     $('pbPreviewImg').src = thumbURL(photos[i], 1600);
     $('pbPreviewLabel').textContent = `Foto ${i + 1}`;
     box.classList.remove('out'); box.classList.add('on');
-    await sleep(PREVIEW_MS);
+    await sleep(PREVIEW_MS());
     box.classList.add('out');
     await sleep(250);
     box.classList.remove('on', 'out');
@@ -54,7 +57,7 @@
   }
   async function countdown(token) {
     $('pbCount').style.display = 'flex';
-    for (let i = COUNTDOWN; i >= 1; i--) {
+    for (let i = COUNTDOWN(); i >= 1; i--) {
       $('pbCountNum').textContent = i;
       await sleep(1000);
       if (token !== pbToken) { $('pbCount').style.display = 'none'; return false; }
@@ -129,6 +132,7 @@
     markNext(-1);
   }
   function openPhoto() {
+    $('pbIntro').textContent = `Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN()} detik, jadi siapkan gayamu.`;
     pbToken++; running = false; busy = false;
     photos.fill(null);
     ed = fresh();
@@ -462,7 +466,6 @@
 
   /* ---------------- Sambungan tombol (dipanggil sekali dari mulai.js) ---------------- */
   window.pasangPhotobooth = function () {
-    $('pbIntro').textContent = `Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN} detik, jadi siapkan gayamu.`;
     $('btnToPhoto').onclick = openPhoto;
     $('pbStart').onclick = startSession;
     $('pbBack').onclick = backFromPhoto;

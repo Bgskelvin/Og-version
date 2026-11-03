@@ -13,13 +13,20 @@ async function mulaiPesan() {
   const token = ++sessionToken;
   $('pesanPre').style.display = 'none';
   try {
-    await countdown();
+    await countdown(cfg.pesanCountdown);
     if (token !== sessionToken) return;
     await startRecording('pesan');
     if (token !== sessionToken) return;
-    $('pesanTime').textContent = '0:00';
+    // Batas durasi (Pengaturan videobooth): rekaman berhenti sendiri kalau tamu lupa menekan Selesai
+    const batas = cfg.pesanMaxSeconds;
+    const tampil = () => {
+      const s = Math.floor((Date.now() - recT0) / 1000);
+      $('pesanTime').textContent = batas > 0 ? `${fmt(Math.min(s, batas))} / ${fmt(batas)}` : fmt(s);
+    };
+    tampil();
     $('pesanRec').style.display = 'flex';
-    recTick = setInterval(() => { $('pesanTime').textContent = fmt(Math.floor((Date.now() - recT0) / 1000)); }, 250);
+    recTick = setInterval(tampil, 250);
+    if (batas > 0) pesanLimit = setTimeout(() => { if (token === sessionToken) finishSession(); }, batas * 1000);
   } catch (err) {
     console.log('Gagal memulai pesan: ' + err.message);
     if (token === sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);

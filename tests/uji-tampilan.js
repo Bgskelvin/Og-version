@@ -21,9 +21,10 @@ const PALSU = `
 window.LOG = []; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
-const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura' };
+const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', pesanCountdown: 3, pesanMaxSeconds: 0,
+  photoCountdown: 5, photoPreview: 2, photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true };
 window.api = {
-  getConfig: async () => ({ quizSeconds: ST.quizSeconds, quizRounds: ST.quizRounds, welcome: '', colors: { accent: ST.accent } }),
+  getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),
   getCouples: async () => ({ activeId: 'a', couples: [
     { id: 'a', name: 'Rina & Dimas', welcome: 'Tinggalkan pesan untuk kami', questions: ['Q satu', 'Q dua', 'Q tiga'] },
     { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }),
@@ -31,7 +32,10 @@ window.api = {
   getSessions: async () => [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
   getSettings: async () => ({ ...ST }),
-  saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p)); Object.assign(ST, p); return { ...ST }; },
+  saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
+    const next = { ...ST, ...p };   // sama seperti main/pengaturan.js: minimal satu menu tetap tampil
+    if (!next.enablePesan && !next.enableQuiz && !next.enablePhoto) return { ...ST, error: 'Minimal satu menu harus tetap tampil di Halaman Utama.' };
+    Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Password lama salah.' },
   getStartupInfo: async () => ({ recovered: 0 }),
   recStart: async label => { LOG.push('start ' + label); return MODE.startFail ? { error: 'Folder penyimpanan tidak bisa ditulisi.' } : { id: ++nextId }; },
@@ -120,18 +124,64 @@ async function main() {
   const body = pg.locator('#adminPanel .sheet-body'); const bb = await body.boundingBox();
   await pg.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await pg.mouse.wheel(0, 500); await tunggu(400);
   cek(await body.evaluate(e => e.scrollTop) > 0, 'panel Admin bisa digulir');
-  await pg.selectOption('#setSeconds', '30'); await pg.locator('.sw').nth(2).click(); await tunggu(200);
+  await pg.locator('.sw').nth(2).click(); await tunggu(200);
   cek(await pg.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()) === '#7C9A7E', 'warna langsung berubah');
-  await pg.click('#btnAdminBack'); await pg.click('#btnToQuiz');
+
+  console.log('\n▶ Pengaturan videobooth');
+  await pg.locator('#btnSetVideo').scrollIntoViewIfNeeded(); await pg.click('#btnSetVideo'); await tunggu(300);
+  cek(await layar() === 'setvideo', 'halaman Pengaturan videobooth terbuka dari Admin');
+  await pg.selectOption('#setSeconds', '30'); await tunggu(150);
+  await pg.click('#setEnableQuiz'); await tunggu(150);
+  await pg.selectOption('#setPesanCountdown', '0'); await tunggu(150);
+  cek(/Hitung mundur pesan: langsung merekam/.test(await pg.textContent('#setVideoMsg')), 'konfirmasi tersimpan tampil');
+  await pg.click('#btnSetVideoBack');
+  cek(await layar() === 'admin', 'tombol Admin kembali ke halaman Admin');
+
+  console.log('\n▶ Pengaturan photobooth');
+  await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded(); await pg.click('#btnSetPhoto'); await tunggu(300);
+  cek(await layar() === 'setphoto', 'halaman Pengaturan photobooth terbuka dari Admin');
+  await pg.selectOption('#setPhotoCountdown', '3'); await pg.selectOption('#setPhotoPreview', '0'); await tunggu(150);
+  await pg.click('#setPhotoFlash'); await tunggu(150);
+  await pg.click('#setEnablePhoto'); await tunggu(150);
+  await pg.evaluate(() => { document.getElementById('setEnablePesan').checked = false; document.getElementById('setEnablePesan').onchange({ target: { checked: false } }); });
+  await tunggu(200);
+  cek(/Minimal satu menu/.test(await pg.textContent('#setVideoMsg') + await pg.textContent('#setPhotoMsg')) && await pg.evaluate(() => cfg.enablePesan),
+      'menu terakhir tidak bisa dimatikan');
+  await pg.click('#setEnablePhoto'); await tunggu(150);
+  await pg.click('#btnSetPhotoBack'); await pg.click('#btnAdminBack');
+  cek(!(await pg.isVisible('#btnToQuiz')) && await pg.isVisible('#btnToPesan') && await pg.isVisible('#btnToPhoto'),
+      'Halaman Utama: Quick quiz tersembunyi, menu lain tetap tampil');
+
+  console.log('\n▶ Pengaturan dipakai saat sesi');
+  await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(400);
+  cek((await log()).includes('start pesan') && !(await pg.isVisible('#countOverlay')), 'hitung mundur "langsung merekam": rekaman mulai tanpa menunggu');
+  await pg.click('#btnFinish'); await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
+  await pg.evaluate(() => applySettings({ ...cfg, pesanMaxSeconds: 2 }));
+  await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(300);
+  cek(/ \/ 0:02$/.test(await pg.textContent('#pesanTime')), 'durasi pesan menampilkan batasnya', await pg.textContent('#pesanTime'));
+  await tungguLayar('saving', 5000);
+  cek(true, 'batas durasi tercapai: rekaman berhenti sendiri');
+  await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
+  await pg.evaluate(() => applySettings({ ...cfg, pesanMaxSeconds: 0, enableQuiz: true }));
+  await pg.click('#btnToQuiz');
   cek(/30 detik/.test(await pg.textContent('#quizInfo')), 'waktu jawab baru langsung dipakai quiz');
   await pg.click('#btnQuizBack');
 
   console.log('\n▶ Photo booth');
   await pg.click('#btnToPhoto');
-  cek(/4 kali.*5 detik/.test(await pg.textContent('#pbIntro')), 'penjelasan Photo booth tampil');
-  await pg.click('#pbStart'); await tunggu(5600);
-  cek(await pg.isVisible('#pbPreview'), 'pratinjau tampil setelah jepretan pertama');
+  cek(/4 kali.*3 detik/.test(await pg.textContent('#pbIntro')), 'penjelasan Photo booth mengikuti hitung mundur 3 detik');
+  await pg.evaluate(() => { window.KILAT = 0; new MutationObserver(() => { if (document.getElementById('pbFlash').classList.contains('on')) KILAT++; })
+    .observe(document.getElementById('pbFlash'), { attributes: true }); });
+  const t0 = Date.now();
+  await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+  const lama = (Date.now() - t0) / 1000;
+  cek(lama < 19, 'sesi 4 foto dengan hitung mundur 3 detik & tanpa pratinjau selesai lebih cepat', lama);
+  cek(await pg.evaluate(() => KILAT) === 0, 'efek kilat mati sesuai pengaturan');
+  await pg.evaluate(() => applySettings({ ...cfg, photoCountdown: 5, photoPreview: 2, photoFlash: true }));
+  await pg.click('[data-redo="0"]'); await tunggu(5600);
+  cek(await pg.isVisible('#pbPreview') && await pg.evaluate(() => KILAT) === 1, 'pratinjau & kilat aktif lagi setelah pengaturan dinyalakan');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 15000 });
   cek(await pg.locator('.pb-thumb.filled').count() === 4, '4 foto tampil berderet');
   cek(await pg.isVisible('[data-redo="1"]'), 'tombol Ulangi tampil di bawah foto');
   await pg.click('[data-redo="1"]'); await tunggu(500);
