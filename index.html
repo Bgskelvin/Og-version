@@ -390,9 +390,9 @@
 <!-- 6. HALAMAN THANK YOU -->
 <div class="screen mid" id="thanks">
   <div class="card glass" style="max-width:640px">
-    <div class="badge"><svg class="i"><use href="#i-check"/></svg></div>
+    <div class="badge" id="thanksBadge"><svg class="i"><use href="#i-check"/></svg></div>
     <h1>Terima kasih</h1>
-    <p>Rekamanmu sudah tersimpan.</p>
+    <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
   </div>
   <div class="row" style="max-width:640px">
     <button id="btnCobaLagi" class="btn glassy"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
@@ -489,7 +489,8 @@ async function fillDevices() {
 /* ---------- Perekaman ---------- */
 // Setiap rekaman punya objek & ID sendiri, jadi rekaman baru tidak bisa menimpa yang sedang disimpan.
 async function startRecording(label) {
-  await lastSave.catch(() => {});                 // tunggu rekaman sebelumnya selesai disimpan
+  // tunggu rekaman sebelumnya selesai disimpan, paling lama 15 detik supaya layar tidak pernah tertahan
+  await Promise.race([lastSave.catch(() => {}), sleep(15000)]);
   const r = await api.recStart(label);
   if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
   if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
@@ -517,17 +518,19 @@ async function startRecording(label) {
 function stopRecording(meta) {
   const cur = rec;
   rec = null;
-  if (!cur) return Promise.resolve();
+  if (!cur) return Promise.resolve(false);
   const seconds = Math.round((Date.now() - cur.t0) / 1000);
   const info = { couple: activeCouple ? activeCouple.name : '', ...(meta || {}) };
   const p = new Promise(resolve => {
     const finish = async () => {
+      let ok = false;
       try {
         await cur.pending;
         const res = await api.recEnd(cur.id, seconds, info);
+        ok = !!(res && res.ok);
         if (res && !res.ok) setNotice('Rekaman terakhir gagal disimpan: ' + res.error, 15000);
       } catch (err) { setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000); }
-      resolve();
+      resolve(ok);
     };
     if (cur.recorder.state === 'inactive') finish();
     else { cur.recorder.onstop = finish; cur.recorder.stop(); }
@@ -544,6 +547,15 @@ async function countdown() {
 // Tamu tidak bisa menekan apa pun di layar ini, jadi tidak bisa langsung "Coba Lagi".
 const SAVE_MIN_MS = 3000, SAVE_MAX_MS = 15000;
 let finishing = false;
+// Pesan di Halaman Terima kasih mengikuti hasil penyimpanan yang sebenarnya
+function setThanks(result) {
+  const ok = result === true, slow = result === 'slow';
+  $('thanksBadge').style.background = ok || slow ? '' : 'var(--orange)';
+  $('thanksBadge').innerHTML = ok || slow ? '<svg class="i"><use href="#i-check"/></svg>' : '<span style="font-size:52px;font-weight:700">!</span>';
+  $('thanksMsg').textContent = ok ? 'Rekamanmu sudah tersimpan.'
+    : slow ? 'Rekamanmu sedang diselesaikan dan akan tersimpan otomatis.'
+    : 'Rekamanmu belum berhasil tersimpan. Silakan hubungi petugas.';
+}
 async function finishSession(meta) {
   if (finishing) return;                       // cegah tombol Finish tertekan dua kali
   finishing = true;
@@ -554,9 +566,10 @@ async function finishSession(meta) {
   show('saving');
   const saved = stopRecording(meta);
   // Batas atas 15 detik supaya layar tidak pernah tertahan; penyimpanan tetap lanjut di belakang
-  await Promise.all([sleep(SAVE_MIN_MS), Promise.race([saved, sleep(SAVE_MAX_MS)])]);
+  const [, result] = await Promise.all([sleep(SAVE_MIN_MS), Promise.race([saved, sleep(SAVE_MAX_MS).then(() => 'slow')])]);
   finishing = false;
   busy = false;
+  setThanks(result);
   show('thanks');
 }
 // Dipanggil kalau sesuatu gagal: simpan yang sempat terekam, lalu kembali ke Halaman Utama.
@@ -866,10 +879,12 @@ async function loadSessions() {
     const jam = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const jenis = s.label === 'pesan' ? 'Pesan' : s.label === 'quiz' ? 'Quiz' : 'Quiz #' + String(s.label).split('-')[1];
     const st = { processing: ' · memproses MP4', done: ' · MP4 siap', failed: ' · gagal konversi (.webm tersimpan)',
-      'write-error': ' · gagal disimpan (' + (s.error || 'error disk') + ')' }[s.status] || '';
+      'write-error': ' · gagal disimpan (' + (s.error || 'error disk') + ')',
+      recording: ' · sedang merekam', lost: ' · hilang (rekaman kosong)' }[s.status] || '';
+    const rcv = s.recovered ? ' · dipulihkan' : '';
     const li = document.createElement('li');
     li.value = n;
-    li.textContent = `${jam} · ${s.couple ? s.couple + ' · ' : ''}${jenis} · ${fmt(s.seconds || 0)}${st}`;
+    li.textContent = `${jam} · ${s.couple ? s.couple + ' · ' : ''}${jenis} · ${fmt(s.seconds || 0)}${st}${rcv}`;
     ol.appendChild(li);
   });
 }
@@ -950,7 +965,13 @@ async function refreshAdmin() {
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.querySelectorAll('video').forEach(v => { v.disableRemotePlayback = true; });
 
+  ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+
   try { await initDevices(); } catch (err) { setNotice('Gagal membuka kamera/mic: ' + err.message); }
+  try {
+    const info = await api.getStartupInfo();
+    if (info && info.recovered) setNotice(`${info.recovered} rekaman yang sempat terputus berhasil dipulihkan. Cek daftar sesi di Admin.`, 15000);
+  } catch (err) {}
 })();
 </script>
 </body>

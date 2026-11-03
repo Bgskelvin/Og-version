@@ -1,4 +1,10 @@
-const { app, BrowserWindow, ipcMain, session, systemPreferences, shell, dialog, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, ipcMain, session, systemPreferences, shell, dialog, powerSaveBlocker, Menu } = require('electron');
+
+// ---------- Hanya satu jendela aplikasi ----------
+// Kalau ikon diklik lagi saat aplikasi sudah jalan, jendela yang ada dimunculkan,
+// bukan membuka aplikasi kedua yang berebut kamera dan file data.
+if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
+const DEV = process.argv.includes('--dev');   // npx electron main.js --dev  -> menu Reload & DevTools aktif
 const { spawn } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -289,9 +295,18 @@ ipcMain.handle('rec-start', (e, label) => {
   while (fs.existsSync(file)) file = path.join(dir, `${prefix}${stamp()}_${label}_${n++}.webm`);
 
   const id = ++recSeq;
-  const rec = { id, file, dir, label, error: null, stream: null };
+  const sid = Date.now() * 1000 + (id % 1000);
+  const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now() };
   try { rec.stream = fs.createWriteStream(file); }
   catch (err) { return { error: 'Tidak bisa membuat file rekaman: ' + err.message }; }
+  // Catat sesi sejak awal dengan status "recording". Kalau aplikasi atau komputer mati di tengah
+  // rekaman, sesi ini dikenali dan dipulihkan saat aplikasi dibuka lagi.
+  try {
+    const list = readSessions();
+    list.push({ id: sid, time: new Date(rec.t0).toISOString(), label, file: path.basename(file), dir,
+      couple: name, seconds: 0, status: 'recording' });
+    writeSessions(list);
+  } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
   // Disk penuh / SSD tercabut: jangan crash, catat error dan beri tahu layar
   rec.stream.on('error', err => {
     if (rec.error) return;
@@ -321,13 +336,17 @@ ipcMain.handle('rec-end', async (e, id, seconds, meta) => {
   if (!rec) return null;
   recs.delete(id);
   await closeStream(rec);
-  const sid = Date.now() * 1000 + (id % 1000);
+  const sid = rec.sid;
   const ok = !rec.error;
-  const list = readSessions();
-  list.push({ id: sid, time: new Date().toISOString(), label: rec.label, file: path.basename(rec.file), dir: rec.dir,
-    seconds, status: !ok ? 'write-error' : (ffmpegPath ? 'processing' : 'webm'),
-    ...(rec.error ? { error: rec.error } : {}), ...(meta || {}) });
-  try { writeSessions(list); } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
+  const patch = { seconds, status: !ok ? 'write-error' : (ffmpegPath ? 'processing' : 'webm'),
+    ...(rec.error ? { error: rec.error } : {}), ...(meta || {}) };
+  try {
+    const list = readSessions();
+    const s = list.find(x => x.id === sid);
+    if (s) Object.assign(s, patch);
+    else list.push({ id: sid, time: new Date(rec.t0).toISOString(), label: rec.label, file: path.basename(rec.file), dir: rec.dir, ...patch });
+    writeSessions(list);
+  } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
   if (ok) convert(sid, rec.file);
   return { ok, file: rec.file, error: rec.error };
 });
@@ -339,7 +358,45 @@ ipcMain.handle('rec-abort', async (e, id) => {
   recs.delete(id);
   await closeStream(rec);
   try { if (fs.statSync(rec.file).size < 1024) fs.unlinkSync(rec.file); } catch (err) {}
+  try { writeSessions(readSessions().filter(x => x.id !== rec.sid)); } catch (err) {}
 });
+
+// Pulihkan rekaman yang terputus (aplikasi ditutup paksa, crash, atau listrik mati saat merekam).
+// Potongan rekaman sudah tertulis ke disk setiap detik, jadi isinya bisa diselamatkan.
+function recoverInterrupted() {
+  const list = readSessions();
+  const found = list.filter(s => s.status === 'recording');
+  if (!found.length) return 0;
+  let recovered = 0;
+  for (const s of found) {
+    const p = path.join(s.dir || defaultDir, s.file);
+    let st = null;
+    try { st = fs.statSync(p); } catch (e) {}
+    if (!st || st.size < 1024) { s.status = 'lost'; continue; }   // file tidak ada / kosong
+    s.recovered = true;
+    s.seconds = Math.max(0, Math.round((st.mtimeMs - Date.parse(s.time)) / 1000));  // perkiraan durasi
+    s.status = ffmpegPath ? 'processing' : 'webm';
+    recovered++;
+  }
+  writeSessions(list);
+  console.log(`Rekaman terputus dipulihkan: ${recovered} dari ${found.length}`);
+  return recovered;
+}
+// Tutup rekaman yang masih terbuka dan selamatkan isinya (dipakai saat tampilan aplikasi crash)
+async function rescueOpenRecordings() {
+  for (const rec of [...recs.values()]) {
+    recs.delete(rec.id);
+    await closeStream(rec);
+  }
+  const n = recoverInterrupted();
+  readSessions().filter(x => x.status === 'processing').forEach(x => {
+    const p = path.join(x.dir || defaultDir, x.file);
+    if (fs.existsSync(p)) convert(x.id, p);
+  });
+  return n;
+}
+let recoveredCount = 0;
+ipcMain.handle('get-startup-info', () => { const r = { recovered: recoveredCount }; recoveredCount = 0; return r; });
 
 /* ---------- Jendela ---------- */
 app.whenReady().then(async () => {
@@ -350,20 +407,54 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'media'));
   powerSaveBlocker.start('prevent-display-sleep'); // layar & PC tidak tidur selama aplikasi jalan
 
-  // Lanjutkan konversi yang terputus
+  // Pulihkan rekaman yang terputus, lalu lanjutkan konversi yang belum selesai
+  recoveredCount = recoverInterrupted();
   readSessions().filter(s => s.status === 'processing').forEach(s => {
     const p = path.join(s.dir || defaultDir, s.file);
     if (fs.existsSync(p)) convert(s.id, p);
   });
 
+  // ---------- Menu ----------
+  // Tanpa menu "View": Cmd/Ctrl+R (muat ulang), DevTools, dan zoom tidak bisa tertekan tidak sengaja.
+  // Di Mac tetap ada menu aplikasi (Cmd+Q untuk keluar) dan Edit (salin/tempel di kolom isian).
+  const template = [];
+  if (process.platform === 'darwin') template.push({ role: 'appMenu' }, { role: 'editMenu' });
+  if (DEV) template.push({ label: 'Developer', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }] });
+  Menu.setApplicationMenu(template.length ? Menu.buildFromTemplate(template) : null);
+
   win = new BrowserWindow({
     width: 1280, height: 800,
     fullscreen: effective().kiosk, kiosk: effective().kiosk,
     backgroundColor: '#ffffff',
+    autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js') }
   });
-  win.webContents.on('console-message', (e, level, msg) => console.log('[app]', msg));
+  const wc = win.webContents;
+  wc.on('console-message', (e, level, msg) => console.log('[app]', msg));
+
+  // Jangan pernah pindah halaman (mis. file atau link terseret ke jendela) dan jangan buka jendela baru
+  const appUrl = require('url').pathToFileURL(path.join(__dirname, 'index.html')).href;
+  wc.on('will-navigate', (e, url) => { if (url !== appUrl) e.preventDefault(); });
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // Kunci zoom (pinch di trackpad / layar sentuh, Ctrl+scroll)
+  wc.setVisualZoomLevelLimits(1, 1);
+  wc.on('zoom-changed', () => wc.setZoomFactor(1));
+  // Kalau tampilan aplikasi crash, muat ulang otomatis supaya layar tidak tertinggal kosong
+  wc.on('render-process-gone', async (e, d) => {
+    if (d.reason === 'clean-exit') return;
+    console.log('Tampilan aplikasi berhenti (' + d.reason + '), menyelamatkan rekaman lalu memuat ulang');
+    try { recoveredCount = await rescueOpenRecordings(); } catch (err) { console.log(err.message); }
+    setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 1000);
+  });
+
   win.loadFile('index.html');
+});
+
+// Klik ikon lagi saat aplikasi sudah terbuka: munculkan jendela yang ada
+app.on('second-instance', () => {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show(); win.focus();
 });
 
 app.on('window-all-closed', () => app.quit());

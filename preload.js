@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   setActiveCouple: id => ipcRenderer.invoke('set-active-couple', id),
   openFolder: () => ipcRenderer.invoke('open-folder'),
   openCoupleFolder: () => ipcRenderer.invoke('open-couple-folder'),
+  getStartupInfo: () => ipcRenderer.invoke('get-startup-info'),
   getSettings: () => ipcRenderer.invoke('get-settings'),
   saveSettings: patch => ipcRenderer.invoke('save-settings', patch),
   changeLogin: (oldPw, id, pw) => ipcRenderer.invoke('change-login', oldPw, id, pw),
