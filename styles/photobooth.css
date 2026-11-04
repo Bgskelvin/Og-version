@@ -27,9 +27,14 @@
 .pb-strip.done .pb-slot .btn.sm { visibility:visible; }
 .pb-actions { max-width:640px; }
 
-.pb-count { position:absolute; inset:0 0 14vh 0; z-index:30; display:none; align-items:center; justify-content:center; pointer-events:none; }
-.pb-count .glass { width:min(42vh,320px); height:min(42vh,320px); border-radius:50%; display:flex; align-items:center; justify-content:center;
+/* Hitung mundur: besar di tengah hanya untuk foto pertama. Saat angka 3 ia
+   mengecil ke pojok kiri atas (.kecil) dan tetap di sana sampai foto ke-4. */
+.pb-count { position:absolute; inset:0 0 14vh 0; z-index:30; display:none; pointer-events:none; }
+.pb-count .glass { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(1); transform-origin:0 0;
+  width:min(42vh,320px); height:min(42vh,320px); border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-size:min(24vh,190px); font-weight:700; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+.pb-count.kecil .glass { left:22px; top:22px; transform:translate(0,0) scale(.42); }
+.pb-count.anim .glass { transition:left .7s cubic-bezier(.3,.7,.2,1), top .7s cubic-bezier(.3,.7,.2,1), transform .7s cubic-bezier(.3,.7,.2,1); }
 .pb-count span { animation:tick 1s ease-out infinite; }
 .pb-preview { position:absolute; inset:0 0 14vh 0; z-index:31; display:none; align-items:center; justify-content:center; pointer-events:none; }
 .pb-preview.on { display:flex; }

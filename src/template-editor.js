@@ -24,7 +24,7 @@ async function daftarTemplateAdmin() {
   const list = activeCouple ? await api.listTemplates(activeCouple.id) : [];
   if (!list.length) {
     const kosong = document.createElement('div'); kosong.className = 'item muted';
-    kosong.textContent = 'Belum ada template. Tamu akan memakai layout bawaan.';
+    kosong.textContent = 'Belum ada template. Tamu memakai layout bawaan (Kisi 2×2, Strip, 1 besar + 3).';
     box.appendChild(kosong); return;
   }
   for (const t of list) {

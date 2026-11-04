@@ -226,14 +226,21 @@ async function main() {
   cek(/4 kali.*3 detik/.test(await pg.textContent('#pbIntro')), 'penjelasan Photo booth mengikuti hitung mundur 3 detik');
   await pg.evaluate(() => { window.KILAT = 0; new MutationObserver(() => { if (document.getElementById('pbFlash').classList.contains('on')) KILAT++; })
     .observe(document.getElementById('pbFlash'), { attributes: true }); });
+  await pg.evaluate(() => { window.HITUNG = []; new MutationObserver(() => HITUNG.push(
+      document.getElementById('pbCountNum').textContent + (document.getElementById('pbCount').classList.contains('kecil') ? 'k' : 'B')))
+    .observe(document.getElementById('pbCountNum'), { childList: true }); });
   const t0 = Date.now();
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   const lama = (Date.now() - t0) / 1000;
   cek(lama < 19, 'sesi 4 foto dengan hitung mundur 3 detik & tanpa pratinjau selesai lebih cepat', lama);
   cek(await pg.evaluate(() => KILAT) === 0, 'efek kilat mati sesuai pengaturan');
+  const hitung = await pg.evaluate(() => HITUNG.join(' '));
+  cek(hitung === '3B 2k 1k 3k 2k 1k 3k 2k 1k 3k 2k 1k', 'hitung mundur pertama besar lalu mengecil, foto 2-4 tetap kecil', hitung);
   await pg.evaluate(() => applySettings({ ...cfg, photoCountdown: 5, photoPreview: 2, photoFlash: true }));
+  await pg.evaluate(() => { HITUNG.length = 0; });
   await pg.click('[data-redo="0"]'); await tunggu(5600);
+  cek(await pg.evaluate(() => HITUNG.join(' ')) === '5k 4k 3k 2k 1k', 'hitung mundur saat Ulangi tetap kecil di pojok', await pg.evaluate(() => HITUNG.join(' ')));
   cek(await pg.isVisible('#pbPreview') && await pg.evaluate(() => KILAT) === 1, 'pratinjau & kilat aktif lagi setelah pengaturan dinyalakan');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 15000 });
   cek(await pg.locator('.pb-thumb.filled').count() === 4, '4 foto tampil berderet');
@@ -245,9 +252,9 @@ async function main() {
   cek(await layar() === 'editphoto', 'Finish & edit membuka halaman Edit');
   cek(await pg.evaluate(() => document.querySelector('#peLayouts .pe-opt.on') === document.querySelector('#peLayouts .pe-opt'))
       && /Rustic emas/.test(await pg.textContent('#peLayouts .pe-opt')), 'template admin tampil pertama & langsung terpilih');
-  cek(await pg.locator('#peLayouts .pe-opt').count() === 4, 'layout bawaan tetap tersedia di bawah template');
-  await pg.click('[data-tab="frame"]');
-  cek(await pg.isVisible('#peFrameHint') && !(await pg.isVisible('#peFrames')), 'tab Bingkai menjelaskan bahwa template sudah punya bingkai');
+  cek(await pg.locator('#peLayouts .pe-opt').count() === 1, 'tamu tidak bisa memilih layout bawaan, hanya layout dari admin');
+  cek(!(await pg.isVisible('[data-tab="layout"]')) && !(await pg.isVisible('[data-tab="frame"]')) && await pg.isVisible('#peFilters'),
+      'hanya satu template: tab Layout & Bingkai disembunyikan, tamu langsung di tab Filter');
   await pg.click('[data-tab="filter"]'); await pg.locator('#peFilters .pe-opt').nth(1).click();
   await pg.click('[data-tab="sticker"]'); await pg.locator('#peStickerList .pe-stk').first().click();
   cek(await pg.locator('.pe-sticker').count() === 1, 'stiker bisa ditambahkan');
@@ -266,6 +273,12 @@ async function main() {
   cek(await pg.evaluate(() => TPL.length) === 1 && /Yakin/.test(await hapus.textContent()), 'hapus template minta ketuk dua kali');
   await pg.locator('#tplList .tpl-row button', { hasText: 'Yakin' }).click(); await tunggu(300);
   cek(await pg.evaluate(() => TPL.length) === 0 && /Belum ada template/.test(await pg.textContent('#tplList')), 'template terhapus dari daftar');
+  await pg.evaluate(() => { applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0 }); show('utama'); });
+  await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 }); await pg.click('#pbFinish'); await tunggu(500);
+  cek(await pg.locator('#peLayouts .pe-opt').count() === 3 && await pg.isVisible('[data-tab="layout"]') && await pg.isVisible('[data-tab="frame"]'),
+      'tanpa template: tamu memakai layout bawaan');
+  await pg.click('#peDone'); await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

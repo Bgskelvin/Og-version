@@ -18,7 +18,7 @@
   /* ---------------- Status ---------------- */
   const photos = new Array(SHOTS).fill(null);   // kanvas resolusi penuh setiap foto
   let running = false, pbToken = 0, cancelArmed = null;
-  const fresh = () => ({ layout: 'grid', layoutDipilih: false, filter: 'none', frame: 0, showText: true, stickers: [], strokes: [], sel: null,
+  const fresh = () => ({ layout: 'grid', filter: 'none', frame: 0, showText: true, stickers: [], strokes: [], sel: null,
                          tab: 'layout', color: '#FFFFFF', size: 10 });
   let ed = fresh();
 
@@ -55,14 +55,23 @@
     box.classList.remove('on', 'out');
     return token === pbToken;
   }
-  async function countdown(token) {
-    $('pbCount').style.display = 'flex';
+  // besar = true hanya untuk foto pertama sesi: angka tampil besar di tengah,
+  // lalu saat angka 3 mengecil ke pojok kiri atas. Selain itu langsung kecil.
+  async function countdown(token, besar = false) {
+    const el = $('pbCount');
+    el.classList.remove('anim');
+    el.classList.toggle('kecil', !besar);
+    el.style.display = 'block';
     for (let i = COUNTDOWN(); i >= 1; i--) {
       $('pbCountNum').textContent = i;
+      // Mengecil saat angka 3 (kalau hitungan cuma 3 detik: setelah angka pertama)
+      if (besar && i <= 3 && i < COUNTDOWN() && !el.classList.contains('kecil')) {
+        void el.offsetWidth; el.classList.add('anim', 'kecil');
+      }
       await sleep(1000);
-      if (token !== pbToken) { $('pbCount').style.display = 'none'; return false; }
+      if (token !== pbToken) { el.style.display = 'none'; return false; }
     }
-    $('pbCount').style.display = 'none';
+    el.style.display = 'none';
     return true;
   }
   function thumbURL(c, width = 480) {
@@ -111,7 +120,8 @@
       for (const i of indices) {
         $('pbPillText').textContent = indices.length === 1 ? `Ulangi foto ${i + 1}` : `Foto ${i + 1} dari ${SHOTS}`;
         markNext(i);
-        if (!(await countdown(token))) return;
+        const besar = indices.length === SHOTS && i === indices[0];   // hanya hitungan pertama sesi
+        if (!(await countdown(token, besar))) return;
         photos[i] = await snap();
         renderSlot(i);
         if (!(await preview(i, token))) return;
@@ -202,6 +212,9 @@
   // Template buatan admin untuk couple aktif (dimuat saat halaman Edit dibuka)
   let tplLays = {};
   const L = () => LAYOUTS[ed.layout] || tplLays[ed.layout] || LAYOUTS.grid;
+  // Tamu hanya memakai layout dari admin. Layout bawaan dipakai kalau admin belum membuat template.
+  const adaTemplate = () => Object.keys(tplLays).length > 0;
+  const pilihanLayout = () => (adaTemplate() ? tplLays : LAYOUTS);
   async function muatTemplateCouple() {
     tplLays = {};
     if (!activeCouple || !api.listTemplates) return;
@@ -312,8 +325,8 @@
   }
   function buildPanel() {
     const lays = $('peLayouts'); lays.innerHTML = '';
-    for (const [key, lay] of [...Object.entries(tplLays), ...Object.entries(LAYOUTS)])   // template admin dulu
-      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; ed.layoutDipilih = true; fitStage(); buildPanel(); });
+    for (const [key, lay] of Object.entries(pilihanLayout()))
+      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; fitStage(); buildPanel(); });
     const pakaiTpl = !!L().tpl;
     $('peFrameNormal').style.display = pakaiTpl ? 'none' : '';
     $('peFrameHint').style.display = pakaiTpl ? 'block' : 'none';
@@ -435,10 +448,11 @@
 
   async function openEdit() {
     await muatTemplateCouple();
-    if (!ed.layoutDipilih || !L().tpl && !LAYOUTS[ed.layout]) {
-      const pertama = Object.keys(tplLays)[0];               // template admin jadi pilihan awal
-      ed.layout = pertama || (LAYOUTS[ed.layout] ? ed.layout : 'grid');
-    }
+    if (!pilihanLayout()[ed.layout]) ed.layout = Object.keys(pilihanLayout())[0];
+    // Tab Layout hanya tampil kalau ada lebih dari satu pilihan; tab Bingkai hanya untuk layout bawaan
+    const tampil = { layout: Object.keys(pilihanLayout()).length > 1, frame: !adaTemplate() };
+    document.querySelectorAll('#peTabs .pe-tab').forEach(t => { t.style.display = tampil[t.dataset.tab] === false ? 'none' : ''; });
+    if (tampil[ed.tab] === false) ed.tab = tampil.layout ? 'layout' : 'filter';
     show('editphoto');
     buildPanel(); setTab(ed.tab || 'layout');
     requestAnimationFrame(fitStage);
