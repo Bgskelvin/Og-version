@@ -35,11 +35,15 @@ function normalisasiCfg(src) {
     cfg[k] = typeof d === 'boolean' ? (typeof v === 'boolean' ? v : d) : (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
   }
 }
-// Tombol menu di Halaman Utama mengikuti Pengaturan videobooth & photobooth
+// Tombol menu di Halaman Utama mengikuti pengaturan couple aktif (Admin → couple → Menu)
+function menuCouple(c = activeCouple) {
+  return (c && c.menu) || { pesan: true, quiz: true, photo: true };
+}
 function terapkanMenu() {
-  $('btnToPesan').style.display = cfg.enablePesan ? '' : 'none';
-  $('btnToQuiz').style.display = cfg.enableQuiz ? '' : 'none';
-  $('btnToPhoto').style.display = cfg.enablePhoto ? '' : 'none';
+  const m = menuCouple();
+  $('btnToPesan').style.display = m.pesan ? '' : 'none';
+  $('btnToQuiz').style.display = m.quiz && cfg.quiz && cfg.quiz.length ? '' : 'none';
+  $('btnToPhoto').style.display = m.photo ? '' : 'none';
 }
 // Terapkan pengaturan terbaru ke aplikasi tanpa perlu menutupnya
 function applySettings(s) {

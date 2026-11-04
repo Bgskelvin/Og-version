@@ -30,8 +30,10 @@ window.api = {
   getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),
   getCouples: async () => JSON.parse(JSON.stringify(CP)),
   saveCouple: async c => { const q = c.questions.map(x => x.trim()).filter(Boolean);
-    if (!c.name.trim()) return { error: 'Nama couple wajib diisi.' }; if (!q.length) return { error: 'Isi minimal 1 pertanyaan.' };
-    const baru = { id: c.id || 'n' + CP.couples.length, name: c.name.trim(), welcome: c.welcome, questions: q };
+    if (!c.name.trim()) return { error: 'Nama couple wajib diisi.' };
+    if (!Object.values(c.menu).some(Boolean)) return { error: 'Minimal satu menu harus aktif.' };
+    if (c.menu.quiz && !q.length) return { error: 'Quick quiz aktif: isi minimal 1 pertanyaan, atau matikan Quick quiz.' };
+    const baru = { id: c.id || 'n' + CP.couples.length, name: c.name.trim(), welcome: c.welcome, questions: q, menu: c.menu };
     const i = CP.couples.findIndex(x => x.id === baru.id); if (i < 0) CP.couples.push(baru); else CP.couples[i] = baru;
     return { ok: true, couple: baru, data: JSON.parse(JSON.stringify(CP)) }; },
   setActiveCouple: async id => { CP.activeId = id; return { ok: true, data: JSON.parse(JSON.stringify(CP)) }; },
@@ -138,7 +140,7 @@ async function main() {
 
   console.log('\n▶ Admin: pengaturan langsung berlaku & panel bisa digulir');
   await pg.click('#btnCobaLagi'); await pg.click('#btnAdminOpen'); await pg.fill('#uid', 'leura'); await pg.fill('#pw', '1234'); await pg.click('#btnLogin');
-  await tunggu(400);
+  await pg.waitForSelector('#adminPanel', { state: 'visible', timeout: 5000 }).catch(() => {}); await tunggu(300);
   cek(await pg.isVisible('#adminPanel'), 'login Admin berhasil');
   const body = pg.locator('#adminPanel .sheet-body'); const bb = await body.boundingBox();
   await pg.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await pg.mouse.wheel(0, 500); await tunggu(400);
@@ -150,7 +152,6 @@ async function main() {
   await pg.locator('#btnSetVideo').scrollIntoViewIfNeeded(); await pg.click('#btnSetVideo'); await tunggu(300);
   cek(await layar() === 'setvideo', 'halaman Pengaturan videobooth terbuka dari Admin');
   await pg.selectOption('#setSeconds', '30'); await tunggu(150);
-  await pg.click('#setEnableQuiz'); await tunggu(150);
   await pg.selectOption('#setPesanCountdown', '0'); await tunggu(150);
   cek(/Hitung mundur pesan: langsung merekam/.test(await pg.textContent('#setVideoMsg')), 'konfirmasi tersimpan tampil');
   await pg.click('#btnSetVideoBack');
@@ -161,17 +162,12 @@ async function main() {
   cek(await layar() === 'setphoto', 'halaman Pengaturan photobooth terbuka dari Admin');
   await pg.selectOption('#setPhotoCountdown', '3'); await pg.selectOption('#setPhotoPreview', '0'); await tunggu(150);
   await pg.click('#setPhotoFlash'); await tunggu(150);
-  await pg.click('#setEnablePhoto'); await tunggu(150);
-  await pg.evaluate(() => { document.getElementById('setEnablePesan').checked = false; document.getElementById('setEnablePesan').onchange({ target: { checked: false } }); });
-  await tunggu(200);
-  cek(/Minimal satu menu/.test(await pg.textContent('#setVideoMsg') + await pg.textContent('#setPhotoMsg')) && await pg.evaluate(() => cfg.enablePesan),
-      'menu terakhir tidak bisa dimatikan');
-  await pg.click('#setEnablePhoto'); await tunggu(150);
+  cek(!(await pg.isVisible('#setEnablePhoto')) && /per couple/.test(await pg.textContent('#setphoto')), 'saklar menu tidak lagi di Pengaturan photobooth (pindah ke couple)');
 
   console.log('\n▶ Halaman couple & editor template');
   await pg.click('#btnSetPhotoBack'); await tunggu(300);
   const baris = pg.locator('#coupleList .cp-row');
-  cek(await baris.count() === 2 && /Rina & Dimas.*Aktif/.test(await baris.first().textContent()) && /3 pertanyaan · 0 template · 1 sesi/.test(await baris.first().textContent()),
+  cek(await baris.count() === 2 && /Rina & Dimas.*Aktif/.test(await baris.first().textContent()) && /Pesan, Quiz \(3 soal\), Foto · 0 template · 1 sesi/.test(await baris.first().textContent()),
       'Admin menampilkan daftar couple, couple aktif paling atas', await baris.first().textContent());
   await baris.nth(1).click(); await tunggu(300);
   cek(await layar() === 'tambah' && await pg.textContent('#tambahTitle') === 'Ayu & Budi' && await pg.isVisible('#btnTplNew'),
@@ -221,8 +217,14 @@ async function main() {
   cek(await layar() === 'tpleditor' && /Buang/.test(await pg.textContent('#teBatal')), 'Batal dengan perubahan minta konfirmasi');
   await pg.click('#teBatal'); await tunggu(200);
   cek(await layar() === 'tambah' && await pg.evaluate(() => TPL[0].nama) === 'Rustic emas', 'Batal tidak menyimpan perubahan');
-  await pg.click('#btnTambahBatal'); await tunggu(300);
-  cek(/1 template/.test(await baris.first().textContent()), 'jumlah template couple ikut diperbarui di daftar');
+  console.log('\n▶ Menu per couple');
+  cek(await pg.isChecked('#fMenuPesan') && await pg.isChecked('#fMenuQuiz') && await pg.isChecked('#fMenuPhoto'), 'halaman couple menampilkan saklar 3 menu');
+  await pg.click('#fMenuPesan'); await pg.click('#fMenuQuiz'); await pg.click('#fMenuPhoto'); await tunggu(100);
+  cek(await pg.isChecked('#fMenuPhoto') && /Minimal satu menu/.test(await pg.textContent('#fMenuMsg')), 'menu terakhir tidak bisa dimatikan');
+  await pg.click('#fMenuPesan'); await pg.click('#btnTambahSimpan'); await tunggu(300);
+  const menuA = await pg.evaluate(() => CP.couples[0].menu);
+  cek(await layar() === 'admin' && menuA.pesan && !menuA.quiz && menuA.photo, 'menu couple tersimpan (Quick quiz mati)', menuA);
+  cek(/Rina & Dimas.*Pesan, Foto · 1 template/.test(await baris.first().textContent()), 'daftar couple menunjukkan menu aktif & jumlah template', await baris.first().textContent());
   await pg.click('#btnAdminBack');
   cek(!(await pg.isVisible('#btnToQuiz')) && await pg.isVisible('#btnToPesan') && await pg.isVisible('#btnToPhoto'),
       'Halaman Utama: Quick quiz tersembunyi, menu lain tetap tampil');
@@ -237,7 +239,7 @@ async function main() {
   await tungguLayar('saving', 5000);
   cek(true, 'batas durasi tercapai: rekaman berhenti sendiri');
   await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
-  await pg.evaluate(() => applySettings({ ...cfg, pesanMaxSeconds: 0, enableQuiz: true }));
+  await pg.evaluate(() => { applySettings({ ...cfg, pesanMaxSeconds: 0 }); activeCouple.menu.quiz = true; terapkanMenu(); });
   await pg.click('#btnToQuiz');
   cek(/30 detik/.test(await pg.textContent('#quizInfo')), 'waktu jawab baru langsung dipakai quiz');
   await pg.click('#btnQuizBack');
@@ -304,8 +306,11 @@ async function main() {
   console.log('\n▶ Tambah couple baru lalu langsung buat template');
   await pg.evaluate(() => show('admin')); await pg.click('#btnAddCouple'); await tunggu(200);
   cek(await pg.isVisible('#cpTplBaru') && !(await pg.isVisible('#btnTplNew')) && !(await pg.isVisible('#btnDelCouple')), 'couple baru: template muncul setelah disimpan');
-  await pg.fill('#fName', 'Sari & Andi'); await pg.locator('.qIn').first().fill('Kapan pertama bertemu?');
-  await pg.click('#fActive'); await pg.click('#btnTambahSimpan'); await tunggu(300);
+  await pg.fill('#fName', 'Sari & Andi'); await pg.click('#fActive'); await pg.click('#btnTambahSimpan'); await tunggu(300);
+  cek(/Quick quiz aktif: isi minimal 1 pertanyaan/.test(await pg.textContent('#tambahErr')), 'Quick quiz aktif tanpa pertanyaan ditolak');
+  await pg.click('#fMenuQuiz');
+  cek(/Quick quiz mati/.test(await pg.textContent('#qWajib')), 'pertanyaan ditandai tidak dipakai saat Quick quiz mati');
+  await pg.click('#btnTambahSimpan'); await tunggu(300);
   cek(await layar() === 'tambah' && await pg.isVisible('#btnTplNew') && await pg.textContent('#tambahTitle') === 'Sari & Andi',
       'setelah disimpan tetap di halaman couple & tombol Buat template muncul');
   cek(await pg.evaluate(() => CP.activeId) === 'a', 'couple aktif tidak berubah saat menyiapkan couple lain');

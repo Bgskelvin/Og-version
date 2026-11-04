@@ -184,7 +184,18 @@
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Jadikan couple aktif</span>
           <label class="switch"><input type="checkbox" id="fActive"><i></i></label></div>
       </div>
-      <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span></div>
+      <div class="group-title">Menu di Halaman Utama</div>
+      <div class="group">
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Kirim pesan</span>
+          <label class="switch"><input type="checkbox" id="fMenuPesan"><i></i></label></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Quick quiz</span>
+          <label class="switch"><input type="checkbox" id="fMenuQuiz"><i></i></label></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Photo booth</span>
+          <label class="switch"><input type="checkbox" id="fMenuPhoto"><i></i></label></div>
+      </div>
+      <p class="pe-hint" style="margin:8px 6px 0">Minimal satu menu harus aktif. Tamu hanya melihat menu yang aktif untuk couple ini.</p>
+      <div class="note err" id="fMenuMsg"></div>
+      <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span><span id="qWajib" style="font-weight:500"></span></div>
       <div class="group" id="qInputs"></div>
       <div class="note err" id="tambahErr"></div>
       <div class="group-title">Template foto <span id="tplCouple" style="display:none"></span></div>
@@ -243,13 +254,7 @@
       <span></span>
     </div>
     <div class="sheet-body">
-      <div class="group-title">Menu di Halaman Utama</div>
-      <div class="group">
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Kirim pesan</span>
-          <label class="switch"><input type="checkbox" id="setEnablePesan"><i></i></label></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Quick quiz</span>
-          <label class="switch"><input type="checkbox" id="setEnableQuiz"><i></i></label></div>
-      </div>
+      <p class="pe-hint" style="margin:4px 6px 0">Menu Kirim pesan & Quick quiz dinyalakan atau dimatikan per couple: Admin → ketuk nama couple → Menu di Halaman Utama.</p>
 
       <div class="group-title">Kirim pesan</div>
       <div class="group">
@@ -277,11 +282,7 @@
       <span></span>
     </div>
     <div class="sheet-body">
-      <div class="group-title">Menu di Halaman Utama</div>
-      <div class="group">
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Photo booth</span>
-          <label class="switch"><input type="checkbox" id="setEnablePhoto"><i></i></label></div>
-      </div>
+      <p class="pe-hint" style="margin:4px 6px 0">Menu Photo booth dinyalakan atau dimatikan per couple: Admin → ketuk nama couple → Menu di Halaman Utama.</p>
 
       <div class="group-title">Sesi foto</div>
       <div class="group">

@@ -4,7 +4,7 @@
 const { ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { config, userData, readJSON, writeJSON, getOutDir, usableDir, coupleDir } = require('./penyimpanan');
+const { config, userData, readJSON, writeJSON, readSettings, getOutDir, usableDir, coupleDir } = require('./penyimpanan');
 const { hapusTemplateCouple } = require('./template');
 
 /* ---------- Data couple ---------- */
@@ -25,12 +25,29 @@ function readCouples() {
     d = { activeId: first.id, couples: [first] };
     writeCouples(d);
   }
+  d.couples.forEach(c => { c.menu = bersihkanMenu(c.menu); });
   if (!d.couples.find(c => c.id === d.activeId)) d.activeId = d.couples[0] ? d.couples[0].id : null;
   return d;
 }
 function writeCouples(d) { writeJSON(couplesPath, d); }
+
+/* Menu di Halaman Utama, diatur per couple. Couple lama yang belum punya
+   pengaturan ini memakai pengaturan menu lama (dulu berlaku untuk semua couple). */
+const MENU = { pesan: 'Kirim pesan', quiz: 'Quick quiz', photo: 'Photo booth' };
+function menuBawaan() {
+  const s = readSettings();
+  return { pesan: s.enablePesan !== false, quiz: s.enableQuiz !== false, photo: s.enablePhoto !== false };
+}
+function bersihkanMenu(m) {
+  const awal = menuBawaan();
+  if (!m || typeof m !== 'object') return awal;
+  const out = {};
+  for (const k of Object.keys(MENU)) out[k] = typeof m[k] === 'boolean' ? m[k] : awal[k];
+  return out;
+}
 function cleanCouple(c) {
   return {
+    menu: bersihkanMenu(c.menu),
     id: c.id || idBaru(),
     name: String(c.name || '').trim().slice(0, 80),
     welcome: String(c.welcome || '').trim().slice(0, 160),
@@ -50,7 +67,8 @@ function daftarkan() {
   ipcMain.handle('save-couple', (e, input) => {
     const c = cleanCouple(input || {});
     if (!c.name) return { error: 'Nama couple wajib diisi.' };
-    if (!c.questions.length) return { error: 'Isi minimal 1 pertanyaan.' };
+    if (!Object.values(c.menu).some(Boolean)) return { error: 'Minimal satu menu harus aktif: Kirim pesan, Quick quiz, atau Photo booth.' };
+    if (c.menu.quiz && !c.questions.length) return { error: 'Quick quiz aktif: isi minimal 1 pertanyaan, atau matikan Quick quiz.' };
     const d = readCouples();
     const i = d.couples.findIndex(x => x.id === c.id);
     if (i >= 0) d.couples[i] = c; else d.couples.push(c);

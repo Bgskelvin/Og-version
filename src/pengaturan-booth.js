@@ -14,14 +14,11 @@ const labelDari = key => v => (PILIHAN[key].find(([n]) => n === v) || [v, secLab
 
 function isiPengaturanBooth(s) {
   // Videobooth
-  $('setEnablePesan').checked = s.enablePesan;
-  $('setEnableQuiz').checked = s.enableQuiz;
   fillSelect($('setPesanCountdown'), PILIHAN.pesanCountdown.map(p => p[0]), s.pesanCountdown, labelDari('pesanCountdown'));
   fillSelect($('setPesanMax'), PILIHAN.pesanMaxSeconds.map(p => p[0]), s.pesanMaxSeconds, labelDari('pesanMaxSeconds'));
   fillSelect($('setSeconds'), SECONDS, s.quizSeconds, secLabel);
   fillSelect($('setRounds'), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], s.quizRounds, v => `${v} pertanyaan`);
   // Photobooth
-  $('setEnablePhoto').checked = s.enablePhoto;
   fillSelect($('setPhotoCountdown'), PILIHAN.photoCountdown.map(p => p[0]), s.photoCountdown, labelDari('photoCountdown'));
   fillSelect($('setPhotoPreview'), PILIHAN.photoPreview.map(p => p[0]), s.photoPreview, labelDari('photoPreview'));
   $('setPhotoFlash').checked = s.photoFlash;
@@ -49,9 +46,6 @@ function pasangPengaturanBooth() {
     const msgId = key === 'enablePhoto' || key === 'photoFlash' ? 'setPhotoMsg' : 'setVideoMsg';
     simpanBooth({ [key]: e.target.checked }, msgId, `${nama} ${e.target.checked ? 'aktif' : 'dimatikan'}.`);
   }; };
-  saklar('setEnablePesan', 'enablePesan', 'Menu Kirim pesan');
-  saklar('setEnableQuiz', 'enableQuiz', 'Menu Quick quiz');
-  saklar('setEnablePhoto', 'enablePhoto', 'Menu Photo booth');
   saklar('setPhotoFlash', 'photoFlash', 'Efek kilat');
 
   const pilih = (id, key, msgId, teks) => { $(id).onchange = e => {

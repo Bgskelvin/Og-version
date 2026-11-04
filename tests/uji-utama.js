@@ -16,7 +16,7 @@ const KASUS = {
     let d = await panggil('get-couples');
     cek(d.couples.length === 1 && d.couples[0].id === d.activeId, 'couple pertama dibuat dari config.json dan aktif');
     cek((await panggil('save-couple', { name: '  ', questions: ['a'] })).error === 'Nama couple wajib diisi.', 'nama kosong ditolak');
-    cek((await panggil('save-couple', { name: 'X', questions: ['', ' '] })).error === 'Isi minimal 1 pertanyaan.', 'tanpa pertanyaan ditolak');
+    cek(/Quick quiz aktif/.test((await panggil('save-couple', { name: 'X', questions: ['', ' '] })).error), 'quiz aktif tanpa pertanyaan ditolak');
     let r = await panggil('save-couple', { name: 'Ayu & Budi', questions: Array.from({ length: 12 }, (_, i) => 'Q' + i) });
     cek(r.couple.questions.length === 10, 'pertanyaan dibatasi 10');
     cek(r.data.activeId !== r.couple.id, 'couple baru tidak otomatis aktif');
@@ -163,6 +163,21 @@ const KASUS = {
     fs.mkdirSync(path.join(dataDir, 'jangan-dihapus'));
     await panggil('delete-template', '../jangan-dihapus');
     cek(fs.existsSync(path.join(dataDir, 'jangan-dihapus')), 'folder di luar folder template tetap ada');
+  },
+
+  async 'menu per couple'() {
+    const { panggil } = nyalakanAplikasi();
+    await panggil('save-settings', { enableQuiz: false });          // pengaturan menu lama
+    let d = await panggil('get-couples');
+    cek(d.couples[0].menu.pesan && !d.couples[0].menu.quiz && d.couples[0].menu.photo, 'couple lama mengikuti pengaturan menu lama', d.couples[0].menu);
+    let r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: false, photo: false } });
+    cek(/Minimal satu menu/.test(r.error), 'semua menu mati ditolak', r.error);
+    r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: true, photo: false } });
+    cek(/Quick quiz aktif/.test(r.error), 'quiz aktif tanpa pertanyaan ditolak', r.error);
+    r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: false, photo: true } });
+    cek(r.ok && r.couple.menu.photo && !r.couple.menu.pesan && !r.couple.menu.quiz, 'couple hanya Photo booth tanpa pertanyaan boleh', r.couple && r.couple.menu);
+    r = await panggil('save-couple', { name: 'B', questions: ['q'], menu: { pesan: 'ya' } });
+    cek(r.ok && r.couple.menu.pesan === true && r.couple.menu.quiz === false, 'nilai menu yang tidak jelas memakai bawaan', r.couple.menu);
   },
 
   async 'hapus couple ikut menghapus templatenya'() {

@@ -9,6 +9,7 @@ function applyCouples(d) {
   $('couple').textContent = activeCouple ? activeCouple.name : '';
   $('welcome').textContent = (activeCouple && activeCouple.welcome) || cfg.welcome || '';
   cfg.quiz = activeCouple ? activeCouple.questions.slice() : [];
+  if (typeof terapkanMenu === 'function' && $('btnToPesan')) terapkanMenu();
 }
 // Daftar couple di Admin: ketuk satu couple untuk membuka halaman couple itu
 async function fillCoupleSel() {
@@ -20,7 +21,9 @@ async function fillCoupleSel() {
     const row = document.createElement('button'); row.className = 'item nav-row cp-row'; row.dataset.id = c.id;
     row.innerHTML = '<span><b></b><small></small></span><svg class="i chev"><use href="#i-next"/></svg>';
     row.querySelector('b').textContent = c.name;
-    row.querySelector('small').textContent = `${c.questions.length} pertanyaan · ${nTpl} template · ${nSesi} sesi`;
+    const m = menuCouple(c);
+    const menu = [m.pesan && 'Pesan', m.quiz && `Quiz (${c.questions.length} soal)`, m.photo && 'Foto'].filter(Boolean).join(', ');
+    row.querySelector('small').textContent = `${menu} · ${nTpl} template · ${nSesi} sesi`;
     if (c.id === couplesData.activeId) {
       const t = document.createElement('em'); t.className = 'cp-aktif'; t.textContent = 'Aktif';
       row.insertBefore(t, row.lastElementChild);
@@ -57,7 +60,24 @@ async function deleteCouple() {
   flash('coupleMsg', `"${target.name}"${tpl} dihapus. Rekaman dan fotonya tetap tersimpan.`);
 }
 
-/* ---------- Halaman Tambah ---------- */
+/* ---------- Halaman couple ---------- */
+// Pertanyaan quiz hanya wajib kalau Quick quiz aktif
+function tandaiQuiz() {
+  const on = $('fMenuQuiz').checked;
+  $('qInputs').classList.toggle('mati', !on);
+  $('qWajib').textContent = on ? '' : ' · Quick quiz mati, pertanyaan tidak dipakai';
+  const pertama = document.querySelector('.qIn');
+  if (pertama) pertama.placeholder = on ? 'Pertanyaan pertama (wajib)' : 'Opsional';
+}
+// Saklar menu: menolak mematikan menu terakhir
+function saklarMenu(e) {
+  const semua = ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].map(id => $(id).checked);
+  if (!semua.some(Boolean)) {
+    e.target.checked = true;
+    flash('fMenuMsg', 'Minimal satu menu harus aktif.', true);
+  }
+  tandaiQuiz();
+}
 function buildQInputs() {
   const box = $('qInputs'); box.innerHTML = '';
   for (let i = 0; i < MAX_Q; i++) {
@@ -89,6 +109,9 @@ function openTambah(c, tetapDiForm = false) {
   const qs = c ? c.questions : [];
   document.querySelectorAll('.qIn').forEach((inp, i) => { inp.value = qs[i] || ''; });
   $('fActive').checked = c ? c.id === couplesData.activeId : true;
+  const m = menuCouple(c);
+  $('fMenuPesan').checked = m.pesan; $('fMenuQuiz').checked = m.quiz; $('fMenuPhoto').checked = m.photo;
+  tandaiQuiz();
   $('tambahErr').textContent = ''; $('cpMsg').textContent = '';
   updateQCount();
   show('tambah');
@@ -100,10 +123,13 @@ async function saveTambah() {
     id: editingId || undefined,
     name: $('fName').value,
     welcome: $('fWelcome').value,
-    questions: [...document.querySelectorAll('.qIn')].map(i => i.value)
+    questions: [...document.querySelectorAll('.qIn')].map(i => i.value),
+    menu: { pesan: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked }
   };
+  const gagal = teks => { $('tambahErr').textContent = teks; $('tambahErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+  if (!Object.values(data.menu).some(Boolean)) return gagal('Minimal satu menu harus aktif: Kirim pesan, Quick quiz, atau Photo booth.');
   const r = await api.saveCouple(data);
-  if (r.error) { $('tambahErr').textContent = r.error; return; }
+  if (r.error) return gagal(r.error);
   let d = r.data;
   if ($('fActive').checked && d.activeId !== r.couple.id) d = (await api.setActiveCouple(r.couple.id)).data;
   applyCouples(d);
@@ -122,6 +148,7 @@ async function saveTambah() {
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
 function pasangCouple() {
   $('btnAddCouple').onclick = () => openTambah(null);
+  ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].forEach(id => { $(id).onchange = saklarMenu; });
   $('btnDelCouple').onclick = deleteCouple;
   $('btnCoupleFolder').onclick = async () => {
     const r = await api.openCoupleFolder(editingId);
