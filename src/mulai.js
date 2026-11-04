@@ -23,6 +23,7 @@
   pasangCouple();
   pasangRekaman();
   pasangPhotobooth();
+  pasangTemplateEditor();
 
   window.addEventListener('unhandledrejection', e => console.log('Error: ' + (e.reason && e.reason.message || e.reason)));
   document.addEventListener('pointerdown', resetIdle);

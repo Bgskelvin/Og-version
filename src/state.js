@@ -17,7 +17,7 @@ const store = {
 
 // ---------- Daftar halaman ----------
 // Setiap halaman di index.html (div.screen) harus terdaftar di sini.
-const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'setvideo', 'setphoto', 'tambah', 'saving', 'thanks'];
+const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'setvideo', 'setphoto', 'tpleditor', 'tambah', 'saving', 'thanks'];
 const MAX_Q = 10;                     // maksimal pertanyaan quiz per couple
 
 // ---------- Status aplikasi ----------

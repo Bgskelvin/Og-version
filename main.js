@@ -6,6 +6,7 @@
      couple.js       data couple & couple aktif
      rekaman.js      perekaman video, MP4, pemulihan rekaman terputus
      foto.js         penyimpanan Photo Booth
+     template.js     template desain foto per couple
      jendela.js      jendela, menu, pengaman navigasi
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
@@ -21,6 +22,7 @@ const jendela = require('./main/jendela');
 require('./main/pengaturan').daftarkan();
 require('./main/couple').daftarkan();
 require('./main/foto').daftarkan();
+require('./main/template').daftarkan();
 rekaman.daftarkan();
 
 app.whenReady().then(async () => {

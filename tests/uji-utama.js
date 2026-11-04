@@ -137,6 +137,34 @@ const KASUS = {
     cek((await panggil('save-photos', { originals: [], result: null })).error === 'Data foto kosong', 'data kosong ditolak');
   },
 
+  async 'template desain foto per couple'() {
+    const { panggil, dataDir } = nyalakanAplikasi();
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2]);
+    cek((await panggil('list-templates', 'A')).length === 0, 'awalnya belum ada template');
+    cek((await panggil('save-template', { nama: 'X' })).error === 'Couple belum dipilih.', 'template tanpa couple ditolak');
+    const slots = [{ x: 60, y: 60, w: 500, h: 600 }, { x: 99999, y: 0, w: 5, h: 99999 }, {}, {}, { x: 1, y: 1, w: 1, h: 1 }];
+    let r = await panggil('save-template', { coupleId: 'A', nama: 'Rustic', ukuran: 'strip', latarWarna: '#F3EDE4', slots,
+      texts: [{ text: '{couple}', x: 300, y: 1700, size: 50, color: '#3A2E25', font: 'script' }] }, { latar: jpg, bingkai: png });
+    cek(r.ok && r.template.W === 600 && r.template.H === 1800, 'template strip tersimpan dengan ukuran 600×1800', r.template && [r.template.W, r.template.H]);
+    cek(r.template.slots.length === 4, 'posisi foto selalu tepat 4');
+    const s2 = r.template.slots[1];
+    cek(s2.w >= 40 && s2.h <= 1800 && s2.x <= 600, 'posisi foto di luar batas dirapikan', s2);
+    cek(/^data:image\/jpeg;base64,/.test(r.template.latarUrl) && /^data:image\/png;base64,/.test(r.template.bingkaiUrl), 'gambar latar & bingkai tersimpan');
+    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { bingkai: jpg })).error === 'Bingkai harus PNG supaya bagian fotonya bisa transparan.', 'bingkai JPG ditolak');
+    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { latar: new Uint8Array([1, 2, 3]) })).error === 'Gambar harus berformat PNG atau JPG.', 'file bukan gambar ditolak');
+    const id = r.template.id;
+    r = await panggil('save-template', { ...r.template, nama: 'Rustic 2' }, { latar: null });
+    cek(r.ok && !r.template.latarUrl && r.template.bingkaiUrl && r.template.nama === 'Rustic 2', 'edit: latar dihapus, bingkai tetap');
+    await panggil('save-template', { coupleId: 'B', nama: 'Milik B' });
+    const a = await panggil('list-templates', 'A');
+    cek(a.length === 1 && a[0].id === id, 'template couple lain tidak ikut tampil', a.map(x => x.nama));
+    cek((await panggil('delete-template', id)).ok && !fs.existsSync(path.join(dataDir, 'templates', id)), 'template bisa dihapus beserta gambarnya');
+    fs.mkdirSync(path.join(dataDir, 'jangan-dihapus'));
+    await panggil('delete-template', '../jangan-dihapus');
+    cek(fs.existsSync(path.join(dataDir, 'jangan-dihapus')), 'folder di luar folder template tetap ada');
+  },
+
   async 'nama couple dengan karakter terlarang'() {
     const { panggil } = nyalakanAplikasi();
     const d = await panggil('save-couple', { name: 'Sinta / Rama: 2026?', questions: ['a'] });

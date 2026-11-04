@@ -18,7 +18,7 @@ const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
-window.LOG = []; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
+window.LOG = []; window.TPL = []; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
 const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', pesanCountdown: 3, pesanMaxSeconds: 0,
@@ -45,6 +45,15 @@ window.api = {
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
   savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta }; return { ok: true }; },
+  listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
+  saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
+    const lama = TPL.find(x => x.id === t.id) || {};
+    let bingkaiUrl = lama.bingkaiUrl || null;
+    if (g.bingkai) bingkaiUrl = 'data:image/png;base64,' + btoa(String.fromCharCode(...g.bingkai)); else if (g.bingkai === null) bingkaiUrl = null;
+    const baru = { ...t, latarUrl: null, bingkaiUrl, diubah: Date.now() };
+    const i = TPL.findIndex(x => x.id === t.id); if (i < 0) TPL.push(baru); else TPL[i] = baru;
+    return { ok: true, template: baru }; },
+  deleteTemplate: async id => { TPL.splice(TPL.findIndex(x => x.id === id), 1); return { ok: true }; },
   saveCouple: async () => ({}), setActiveCouple: async () => ({}), deleteCouple: async () => ({}),
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async () => ''
 };
@@ -148,6 +157,51 @@ async function main() {
   cek(/Minimal satu menu/.test(await pg.textContent('#setVideoMsg') + await pg.textContent('#setPhotoMsg')) && await pg.evaluate(() => cfg.enablePesan),
       'menu terakhir tidak bisa dimatikan');
   await pg.click('#setEnablePhoto'); await tunggu(150);
+
+  console.log('\n▶ Editor template desain foto');
+  cek(/Rina & Dimas/.test(await pg.textContent('#tplCouple')) && /Belum ada template/.test(await pg.textContent('#tplList')),
+      'daftar template untuk couple aktif tampil (masih kosong)');
+  await pg.click('#btnTplNew'); await tunggu(400);
+  cek(await layar() === 'tpleditor' && await pg.locator('.te-slot').count() === 4, 'editor template terbuka dengan kotak foto 1-4');
+  await pg.fill('#teNama', 'Rustic emas');
+  const slot = await pg.locator('.te-slot').first().boundingBox();
+  const x0 = await pg.evaluate(() => te.tpl.slots[0].x);
+  await pg.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2); await pg.mouse.down();
+  await pg.mouse.move(slot.x + slot.width / 2 + 40, slot.y + slot.height / 2 + 30, { steps: 5 }); await pg.mouse.up();
+  cek(await pg.evaluate(() => te.tpl.slots[0].x) > x0 + 40, 'kotak foto 1 bisa digeser dengan jari');
+  const pj = await pg.locator('.te-slot').nth(1).locator('.te-resize').boundingBox();
+  const w0 = await pg.evaluate(() => te.tpl.slots[1].w);
+  await pg.mouse.move(pj.x + pj.width / 2, pj.y + pj.height / 2); await pg.mouse.down();
+  await pg.mouse.move(pj.x - 30, pj.y + pj.height / 2, { steps: 5 }); await pg.mouse.up();
+  cek(await pg.evaluate(() => te.tpl.slots[1].w) < w0, 'ukuran kotak foto bisa diubah dari pojoknya');
+  const posisi = await pg.evaluate(() => JSON.stringify(te.tpl.slots.slice(0, 2)));
+  await pg.click('[data-tab="foto"]'); await pg.locator('#teSlotPilih button').first().click(); await pg.click('#teSlotTukar');
+  cek(await pg.evaluate(p => JSON.stringify([te.tpl.slots[1], te.tpl.slots[0]]) === p, posisi), 'posisi foto 1 dan 2 bisa ditukar');
+  await pg.locator('#teSusunan .pe-opt').nth(1).click();
+  cek(await pg.evaluate(() => te.tpl.slots.every(s => s.x === te.tpl.slots[0].x)), 'susunan cepat "Kolom" dipakai');
+  await pg.click('[data-tab="teks"]'); await pg.click('#teTeksTambah'); await pg.fill('#teTeksIsi', 'Terima kasih sudah datang');
+  await pg.locator('#teTeksFont button').nth(1).click();
+  cek(await pg.evaluate(() => te.tpl.texts.length === 3 && te.tpl.texts[2].text === 'Terima kasih sudah datang' && te.tpl.texts[2].font === 'serif'),
+      'teks baru ditambahkan & hurufnya bisa diganti', await pg.evaluate(() => te.tpl.texts.map(t => t.text + '|' + t.font)));
+  await pg.click('[data-tab="desain"]'); await pg.locator('#teUkuran .pe-opt').nth(2).click(); await tunggu(200);
+  cek(await pg.evaluate(() => te.tpl.W === 600 && te.tpl.H === 1800 && te.tpl.slots.every(s => s.x + s.w <= 600)), 'ganti ukuran ke Strip: posisi ikut menyesuaikan');
+  await pg.locator('#teUkuran .pe-opt').nth(0).click(); await tunggu(200);
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await pg.setInputFiles('#teBingkaiFile', { name: 'bingkai.png', mimeType: 'image/png', buffer: png }); await tunggu(300);
+  cek(/bingkai\.png/.test(await pg.textContent('#teBingkaiStatus')), 'bingkai PNG bisa diunggah');
+  await pg.setInputFiles('#teBingkaiFile', { name: 'foto.jpg', mimeType: 'image/jpeg', buffer: png }); await tunggu(200);
+  cek(/harus PNG/.test(await pg.textContent('#teMsg')), 'bingkai JPG ditolak dengan pesan jelas');
+  await pg.click('#teSimpan'); await tunggu(400);
+  const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
+  cek(await layar() === 'setphoto' && simpan.t.nama === 'Rustic emas' && simpan.t.coupleId === 'a' && simpan.bingkai === png.length,
+      'template tersimpan untuk couple aktif beserta bingkainya', simpan && { nama: simpan.t.nama, bingkai: simpan.bingkai });
+  cek(await pg.locator('#tplList .tpl-row').count() === 1 && /Rustic emas/.test(await pg.textContent('#tplList')), 'template tampil di daftar');
+  await pg.locator('#tplList .tpl-row button', { hasText: 'Edit' }).click(); await tunggu(300);
+  cek(await pg.inputValue('#teNama') === 'Rustic emas' && /bingkai/i.test(await pg.textContent('#teBingkaiStatus')), 'template bisa dibuka lagi untuk diedit');
+  await pg.fill('#teNama', 'Rustic emas 2'); await pg.click('#teBatal');
+  cek(await layar() === 'tpleditor' && /Buang/.test(await pg.textContent('#teBatal')), 'Batal dengan perubahan minta konfirmasi');
+  await pg.click('#teBatal'); await tunggu(200);
+  cek(await layar() === 'setphoto' && await pg.evaluate(() => TPL[0].nama) === 'Rustic emas', 'Batal tidak menyimpan perubahan');
   await pg.click('#btnSetPhotoBack'); await pg.click('#btnAdminBack');
   cek(!(await pg.isVisible('#btnToQuiz')) && await pg.isVisible('#btnToPesan') && await pg.isVisible('#btnToPhoto'),
       'Halaman Utama: Quick quiz tersembunyi, menu lain tetap tampil');
@@ -189,16 +243,29 @@ async function main() {
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 15000 });
   await pg.click('#pbFinish'); await tunggu(500);
   cek(await layar() === 'editphoto', 'Finish & edit membuka halaman Edit');
+  cek(await pg.evaluate(() => document.querySelector('#peLayouts .pe-opt.on') === document.querySelector('#peLayouts .pe-opt'))
+      && /Rustic emas/.test(await pg.textContent('#peLayouts .pe-opt')), 'template admin tampil pertama & langsung terpilih');
+  cek(await pg.locator('#peLayouts .pe-opt').count() === 4, 'layout bawaan tetap tersedia di bawah template');
+  await pg.click('[data-tab="frame"]');
+  cek(await pg.isVisible('#peFrameHint') && !(await pg.isVisible('#peFrames')), 'tab Bingkai menjelaskan bahwa template sudah punya bingkai');
   await pg.click('[data-tab="filter"]'); await pg.locator('#peFilters .pe-opt').nth(1).click();
   await pg.click('[data-tab="sticker"]'); await pg.locator('#peStickerList .pe-stk').first().click();
   cek(await pg.locator('.pe-sticker').count() === 1, 'stiker bisa ditambahkan');
   await pg.click('#peDone'); await tungguLayar('thanks');
   const foto = await pg.evaluate(() => window.FOTO);
-  cek(foto && foto.n === 4 && foto.meta.filter === 'bw' && foto.meta.stickers === 1, 'foto disimpan: 4 asli + hasil edit', foto);
+  cek(foto && foto.n === 4 && foto.meta.filter === 'bw' && foto.meta.stickers === 1 && foto.meta.template === 'Rustic emas', 'foto disimpan: 4 asli + hasil edit', foto);
   cek(await pg.textContent('#thanksMsg') === 'Fotomu sudah tersimpan.' && await pg.isVisible('#thanksPhoto'), 'Terima kasih menampilkan pratinjau foto');
   await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
   await pg.click('#btnFinish'); await tungguLayar('thanks');
   cek(!(await pg.isVisible('#thanksPhoto')), 'setelah sesi video, pratinjau foto tidak ikut tampil');
+
+  console.log('\n▶ Hapus template');
+  await pg.evaluate(() => { show('admin'); }); await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded(); await pg.click('#btnSetPhoto'); await tunggu(300);
+  const hapus = pg.locator('#tplList .tpl-row button', { hasText: 'Hapus' });
+  await hapus.click();
+  cek(await pg.evaluate(() => TPL.length) === 1 && /Yakin/.test(await hapus.textContent()), 'hapus template minta ketuk dua kali');
+  await pg.locator('#tplList .tpl-row button', { hasText: 'Yakin' }).click(); await tunggu(300);
+  cek(await pg.evaluate(() => TPL.length) === 0 && /Belum ada template/.test(await pg.textContent('#tplList')), 'template terhapus dari daftar');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

@@ -279,11 +279,100 @@
       </div>
       <p class="pe-hint" style="margin:8px 6px 0">Efek kilat memberi cahaya tambahan dari layar. Matikan kalau sudah memakai lampu booth yang cukup terang.</p>
       <div class="note ok" id="setPhotoMsg"></div>
+
+      <div class="group-title">Desain foto (template) untuk <span id="tplCouple"></span></div>
+      <div class="group" id="tplList"></div>
+      <div class="pe-row" style="margin-top:10px">
+        <button id="btnTplNew" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Buat template</button>
+      </div>
+      <p class="pe-hint" style="margin:8px 6px 0">Template tampil paling depan di pilihan layout saat tamu mengedit foto. Setiap couple punya template sendiri.</p>
+      <div class="note ok" id="tplMsg"></div>
     </div>
   </div>
 </div>
 
-<!-- PHOTO BOOTH: halamanPhoto, halamanEditPhoto, hitung mundur & kilat -->  <div class="screen" id="photo">
+<!-- EDITOR TEMPLATE DESAIN FOTO (Admin → Pengaturan photobooth) -->
+<div class="screen mid" id="tpleditor">
+  <div class="pe-wrap">
+    <div class="pe-stage glass" id="teStage">
+      <div class="pe-box" id="teBox"><canvas id="teCanvas"></canvas><div id="teHandles"></div></div>
+    </div>
+    <div class="sheet glass pe-panel">
+      <div class="sheet-head">
+        <button id="teBatal" class="btn sm tint">Batal</button>
+        <h2 id="teTitle">Template baru</h2>
+        <button id="teSimpan" class="btn sm primary">Simpan</button>
+      </div>
+      <div class="pe-tabs">
+        <button class="pe-tab te-tab on" data-tab="desain"><svg class="i"><use href="#i-frame"/></svg>Desain</button>
+        <button class="pe-tab te-tab" data-tab="foto"><svg class="i"><use href="#i-layout"/></svg>Posisi foto</button>
+        <button class="pe-tab te-tab" data-tab="teks"><svg class="i"><use href="#i-pen"/></svg>Teks</button>
+      </div>
+      <div class="sheet-body">
+        <div class="pe-pane te-pane on" data-pane="desain">
+          <div class="pe-sec">Nama template</div>
+          <div class="group"><div class="item"><input id="teNama" class="field" maxlength="60" placeholder="Contoh: Rustic emas" autocomplete="off"></div></div>
+          <div class="pe-sec">Ukuran</div>
+          <div class="pe-grid" id="teUkuran" style="grid-template-columns:repeat(2,1fr)"></div>
+          <div class="pe-sec">Warna latar</div>
+          <div class="pe-row" id="teWarnaLatar"></div>
+          <div class="pe-sec">Gambar latar <span class="muted" id="teUkuranInfo"></span></div>
+          <div class="pe-row">
+            <button class="btn sm tint" id="teLatarPilih"><svg class="i"><use href="#i-folder"/></svg>Unggah gambar</button>
+            <button class="btn sm tint danger" id="teLatarHapus">Hapus</button>
+            <span class="muted" id="teLatarStatus"></span>
+          </div>
+          <div class="pe-sec">Bingkai PNG (di atas foto)</div>
+          <div class="pe-row">
+            <button class="btn sm tint" id="teBingkaiPilih"><svg class="i"><use href="#i-folder"/></svg>Unggah PNG</button>
+            <button class="btn sm tint danger" id="teBingkaiHapus">Hapus</button>
+            <span class="muted" id="teBingkaiStatus"></span>
+          </div>
+          <p class="pe-hint">Buat desain di Canva atau Photoshop dengan ukuran di atas. <b>Gambar latar</b> ada di belakang foto. <b>Bingkai</b> ada di depan foto: bagian tempat foto harus dikosongkan (transparan), lalu simpan sebagai PNG.</p>
+          <input type="file" id="teLatarFile" accept="image/png,image/jpeg" hidden>
+          <input type="file" id="teBingkaiFile" accept="image/png" hidden>
+        </div>
+        <div class="pe-pane te-pane" data-pane="foto">
+          <div class="pe-sec">Susunan cepat</div>
+          <div class="pe-grid" id="teSusunan" style="grid-template-columns:repeat(4,1fr)"></div>
+          <div class="pe-sec">Foto terpilih</div>
+          <div class="pe-row" id="teSlotPilih"></div>
+          <div class="pe-row" style="margin-top:10px">
+            <button class="btn sm tint" id="teSlotTukar">Tukar dengan foto berikutnya</button>
+          </div>
+          <div class="pe-sec">Sudut membulat</div>
+          <input type="range" id="teSudut" min="0" max="120" step="2" style="width:100%">
+          <p class="pe-hint">Geser kotak foto di gambar untuk memindahkannya. Tarik titik di pojok kanan bawah untuk mengubah ukurannya. Kotak akan menempel otomatis ke tengah dan tepi.</p>
+        </div>
+        <div class="pe-pane te-pane" data-pane="teks">
+          <div class="pe-row"><button class="btn sm primary" id="teTeksTambah"><svg class="i"><use href="#i-plus"/></svg>Tambah teks</button></div>
+          <div class="pe-sec">Daftar teks</div>
+          <div class="group" id="teTeksList"></div>
+          <div id="teTeksEdit">
+            <div class="pe-sec">Isi teks</div>
+            <div class="group"><div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off"></div></div>
+            <p class="pe-hint" style="margin-top:6px">Ketik <b>{couple}</b> untuk nama couple dan <b>{tanggal}</b> untuk tanggal hari ini.</p>
+            <div class="pe-sec">Huruf</div>
+            <div class="pe-row" id="teTeksFont"></div>
+            <div class="pe-sec">Ukuran</div>
+            <input type="range" id="teTeksUkuran" min="10" max="300" step="1" style="width:100%">
+            <div class="pe-sec">Warna</div>
+            <div class="pe-row" id="teTeksWarna"></div>
+            <div class="pe-row" style="margin-top:14px">
+              <button class="btn sm tint" id="teTeksTebal">Tebal</button>
+              <button class="btn sm tint" id="teTeksTengah">Ke tengah</button>
+              <button class="btn sm tint danger" id="teTeksHapus"><svg class="i"><use href="#i-trash"/></svg>Hapus teks</button>
+            </div>
+          </div>
+        </div>
+        <div class="note ok" id="teMsg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO BOOTH: halamanPhoto, halamanEditPhoto, hitung mundur & kilat -->
+  <div class="screen" id="photo">
     <button class="chip left" id="pbBack"><svg class="i"><use href="#i-back"/></svg><span id="pbBackLabel">Kembali</span></button>
     <div class="rec pb-pill" id="pbPill" style="display:none"><svg class="i"><use href="#i-camera"/></svg><span id="pbPillText"></span></div>
     <div class="part" id="pbPre">
@@ -321,10 +410,13 @@
           <div class="pe-pane on" data-pane="layout"><div class="pe-sec">Susunan foto</div><div class="pe-grid" id="peLayouts"></div></div>
           <div class="pe-pane" data-pane="filter"><div class="pe-sec">Filter untuk semua foto</div><div class="pe-grid" id="peFilters"></div></div>
           <div class="pe-pane" data-pane="frame">
+            <div id="peFrameNormal">
             <div class="pe-sec">Warna bingkai</div><div class="pe-grid" id="peFrames"></div>
             <div class="group" style="margin-top:16px"><div class="item split" style="justify-content:space-between">
               <span style="width:auto">Nama couple &amp; tanggal</span>
               <label class="switch"><input type="checkbox" id="peShowText" checked><i></i></label></div></div>
+            </div>
+            <p class="pe-hint pe-frame-hint" id="peFrameHint">Desain ini sudah punya bingkai dan tulisan sendiri. Pilih susunan bawaan di tab Layout kalau ingin mengganti warna bingkai.</p>
           </div>
           <div class="pe-pane" data-pane="sticker">
             <div class="pe-sec">Ketuk untuk menambahkan</div><div class="pe-grid" id="peStickerList" style="grid-template-columns:repeat(4,1fr)"></div>
@@ -366,6 +458,8 @@
 <script src="src/pengaturan.js"></script>
 <script src="src/pengaturan-booth.js"></script>
 <script src="src/admin.js"></script>
+<script src="src/template-gambar.js"></script>
+<script src="src/template-editor.js"></script>
 <script src="src/photobooth.js"></script>
 <script src="src/mulai.js"></script>
 </body>

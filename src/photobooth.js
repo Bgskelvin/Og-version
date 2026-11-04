@@ -18,7 +18,7 @@
   /* ---------------- Status ---------------- */
   const photos = new Array(SHOTS).fill(null);   // kanvas resolusi penuh setiap foto
   let running = false, pbToken = 0, cancelArmed = null;
-  const fresh = () => ({ layout: 'grid', filter: 'none', frame: 0, showText: true, stickers: [], strokes: [], sel: null,
+  const fresh = () => ({ layout: 'grid', layoutDipilih: false, filter: 'none', frame: 0, showText: true, stickers: [], strokes: [], sel: null,
                          tab: 'layout', color: '#FFFFFF', size: 10 });
   let ed = fresh();
 
@@ -199,7 +199,17 @@
   const SIZES = [5, 10, 18];
   const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif';
   const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-  const L = () => LAYOUTS[ed.layout];
+  // Template buatan admin untuk couple aktif (dimuat saat halaman Edit dibuka)
+  let tplLays = {};
+  const L = () => LAYOUTS[ed.layout] || tplLays[ed.layout] || LAYOUTS.grid;
+  async function muatTemplateCouple() {
+    tplLays = {};
+    if (!activeCouple || !api.listTemplates) return;
+    try {
+      for (const t of await api.listTemplates(activeCouple.id))
+        tplLays['tpl:' + t.id] = { name: t.nama, W: t.W, H: t.H, tpl: true, siap: await siapkanTemplate(t) };
+    } catch (err) { console.log('Gagal memuat template: ' + err.message); }
+  }
 
   // Foto mengisi kotaknya (dipotong di tengah, tidak gepeng)
   function drawCover(ctx, img, x, y, w, h) {
@@ -211,6 +221,7 @@
 
   // Lapisan dasar: bingkai, foto dengan filter, nama & tanggal
   function renderBase(ctx, lay, scale = 1, filterKey = ed.filter) {
+    if (lay.tpl) return gambarTemplate(ctx, lay.siap, { scale, photos, filter: FILTERS.find(x => x[0] === filterKey)[2] });
     const [bg, , fg] = FRAMES()[ed.frame];
     ctx.save(); ctx.scale(scale, scale);
     ctx.fillStyle = bg; ctx.fillRect(0, 0, lay.W, lay.H);
@@ -301,8 +312,11 @@
   }
   function buildPanel() {
     const lays = $('peLayouts'); lays.innerHTML = '';
-    for (const [key, lay] of Object.entries(LAYOUTS))
-      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; fitStage(); buildPanel(); });
+    for (const [key, lay] of [...Object.entries(tplLays), ...Object.entries(LAYOUTS)])   // template admin dulu
+      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; ed.layoutDipilih = true; fitStage(); buildPanel(); });
+    const pakaiTpl = !!L().tpl;
+    $('peFrameNormal').style.display = pakaiTpl ? 'none' : '';
+    $('peFrameHint').style.display = pakaiTpl ? 'block' : 'none';
 
     const fil = $('peFilters'); fil.innerHTML = '';
     for (const [key, name, f] of FILTERS) {
@@ -419,7 +433,12 @@
     c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
   }
 
-  function openEdit() {
+  async function openEdit() {
+    await muatTemplateCouple();
+    if (!ed.layoutDipilih || !L().tpl && !LAYOUTS[ed.layout]) {
+      const pertama = Object.keys(tplLays)[0];               // template admin jadi pilihan awal
+      ed.layout = pertama || (LAYOUTS[ed.layout] ? ed.layout : 'grid');
+    }
     show('editphoto');
     buildPanel(); setTab(ed.tab || 'layout');
     requestAnimationFrame(fitStage);
@@ -448,7 +467,7 @@
       for (const p of photos) originals.push(await toBytes(p, 0.95));
       const result = await toBytes(out, 0.93);
       const r = await api.savePhotos({ originals, result,
-        meta: { layout: ed.layout, filter: ed.filter, frame: FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
+        meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
       ok = !!(r && r.ok); err = r && r.error;
     })().catch(e => { err = e.message; });
     await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
