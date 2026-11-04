@@ -110,17 +110,12 @@
       <button id="btnRefresh" class="btn sm tint"><svg class="i"><use href="#i-retry"/></svg>Segarkan</button>
     </div>
     <div class="sheet-body">
-      <div class="group-title">Couple aktif</div>
-      <div class="group">
-        <div class="item"><select id="coupleSel"></select></div>
-        <div class="item muted" id="coupleInfo"></div>
-        <div class="item actions">
-          <button id="btnEditCouple" class="btn sm tint"><svg class="i"><use href="#i-pencil"/></svg>Edit</button>
-          <button id="btnAddCouple" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Tambah couple</button>
-          <button id="btnCoupleFolder" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Folder couple</button>
-          <button id="btnDelCouple" class="btn sm tint danger"><svg class="i"><use href="#i-trash"/></svg><span id="delLabel">Hapus</span></button>
-        </div>
+      <div class="group-title">Couple</div>
+      <div class="group" id="coupleList"></div>
+      <div class="pe-row" style="margin-top:10px">
+        <button id="btnAddCouple" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Tambah couple</button>
       </div>
+      <p class="pe-hint" style="margin:8px 6px 0">Ketuk couple untuk mengatur nama, pertanyaan quiz, dan template fotonya. Semua pengaturan couple ada di satu halaman.</p>
       <div class="note ok" id="coupleMsg"></div>
 
       <div class="group-title">Kamera dan mikrofon</div>
@@ -192,6 +187,25 @@
       <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span></div>
       <div class="group" id="qInputs"></div>
       <div class="note err" id="tambahErr"></div>
+      <div class="group-title">Template foto <span id="tplCouple" style="display:none"></span></div>
+      <div id="cpTplBaru" class="group"><div class="item muted">Simpan couple ini dulu, lalu template foto bisa ditambahkan di sini.</div></div>
+      <div id="cpTplBox">
+        <div class="group" id="tplList"></div>
+        <div class="pe-row" style="margin-top:10px">
+          <button id="btnTplNew" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Buat template</button>
+        </div>
+        <p class="pe-hint" style="margin:8px 6px 0">Tamu hanya bisa memakai template couple ini. Kalau lebih dari satu, tamu memilih salah satunya. Kalau belum ada, tamu memakai layout bawaan. Template langsung tersimpan, tidak perlu menekan Simpan di atas.</p>
+        <div class="note ok" id="tplMsg"></div>
+      </div>
+      <div id="cpLainBox">
+        <div class="group-title">Lainnya</div>
+        <div class="group"><div class="item actions">
+          <button id="btnCoupleFolder" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Buka folder couple</button>
+          <button id="btnDelCouple" class="btn sm tint danger"><span id="delLabel">Hapus couple</span></button>
+        </div></div>
+        <p class="pe-hint" style="margin:8px 6px 0">Menghapus couple juga menghapus template fotonya. Rekaman dan foto yang sudah diambil tetap tersimpan di folder.</p>
+        <div class="note ok" id="cpMsg"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -280,13 +294,7 @@
       <p class="pe-hint" style="margin:8px 6px 0">Efek kilat memberi cahaya tambahan dari layar. Matikan kalau sudah memakai lampu booth yang cukup terang.</p>
       <div class="note ok" id="setPhotoMsg"></div>
 
-      <div class="group-title">Desain foto (template) untuk <span id="tplCouple"></span></div>
-      <div class="group" id="tplList"></div>
-      <div class="pe-row" style="margin-top:10px">
-        <button id="btnTplNew" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Buat template</button>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">Hanya admin yang bisa membuat dan mengubah layout. Kalau couple ini punya template, tamu hanya bisa memakai template di sini (kalau lebih dari satu, tamu memilih salah satunya). Kalau belum ada, tamu memakai layout bawaan.</p>
-      <div class="note ok" id="tplMsg"></div>
+      <p class="pe-hint" style="margin:14px 6px 0">Template desain foto diatur per couple: Admin → ketuk nama couple → Template foto.</p>
     </div>
   </div>
 </div>

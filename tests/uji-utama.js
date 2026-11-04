@@ -165,6 +165,22 @@ const KASUS = {
     cek(fs.existsSync(path.join(dataDir, 'jangan-dihapus')), 'folder di luar folder template tetap ada');
   },
 
+  async 'hapus couple ikut menghapus templatenya'() {
+    const { panggil, dataDir } = nyalakanAplikasi();
+    const c = (await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] })).couple;
+    const lain = (await panggil('get-couples')).couples[0];
+    await panggil('save-template', { coupleId: c.id, nama: 'T1' });
+    await panggil('save-template', { id: 'tplB', coupleId: c.id, nama: 'T2' });
+    const punyaLain = (await panggil('save-template', { id: 'tplL', coupleId: lain.id, nama: 'Lain' })).template;
+    const n = await panggil('count-templates');
+    cek(n[c.id] === 2 && n[lain.id] === 1, 'jumlah template per couple dihitung', n);
+    const r = await panggil('delete-couple', c.id);
+    cek(r.ok && r.templateDihapus === 2, 'dua template couple ikut terhapus', r.templateDihapus);
+    const sisa = fs.readdirSync(path.join(dataDir, 'templates'));
+    cek(sisa.length === 1 && sisa[0] === punyaLain.id, 'template couple lain tetap ada', sisa);
+    cek(/Belum ada rekaman/.test(await panggil('open-couple-folder', lain.id)), 'folder couple yang belum punya hasil tidak dibuat kosong');
+  },
+
   async 'nama couple dengan karakter terlarang'() {
     const { panggil } = nyalakanAplikasi();
     const d = await panggil('save-couple', { name: 'Sinta / Rama: 2026?', questions: ['a'] });

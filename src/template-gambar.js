@@ -12,11 +12,14 @@ const FONT_TEMPLATE = {
 };
 const NAMA_FONT = { sans: 'Modern', serif: 'Klasik', script: 'Tulisan tangan' };
 
-// {couple} dan {tanggal} diganti otomatis saat foto dibuat
+// {couple} dan {tanggal} diganti otomatis saat foto dibuat.
+// Di editor template, {couple} memakai nama couple yang sedang diedit.
+let namaCoupleTemplate = null;
 function isiTeksTemplate(teks) {
   const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const nama = namaCoupleTemplate !== null ? namaCoupleTemplate : activeCouple ? activeCouple.name : '';
   return String(teks || '')
-    .replace(/\{couple\}/gi, activeCouple ? activeCouple.name : '')
+    .replace(/\{couple\}/gi, nama)
     .replace(/\{tanggal\}/gi, tanggal);
 }
 const fontTeks = t => `${t.bold ? 700 : 400} ${t.size}px ${FONT_TEMPLATE[t.font] || FONT_TEMPLATE.sans}`;

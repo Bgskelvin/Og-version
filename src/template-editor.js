@@ -16,12 +16,15 @@ const WARNA_TEKS = ['#1D1D1F', '#FFFFFF', '#6E6E73', '#8C6A4F', '#5B3A40', '#2F4
 
 const te = { tpl: null, gambar: {}, latar: null, bingkai: null, sel: { jenis: 'slot', i: 0 }, berubah: false, batalArmed: null };
 let hapusTplArmed = null;
+let coupleTemplate = null;          // couple yang templatenya sedang diatur (bukan selalu couple aktif)
 
-/* ---------------- Daftar template di Pengaturan photobooth ---------------- */
-async function daftarTemplateAdmin() {
-  $('tplCouple').textContent = activeCouple ? activeCouple.name : '-';
+/* ---------------- Daftar template di halaman couple ---------------- */
+async function daftarTemplateCouple(couple = coupleTemplate) {
+  coupleTemplate = couple;
+  if (current === 'tambah' || current === 'tpleditor') namaCoupleTemplate = couple ? couple.name : null;
   const box = $('tplList'); box.innerHTML = '';
-  const list = activeCouple ? await api.listTemplates(activeCouple.id) : [];
+  const list = couple ? await api.listTemplates(couple.id) : [];
+  if (couple !== coupleTemplate) return;              // sudah pindah ke couple lain
   if (!list.length) {
     const kosong = document.createElement('div'); kosong.className = 'item muted';
     kosong.textContent = 'Belum ada template. Tamu memakai layout bawaan (Kisi 2×2, Strip, 1 besar + 3).';
@@ -48,7 +51,7 @@ async function daftarTemplateAdmin() {
       hapusTplArmed = null;
       const r = await api.deleteTemplate(t.id);
       if (r.error) flash('tplMsg', r.error, true); else flash('tplMsg', `Template "${t.nama}" dihapus.`);
-      daftarTemplateAdmin();
+      daftarTemplateCouple();
     };
     row.append(mini, info, edit, hapus);
     box.appendChild(row);
@@ -58,17 +61,17 @@ async function daftarTemplateAdmin() {
 /* ---------------- Membuka editor ---------------- */
 function templateBaru() {
   const { W, H } = UKURAN_TEMPLATE['4r-tegak'];
-  return { id: 'tpl' + Date.now(), coupleId: activeCouple.id, nama: '', ukuran: '4r-tegak', W, H,
+  return { id: 'tpl' + Date.now(), coupleId: coupleTemplate.id, nama: '', ukuran: '4r-tegak', W, H,
            latarWarna: '#FFFFFF', slots: susunanFoto('kisi', W, H), texts: teksBawaan(W, H) };
 }
 async function bukaEditorTemplate(tpl) {
-  if (!activeCouple) return flash('tplMsg', 'Pilih couple aktif dulu di Admin.', true);
+  if (!coupleTemplate) return flash('tplMsg', 'Simpan couple ini dulu.', true);
   te.tpl = tpl ? JSON.parse(JSON.stringify({ ...tpl, latarUrl: undefined, bingkaiUrl: undefined })) : templateBaru();
   te.gambar = {};
   te.latar = tpl ? await muatGambar(tpl.latarUrl) : null;
   te.bingkai = tpl ? await muatGambar(tpl.bingkaiUrl) : null;
   te.sel = { jenis: 'slot', i: 0 }; te.berubah = false; batalTidakJadi();
-  $('teTitle').textContent = tpl ? 'Edit template' : 'Template baru';
+  $('teTitle').textContent = (tpl ? 'Edit template' : 'Template baru') + ' · ' + coupleTemplate.name;
   $('teNama').value = te.tpl.nama;
   $('teLatarStatus').textContent = te.latar ? 'Ada gambar' : 'Belum ada';
   $('teBingkaiStatus').textContent = te.bingkai ? 'Ada bingkai' : 'Belum ada';
@@ -283,8 +286,8 @@ async function simpanTemplate() {
   const r = await api.saveTemplate(te.tpl, te.gambar);
   if (r.error) return flash('teMsg', r.error, true);
   te.berubah = false;
-  show('setphoto');
-  await daftarTemplateAdmin();
+  show('tambah');
+  await daftarTemplateCouple();
   flash('tplMsg', `Template "${r.template.nama}" tersimpan.`);
 }
 function batalTidakJadi() { clearTimeout(te.batalArmed); te.batalArmed = null; $('teBatal').textContent = 'Batal'; }
@@ -295,7 +298,7 @@ function batalEditor() {
     return;
   }
   batalTidakJadi(); te.tpl = null;
-  show('setphoto');
+  show('tambah');
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)

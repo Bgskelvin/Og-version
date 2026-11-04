@@ -1,5 +1,6 @@
 /* =====================================================================
-   couple.js — couple aktif (di Admin) dan halaman Tambah/Edit couple
+   couple.js — daftar couple (di Admin) dan halaman couple:
+   info, pertanyaan quiz, template foto, folder, hapus
    ===================================================================== */
 
 function applyCouples(d) {
@@ -9,19 +10,24 @@ function applyCouples(d) {
   $('welcome').textContent = (activeCouple && activeCouple.welcome) || cfg.welcome || '';
   cfg.quiz = activeCouple ? activeCouple.questions.slice() : [];
 }
-function fillCoupleSel() {
-  const sel = $('coupleSel'); sel.innerHTML = '';
-  couplesData.couples.forEach(c => {
-    const o = document.createElement('option');
-    o.value = c.id; o.textContent = c.name;
-    if (c.id === couplesData.activeId) o.selected = true;
-    sel.appendChild(o);
-  });
-  const n = activeCouple ? activeCouple.questions.length : 0;
-  $('coupleInfo').textContent = activeCouple
-    ? `${n} pertanyaan · ${couplesData.couples.length} couple tersimpan`
-    : 'Belum ada couple.';
-  disarmDelete();
+// Daftar couple di Admin: ketuk satu couple untuk membuka halaman couple itu
+async function fillCoupleSel() {
+  const box = $('coupleList'); box.innerHTML = '';
+  const [jumlahTpl, sesi] = await Promise.all([api.countTemplates ? api.countTemplates() : {}, api.getSessions()]);
+  const urut = [...couplesData.couples].sort((a, b) => (b.id === couplesData.activeId) - (a.id === couplesData.activeId));
+  for (const c of urut) {
+    const nSesi = sesi.filter(x => x.couple === c.name).length, nTpl = jumlahTpl[c.id] || 0;
+    const row = document.createElement('button'); row.className = 'item nav-row cp-row'; row.dataset.id = c.id;
+    row.innerHTML = '<span><b></b><small></small></span><svg class="i chev"><use href="#i-next"/></svg>';
+    row.querySelector('b').textContent = c.name;
+    row.querySelector('small').textContent = `${c.questions.length} pertanyaan · ${nTpl} template · ${nSesi} sesi`;
+    if (c.id === couplesData.activeId) {
+      const t = document.createElement('em'); t.className = 'cp-aktif'; t.textContent = 'Aktif';
+      row.insertBefore(t, row.lastElementChild);
+    }
+    row.onclick = () => openTambah(c);
+    box.appendChild(row);
+  }
 }
 function flash(id, text, isErr) {
   const el = $(id);
@@ -29,18 +35,12 @@ function flash(id, text, isErr) {
   el.textContent = text;
   clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = ''; }, 4000);
 }
-async function changeActive(id) {
-  const r = await api.setActiveCouple(id);
-  if (r.error) return flash('coupleMsg', r.error, true);
-  applyCouples(r.data); fillCoupleSel(); await loadSessions();
-  flash('coupleMsg', `Couple aktif sekarang: ${activeCouple.name}`);
-}
 function disarmDelete() {
   clearTimeout(delArmed); delArmed = null;
-  $('delLabel').textContent = 'Hapus';
+  $('delLabel').textContent = 'Hapus couple';
 }
 async function deleteCouple() {
-  const target = couplesData.couples.find(c => c.id === $('coupleSel').value);
+  const target = couplesData.couples.find(c => c.id === editingId);
   if (!target) return;
   if (!delArmed) {  // tekan dua kali untuk konfirmasi
     $('delLabel').textContent = 'Yakin hapus?';
@@ -49,9 +49,12 @@ async function deleteCouple() {
   }
   disarmDelete();
   const r = await api.deleteCouple(target.id);
-  if (r.error) return flash('coupleMsg', r.error, true);
-  applyCouples(r.data); fillCoupleSel(); await loadSessions();
-  flash('coupleMsg', `"${target.name}" dihapus. Rekamannya tetap tersimpan.`);
+  if (r.error) return flash('cpMsg', r.error, true);
+  applyCouples(r.data);
+  show('admin');
+  await fillCoupleSel(); await loadSessions();
+  const tpl = r.templateDihapus ? ` beserta ${r.templateDihapus} template` : '';
+  flash('coupleMsg', `"${target.name}"${tpl} dihapus. Rekaman dan fotonya tetap tersimpan.`);
 }
 
 /* ---------- Halaman Tambah ---------- */
@@ -71,17 +74,25 @@ function updateQCount() {
   const n = [...document.querySelectorAll('.qIn')].filter(i => i.value.trim()).length;
   $('qCount').textContent = `(${n}/${MAX_Q} terisi)`;
 }
-function openTambah(c) {
+// Halaman couple: info, pertanyaan quiz, template foto, folder & hapus — semua di satu tempat
+function openTambah(c, tetapDiForm = false) {
   editingId = c ? c.id : null;
-  $('tambahTitle').textContent = c ? 'Edit couple' : 'Tambah couple';
+  disarmDelete();
+  $('tambahTitle').textContent = c ? c.name : 'Tambah couple';
+  $('cpTplBaru').style.display = c ? 'none' : '';
+  $('cpTplBox').style.display = c ? '' : 'none';
+  $('cpLainBox').style.display = c ? '' : 'none';
+  if (c) daftarTemplateCouple(c); else coupleTemplate = null;
+  if (tetapDiForm) return;                 // isi form tidak diubah (setelah simpan couple baru)
   $('fName').value = c ? c.name : '';
   $('fWelcome').value = c ? (c.welcome || '') : '';
   const qs = c ? c.questions : [];
   document.querySelectorAll('.qIn').forEach((inp, i) => { inp.value = qs[i] || ''; });
   $('fActive').checked = c ? c.id === couplesData.activeId : true;
-  $('tambahErr').textContent = '';
+  $('tambahErr').textContent = ''; $('cpMsg').textContent = '';
   updateQCount();
   show('tambah');
+  $('tambah').querySelector('.sheet-body').scrollTop = 0;
   setTimeout(() => $('fName').focus(), 50);
 }
 async function saveTambah() {
@@ -96,21 +107,26 @@ async function saveTambah() {
   let d = r.data;
   if ($('fActive').checked && d.activeId !== r.couple.id) d = (await api.setActiveCouple(r.couple.id)).data;
   applyCouples(d);
+  const aktif = d.activeId === r.couple.id ? ' dan aktif' : '';
+  if (!editingId) {                       // couple baru: tetap di halaman ini supaya bisa langsung membuat template
+    openTambah(r.couple, true);
+    flash('tplMsg', `"${r.couple.name}" tersimpan${aktif}. Sekarang kamu bisa membuat template fotonya.`);
+    fillCoupleSel();
+    return;
+  }
   show('admin');
-  fillCoupleSel(); await loadSessions();
-  flash('coupleMsg', `"${r.couple.name}" tersimpan${d.activeId === r.couple.id ? ' dan aktif' : ''}.`);
+  await fillCoupleSel(); await loadSessions();
+  flash('coupleMsg', `"${r.couple.name}" tersimpan${aktif}.`);
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
 function pasangCouple() {
-  $('coupleSel').onchange = e => changeActive(e.target.value);
   $('btnAddCouple').onclick = () => openTambah(null);
-  $('btnEditCouple').onclick = () => openTambah(couplesData.couples.find(c => c.id === $('coupleSel').value));
   $('btnDelCouple').onclick = deleteCouple;
   $('btnCoupleFolder').onclick = async () => {
-    const r = await api.openCoupleFolder();
-    if (r) flash('coupleMsg', r, true);
+    const r = await api.openCoupleFolder(editingId);
+    if (r) flash('cpMsg', r, true);
   };
-  $('btnTambahBatal').onclick = () => show('admin');
+  $('btnTambahBatal').onclick = () => { disarmDelete(); show('admin'); fillCoupleSel(); };
   $('btnTambahSimpan').onclick = saveTambah;
 }

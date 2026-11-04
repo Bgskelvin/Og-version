@@ -4,6 +4,9 @@
 
 function show(name) {
   current = name;
+  // Nama {couple} di pratinjau template = couple yang sedang diedit, hanya selama di halaman couple/editor.
+  // Di halaman lain (termasuk foto tamu) selalu couple aktif.
+  namaCoupleTemplate = ['tambah', 'tpleditor'].includes(name) && coupleTemplate ? coupleTemplate.name : null;
   SCREENS.forEach(s => $(s).classList.toggle('on', s === name));
   document.body.classList.toggle('camOn', ['utama', 'pesan', 'quiz', 'photo'].includes(name));
   resetIdle();
@@ -11,7 +14,7 @@ function show(name) {
 function resetIdle() {
   clearTimeout(idleTimer);
   if (busy) return;
-  const wait = { utama: 60000, pesan: 60000, quiz: 60000, photo: 60000, editphoto: 180000, admin: 180000, setvideo: 180000, setphoto: 180000, tpleditor: 900000, tambah: 600000, thanks: 20000 }[current];
+  const wait = { utama: 60000, pesan: 60000, quiz: 60000, photo: 60000, editphoto: 180000, admin: 180000, setvideo: 180000, setphoto: 180000, tpleditor: 900000, tambah: 900000, thanks: 20000 }[current];
   if (wait) idleTimer = setTimeout(() => show('start'), wait);
 }
 function setNotice(t, ms) {

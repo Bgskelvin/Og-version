@@ -18,16 +18,27 @@ const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
-window.LOG = []; window.TPL = []; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
+window.LOG = []; window.TPL = [];
+window.CP = { activeId: 'a', couples: [
+  { id: 'a', name: 'Rina & Dimas', welcome: 'Tinggalkan pesan untuk kami', questions: ['Q satu', 'Q dua', 'Q tiga'] },
+  { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
 const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', pesanCountdown: 3, pesanMaxSeconds: 0,
   photoCountdown: 5, photoPreview: 2, photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true };
 window.api = {
   getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),
-  getCouples: async () => ({ activeId: 'a', couples: [
-    { id: 'a', name: 'Rina & Dimas', welcome: 'Tinggalkan pesan untuk kami', questions: ['Q satu', 'Q dua', 'Q tiga'] },
-    { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }),
+  getCouples: async () => JSON.parse(JSON.stringify(CP)),
+  saveCouple: async c => { const q = c.questions.map(x => x.trim()).filter(Boolean);
+    if (!c.name.trim()) return { error: 'Nama couple wajib diisi.' }; if (!q.length) return { error: 'Isi minimal 1 pertanyaan.' };
+    const baru = { id: c.id || 'n' + CP.couples.length, name: c.name.trim(), welcome: c.welcome, questions: q };
+    const i = CP.couples.findIndex(x => x.id === baru.id); if (i < 0) CP.couples.push(baru); else CP.couples[i] = baru;
+    return { ok: true, couple: baru, data: JSON.parse(JSON.stringify(CP)) }; },
+  setActiveCouple: async id => { CP.activeId = id; return { ok: true, data: JSON.parse(JSON.stringify(CP)) }; },
+  deleteCouple: async id => { CP.couples = CP.couples.filter(c => c.id !== id); if (CP.activeId === id) CP.activeId = CP.couples[0].id;
+    const n = TPL.filter(t => t.coupleId === id).length; TPL = TPL.filter(t => t.coupleId !== id);
+    return { ok: true, data: JSON.parse(JSON.stringify(CP)), templateDihapus: n }; },
+  countTemplates: async () => TPL.reduce((n, t) => (n[t.coupleId] = (n[t.coupleId] || 0) + 1, n), {}),
   login: async (id, pw) => pw === '1234',
   getSessions: async () => [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
@@ -54,8 +65,7 @@ window.api = {
     const i = TPL.findIndex(x => x.id === t.id); if (i < 0) TPL.push(baru); else TPL[i] = baru;
     return { ok: true, template: baru }; },
   deleteTemplate: async id => { TPL.splice(TPL.findIndex(x => x.id === id), 1); return { ok: true }; },
-  saveCouple: async () => ({}), setActiveCouple: async () => ({}), deleteCouple: async () => ({}),
-  chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async () => ''
+  chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
   const c = document.createElement('canvas'); c.width = 640; c.height = 360; const g = c.getContext('2d');
@@ -158,11 +168,20 @@ async function main() {
       'menu terakhir tidak bisa dimatikan');
   await pg.click('#setEnablePhoto'); await tunggu(150);
 
-  console.log('\n▶ Editor template desain foto');
-  cek(/Rina & Dimas/.test(await pg.textContent('#tplCouple')) && /Belum ada template/.test(await pg.textContent('#tplList')),
-      'daftar template untuk couple aktif tampil (masih kosong)');
+  console.log('\n▶ Halaman couple & editor template');
+  await pg.click('#btnSetPhotoBack'); await tunggu(300);
+  const baris = pg.locator('#coupleList .cp-row');
+  cek(await baris.count() === 2 && /Rina & Dimas.*Aktif/.test(await baris.first().textContent()) && /3 pertanyaan · 0 template · 1 sesi/.test(await baris.first().textContent()),
+      'Admin menampilkan daftar couple, couple aktif paling atas', await baris.first().textContent());
+  await baris.nth(1).click(); await tunggu(300);
+  cek(await layar() === 'tambah' && await pg.textContent('#tambahTitle') === 'Ayu & Budi' && await pg.isVisible('#btnTplNew'),
+      'ketuk couple membuka halaman couple itu, lengkap dengan bagian template');
+  await pg.click('#btnTambahBatal'); await baris.first().click(); await tunggu(300);
+  cek(await pg.textContent('#tambahTitle') === 'Rina & Dimas' && /Belum ada template/.test(await pg.textContent('#tplList')),
+      'template couple Rina & Dimas masih kosong');
   await pg.click('#btnTplNew'); await tunggu(400);
   cek(await layar() === 'tpleditor' && await pg.locator('.te-slot').count() === 4, 'editor template terbuka dengan kotak foto 1-4');
+  cek(/Rina & Dimas/.test(await pg.textContent('#teTitle')), 'judul editor menyebut couple-nya', await pg.textContent('#teTitle'));
   await pg.fill('#teNama', 'Rustic emas');
   const slot = await pg.locator('.te-slot').first().boundingBox();
   const x0 = await pg.evaluate(() => te.tpl.slots[0].x);
@@ -193,7 +212,7 @@ async function main() {
   cek(/harus PNG/.test(await pg.textContent('#teMsg')), 'bingkai JPG ditolak dengan pesan jelas');
   await pg.click('#teSimpan'); await tunggu(400);
   const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
-  cek(await layar() === 'setphoto' && simpan.t.nama === 'Rustic emas' && simpan.t.coupleId === 'a' && simpan.bingkai === png.length,
+  cek(await layar() === 'tambah' && simpan.t.nama === 'Rustic emas' && simpan.t.coupleId === 'a' && simpan.bingkai === png.length,
       'template tersimpan untuk couple aktif beserta bingkainya', simpan && { nama: simpan.t.nama, bingkai: simpan.bingkai });
   cek(await pg.locator('#tplList .tpl-row').count() === 1 && /Rustic emas/.test(await pg.textContent('#tplList')), 'template tampil di daftar');
   await pg.locator('#tplList .tpl-row button', { hasText: 'Edit' }).click(); await tunggu(300);
@@ -201,8 +220,10 @@ async function main() {
   await pg.fill('#teNama', 'Rustic emas 2'); await pg.click('#teBatal');
   cek(await layar() === 'tpleditor' && /Buang/.test(await pg.textContent('#teBatal')), 'Batal dengan perubahan minta konfirmasi');
   await pg.click('#teBatal'); await tunggu(200);
-  cek(await layar() === 'setphoto' && await pg.evaluate(() => TPL[0].nama) === 'Rustic emas', 'Batal tidak menyimpan perubahan');
-  await pg.click('#btnSetPhotoBack'); await pg.click('#btnAdminBack');
+  cek(await layar() === 'tambah' && await pg.evaluate(() => TPL[0].nama) === 'Rustic emas', 'Batal tidak menyimpan perubahan');
+  await pg.click('#btnTambahBatal'); await tunggu(300);
+  cek(/1 template/.test(await baris.first().textContent()), 'jumlah template couple ikut diperbarui di daftar');
+  await pg.click('#btnAdminBack');
   cek(!(await pg.isVisible('#btnToQuiz')) && await pg.isVisible('#btnToPesan') && await pg.isVisible('#btnToPhoto'),
       'Halaman Utama: Quick quiz tersembunyi, menu lain tetap tampil');
 
@@ -267,7 +288,7 @@ async function main() {
   cek(!(await pg.isVisible('#thanksPhoto')), 'setelah sesi video, pratinjau foto tidak ikut tampil');
 
   console.log('\n▶ Hapus template');
-  await pg.evaluate(() => { show('admin'); }); await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded(); await pg.click('#btnSetPhoto'); await tunggu(300);
+  await pg.evaluate(() => { show('admin'); }); await pg.locator('#coupleList .cp-row').first().click(); await tunggu(300);
   const hapus = pg.locator('#tplList .tpl-row button', { hasText: 'Hapus' });
   await hapus.click();
   cek(await pg.evaluate(() => TPL.length) === 1 && /Yakin/.test(await hapus.textContent()), 'hapus template minta ketuk dua kali');
@@ -279,6 +300,29 @@ async function main() {
   cek(await pg.locator('#peLayouts .pe-opt').count() === 3 && await pg.isVisible('[data-tab="layout"]') && await pg.isVisible('[data-tab="frame"]'),
       'tanpa template: tamu memakai layout bawaan');
   await pg.click('#peDone'); await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
+
+  console.log('\n▶ Tambah couple baru lalu langsung buat template');
+  await pg.evaluate(() => show('admin')); await pg.click('#btnAddCouple'); await tunggu(200);
+  cek(await pg.isVisible('#cpTplBaru') && !(await pg.isVisible('#btnTplNew')) && !(await pg.isVisible('#btnDelCouple')), 'couple baru: template muncul setelah disimpan');
+  await pg.fill('#fName', 'Sari & Andi'); await pg.locator('.qIn').first().fill('Kapan pertama bertemu?');
+  await pg.click('#fActive'); await pg.click('#btnTambahSimpan'); await tunggu(300);
+  cek(await layar() === 'tambah' && await pg.isVisible('#btnTplNew') && await pg.textContent('#tambahTitle') === 'Sari & Andi',
+      'setelah disimpan tetap di halaman couple & tombol Buat template muncul');
+  cek(await pg.evaluate(() => CP.activeId) === 'a', 'couple aktif tidak berubah saat menyiapkan couple lain');
+  await pg.click('#btnTplNew'); await tunggu(300);
+  cek(/Sari & Andi/.test(await pg.textContent('#teTitle')) && await pg.evaluate(() => isiTeksTemplate('{couple}')) === 'Sari & Andi',
+      'pratinjau {couple} memakai nama couple yang diedit');
+  await pg.click('#teSimpan'); await tunggu(300);
+  cek(await pg.evaluate(() => TPL.length === 1 && TPL[0].coupleId === 'n2'), 'template tersimpan untuk couple baru, bukan couple aktif');
+  await pg.click('#btnCoupleFolder');
+  cek((await log()).includes('folder n2'), 'Buka folder couple membuka folder couple yang diedit');
+  await pg.click('#btnDelCouple');
+  cek(await layar() === 'tambah' && /Yakin/.test(await pg.textContent('#delLabel')), 'hapus couple minta ketuk dua kali');
+  await pg.click('#btnDelCouple'); await tunggu(300);
+  cek(await layar() === 'admin' && await pg.locator('#coupleList .cp-row').count() === 2 && await pg.evaluate(() => TPL.length) === 0,
+      'couple terhapus beserta templatenya');
+  cek(/beserta 1 template/.test(await pg.textContent('#coupleMsg')), 'pesan menyebut template yang ikut terhapus');
+  cek(await pg.evaluate(() => isiTeksTemplate('{couple}')) === 'Rina & Dimas', 'di luar halaman couple, {couple} kembali ke couple aktif');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

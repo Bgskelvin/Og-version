@@ -81,8 +81,34 @@ function daftarTemplate(coupleId) {
   return out.sort((a, b) => (a.dibuat || 0) - (b.dibuat || 0));
 }
 
+// Jumlah template setiap couple (tanpa memuat gambar), untuk daftar couple di Admin
+function hitungTemplate() {
+  const n = {};
+  let ids = [];
+  try { ids = fs.readdirSync(templatesDir); } catch (e) { return n; }
+  for (const id of ids) {
+    const t = readJSON(path.join(folder(id), 'template.json'), null);
+    if (t && t.coupleId) n[t.coupleId] = (n[t.coupleId] || 0) + 1;
+  }
+  return n;
+}
+// Dipanggil saat couple dihapus supaya templatenya tidak tertinggal
+function hapusTemplateCouple(coupleId) {
+  if (!coupleId) return 0;
+  let ids = [], n = 0;
+  try { ids = fs.readdirSync(templatesDir); } catch (e) { return 0; }
+  for (const id of ids) {
+    const t = readJSON(path.join(folder(id), 'template.json'), null);
+    if (t && t.coupleId === coupleId) {
+      try { fs.rmSync(folder(id), { recursive: true, force: true }); n++; } catch (e) {}
+    }
+  }
+  return n;
+}
+
 function daftarkan() {
   ipcMain.handle('template-ukuran', () => UKURAN);
+  ipcMain.handle('count-templates', () => hitungTemplate());
   ipcMain.handle('list-templates', (e, coupleId) => daftarTemplate(coupleId));
 
   // gambar: { latar, bingkai } — masing-masing Uint8Array (ganti), null (hapus), atau tidak ada (biarkan)
@@ -121,4 +147,4 @@ function daftarkan() {
   });
 }
 
-module.exports = { daftarkan, daftarTemplate, bersihkan, UKURAN };
+module.exports = { daftarkan, daftarTemplate, bersihkan, hitungTemplate, hapusTemplateCouple, UKURAN };

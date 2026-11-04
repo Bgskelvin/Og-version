@@ -206,3 +206,10 @@
     .atmo b, #btnStart::before, .dot, #countNum, .spinner { animation:none; }
     .shuffling #qText { animation:none; }
   }
+
+/* Daftar couple di Admin */
+.cp-row { text-align:left; }
+.cp-row > span { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.cp-row b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cp-row small { font-size:14px; color:var(--text-2); font-weight:400; }
+.cp-aktif { flex:none; font-style:normal; font-size:13px; font-weight:600; color:#fff; background:var(--green, #34C759); padding:3px 10px; border-radius:10px; }
