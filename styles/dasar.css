@@ -270,3 +270,13 @@ body.sonyOn #camPrevLv { display:block; }
 .rw-qr-kartu b { font-size:18px; color:#1D1D1F; }
 .rw-qr-kartu canvas { width:300px; height:300px; image-rendering:pixelated; }
 .rw-qr-kartu small { font-size:13px; color:#6E6E73; word-break:break-all; text-align:center; }
+
+/* Layar pembuka Pesan / Quiz / Photo booth: satu bar ringkas di bawah, kamera tetap lega */
+.dock { display:flex; align-items:center; gap:24px; width:100%; max-width:760px; padding:14px 14px 14px 28px; border-radius:999px; text-align:left; }
+.dock-teks { flex:1; min-width:0; }
+.dock h2 { font-size:clamp(20px,2vw,26px); }
+.dock p { margin:2px 0 0; font-size:clamp(14px,1.4vw,17px); line-height:1.35; }
+.dock .btn { flex:none; min-height:64px; padding:0 34px; font-size:clamp(18px,1.9vw,22px); }
+@media (max-width:640px), (orientation:portrait) and (max-width:900px) {
+  .dock { flex-direction:column; align-items:stretch; gap:14px; padding:20px; border-radius:var(--r-card); text-align:center; }
+}

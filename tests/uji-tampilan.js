@@ -153,7 +153,7 @@ async function main() {
   await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
   await pg.click('#btnFinish'); await tungguLayar('thanks');
   await pg.click('#btnCobaLagi'); await pg.click('#btnToQuiz');
-  cek(/2 pertanyaan acak.*2 detik/.test(await pg.textContent('#quizInfo')), 'info quiz mengikuti pengaturan');
+  cek(/2 pertanyaan acak · 2 detik/.test(await pg.textContent('#quizInfo')), 'info quiz mengikuti pengaturan');
   await pg.click('#btnQuizMulai');
   await tungguLayar('thanks', 30000);
   const L = await log();
@@ -285,7 +285,7 @@ async function main() {
 
   console.log('\n▶ Photo booth');
   await pg.click('#btnToPhoto');
-  cek(/4 kali.*3 detik/.test(await pg.textContent('#pbIntro')), 'penjelasan Photo booth mengikuti hitung mundur 3 detik');
+  cek(/4 foto · hitung mundur 3 detik/.test(await pg.textContent('#pbIntro')), 'penjelasan Photo booth mengikuti hitung mundur 3 detik');
   await pg.evaluate(() => { window.KILAT = 0; new MutationObserver(() => { if (document.getElementById('pbFlash').classList.contains('on')) KILAT++; })
     .observe(document.getElementById('pbFlash'), { attributes: true }); });
   await pg.evaluate(() => { window.HITUNG = []; new MutationObserver(() => HITUNG.push(
@@ -466,7 +466,7 @@ async function main() {
       'halaman Quiz berbahasa Inggris');
   cek(await pg.evaluate(() => cfg.quiz[0]) === 'Q satu', 'pertanyaan quiz tampil seperti yang diketik admin');
   await pg.click('#btnQuizBack'); await pg.click('#btnToPhoto');
-  cek(/We'll take 4 photos/.test(await pg.textContent('#pbIntro')) && /Start/.test(await pg.textContent('#pbStart')), 'halaman Photo booth berbahasa Inggris');
+  cek(/4 photos · \d+-second countdown before each/.test(await pg.textContent('#pbIntro')) && /Start/.test(await pg.textContent('#pbStart')), 'halaman Photo booth berbahasa Inggris');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   cek(/Retake/.test(await pg.textContent('[data-redo="0"]')) && /Finish & edit/.test(await pg.textContent('#pbFinish')), 'tombol Retake & Finish & edit');

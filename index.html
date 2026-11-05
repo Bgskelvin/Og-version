@@ -62,8 +62,10 @@
 <div class="screen" id="pesan">
   <div class="part" id="pesanPre">
     <button class="chip left" id="btnPesanBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-    <div class="card glass"><h1 data-t="pesan.judul">Kirim pesan</h1><p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu untuk mempelai, lalu tekan Selesai.</p></div>
-    <div class="row"><button id="btnPesanMulai" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-mic"/></svg>Mulai</button></div>
+    <div class="dock glass">
+      <div class="dock-teks"><h2 data-t="pesan.judul">Kirim pesan</h2><p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu, lalu tekan Selesai.</p></div>
+      <button id="btnPesanMulai" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-mic"/></svg>Mulai</button>
+    </div>
   </div>
   <div class="part" id="pesanRec" style="display:none">
     <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
@@ -75,8 +77,10 @@
 <div class="screen" id="quiz">
   <div class="part" id="quizPre">
     <button class="chip left" id="btnQuizBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-    <div class="card glass"><h1>Quick quiz</h1><p id="quizInfo"></p></div>
-    <div class="row"><button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button></div>
+    <div class="dock glass">
+      <div class="dock-teks"><h2>Quick quiz</h2><p id="quizInfo"></p></div>
+      <button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button>
+    </div>
   </div>
   <div class="part" id="quizRun" style="display:none">
     <div class="rec"><span class="dot"></span><span id="qRound"></span></div>
@@ -445,9 +449,10 @@
     <button class="chip left" id="pbBack"><svg class="i"><use href="#i-back"/></svg><span id="pbBackLabel">Kembali</span></button>
     <div class="rec pb-pill" id="pbPill" style="display:none"><svg class="i"><use href="#i-camera"/></svg><span id="pbPillText"></span></div>
     <div class="part" id="pbPre">
-      <div class="card glass"><h1>Photo booth</h1>
-        <p id="pbIntro"></p></div>
-      <div class="row"><button id="pbStart" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-camera"/></svg>Mulai</button></div>
+      <div class="dock glass">
+        <div class="dock-teks"><h2>Photo booth</h2><p id="pbIntro"></p></div>
+        <button id="pbStart" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-camera"/></svg>Mulai</button>
+      </div>
     </div>
     <div class="pb-bottom" id="pbBottom" style="display:none">
       <div class="row pb-actions" id="pbActions" style="display:none">
