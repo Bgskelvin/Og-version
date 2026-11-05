@@ -101,8 +101,9 @@ async function sambungDanLihat() {
     else { tulis(`   percobaan ${coba}: gagal — ${r.pesan}`); await jeda(3000); }
   }
   if (berhasil) {
-    tulis(`✓ Uji 2 — kamera bisa dipakai lagi lewat USB tanpa disentuh (${detik(berhasil.ms)}).`);
-    tulis('   → Aplikasi bisa membiarkan kamera tidur saat booth sepi.');
+    tulis(`✓ Uji 2 — setelah ditinggal ${MENIT} menit, kamera bisa dipakai lagi lewat USB tanpa disentuh (${detik(berhasil.ms)}).`);
+    tulis('   → Kalau layar kamera tadi sempat MATI: kamera bisa dibangunkan dari tidur lewat USB.');
+    tulis('   → Kalau layar TIDAK mati: kamera tidak tidur selama tercolok USB (tidak macet, tapi tetap menyala).');
   } else {
     tulis('✗ Uji 2 — kamera TIDAK bisa dibangunkan lewat USB.');
     tulis('   → Tekan setengah tombol shutter, lalu tulis ke Claude apakah setelah itu kamera mau tersambung.');
