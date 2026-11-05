@@ -44,7 +44,7 @@
 
 <!-- 1. HALAMAN START -->
 <div class="screen mid on" id="start">
-  <button id="btnStart" class="glass"><span class="t">Start</span><span class="s">Sentuh untuk mulai</span></button>
+  <button id="btnStart" class="glass"><span class="t">Start</span><span class="s" data-t="start.sentuh">Sentuh untuk mulai</span></button>
 </div>
 
 <!-- 2. HALAMAN UTAMA -->
@@ -52,31 +52,31 @@
   <button class="chip right" id="btnAdminOpen"><svg class="i"><use href="#i-sliders"/></svg>Admin</button>
   <div class="card glass"><h1 id="couple"></h1><p id="welcome"></p></div>
   <div class="row">
-    <button id="btnToPesan" class="btn primary"><svg class="i"><use href="#i-msg"/></svg>Kirim pesan</button>
-    <button id="btnToQuiz" class="btn glassy"><svg class="i"><use href="#i-spark"/></svg>Quick quiz</button>
-    <button id="btnToPhoto" class="btn glassy"><svg class="i"><use href="#i-camera"/></svg>Photo booth</button>
+    <button id="btnToPesan" class="btn primary" data-t="utama.pesan"><svg class="i"><use href="#i-msg"/></svg>Kirim pesan</button>
+    <button id="btnToQuiz" class="btn glassy" data-t="utama.quiz"><svg class="i"><use href="#i-spark"/></svg>Quick quiz</button>
+    <button id="btnToPhoto" class="btn glassy" data-t="utama.foto"><svg class="i"><use href="#i-camera"/></svg>Photo booth</button>
   </div>
 </div>
 
 <!-- 3. HALAMAN PESAN -->
 <div class="screen" id="pesan">
   <div class="part" id="pesanPre">
-    <button class="chip left" id="btnPesanBack"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-    <div class="card glass"><h1>Kirim pesan</h1><p>Tekan Mulai, sampaikan pesanmu untuk mempelai, lalu tekan Selesai.</p></div>
-    <div class="row"><button id="btnPesanMulai" class="btn primary"><svg class="i"><use href="#i-mic"/></svg>Mulai</button></div>
+    <button class="chip left" id="btnPesanBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
+    <div class="card glass"><h1 data-t="pesan.judul">Kirim pesan</h1><p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu untuk mempelai, lalu tekan Selesai.</p></div>
+    <div class="row"><button id="btnPesanMulai" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-mic"/></svg>Mulai</button></div>
   </div>
   <div class="part" id="pesanRec" style="display:none">
     <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
-    <div class="row"><button id="btnFinish" class="btn go"><svg class="i"><use href="#i-check"/></svg>Selesai</button></div>
+    <div class="row"><button id="btnFinish" class="btn go" data-t="selesai"><svg class="i"><use href="#i-check"/></svg>Selesai</button></div>
   </div>
 </div>
 
 <!-- 4. HALAMAN QUIZ -->
 <div class="screen" id="quiz">
   <div class="part" id="quizPre">
-    <button class="chip left" id="btnQuizBack"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
+    <button class="chip left" id="btnQuizBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
     <div class="card glass"><h1>Quick quiz</h1><p id="quizInfo"></p></div>
-    <div class="row"><button id="btnQuizMulai" class="btn primary"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button></div>
+    <div class="row"><button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button></div>
   </div>
   <div class="part" id="quizRun" style="display:none">
     <div class="rec"><span class="dot"></span><span id="qRound"></span></div>
@@ -163,9 +163,12 @@
       <div class="group-title">Tampilan</div>
       <div class="group">
         <div class="item split"><span>Warna</span><div class="swatches" id="swatches"></div></div>
+        <div class="item split"><span>Bahasa tamu</span><select id="setBahasa" aria-label="Bahasa layar tamu">
+          <option value="id">Bahasa Indonesia</option><option value="en">English</option></select></div>
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Layar penuh terkunci (kiosk)</span>
           <label class="switch"><input type="checkbox" id="setKiosk"><i></i></label></div>
       </div>
+      <p class="pe-hint" style="margin:8px 6px 0">Bahasa tamu mengubah semua tulisan di layar tamu. Sambutan, pertanyaan quiz, dan teks template memakai versi Inggris kalau diisi. Halaman Admin tetap bahasa Indonesia.</p>
       <div class="note ok" id="setMsg"></div>
 
       <div class="group-title">Login Admin</div>
@@ -195,6 +198,7 @@
       <div class="group">
         <div class="item split"><span>Nama</span><input id="fName" class="field" maxlength="80" placeholder="Rina &amp; Dimas" autocomplete="off"></div>
         <div class="item split"><span>Sambutan</span><input id="fWelcome" class="field" maxlength="160" placeholder="Opsional" autocomplete="off"></div>
+        <div class="item split"><span>Sambutan (English)</span><input id="fWelcomeEn" class="field" maxlength="160" placeholder="Opsional, dipakai saat bahasa tamu English" autocomplete="off"></div>
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Jadikan couple aktif</span>
           <label class="switch"><input type="checkbox" id="fActive"><i></i></label></div>
       </div>
@@ -210,6 +214,9 @@
       <p class="pe-hint" style="margin:8px 6px 0">Minimal satu menu harus aktif. Tamu hanya melihat menu yang aktif untuk couple ini.</p>
       <div class="note err" id="fMenuMsg"></div>
       <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span><span id="qWajib" style="font-weight:500"></span></div>
+      <div class="rw-chips" id="qBahasaPilih" style="margin:0 0 10px">
+        <button class="rw-chip on" data-b="id">Bahasa Indonesia</button><button class="rw-chip" data-b="en">English (opsional)</button>
+      </div>
       <div class="group" id="qInputs"></div>
       <div class="note err" id="tambahErr"></div>
       <div class="group-title">Template foto <span id="tplCouple" style="display:none"></span></div>
@@ -240,7 +247,7 @@
   <div class="card glass" style="max-width:560px">
     <div class="spinner"></div>
     <h1 id="savingTitle" style="font-size:clamp(26px,3.4vw,40px)">Menyimpan rekamanmu</h1>
-    <p>Mohon tunggu sebentar</p>
+    <p data-t="simpan.tunggu">Mohon tunggu sebentar</p>
     <div id="saveBar"><div></div></div>
   </div>
 </div>
@@ -250,12 +257,12 @@
   <div class="card glass" style="max-width:640px">
     <img id="thanksPhoto" alt="Hasil foto">
     <div class="badge" id="thanksBadge"><svg class="i"><use href="#i-check"/></svg></div>
-    <h1>Terima kasih</h1>
+    <h1 data-t="tk.judul">Terima kasih</h1>
     <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
   </div>
   <div class="row" style="max-width:640px">
-    <button id="btnCobaLagi" class="btn glassy"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
-    <button id="btnSelesai" class="btn primary">Selesai</button>
+    <button id="btnCobaLagi" class="btn glassy" data-t="tk.coba"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
+    <button id="btnSelesai" class="btn primary" data-t="selesai">Selesai</button>
   </div>
 </div>
 
@@ -396,6 +403,9 @@
           <div id="teTeksEdit">
             <div class="pe-sec">Isi teks</div>
             <div class="group"><div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off"></div></div>
+            <div class="pe-sec">Isi teks (English, opsional)</div>
+            <div class="group"><div class="item"><input id="teTeksIsiEn" class="field" maxlength="120" autocomplete="off" placeholder="Kosongkan kalau sama"></div></div>
+            <p class="pe-hint" id="teBahasaInfo" style="margin-top:6px"></p>
             <p class="pe-hint" style="margin-top:6px">Ketik <b>{couple}</b> untuk nama couple dan <b>{tanggal}</b> untuk tanggal hari ini.</p>
             <div class="pe-sec">Huruf</div>
             <div class="pe-row" id="teTeksFont"></div>
@@ -423,11 +433,11 @@
     <div class="part" id="pbPre">
       <div class="card glass"><h1>Photo booth</h1>
         <p id="pbIntro"></p></div>
-      <div class="row"><button id="pbStart" class="btn primary"><svg class="i"><use href="#i-camera"/></svg>Mulai</button></div>
+      <div class="row"><button id="pbStart" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-camera"/></svg>Mulai</button></div>
     </div>
     <div class="pb-bottom" id="pbBottom" style="display:none">
       <div class="row pb-actions" id="pbActions" style="display:none">
-        <button id="pbFinish" class="btn primary"><svg class="i"><use href="#i-wand"/></svg>Finish &amp; edit</button>
+        <button id="pbFinish" class="btn primary" data-t="pb.selesaiEdit"><svg class="i"><use href="#i-wand"/></svg>Finish &amp; edit</button>
       </div>
       <div class="pb-strip" id="pbStrip"></div>
     </div>
@@ -440,48 +450,48 @@
       </div>
       <div class="sheet glass pe-panel">
         <div class="sheet-head">
-          <button id="peBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Foto</button>
-          <h2>Edit foto</h2>
-          <button id="peDone" class="btn sm primary">Selesai</button>
+          <button id="peBack" class="btn sm tint" data-t="pe.foto"><svg class="i"><use href="#i-back"/></svg>Foto</button>
+          <h2 data-t="pe.judul">Edit foto</h2>
+          <button id="peDone" class="btn sm primary" data-t="selesai">Selesai</button>
         </div>
         <div class="pe-tabs" id="peTabs">
           <button class="pe-tab on" data-tab="layout"><svg class="i"><use href="#i-layout"/></svg>Layout</button>
           <button class="pe-tab" data-tab="filter"><svg class="i"><use href="#i-drop"/></svg>Filter</button>
-          <button class="pe-tab" data-tab="frame"><svg class="i"><use href="#i-frame"/></svg>Bingkai</button>
-          <button class="pe-tab" data-tab="sticker"><svg class="i"><use href="#i-smile"/></svg>Stiker</button>
-          <button class="pe-tab" data-tab="draw"><svg class="i"><use href="#i-pen"/></svg>Coret</button>
+          <button class="pe-tab" data-tab="frame" data-t="pe.tab.bingkai"><svg class="i"><use href="#i-frame"/></svg>Bingkai</button>
+          <button class="pe-tab" data-tab="sticker" data-t="pe.tab.stiker"><svg class="i"><use href="#i-smile"/></svg>Stiker</button>
+          <button class="pe-tab" data-tab="draw" data-t="pe.tab.coret"><svg class="i"><use href="#i-pen"/></svg>Coret</button>
         </div>
         <div class="sheet-body">
-          <div class="pe-pane on" data-pane="layout"><div class="pe-sec">Susunan foto</div><div class="pe-grid" id="peLayouts"></div></div>
-          <div class="pe-pane" data-pane="filter"><div class="pe-sec">Filter untuk semua foto</div><div class="pe-grid" id="peFilters"></div></div>
+          <div class="pe-pane on" data-pane="layout"><div class="pe-sec" data-t="pe.susunan">Susunan foto</div><div class="pe-grid" id="peLayouts"></div></div>
+          <div class="pe-pane" data-pane="filter"><div class="pe-sec" data-t="pe.filter">Filter untuk semua foto</div><div class="pe-grid" id="peFilters"></div></div>
           <div class="pe-pane" data-pane="frame">
             <div id="peFrameNormal">
-            <div class="pe-sec">Warna bingkai</div><div class="pe-grid" id="peFrames"></div>
+            <div class="pe-sec" data-t="pe.warnaBingkai">Warna bingkai</div><div class="pe-grid" id="peFrames"></div>
             <div class="group" style="margin-top:16px"><div class="item split" style="justify-content:space-between">
-              <span style="width:auto">Nama couple &amp; tanggal</span>
+              <span style="width:auto" data-t="pe.namaTanggal">Nama couple &amp; tanggal</span>
               <label class="switch"><input type="checkbox" id="peShowText" checked><i></i></label></div></div>
             </div>
-            <p class="pe-hint pe-frame-hint" id="peFrameHint">Desain ini sudah punya bingkai dan tulisan sendiri. Pilih susunan bawaan di tab Layout kalau ingin mengganti warna bingkai.</p>
+            <p class="pe-hint pe-frame-hint" id="peFrameHint" data-t="pe.hintTemplate">Desain ini sudah punya bingkai dan tulisan sendiri.</p>
           </div>
           <div class="pe-pane" data-pane="sticker">
-            <div class="pe-sec">Ketuk untuk menambahkan</div><div class="pe-grid" id="peStickerList" style="grid-template-columns:repeat(4,1fr)"></div>
-            <div class="pe-sec">Stiker terpilih</div>
+            <div class="pe-sec" data-t="pe.ketuk">Ketuk untuk menambahkan</div><div class="pe-grid" id="peStickerList" style="grid-template-columns:repeat(4,1fr)"></div>
+            <div class="pe-sec" data-t="pe.stikerPilih">Stiker terpilih</div>
             <div class="pe-row">
-              <button class="btn sm tint" id="peStkSmaller">Perkecil</button>
-              <button class="btn sm tint" id="peStkBigger">Perbesar</button>
-              <button class="btn sm tint" id="peStkRotate">Putar</button>
-              <button class="btn sm tint danger" id="peStkDelete"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
+              <button class="btn sm tint" id="peStkSmaller" data-t="pe.perkecil">Perkecil</button>
+              <button class="btn sm tint" id="peStkBigger" data-t="pe.perbesar">Perbesar</button>
+              <button class="btn sm tint" id="peStkRotate" data-t="pe.putar">Putar</button>
+              <button class="btn sm tint danger" id="peStkDelete" data-t="hapus"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
             </div>
-            <p class="pe-hint">Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.</p>
+            <p class="pe-hint" data-t="pe.hintStiker">Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.</p>
           </div>
           <div class="pe-pane" data-pane="draw">
-            <div class="pe-sec">Warna</div><div class="pe-row" id="peColors"></div>
-            <div class="pe-sec">Ukuran</div><div class="pe-row" id="peSizes"></div>
+            <div class="pe-sec" data-t="pe.warna">Warna</div><div class="pe-row" id="peColors"></div>
+            <div class="pe-sec" data-t="pe.ukuran">Ukuran</div><div class="pe-row" id="peSizes"></div>
             <div class="pe-row" style="margin-top:16px">
-              <button class="btn sm tint" id="peUndo"><svg class="i"><use href="#i-undo"/></svg>Urungkan</button>
-              <button class="btn sm tint danger" id="peClear">Hapus semua</button>
+              <button class="btn sm tint" id="peUndo" data-t="pe.urungkan"><svg class="i"><use href="#i-undo"/></svg>Urungkan</button>
+              <button class="btn sm tint danger" id="peClear" data-t="pe.hapusSemua">Hapus semua</button>
             </div>
-            <p class="pe-hint">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
+            <p class="pe-hint" data-t="pe.hintCoret">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
           </div>
         </div>
       </div>
@@ -494,6 +504,7 @@
 
 <!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
 <script src="src/state.js"></script>
+<script src="src/bahasa.js"></script>
 <script src="src/app.js"></script>
 <script src="src/kamera.js"></script>
 <script src="src/kamera-sony.js"></script>

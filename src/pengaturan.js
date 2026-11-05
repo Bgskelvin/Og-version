@@ -49,6 +49,11 @@ function terapkanMenu() {
 function applySettings(s) {
   normalisasiCfg(s);
   if (s.kamera) cfg.kamera = s.kamera;
+  if (s.bahasa && s.bahasa !== bahasa) {
+    cfg.bahasa = s.bahasa;
+    setBahasa(s.bahasa);
+    if (couplesData) applyCouples(couplesData);      // sambutan & pertanyaan ikut bahasa baru
+  }
   terapkanMenu();
   if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
 }
@@ -57,6 +62,7 @@ async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
+  $('setBahasa').value = s.bahasa || 'id';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
 }
@@ -81,5 +87,7 @@ async function saveLogin() {
 function pasangPengaturan() {
   $('setKiosk').onchange = e => saveSetting({ kiosk: e.target.checked },
     e.target.checked ? 'Layar penuh aktif. Untuk keluar, matikan lagi di sini.' : 'Layar penuh dimatikan.');
+  $('setBahasa').onchange = e => saveSetting({ bahasa: e.target.value },
+    e.target.value === 'en' ? 'Layar tamu sekarang berbahasa Inggris. Halaman Admin tetap bahasa Indonesia.' : 'Layar tamu sekarang berbahasa Indonesia.');
   $('btnSaveLogin').onclick = saveLogin;
 }

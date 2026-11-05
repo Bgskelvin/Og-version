@@ -66,7 +66,7 @@
     if (PREVIEW_MS() <= 0) { await sleep(400); return token === pbToken; }   // pratinjau dimatikan
     const box = $('pbPreview');
     $('pbPreviewImg').src = thumbURL(photos[i], 1600);
-    $('pbPreviewLabel').textContent = `Foto ${i + 1}`;
+    $('pbPreviewLabel').textContent = t('pb.label', { i: i + 1 });
     box.classList.remove('out'); box.classList.add('on');
     await sleep(PREVIEW_MS());
     box.classList.add('out');
@@ -106,7 +106,7 @@
     for (let i = 0; i < SHOTS; i++) {
       const slot = document.createElement('div'); slot.className = 'pb-slot';
       slot.innerHTML = `<div class="pb-thumb" id="pbThumb${i}"><span class="empty">${i + 1}</span></div>
-        <button class="btn sm glassy" data-redo="${i}"><svg class="i"><use href="#i-retry"/></svg>Ulangi</button>`;
+        <button class="btn sm glassy" data-redo="${i}"><svg class="i"><use href="#i-retry"/></svg>${t('pb.ulangi')}</button>`;
       s.appendChild(slot);
     }
     s.querySelectorAll('[data-redo]').forEach(b => b.onclick = () => shoot([Number(b.dataset.redo)]));
@@ -167,7 +167,7 @@
     await siapTemplate;                         // rasio zona aman berasal dari template couple
     try {
       for (const i of indices) {
-        $('pbPillText').textContent = indices.length === 1 ? `Ulangi foto ${i + 1}` : `Foto ${i + 1} dari ${SHOTS}`;
+        $('pbPillText').textContent = indices.length === 1 ? t('pb.ulangiKe', { i: i + 1 }) : t('pb.ke', { i: i + 1, n: SHOTS });
         markNext(i);
         aturZonaAman(i);
         const besar = indices.length === SHOTS && i === indices[0];   // hanya hitungan pertama sesi
@@ -188,12 +188,12 @@
     $('pbStrip').classList.toggle('done', all);
     $('pbActions').style.display = all ? 'flex' : 'none';
     $('pbBack').style.display = '';
-    $('pbBackLabel').textContent = photos.some(Boolean) ? 'Batal' : 'Kembali';
+    $('pbBackLabel').textContent = photos.some(Boolean) ? t('pb.batal') : t('pb.kembali');
     markNext(-1);
     aturZonaAman(-1);
   }
   function openPhoto() {
-    $('pbIntro').textContent = `Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN()} detik, jadi siapkan gayamu.`;
+    $('pbIntro').textContent = t('pb.intro', { n: SHOTS, s: COUNTDOWN() });
     pbToken++; running = false; busy = false;
     photos.fill(null);
     ed = fresh();
@@ -206,7 +206,7 @@
     $('pbBottom').style.display = 'none';
     $('pbPill').style.display = 'none';
     $('pbBack').style.display = '';
-    $('pbBackLabel').textContent = 'Kembali';
+    $('pbBackLabel').textContent = t('pb.kembali');
     disarmCancel();
     show('photo');
   }
@@ -219,7 +219,7 @@
   function backFromPhoto() {
     if (photos.some(Boolean)) {                     // sudah ada foto: tekan dua kali untuk membatalkan
       if (!cancelArmed) {
-        $('pbBackLabel').textContent = 'Yakin batal?';
+        $('pbBackLabel').textContent = t('pb.yakin');
         cancelArmed = setTimeout(() => { disarmCancel(); showDone(); }, 3000);
         return;
       }
@@ -233,14 +233,14 @@
      Halaman Edit Photo
      ===================================================================== */
   const LAYOUTS = {
-    grid:  { name: 'Kisi 2×2', W: 1200, H: 1800,
+    grid:  { get name() { return t('layout.grid'); }, W: 1200, H: 1800,
              slots() { const m = 60, g = 30, w = (1200 - 2 * m - g) / 2, h = 656;
                return [[m, m], [m + w + g, m], [m, m + h + g], [m + w + g, m + h + g]].map(([x, y]) => ({ x, y, w, h })); },
              text: { y: 1560, name: 84, date: 36 } },
-    strip: { name: 'Strip', W: 600, H: 1800,
+    strip: { get name() { return t('layout.strip'); }, W: 600, H: 1800,
              slots() { const m = 40, g = 24, w = 520, h = 362; return [0, 1, 2, 3].map(i => ({ x: m, y: m + i * (h + g), w, h })); },
              text: { y: 1655, name: 46, date: 22 } },
-    big:   { name: '1 besar + 3', W: 1200, H: 1800,
+    big:   { get name() { return t('layout.big'); }, W: 1200, H: 1800,
              slots() { const m = 60, g = 24, W = 1080, bh = 780, sw = (W - 2 * g) / 3, sh = 470;
                return [{ x: m, y: m, w: W, h: bh }, ...[0, 1, 2].map(i => ({ x: m + i * (sw + g), y: m + bh + g, w: sw, h: sh }))]; },
              text: { y: 1560, name: 84, date: 36 } },
@@ -284,7 +284,7 @@
     const sw = w / s, sh = h / s;
     ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, w, h);
   }
-  const dateText = () => new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dateText = () => tanggalHariIni();
 
   // Lapisan dasar: bingkai, foto dengan filter, nama & tanggal
   function renderBase(ctx, lay, scale = 1, filterKey = ed.filter) {
@@ -386,15 +386,16 @@
     $('peFrameHint').style.display = pakaiTpl ? 'block' : 'none';
 
     const fil = $('peFilters'); fil.innerHTML = '';
-    for (const [key, name, f] of FILTERS) {
+    for (const [key, , f] of FILTERS) {
+      const name = t('filter.' + key);
       const c = document.createElement('canvas'); c.width = 150; c.height = 150;
       const cx = c.getContext('2d'); cx.filter = f; drawCover(cx, photos[0], 0, 0, 150, 150);
       option(fil, ed.filter === key, c, name, () => { ed.filter = key; redraw(); buildPanel(); });
     }
 
     const fr = $('peFrames'); fr.innerHTML = '';
-    FRAMES().forEach(([bg, name], i) =>
-      option(fr, ed.frame === i, `<span class="pe-sw" style="background:${bg}"></span>`, name, () => { ed.frame = i; redraw(); buildPanel(); }));
+    FRAMES().forEach(([bg], i) =>
+      option(fr, ed.frame === i, `<span class="pe-sw" style="background:${bg}"></span>`, t('bingkai.' + i), () => { ed.frame = i; redraw(); buildPanel(); }));
 
     const sl = $('peStickerList');
     if (!sl.childElementCount) for (const ch of STICKERS) {
@@ -482,7 +483,7 @@
   }
   function tweakSticker(fn) {
     const s = selected();
-    if (!s) { setNotice('Ketuk stiker di foto dulu untuk memilihnya.', 4000); return; }
+    if (!s) { setNotice(t('pb.pilihStiker'), 4000); return; }
     fn(s); placeStickers();
   }
 
@@ -526,7 +527,7 @@
     const ctx = out.getContext('2d');
     renderBase(ctx, lay); renderStrokes(ctx, lay); renderStickers(ctx, lay);
 
-    $('savingTitle').textContent = 'Menyimpan fotomu';
+    $('savingTitle').textContent = t('simpan.foto');
     const bar = $('saveBar'); bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
     show('saving');
     let ok = false, err = '';
@@ -539,10 +540,10 @@
       ok = !!(r && r.ok); err = r && r.error;
     })().catch(e => { err = e.message; });
     await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
-    $('savingTitle').textContent = 'Menyimpan rekamanmu';
+    $('savingTitle').textContent = t('simpan.rekaman');
 
     setThanks(ok);
-    $('thanksMsg').textContent = ok ? 'Fotomu sudah tersimpan.' : 'Fotomu belum berhasil tersimpan. Silakan hubungi petugas.';
+    $('thanksMsg').textContent = ok ? t('tk.fotoOk') : t('tk.fotoGagal');
     if (!ok) setNotice('Foto gagal disimpan: ' + (err || 'waktu habis'), 15000);
     const tp = $('thanksPhoto');
     if (ok) { tp.src = out.toDataURL('image/jpeg', .8); tp.style.display = 'block'; $('thanksBadge').style.display = 'none'; }

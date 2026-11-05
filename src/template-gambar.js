@@ -16,7 +16,7 @@ const NAMA_FONT = { sans: 'Modern', serif: 'Klasik', script: 'Tulisan tangan' };
 // Di editor template, {couple} memakai nama couple yang sedang diedit.
 let namaCoupleTemplate = null;
 function isiTeksTemplate(teks) {
-  const tanggal = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const tanggal = tanggalHariIni();                  // format tanggal mengikuti bahasa layar tamu
   const nama = namaCoupleTemplate !== null ? namaCoupleTemplate : activeCouple ? activeCouple.name : '';
   return String(teks || '')
     .replace(/\{couple\}/gi, nama)
@@ -85,7 +85,7 @@ function gambarTemplate(ctx, siap, opsi = {}) {
   if (bingkai) ctx.drawImage(bingkai, 0, 0, tpl.W, tpl.H);
 
   for (const t of tpl.texts) {
-    const isi = isiTeksTemplate(t.text);
+    const isi = isiTeksTemplate(pilihBahasa(t.text, t.textEn));
     if (!isi) continue;
     ctx.font = fontTeks(t);
     ctx.fillStyle = t.color;
@@ -99,7 +99,7 @@ function gambarTemplate(ctx, siap, opsi = {}) {
 function lebarTeks(t) {
   const c = lebarTeks.c || (lebarTeks.c = document.createElement('canvas').getContext('2d'));
   c.font = fontTeks(t);
-  return c.measureText(isiTeksTemplate(t.text) || ' ').width;
+  return c.measureText(isiTeksTemplate(pilihBahasa(t.text, t.textEn)) || ' ').width;
 }
 
 /* Rasio kotak foto (lebar : tinggi). Dipilih admin per template; semua foto 1-4 memakai rasio ini.

@@ -22,7 +22,8 @@ const SAKLAR = {
   enablePhoto: true, photoFlash: true,   // Photobooth: menu & efek kilat layar
 };
 const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
-const KAMERA = ['webcam', 'sony', 'sony-sim'];    // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
+const KAMERA = ['webcam', 'sony', 'sony-sim'];
+const BAHASA = ['id', 'en'];                      // bahasa layar tamu (Admin tetap bahasa Indonesia)    // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
 const clampInt = (v, [lo, hi], dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
 const isColor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 function effective() {
@@ -32,6 +33,7 @@ function effective() {
     ...Object.fromEntries(Object.entries(SAKLAR).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
     kamera: KAMERA.includes(s.kamera) ? s.kamera : 'webcam',
+    bahasa: BAHASA.includes(s.bahasa) ? s.bahasa : 'id',
     accent: isColor(s.accent) ? s.accent : ((config.colors && isColor(config.colors.accent)) ? config.colors.accent : '#B08D57'),
     loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin'
   };
@@ -66,6 +68,7 @@ function daftarkan() {
     const now = effective(), next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
     if (!MENU.some(k => next[k])) return { ...now, error: 'Minimal satu menu harus tetap tampil di Halaman Utama.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
+    if ('bahasa' in patch && BAHASA.includes(patch.bahasa)) s.bahasa = patch.bahasa;
     if ('kamera' in patch && KAMERA.includes(patch.kamera)) {
       s.kamera = patch.kamera;
       require('./kamera-sony').setel(s.kamera);

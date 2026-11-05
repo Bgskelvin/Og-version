@@ -7,8 +7,9 @@ function applyCouples(d) {
   couplesData = d;
   activeCouple = d.couples.find(c => c.id === d.activeId) || d.couples[0] || null;
   $('couple').textContent = activeCouple ? activeCouple.name : '';
-  $('welcome').textContent = (activeCouple && activeCouple.welcome) || cfg.welcome || '';
-  cfg.quiz = activeCouple ? activeCouple.questions.slice() : [];
+  $('welcome').textContent = (activeCouple && pilihBahasa(activeCouple.welcome, activeCouple.welcomeEn)) || cfg.welcome || '';
+  // Pertanyaan quiz memakai versi Inggris kalau bahasa tamu English dan versi itu diisi
+  cfg.quiz = activeCouple ? activeCouple.questions.map((q, i) => pilihBahasa(q, (activeCouple.questionsEn || [])[i])) : [];
   if (typeof terapkanMenu === 'function' && $('btnToPesan')) terapkanMenu();
 }
 // Daftar couple di Admin: ketuk satu couple untuk membuka halaman couple itu
@@ -87,8 +88,20 @@ function buildQInputs() {
     inp.className = 'field qIn'; inp.maxLength = 200; inp.autocomplete = 'off';
     inp.placeholder = i === 0 ? 'Pertanyaan pertama (wajib)' : 'Opsional';
     inp.addEventListener('input', updateQCount);
-    row.appendChild(n); row.appendChild(inp); box.appendChild(row);
+    const en = document.createElement('input');                   // versi Inggris (opsional)
+    en.className = 'field qInEn'; en.maxLength = 200; en.autocomplete = 'off'; en.style.display = 'none';
+    row.append(n, inp, en); box.appendChild(row);
   }
+}
+// Pertanyaan quiz: tampilkan kolom bahasa Indonesia atau versi Inggris
+function tampilBahasaQuiz(b) {
+  document.querySelectorAll('#qBahasaPilih .rw-chip').forEach(x => x.classList.toggle('on', x.dataset.b === b));
+  const id = [...document.querySelectorAll('.qIn')];
+  document.querySelectorAll('.qInEn').forEach((en, i) => {
+    en.style.display = b === 'en' ? '' : 'none';
+    id[i].style.display = b === 'en' ? 'none' : '';
+    en.placeholder = id[i].value.trim() ? 'English: ' + id[i].value.trim() : 'Opsional';
+  });
 }
 function updateQCount() {
   const n = [...document.querySelectorAll('.qIn')].filter(i => i.value.trim()).length;
@@ -108,6 +121,10 @@ function openTambah(c, tetapDiForm = false) {
   $('fWelcome').value = c ? (c.welcome || '') : '';
   const qs = c ? c.questions : [];
   document.querySelectorAll('.qIn').forEach((inp, i) => { inp.value = qs[i] || ''; });
+  const qsEn = c ? (c.questionsEn || []) : [];
+  document.querySelectorAll('.qInEn').forEach((inp, i) => { inp.value = qsEn[i] || ''; });
+  $('fWelcomeEn').value = c ? (c.welcomeEn || '') : '';
+  tampilBahasaQuiz('id');
   $('fActive').checked = c ? c.id === couplesData.activeId : true;
   const m = menuCouple(c);
   $('fMenuPesan').checked = m.pesan; $('fMenuQuiz').checked = m.quiz; $('fMenuPhoto').checked = m.photo;
@@ -123,7 +140,9 @@ async function saveTambah() {
     id: editingId || undefined,
     name: $('fName').value,
     welcome: $('fWelcome').value,
+    welcomeEn: $('fWelcomeEn').value,
     questions: [...document.querySelectorAll('.qIn')].map(i => i.value),
+    questionsEn: [...document.querySelectorAll('.qInEn')].map(i => i.value),
     menu: { pesan: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked }
   };
   const gagal = teks => { $('tambahErr').textContent = teks; $('tambahErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
@@ -148,6 +167,7 @@ async function saveTambah() {
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
 function pasangCouple() {
   $('btnAddCouple').onclick = () => openTambah(null);
+  document.querySelectorAll('#qBahasaPilih .rw-chip').forEach(b => { b.onclick = () => tampilBahasaQuiz(b.dataset.b); });
   ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].forEach(id => { $(id).onchange = saklarMenu; });
   $('btnDelCouple').onclick = deleteCouple;
   $('btnCoupleFolder').onclick = async () => {

@@ -75,9 +75,7 @@ function setThanks(result) {
   $('thanksBadge').style.display = '';
   $('thanksBadge').style.background = ok || slow ? '' : 'var(--orange)';
   $('thanksBadge').innerHTML = ok || slow ? '<svg class="i"><use href="#i-check"/></svg>' : '<span style="font-size:52px;font-weight:700">!</span>';
-  $('thanksMsg').textContent = ok ? 'Rekamanmu sudah tersimpan.'
-    : slow ? 'Rekamanmu sedang diselesaikan dan akan tersimpan otomatis.'
-    : 'Rekamanmu belum berhasil tersimpan. Silakan hubungi petugas.';
+  $('thanksMsg').textContent = ok ? t('tk.ok') : slow ? t('tk.lambat') : t('tk.gagal');
 }
 async function finishSession(meta) {
   if (finishing) return;                       // cegah tombol Finish tertekan dua kali
@@ -86,6 +84,7 @@ async function finishSession(meta) {
   clearInterval(recTick); clearTimeout(pesanLimit);
   const bar = $('saveBar');
   bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+  $('savingTitle').textContent = t('simpan.rekaman');
   show('saving');
   const saved = stopRecording(meta);
   // Batas atas 15 detik supaya layar tidak pernah tertahan; penyimpanan tetap lanjut di belakang

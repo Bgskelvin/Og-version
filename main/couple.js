@@ -46,13 +46,19 @@ function bersihkanMenu(m) {
   return out;
 }
 function cleanCouple(c) {
+  // Pertanyaan & versi Inggrisnya dipasangkan dulu, baru yang kosong dibuang (urutan tetap cocok)
+  const qEn = Array.isArray(c.questionsEn) ? c.questionsEn : [];
+  const pasang = (Array.isArray(c.questions) ? c.questions : [])
+    .map((q, i) => [String(q || '').trim().slice(0, 200), String(qEn[i] || '').trim().slice(0, 200)])
+    .filter(([q]) => q).slice(0, MAX_Q);
   return {
+    welcomeEn: String(c.welcomeEn || '').trim().slice(0, 160),
+    questionsEn: pasang.map(p => p[1]),
     menu: bersihkanMenu(c.menu),
     id: c.id || idBaru(),
     name: String(c.name || '').trim().slice(0, 80),
     welcome: String(c.welcome || '').trim().slice(0, 160),
-    questions: (Array.isArray(c.questions) ? c.questions : [])
-      .map(q => String(q || '').trim().slice(0, 200)).filter(Boolean).slice(0, MAX_Q)
+    questions: pasang.map(p => p[0])
   };
 }
 

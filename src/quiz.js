@@ -6,10 +6,10 @@ const quizRounds = () => Math.min(cfg.quizRounds, cfg.quiz.length);
 function openQuiz() {
   $('btnQuizMulai').disabled = !cfg.quiz.length;
   if (!cfg.quiz.length) {
-    $('quizInfo').textContent = 'Belum ada pertanyaan untuk couple ini. Tambahkan lewat halaman Admin.';
+    $('quizInfo').textContent = t('quiz.kosong');
     $('quizPre').style.display = 'flex'; $('quizRun').style.display = 'none'; show('quiz'); return;
   }
-  $('quizInfo').textContent = `Akan muncul ${quizRounds()} pertanyaan acak. Kamu punya ${cfg.quizSeconds} detik untuk menjawab setiap pertanyaan.`;
+  $('quizInfo').textContent = t('quiz.info', { n: quizRounds(), s: cfg.quizSeconds });
   $('quizPre').style.display = 'flex';
   $('quizRun').style.display = 'none';
   show('quiz');
@@ -37,13 +37,13 @@ async function shuffleTo(qi) {
 function answerTimer(isLast) {
   const secs = cfg.quizSeconds;
   $('qBarWrap').style.visibility = 'visible'; $('qTime').style.visibility = 'visible'; $('btnNext').style.visibility = 'visible';
-  $('btnNext').textContent = isLast ? 'Selesai' : 'Lanjut';
+  $('btnNext').textContent = isLast ? t('quiz.selesai') : t('quiz.lanjut');
   return new Promise(resolve => {
     const t0 = Date.now();
     const iv = setInterval(() => {
       const remain = Math.max(0, secs - (Date.now() - t0) / 1000);
       $('qBar').style.width = (remain / secs * 100) + '%';
-      $('qTime').textContent = `Sisa waktu ${fmt(Math.ceil(remain))}`;
+      $('qTime').textContent = t('quiz.sisa', { t: fmt(Math.ceil(remain)) });
       if (remain <= 0) done();
     }, 200);
     const done = () => { clearInterval(iv); $('btnNext').onclick = null; cancelTimer = null; resolve(); };
@@ -62,7 +62,7 @@ async function mulaiQuiz() {
     const picks = pickQuestions(quizRounds());
     for (let r = 0; r < picks.length; r++) {
       if (token !== sessionToken) return;
-      $('qRound').textContent = `Pertanyaan ${r + 1} dari ${picks.length}`;
+      $('qRound').textContent = t('quiz.ronde', { i: r + 1, n: picks.length });
       await shuffleTo(picks[r]);
       if (token !== sessionToken) return;
       await answerTimer(r === picks.length - 1);

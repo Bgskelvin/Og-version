@@ -6,6 +6,7 @@
   cfg = await api.getConfig();
   cfg.quiz = cfg.quiz || [];
   normalisasiCfg(cfg);
+  setBahasa(cfg.bahasa);                 // bahasa layar tamu (diatur di Admin)
   if (cfg.colors) {
     const r = document.documentElement.style;
     if (cfg.colors.accent) r.setProperty('--accent', cfg.colors.accent);
