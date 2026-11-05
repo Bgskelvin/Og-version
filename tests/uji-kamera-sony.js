@@ -58,7 +58,7 @@ function simpanLaporan() { fs.writeFileSync(path.join(HASIL, 'laporan.txt'), lap
   tulis(`Uji kamera Sony — ${new Date().toLocaleString('id-ID')}\n`);
   let t = Date.now();
   let r = await kirim('sambung', HASIL);
-  if (!r.ok) { tulis(`✗ Sambung: ${require('../main/kamera-sony').jelaskanSambung(r)}`); return akhiri(1); }
+  if (!r.ok) { tulis(`✗ Sambung: ${require('../main/pesan-sony').jelaskanSambung(r)}`); return akhiri(1); }
   tulis(`✓ Sambung: ${r.model} (${detik(Date.now() - t)})${r.catatan ? '  ⚠ pengaturan gagal: ' + r.catatan : ''}`);
 
   r = await kirim('status');
