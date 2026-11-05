@@ -38,6 +38,8 @@ contextBridge.exposeInMainWorld('api', {
   unggahCobaSekarang: () => ipcRenderer.invoke('unggah-coba-sekarang'),
   bukaLink: url => ipcRenderer.invoke('buka-link', url),
   salinTeks: teks => ipcRenderer.invoke('salin-teks', teks),
+  cekTutup: () => ipcRenderer.invoke('cek-tutup'),
+  tutupAplikasi: () => ipcRenderer.invoke('tutup-aplikasi'),
   onUnggahStatus: cb => ipcRenderer.on('unggah-status', (e, s) => cb(s)),
   sonyStatus: () => ipcRenderer.invoke('sony-status'),
   sonyLiveView: () => ipcRenderer.invoke('sony-lv'),

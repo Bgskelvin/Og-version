@@ -403,7 +403,20 @@ const KASUS = {
     cek(e.ok, 'rekam lewat SDK berhenti & file barunya ditemukan', e.error);
     await tunggu(1500);
     cek(sesi()[0].status === 'done' && fs.readFileSync(r.file, 'utf8').startsWith('video palsu'), 'video tersalin dari "kartu" ke folder couple', sesi()[0]);
-    await panggil('save-settings', { kamera: 'webcam' });
+    // Tombol "Tutup aplikasi" di Admin
+    const c = await panggil('cek-tutup');
+    cek(c.salin === 0 && c.proses === 0 && c.foto === 0, 'cek sebelum tutup: tidak ada yang tertunda', c);
+    await panggil('tutup-aplikasi'); await tunggu(400);
+    cek(electron.__keluar === true, 'Tutup aplikasi memakai jalur resmi (app.quit)');
+    electron.__keluar = false;
+    const jalan = () => { try { return require('child_process').execFileSync('pgrep', ['-f', '^\\S*sony-helper-palsu$']).toString().trim(); } catch (e) { return ''; } };
+    cek(jalan() !== '', 'program penghubung kamera berjalan sebelum ditutup');
+    const ev = { ditahan: false, preventDefault() { this.ditahan = true; } };
+    const t0 = Date.now();
+    electron.__appEvents['before-quit'](ev);
+    cek(ev.ditahan && !electron.__keluar, 'saat keluar: aplikasi menunggu kamera diputus dulu');
+    while (!electron.__keluar && Date.now() - t0 < 6000) await tunggu(50);
+    cek(electron.__keluar && Date.now() - t0 < 3500 && jalan() === '', 'kamera diputus rapi, program penghubung berhenti, lalu aplikasi tertutup', Date.now() - t0);
   },
 
   async 'satu jendela: aplikasi kedua langsung keluar'() {

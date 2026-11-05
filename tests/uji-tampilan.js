@@ -83,6 +83,8 @@ window.api = {
   unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
   unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
   onUnggahStatus: cb => { UNG.cb = cb; },
+  cekTutup: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
+  tutupAplikasi: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
   bukaLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
   salinTeks: async t => { LOG.push('salin ' + t); return { ok: true }; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
@@ -533,6 +535,21 @@ async function main() {
   await pg.click('.rw-row[data-id="21"]'); await tunggu(200);
   cek(await pg.textContent('.rw-detail .rw-link') === 'https://leura-foto.uji.workers.dev/f/LamaKode99', 'sesi lama (hanya kode) tetap mendapat link dari alamat server');
   await pg.click('#rwBack'); await tunggu(200);
+
+  console.log('\n▶ Tutup aplikasi dari Admin');
+  await pg.evaluate(() => { show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });
+  await bersihkan();
+  await pg.locator('#btnTutupApp').scrollIntoViewIfNeeded(); await pg.click('#btnTutupApp'); await tunggu(200);
+  cek(await pg.isVisible('#dlgTutup') && (await pg.locator('#dlgTutup li').count()) === 0, 'tombol Tutup aplikasi meminta konfirmasi');
+  await pg.click('#dlgTutupBatal'); await tunggu(100);
+  cek(await pg.locator('#dlgTutup').count() === 0 && !(await log()).includes('tutup aplikasi'), 'Batal: aplikasi tidak ditutup');
+  await pg.evaluate(() => { window.TUTUP = { salin: 1, proses: 0, foto: 2 }; });
+  await pg.click('#btnTutupApp'); await tunggu(200);
+  const peringatan = await pg.textContent('#dlgTutup ul');
+  cek(/1 video masih disalin/.test(peringatan) && /2 foto QR belum terkirim/.test(peringatan) && !/diproses/.test(peringatan), 'peringatan video yang disalin & foto QR yang belum terkirim', peringatan);
+  await pg.click('#dlgTutupYa'); await tunggu(200);
+  cek((await log()).includes('tutup aplikasi') && /Menutup aplikasi/.test(await pg.textContent('#dlgTutup')), 'Ya: aplikasi ditutup lewat jalur resmi');
+  await pg.evaluate(() => document.getElementById('dlgTutup').remove());
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

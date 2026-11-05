@@ -29,6 +29,7 @@ const kameraSony = require('./main/kamera-sony');
 kameraSony.daftarkan();
 const unggah = require('./main/unggah');
 unggah.daftarkan();
+require('./main/keluar').daftarkan();
 rekaman.daftarkan();
 
 app.whenReady().then(async () => {
