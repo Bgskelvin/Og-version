@@ -30,7 +30,16 @@ say "Mengatur hapus otomatis setelah 7 hari"
 $W r2 bucket lifecycle add "$BUCKET" hapus-7-hari --expire-days 7 --force 2>&1 | tail -2 || true
 
 say "Mengirim program ke Cloudflare"
-OUT=$($W deploy 2>&1) || { echo "$OUT"; gagal "Gagal memasang Worker."; }
+OUT=$($W deploy 2>&1) || {
+  if echo "$OUT" | grep -qi "workers.dev subdomain"; then
+    LINK=$(echo "$OUT" | grep -Eo 'https://dash\.cloudflare\.com/[^ ]*/workers/onboarding' | head -1)
+    printf '\nAkunmu belum punya nama subdomain workers.dev (cukup sekali).\n'
+    printf '1. Buka: %s\n' "${LINK:-https://dash.cloudflare.com → Workers & Pages}"
+    printf '2. Isi nama subdomain (misalnya: gusvin), lalu simpan.\n'
+    printf '3. Tunggu 1–2 menit, lalu jalankan lagi: npm run cloud:pasang\n'
+    gagal "Worker belum terpasang karena subdomain belum dibuat."
+  fi
+  echo "$OUT"; gagal "Gagal memasang Worker."; }
 echo "$OUT" | tail -6
 URL=$(echo "$OUT" | grep -Eo 'https://[A-Za-z0-9.-]+\.workers\.dev' | head -1)
 [ -n "$URL" ] || gagal "Alamat Worker tidak ditemukan di hasil pemasangan."
