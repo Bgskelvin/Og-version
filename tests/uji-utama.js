@@ -332,7 +332,7 @@ const KASUS = {
     const kode = (r.link || '').split('/f/')[1];
     cek(r.ok && /^[A-Za-z0-9]{10}$/.test(kode) && r.link === `http://127.0.0.1:${port}/f/${kode}`, 'foto disimpan: link QR langsung ada', r.link);
     const s1 = sesi().find(x => x.kode === kode);
-    cek(s1 && s1.unggah === 'antre', 'sesi foto mencatat kode QR');
+    cek(s1 && s1.unggah === 'antre' && s1.link === r.link, 'sesi foto mencatat kode & link QR');
     await tunggu(800);
     cek(toko.has(`foto/${kode}.jpg`) && sesi().find(x => x.kode === kode).unggah === 'terkirim', 'foto terunggah ke server di belakang layar');
     const st = await panggil('unggah-status');

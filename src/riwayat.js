@@ -62,6 +62,7 @@ async function bukaRiwayat() {
   rw.jenis = 'semua'; rw.buka = null; rw.jejak = '';
   show('riwayat');
   $('riwayat').querySelector('.sheet-body').scrollTop = 0;
+  try { unggahSt = await api.unggahStatus(); } catch (e) {}   // untuk menyusun link QR sesi lama
   await segarkanRiwayat(true);
   clearInterval(rw.timer);
   rw.timer = setInterval(() => { if (current === 'riwayat') segarkanRiwayat(); else clearInterval(rw.timer); }, 3000);
@@ -174,10 +175,12 @@ function detailSesi(s) {
     const t = document.createElement('div'); t.className = 'muted'; t.textContent = 'Pertanyaan:';
     d.append(t, ol);
   }
+  const link = linkSesi(s);
   if (s.kode) {          // unduh lewat QR
     const q = document.createElement('div'); q.className = 'muted';
-    q.textContent = 'QR: ' + ({ terkirim: '✓ foto sudah bisa diunduh tamu', antre: 'menunggu dikirim ke server', menunggu: 'menunggu internet / server', hilang: 'file foto hilang, tidak bisa dikirim' }[s.unggah] || s.unggah || '-') + ` · kode ${s.kode}`;
+    q.textContent = 'QR: ' + ({ terkirim: '✓ foto sudah bisa diunduh tamu', antre: 'menunggu dikirim ke server', menunggu: 'menunggu internet / server', hilang: 'file foto hilang, tidak bisa dikirim' }[s.unggah] || s.unggah || '-');
     d.appendChild(q);
+    if (link) { const l = document.createElement('div'); l.className = 'rw-link'; l.textContent = link; d.appendChild(l); }
   }
   if (s.file) { const f = document.createElement('div'); f.className = 'muted rw-file'; f.textContent = s.file; d.appendChild(f); }
   const aksi = document.createElement('div'); aksi.className = 'item actions'; aksi.style.padding = '10px 0 0'; aksi.style.border = '0';
@@ -186,6 +189,11 @@ function detailSesi(s) {
   if (typeof s._id === 'number') {
     if (['done', 'photo', 'webm'].includes(s.status)) tombol(s.label === 'foto' ? 'Lihat foto' : 'Putar video', async () => hasil(await api.sessionOpen(s._id)));
     tombol('Tampilkan di Finder', async () => hasil(await api.sessionReveal(s._id)));
+    if (link) {
+      tombol('Tampilkan QR', () => tampilkanQRSesi(s, link));
+      tombol('Salin link', async () => { await api.salinTeks(link); flash('rwMsg', 'Link disalin. Tempel (⌘V) di WhatsApp atau pesan lain.'); });
+      tombol('Buka link', async () => hasil(await api.bukaLink(link)));
+    }
     if (BISA_ULANG.includes(s.status)) tombol(s.status === 'card-only' ? 'Coba salin lagi dari kamera' : 'Coba proses lagi', async () => {
       const r = await api.sessionRetry(s._id);
       if (r && r.error) return flash('rwMsg', r.error, true);
@@ -195,6 +203,27 @@ function detailSesi(s) {
   }
   d.appendChild(aksi);
   return d;
+}
+
+// Link unduh foto sesi ini. Sesi lama hanya menyimpan kode → link disusun dari alamat server sekarang.
+function linkSesi(s) {
+  if (!s.kode) return '';
+  if (s.link) return s.link;
+  const url = String((typeof unggahSt !== 'undefined' && unggahSt.url) || '').replace(/\/+$/, '');
+  return url ? `${url}/f/${s.kode}` : '';
+}
+// QR besar untuk sesi lama (misalnya tamu tadi lupa memindai)
+function tampilkanQRSesi(s, link) {
+  const url = link + (bahasa === 'en' ? '?b=en' : '');
+  const lapis = document.createElement('div'); lapis.className = 'rw-qr-lapis'; lapis.id = 'rwQR';
+  lapis.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Tutup</button></div>`;
+  lapis.querySelector('b').textContent = `Foto ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
+  lapis.querySelector('small').textContent = url.replace(/^https:\/\//, '');
+  try { gambarQR(lapis.querySelector('canvas'), url, 8); } catch (e) { return flash('rwMsg', 'QR gagal dibuat.', true); }
+  const tutup = () => lapis.remove();
+  lapis.onclick = e => { if (e.target === lapis) tutup(); };
+  lapis.querySelector('button').onclick = tutup;
+  document.body.appendChild(lapis);
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)

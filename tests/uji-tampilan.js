@@ -83,6 +83,8 @@ window.api = {
   unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
   unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
   onUnggahStatus: cb => { UNG.cb = cb; },
+  bukaLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
+  salinTeks: async t => { LOG.push('salin ' + t); return { ok: true }; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
   saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
     const lama = TPL.find(x => x.id === t.id) || {};
@@ -505,6 +507,32 @@ async function main() {
   cek(!(await pg.isVisible('#thanksQR')), 'setelah sesi video, QR foto tidak ikut tampil');
   require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'uji-qr.png'), Buffer.from((await pg.evaluate(() => QRPNG)).split(',')[1], 'base64'));
   await pg.click('#btnCobaLagi');
+
+  console.log('\n▶ Link QR di Riwayat sesi');
+  await pg.evaluate(() => {
+    const jam = m => { const d = new Date(); d.setHours(17, m, 0, 0); return d.toISOString(); };
+    SESI.push({ id: 20, time: jam(1), label: 'foto', couple: 'Rina & Dimas', status: 'photo', photos: 4, kode: 'Ab3dEf9hJk', link: 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk', unggah: 'terkirim' },
+              { id: 21, time: jam(2), label: 'foto', couple: 'Rina & Dimas', status: 'photo', photos: 4, kode: 'LamaKode99', unggah: 'menunggu' });
+    show('admin');
+  });
+  await bersihkan(); await pg.click('#btnRiwayat'); await tunggu(400);
+  await pg.click('.rw-row[data-id="20"]'); await tunggu(200);
+  cek(await pg.textContent('.rw-detail .rw-link') === 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' && /foto sudah bisa diunduh/.test(await pg.textContent('.rw-detail')),
+      'detail sesi foto menampilkan link unduh + status QR');
+  await pg.click('.rw-detail button:has-text("Salin link")'); await tunggu(100);
+  await pg.click('.rw-detail button:has-text("Buka link")'); await tunggu(100);
+  const lg = await log();
+  cek(lg.includes('salin https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') && lg.includes('buka https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') && /Link disalin/.test(await pg.textContent('#rwMsg')),
+      'tombol Salin link & Buka link');
+  await pg.click('.rw-detail button:has-text("Tampilkan QR")'); await tunggu(200);
+  cek(await pg.isVisible('#rwQR canvas') && /leura-foto.uji.workers.dev\/f\/Ab3dEf9hJk/.test(await pg.textContent('#rwQR small')), 'Tampilkan QR: QR besar sesi itu muncul');
+  await pg.evaluate(() => { window.QRPNG2 = document.querySelector('#rwQR canvas').toDataURL('image/png'); });
+  require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'uji-qr-riwayat.png'), Buffer.from((await pg.evaluate(() => QRPNG2)).split(',')[1], 'base64'));
+  await pg.click('#rwQR button'); await tunggu(100);
+  cek(await pg.locator('#rwQR').count() === 0, 'QR besar ditutup');
+  await pg.click('.rw-row[data-id="21"]'); await tunggu(200);
+  cek(await pg.textContent('.rw-detail .rw-link') === 'https://leura-foto.uji.workers.dev/f/LamaKode99', 'sesi lama (hanya kode) tetap mendapat link dari alamat server');
+  await pg.click('#rwBack'); await tunggu(200);
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

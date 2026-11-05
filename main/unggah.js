@@ -6,7 +6,7 @@
      diunggah satu per satu ke server Cloudflare (cloud/worker.mjs), dan
      dicoba lagi otomatis kalau gagal — juga setelah aplikasi dibuka lagi.
    ===================================================================== */
-const { ipcMain } = require('electron');
+const { ipcMain, shell, clipboard } = require('electron');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -136,6 +136,12 @@ function daftarkan() {
     if (!h || !h.url || !h.kunci) return { error: 'Belum ada hasil pemasangan. Jalankan dulu: npm run cloud:pasang' };
     return { url: h.url, kunci: h.kunci };
   });
+  // Dari Riwayat sesi: buka link foto di browser / salin link
+  ipcMain.handle('buka-link', (e, url) => {
+    if (!/^https:\/\/[^\s]+$/.test(String(url || ''))) return { error: 'Link tidak valid.' };
+    shell.openExternal(url); return { ok: true };
+  });
+  ipcMain.handle('salin-teks', (e, teks) => { clipboard.writeText(String(teks || '')); return { ok: true }; });
   ipcMain.handle('unggah-coba-sekarang', () => { antrean.forEach(x => { x.berikut = 0; }); simpanAntrean(); jalankan(); return status(); });
 }
 // Saat aplikasi dibuka: lanjutkan antrean yang tersisa

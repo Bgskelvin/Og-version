@@ -38,7 +38,7 @@ function daftarkan() {
         const list = readSessions();
         qr = unggah.daftarkanFoto(path.join(dir, hasil), sid);
         list.push({ id: sid, time: new Date().toISOString(), label: 'foto', file: hasil, dir, couple: name, seconds: 0, status: 'photo',
-          photos: originals.length, originalFiles: files, ...(qr ? { kode: qr.kode, unggah: 'antre' } : {}), ...meta });
+          photos: originals.length, originalFiles: files, ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'antre' } : {}), ...meta });
         writeSessions(list);
       } catch (err) { console.log('Gagal mencatat sesi foto: ' + err.message); }
       return { ok: true, file: path.join(dir, hasil), link: qr ? qr.link : null };
