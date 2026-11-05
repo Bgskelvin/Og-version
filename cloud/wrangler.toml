@@ -1,0 +1,14 @@
+# Konfigurasi Worker Cloudflare untuk unduh foto lewat QR.
+# Dipasang dengan:  npm run cloud:pasang
+name = "leura-foto"
+main = "worker.mjs"
+compatibility_date = "2025-06-01"
+
+[vars]
+HARI_SIMPAN = "7"          # foto dianggap hilang setelah 7 hari (aturan R2 juga menghapusnya)
+
+[[r2_buckets]]
+binding = "FOTO"
+bucket_name = "leura-foto"
+
+# Kunci booth disimpan sebagai rahasia (bukan di file ini):  npx wrangler secret put KUNCI_BOOTH

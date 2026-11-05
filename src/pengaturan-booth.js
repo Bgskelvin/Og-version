@@ -27,6 +27,7 @@ async function bukaPengaturanBooth(layar) {
   show(layar);
   const s = await api.getSettings();
   normalisasiCfg(s); isiPengaturanBooth({ ...s, ...cfg });
+  if (layar === 'setphoto') isiUnduhQR();
 }
 async function simpanBooth(patch, msgId, msg) {
   const s = await api.saveSettings(patch);

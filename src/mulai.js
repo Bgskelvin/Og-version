@@ -19,6 +19,7 @@
   pasangQuiz();
   pasangAdmin();
   pasangRiwayat();
+  pasangUnduhQR();
   pasangPengaturan();
   pasangPengaturanBooth();
   terapkanMenu();

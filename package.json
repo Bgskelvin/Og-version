@@ -9,7 +9,8 @@
     "test:utama": "node tests/uji-utama.js",
     "test:tampilan": "node tests/uji-tampilan.js",
     "build:sony": "bash kamera-sony/build.sh",
-    "uji:sony": "node tests/uji-kamera-sony.js"
+    "uji:sony": "node tests/uji-kamera-sony.js",
+    "cloud:pasang": "bash cloud/pasang.sh"
   },
   "keywords": [],
   "author": "",

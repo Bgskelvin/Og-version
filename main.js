@@ -8,6 +8,7 @@
      foto.js         penyimpanan Photo Booth
      template.js     template desain foto per couple
      kamera-sony.js  kamera Sony lewat USB (program penghubung + simulasi)
+     unggah.js       unduh foto lewat QR: antrean unggah ke Cloudflare
      jendela.js      jendela, menu, pengaman navigasi
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
@@ -26,6 +27,8 @@ require('./main/foto').daftarkan();
 require('./main/template').daftarkan();
 const kameraSony = require('./main/kamera-sony');
 kameraSony.daftarkan();
+const unggah = require('./main/unggah');
+unggah.daftarkan();
 rekaman.daftarkan();
 
 app.whenReady().then(async () => {
@@ -39,6 +42,7 @@ app.whenReady().then(async () => {
   rekaman.mulai();          // pulihkan rekaman terputus & lanjutkan konversi
   jendela.buatJendela(DEV);
   kameraSony.mulai();       // sambungkan kamera Sony kalau dipilih di Admin
+  unggah.mulai();           // lanjutkan antrean unggah foto (QR) yang tersisa
 });
 
 app.on('second-instance', () => jendela.munculkan());

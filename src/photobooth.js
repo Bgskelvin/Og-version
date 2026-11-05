@@ -530,14 +530,14 @@
     $('savingTitle').textContent = t('simpan.foto');
     const bar = $('saveBar'); bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
     show('saving');
-    let ok = false, err = '';
+    let ok = false, err = '', link = null;
     const work = (async () => {
       const originals = [];
       for (const p of photos) originals.push(p._asli || await toBytes(p, 0.95));   // Sony: file asli kamera
       const result = await toBytes(out, 0.93);
       const r = await api.savePhotos({ originals, result,
         meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
-      ok = !!(r && r.ok); err = r && r.error;
+      ok = !!(r && r.ok); err = r && r.error; link = r && r.link;
     })().catch(e => { err = e.message; });
     await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
     $('savingTitle').textContent = t('simpan.rekaman');
@@ -547,6 +547,7 @@
     if (!ok) setNotice('Foto gagal disimpan: ' + (err || 'waktu habis'), 15000);
     const tp = $('thanksPhoto');
     if (ok) { tp.src = out.toDataURL('image/jpeg', .8); tp.style.display = 'block'; $('thanksBadge').style.display = 'none'; }
+    if (ok && link) tampilkanQR(link);
     photos.fill(null);
     saving = false; busy = false;
     show('thanks');

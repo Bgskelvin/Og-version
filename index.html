@@ -252,6 +252,10 @@
 <div class="screen mid" id="thanks">
   <div class="card glass" style="max-width:640px">
     <img id="thanksPhoto" alt="Hasil foto">
+    <div class="tk-qr" id="thanksQR" style="display:none">
+      <canvas id="qrCanvas" aria-label="Kode QR untuk mengunduh foto"></canvas>
+      <div><b data-t="tk.qr">Pindai untuk mengunduh fotomu</b><small id="qrLink"></small><small data-t="tk.qrInfo">Foto tersedia selama 7 hari.</small></div>
+    </div>
     <div class="badge" id="thanksBadge"><svg class="i"><use href="#i-check"/></svg></div>
     <h1 data-t="tk.judul">Terima kasih</h1>
     <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
@@ -330,6 +334,23 @@
       </div>
       <p class="pe-hint" style="margin:8px 6px 0">Efek kilat memberi cahaya tambahan dari layar. Matikan kalau sudah memakai lampu booth yang cukup terang.</p>
       <div class="note ok" id="setPhotoMsg"></div>
+
+      <div class="group-title">Unduh foto lewat QR</div>
+      <div class="group">
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Tampilkan QR di halaman Terima kasih</span>
+          <label class="switch"><input type="checkbox" id="setQrAktif"><i></i></label></div>
+        <div class="item split"><span>Alamat server</span><input id="setQrUrl" class="field" placeholder="https://leura-foto.xxx.workers.dev" autocomplete="off"></div>
+        <div class="item split"><span>Kunci booth</span><input id="setQrKunci" class="field" type="password" autocomplete="off"></div>
+        <div class="item actions">
+          <button id="btnQrSimpan" class="btn sm primary">Simpan</button>
+          <button id="btnQrTes" class="btn sm tint">Tes sambungan</button>
+          <button id="btnQrPasang" class="btn sm tint">Ambil dari hasil pasang</button>
+        </div>
+        <div class="item split sony-row"><i class="sony-dot" id="qrDot"></i><span class="muted" id="qrStatus" style="width:auto;flex:1"></span>
+          <button id="btnQrUlang" class="btn sm tint" style="display:none">Coba kirim sekarang</button></div>
+      </div>
+      <p class="pe-hint" style="margin:8px 6px 0">Foto hasil template diunggah ke server Cloudflare dan bisa diunduh tamu lewat QR selama 7 hari. QR tetap muncul walau internet putus; fotonya dikirim begitu internet kembali. Server dipasang sekali dengan <b>npm run cloud:pasang</b>.</p>
+      <div class="note ok" id="qrMsg"></div>
 
       <p class="pe-hint" style="margin:14px 6px 0">Template desain foto diatur per couple: Admin → ketuk nama couple → Template foto.</p>
     </div>
@@ -498,6 +519,7 @@
 <!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
 <script src="src/state.js"></script>
 <script src="src/bahasa.js"></script>
+<script src="src/qr.js"></script>
 <script src="src/app.js"></script>
 <script src="src/kamera.js"></script>
 <script src="src/kamera-sony.js"></script>
@@ -509,6 +531,7 @@
 <script src="src/pengaturan-booth.js"></script>
 <script src="src/admin.js"></script>
 <script src="src/riwayat.js"></script>
+<script src="src/unduh-qr.js"></script>
 <script src="src/template-gambar.js"></script>
 <script src="src/template-editor.js"></script>
 <script src="src/photobooth.js"></script>

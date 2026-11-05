@@ -174,6 +174,11 @@ function detailSesi(s) {
     const t = document.createElement('div'); t.className = 'muted'; t.textContent = 'Pertanyaan:';
     d.append(t, ol);
   }
+  if (s.kode) {          // unduh lewat QR
+    const q = document.createElement('div'); q.className = 'muted';
+    q.textContent = 'QR: ' + ({ terkirim: '✓ foto sudah bisa diunduh tamu', antre: 'menunggu dikirim ke server', menunggu: 'menunggu internet / server', hilang: 'file foto hilang, tidak bisa dikirim' }[s.unggah] || s.unggah || '-') + ` · kode ${s.kode}`;
+    d.appendChild(q);
+  }
   if (s.file) { const f = document.createElement('div'); f.className = 'muted rw-file'; f.textContent = s.file; d.appendChild(f); }
   const aksi = document.createElement('div'); aksi.className = 'item actions'; aksi.style.padding = '10px 0 0'; aksi.style.border = '0';
   const tombol = (teks, fn, kelas = 'btn sm tint') => { const b = document.createElement('button'); b.className = kelas; b.textContent = teks; b.onclick = fn; aksi.appendChild(b); };

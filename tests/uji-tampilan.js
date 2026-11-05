@@ -19,6 +19,7 @@ const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
 window.LOG = []; window.TPL = [];
+window.UNG = { st: { aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: true }, cb: null };
 // Kamera Sony tiruan (proses utama aslinya diuji di uji-utama.js)
 window.SONY = { st: { mode: 'webcam', tersambung: false, pesan: '' }, cb: null, foto: 0, besar: 0 };
 window.buatJpeg = async (w, h, warna) => { const c = new OffscreenCanvas(w, h); const g = c.getContext('2d');
@@ -74,7 +75,14 @@ window.api = {
     return MODE.endOk ? { ok: true } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
-  savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) }; return { ok: true }; },
+  savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
+    return { ok: true, link: UNG.st.aktif ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
+  unggahStatus: async () => ({ ...UNG.st }),
+  unggahSimpan: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}); return { ...UNG.st }; },
+  unggahTes: async () => ({ ok: true, hari: 7 }),
+  unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
+  unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
+  onUnggahStatus: cb => { UNG.cb = cb; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
   saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
     const lama = TPL.find(x => x.id === t.id) || {};
@@ -470,6 +478,33 @@ async function main() {
   await pg.evaluate(() => show('admin')); await pg.selectOption('#setBahasa', 'id'); await tunggu(300);
   await pg.evaluate(() => show('utama'));
   cek(/Kirim pesan/.test(await pg.textContent('#btnToPesan')) && await pg.textContent('#welcome') === 'Tinggalkan pesan untuk kami', 'kembali ke bahasa Indonesia');
+
+  console.log('\n▶ Unduh foto lewat QR');
+  await pg.evaluate(() => { show('admin'); applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0 }); });
+  await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded(); await pg.click('#btnSetPhoto'); await tunggu(300);
+  cek(!(await pg.isChecked('#setQrAktif')) && /QR mati/.test(await pg.textContent('#qrStatus')), 'Pengaturan photobooth: QR mati secara bawaan');
+  await pg.click('#btnQrPasang'); await tunggu(200);
+  cek(await pg.inputValue('#setQrUrl') === 'https://leura-foto.uji.workers.dev' && /tersimpan/.test(await pg.getAttribute('#setQrKunci', 'placeholder')),
+      '"Ambil dari hasil pasang" mengisi alamat & kunci');
+  await pg.click('#btnQrTes'); await tunggu(200);
+  cek(/Tersambung ke server. Foto disimpan 7 hari/.test(await pg.textContent('#qrMsg')), 'Tes sambungan menampilkan hasil');
+  await pg.click('#setQrAktif'); await tunggu(200);
+  cek(await pg.evaluate(() => UNG.st.aktif) && /semua foto terkirim/.test(await pg.textContent('#qrStatus')), 'QR dinyalakan dari Admin');
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, menunggu: 2, errorTerakhir: 'Tidak ada internet / server tidak terjangkau' })); await tunggu(100);
+  cek(/2 foto menunggu dikirim · Tidak ada internet/.test(await pg.textContent('#qrStatus')) && await pg.isVisible('#btnQrUlang'), 'status antrean tampil langsung, ada tombol "Coba kirim sekarang"');
+  await bersihkan(); await pg.click('#btnQrUlang');
+  cek((await log()).includes('unggah coba'), 'Coba kirim sekarang');
+  await pg.evaluate(() => show('utama')); await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 }); await pg.click('#pbFinish'); await tunggu(500);
+  await pg.click('#peDone'); await tungguLayar('thanks');
+  cek(await pg.isVisible('#thanksQR') && await pg.evaluate(() => document.getElementById('qrCanvas').width) > 200
+      && await pg.textContent('#qrLink') === 'leura-foto.uji.workers.dev/f/Ab3dEf9hJk', 'halaman Terima kasih menampilkan QR + link');
+  await pg.evaluate(() => { window.QRPNG = document.getElementById('qrCanvas').toDataURL('image/png'); });
+  await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(400);
+  await pg.click('#btnFinish'); await tungguLayar('thanks');
+  cek(!(await pg.isVisible('#thanksQR')), 'setelah sesi video, QR foto tidak ikut tampil');
+  require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'uji-qr.png'), Buffer.from((await pg.evaluate(() => QRPNG)).split(',')[1], 'base64'));
+  await pg.click('#btnCobaLagi');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

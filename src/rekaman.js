@@ -72,6 +72,7 @@ function setThanks(result) {
   const ok = result === true, slow = result === 'slow';
   // Pratinjau foto hanya untuk Photo Booth; photobooth.js menampilkannya setelah memanggil fungsi ini
   $('thanksPhoto').style.display = 'none';
+  $('thanksQR').style.display = 'none';
   $('thanksBadge').style.display = '';
   $('thanksBadge').style.background = ok || slow ? '' : 'var(--orange)';
   $('thanksBadge').innerHTML = ok || slow ? '<svg class="i"><use href="#i-check"/></svg>' : '<span style="font-size:52px;font-weight:700">!</span>';

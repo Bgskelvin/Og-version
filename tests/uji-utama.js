@@ -295,6 +295,81 @@ const KASUS = {
     await panggil('save-settings', { kamera: 'webcam' });
   },
 
+  async 'unduh foto lewat QR: antrean unggah + server Cloudflare (Worker asli, R2 tiruan)'() {
+    const http = require('http');
+    const worker = (await import(require('url').pathToFileURL(path.join(__dirname, '..', 'cloud', 'worker.mjs')).href)).default;
+    const toko = new Map();
+    const env = { KUNCI_BOOTH: 'kunci-booth-rahasia-123', HARI_SIMPAN: '7', FOTO: {
+      async put(k, data, o) { toko.set(k, { data: Buffer.from(data), meta: o.customMetadata }); },
+      async get(k) { const x = toko.get(k); return x ? { body: x.data, customMetadata: x.meta } : null; },
+    } };
+    let server = null, port = 0;
+    const nyalakan = () => new Promise(r => {
+      server = http.createServer(async (req, res) => {
+        const isi = []; for await (const c of req) isi.push(c);
+        const jawab = await worker.fetch(new Request(`http://127.0.0.1:${port}${req.url}`, { method: req.method, headers: req.headers,
+          body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(isi) }), env);
+        res.writeHead(jawab.status, Object.fromEntries(jawab.headers)); res.end(Buffer.from(await jawab.arrayBuffer()));
+      }).listen(port, '127.0.0.1', () => { port = server.address().port; r(); });
+    });
+    const matikan = () => new Promise(r => { server.closeAllConnections && server.closeAllConnections(); server.close(r); });
+    const ambil = (jalur, o) => fetch(`http://127.0.0.1:${port}${jalur}`, o);
+    await nyalakan();
+
+    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(200);
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+    cek((await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} })).link === null, 'QR mati: tidak ada link');
+    cek(/Isi alamat server/.test((await panggil('unggah-simpan', { aktif: true })).error), 'QR tidak bisa dinyalakan tanpa alamat & kunci');
+    cek(/https:\/\//.test((await panggil('unggah-simpan', { url: 'http://contoh.com', kunci: 'x' })).error), 'alamat selain https ditolak');
+    await panggil('unggah-simpan', { url: `http://127.0.0.1:${port}/`, kunci: 'kunci-salah' });
+    cek((await panggil('unggah-tes')).error === 'Kunci booth salah.', 'tes sambungan: kunci salah terdeteksi');
+    await panggil('unggah-simpan', { kunci: env.KUNCI_BOOTH, aktif: true });
+    const tes = await panggil('unggah-tes');
+    cek(tes.ok && tes.hari === 7, 'tes sambungan berhasil, server menyimpan 7 hari', tes);
+
+    const r = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
+    const kode = (r.link || '').split('/f/')[1];
+    cek(r.ok && /^[A-Za-z0-9]{10}$/.test(kode) && r.link === `http://127.0.0.1:${port}/f/${kode}`, 'foto disimpan: link QR langsung ada', r.link);
+    const s1 = sesi().find(x => x.kode === kode);
+    cek(s1 && s1.unggah === 'antre', 'sesi foto mencatat kode QR');
+    await tunggu(800);
+    cek(toko.has(`foto/${kode}.jpg`) && sesi().find(x => x.kode === kode).unggah === 'terkirim', 'foto terunggah ke server di belakang layar');
+    const st = await panggil('unggah-status');
+    cek(st.menunggu === 0 && st.terkirim === 1, 'status antrean: kosong, 1 terkirim', st);
+
+    const hal = await (await ambil(`/f/${kode}`)).text();
+    cek(hal.includes(`/i/${kode}`) && hal.includes('Simpan foto') && hal.includes('7 hari'), 'halaman unduh menampilkan foto & tombol Simpan foto');
+    cek((await (await ambil(`/f/${kode}?b=en`)).text()).includes('Save photo'), 'halaman unduh bahasa Inggris (?b=en)');
+    const d = await ambil(`/d/${kode}`);
+    cek(/attachment/.test(d.headers.get('content-disposition')) && Buffer.from(await d.arrayBuffer()).equals(Buffer.from(jpg)), 'tombol unduh mengirim file foto yang sama');
+    cek((await (await ambil('/f/BelumAda123')).text()).includes('sedang dikirim'), 'foto yang belum sampai: halaman "sedang dikirim" (muat ulang sendiri)');
+    cek((await (await ambil('/f/BelumAda123?n=200')).text()).includes('tidak ditemukan'), 'setelah 15 menit: "Foto tidak ditemukan"');
+
+    // Keamanan & masa simpan di server
+    cek((await ambil('/u/AbcdEfgh12', { method: 'PUT', body: jpg })).status === 401, 'unggah tanpa kunci booth ditolak');
+    const kunci = { authorization: 'Bearer ' + env.KUNCI_BOOTH };
+    cek((await ambil('/u/AbcdEfgh12', { method: 'PUT', body: 'bukan foto', headers: kunci })).status === 415, 'file bukan JPEG ditolak');
+    cek((await ambil('/u/../rahasia', { method: 'PUT', body: jpg, headers: kunci })).status !== 200, 'kode aneh ditolak');
+    toko.set('foto/LamaSekali1.jpg', { data: Buffer.from(jpg), meta: { diunggah: String(Date.now() - 8 * 86400000) } });
+    cek((await ambil('/i/LamaSekali1')).status === 404, 'foto lebih dari 7 hari tidak bisa dibuka lagi');
+
+    // Internet putus: link tetap ada, foto menunggu, lalu terkirim saat server kembali
+    await matikan();
+    const r2 = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
+    const kode2 = r2.link.split('/f/')[1];
+    await tunggu(1500);
+    const st2 = await panggil('unggah-status');
+    cek(r2.link && st2.menunggu === 1 && /internet/.test(st2.errorTerakhir) && sesi().find(x => x.kode === kode2).unggah === 'menunggu',
+        'internet putus: QR tetap ada, foto menunggu dengan pesan jelas', st2);
+    const simpan = JSON.parse(fs.readFileSync(path.join(dataDir, 'antrean-unggah.json'), 'utf8'));
+    cek(simpan.length === 1 && simpan[0].kode === kode2, 'antrean tersimpan di disk (aman kalau aplikasi ditutup)');
+    await nyalakan();
+    await panggil('unggah-coba-sekarang'); await tunggu(800);
+    cek(toko.has(`foto/${kode2}.jpg`) && (await panggil('unggah-status')).menunggu === 0, 'internet kembali: foto yang tertunda ikut terkirim');
+    await matikan();
+  },
+
   async 'kamera sony: program penghubung belum dibuat'() {
     process.env.SONY_HELPER = path.join(require('os').tmpdir(), 'tidak-ada', 'sony-helper');
     const { panggil, electron, dataDir } = nyalakanAplikasi();

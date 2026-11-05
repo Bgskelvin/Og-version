@@ -41,6 +41,7 @@ const KAMUS = {
     '@simpan.tunggu': 'Please wait a moment',
     '@tk.judul': 'Thank you', '@tk.coba': 'Try again',
     '@pb.selesaiEdit': 'Finish & edit',
+    '@tk.qr': 'Scan to download your photo', '@tk.qrInfo': 'Available for 7 days.',
     '@pe.foto': 'Photos', '@pe.judul': 'Edit photo',
     '@pe.tab.bingkai': 'Frame', '@pe.tab.stiker': 'Stickers', '@pe.tab.coret': 'Draw',
     '@pe.susunan': 'Photo layout', '@pe.filter': 'Filter for all photos', '@pe.warnaBingkai': 'Frame color',

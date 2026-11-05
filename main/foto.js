@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { defaultDir, readSessions, writeSessions, getOutDir, usableDir, safeName, coupleDir, stamp } = require('./penyimpanan');
 const { activeCoupleName } = require('./couple');
+const unggah = require('./unggah');
 
 function daftarkan() {
   // ---------- Photo Booth: simpan 4 foto asli + 1 hasil edit ----------
@@ -30,13 +31,17 @@ function daftarkan() {
       }
       const hasil = `${prefix}${tag}_hasil.jpg`;
       await fs.promises.writeFile(path.join(dir, hasil), Buffer.from(result));
+      // Unduh lewat QR (kalau dinyalakan di Admin): kode & link langsung ada, unggahnya menyusul di belakang
+      const sid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+      let qr = null;
       try {
         const list = readSessions();
-        list.push({ id: Date.now() * 1000 + Math.floor(Math.random() * 1000), time: new Date().toISOString(), label: 'foto',
-          file: hasil, dir, couple: name, seconds: 0, status: 'photo', photos: originals.length, originalFiles: files, ...meta });
+        qr = unggah.daftarkanFoto(path.join(dir, hasil), sid);
+        list.push({ id: sid, time: new Date().toISOString(), label: 'foto', file: hasil, dir, couple: name, seconds: 0, status: 'photo',
+          photos: originals.length, originalFiles: files, ...(qr ? { kode: qr.kode, unggah: 'antre' } : {}), ...meta });
         writeSessions(list);
       } catch (err) { console.log('Gagal mencatat sesi foto: ' + err.message); }
-      return { ok: true, file: path.join(dir, hasil) };
+      return { ok: true, file: path.join(dir, hasil), link: qr ? qr.link : null };
     } catch (err) {
       console.log('Gagal menyimpan foto: ' + err.message);
       return { ok: false, error: err.message };
