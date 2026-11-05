@@ -1,6 +1,8 @@
 /* =====================================================================
    rekaman.js — perekaman video: menulis file, konversi ke MP4 (FFmpeg),
-   pencatatan sesi, dan pemulihan rekaman yang terputus
+   pencatatan sesi, dan pemulihan rekaman yang terputus.
+   Dengan kamera Sony: kamera merekam ke kartu SD, lalu file MP4-nya
+   disalin ke folder couple di belakang layar (lihat kamera-sony.js).
    ===================================================================== */
 const { ipcMain } = require('electron');
 const { spawn } = require('child_process');
@@ -9,6 +11,7 @@ const path = require('path');
 const { defaultDir, readSessions, writeSessions, updateSession, getOutDir, usableDir, safeName, coupleDir, stamp } = require('./penyimpanan');
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./jendela-aktif');
+const sony = require('./kamera-sony');
 
 /* ---------- FFmpeg: .webm -> .mp4 ---------- */
 let ffmpegPath = null;
@@ -49,6 +52,7 @@ let recSeq = 0;
 
 function closeStream(rec) {
   return new Promise(res => {
+    if (!rec.stream) return res();
     if (rec.stream.destroyed || rec.stream.writableEnded) return res();
     rec.stream.end(() => res());
     rec.stream.once('error', () => res());
@@ -59,8 +63,15 @@ function closeStream(rec) {
 // Potongan rekaman sudah tertulis ke disk setiap detik, jadi isinya bisa diselamatkan.
 function recoverInterrupted() {
   const list = readSessions();
+  // Video kamera Sony yang belum sempat disalin: file aslinya aman di kartu SD kamera
+  let sonyAda = false;
+  for (const s of list) {
+    if (s.kamera === 'sony' && (s.status === 'recording' || s.status === 'transfer')) {
+      s.status = 'card-only'; s.recovered = true; sonyAda = true;
+    }
+  }
   const found = list.filter(s => s.status === 'recording');
-  if (!found.length) return 0;
+  if (!found.length) { if (sonyAda) writeSessions(list); return 0; }
   let recovered = 0;
   for (const s of found) {
     const p = path.join(s.dir || defaultDir, s.file);
@@ -102,13 +113,22 @@ function mulai() {
 // Saat tampilan aplikasi crash: selamatkan rekaman yang sedang berjalan
 async function selamatkan() { recoveredCount = await rescueOpenRecordings(); }
 // Saat aplikasi ditutup: tutup semua file rekaman yang masih terbuka
-function tutupSemua() { for (const rec of recs.values()) { try { rec.stream.end(); } catch (e) {} } }
+function tutupSemua() { for (const rec of recs.values()) { try { if (rec.stream) rec.stream.end(); } catch (e) {} } }
+
+// Salin video Sony dari kartu ke folder couple, lalu perbarui catatan sesi
+function salinVideoSony(sid, info, file) {
+  sony.unduh(info, file).then(h => {
+    if (h.ok) updateSession(sid, { status: 'done', file: path.basename(file) });
+    else updateSession(sid, { status: 'card-only', error: h.error });
+  });
+}
 
 function daftarkan() {
   ipcMain.handle('get-sessions', () => readSessions());
   ipcMain.handle('get-startup-info', () => { const r = { recovered: recoveredCount }; recoveredCount = 0; return r; });
 
-  ipcMain.handle('rec-start', (e, label) => {
+  ipcMain.handle('rec-start', async (e, label, opsi) => {
+    const pakaiSony = !!(opsi && opsi.sony);
     const name = activeCoupleName();
     let base = getOutDir(), fallback = false;
     if (!usableDir(base)) {
@@ -119,25 +139,31 @@ function daftarkan() {
     let dir = coupleDir(base, name);
     if (!usableDir(dir)) dir = base;
     const prefix = safeName(name) ? safeName(name) + '_' : '';
-    let file = path.join(dir, `${prefix}${stamp()}_${label}.webm`);
+    const ext = pakaiSony ? 'mp4' : 'webm';
+    let file = path.join(dir, `${prefix}${stamp()}_${label}.${ext}`);
     let n = 2;
-    while (fs.existsSync(file)) file = path.join(dir, `${prefix}${stamp()}_${label}_${n++}.webm`);
+    while (fs.existsSync(file)) file = path.join(dir, `${prefix}${stamp()}_${label}_${n++}.${ext}`);
 
     const id = ++recSeq;
     const sid = Date.now() * 1000 + (id % 1000);
-    const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now() };
-    try { rec.stream = fs.createWriteStream(file); }
-    catch (err) { return { error: 'Tidak bisa membuat file rekaman: ' + err.message }; }
+    const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now(), sony: pakaiSony };
+    if (pakaiSony) {
+      const r = await sony.rekamMulai();
+      if (r.error) return { error: r.error };
+    } else {
+      try { rec.stream = fs.createWriteStream(file); }
+      catch (err) { return { error: 'Tidak bisa membuat file rekaman: ' + err.message }; }
+    }
     // Catat sesi sejak awal dengan status "recording". Kalau aplikasi atau komputer mati di tengah
     // rekaman, sesi ini dikenali dan dipulihkan saat aplikasi dibuka lagi.
     try {
       const list = readSessions();
       list.push({ id: sid, time: new Date(rec.t0).toISOString(), label, file: path.basename(file), dir,
-        couple: name, seconds: 0, status: 'recording' });
+        couple: name, seconds: 0, status: 'recording', ...(pakaiSony ? { kamera: 'sony' } : {}) });
       writeSessions(list);
     } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
     // Disk penuh / SSD tercabut: jangan crash, catat error dan beri tahu layar
-    rec.stream.on('error', err => {
+    if (rec.stream) rec.stream.on('error', err => {
       if (rec.error) return;
       rec.error = err.message;
       console.log('Gagal menulis rekaman: ' + err.message);
@@ -150,7 +176,7 @@ function daftarkan() {
 
   ipcMain.on('rec-chunk', (e, id, buf) => {
     const rec = recs.get(id);
-    if (rec && !rec.error && rec.stream.writable) rec.stream.write(Buffer.from(buf));
+    if (rec && !rec.error && rec.stream && rec.stream.writable) rec.stream.write(Buffer.from(buf));
   });
 
 
@@ -158,8 +184,16 @@ function daftarkan() {
     const rec = recs.get(id);
     if (!rec) return null;
     recs.delete(id);
-    await closeStream(rec);
     const sid = rec.sid;
+    if (rec.sony) {
+      // Hentikan rekaman di kamera. Tamu tidak perlu menunggu video disalin.
+      const r = await sony.rekamStop();
+      const patch = { seconds, ...(meta || {}), ...(r.error ? { status: 'card-only', error: r.error } : { status: 'transfer', kartu: r.nama }) };
+      updateSession(sid, patch);
+      if (!r.error) salinVideoSony(sid, r, rec.file);
+      return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file };
+    }
+    await closeStream(rec);
     const ok = !rec.error;
     const patch = { seconds, status: !ok ? 'write-error' : (ffmpegPath ? 'processing' : 'webm'),
       ...(rec.error ? { error: rec.error } : {}), ...(meta || {}) };
@@ -179,8 +213,9 @@ function daftarkan() {
     const rec = recs.get(id);
     if (!rec) return;
     recs.delete(id);
+    if (rec.sony) await sony.rekamStop();
     await closeStream(rec);
-    try { if (fs.statSync(rec.file).size < 1024) fs.unlinkSync(rec.file); } catch (err) {}
+    try { if (!rec.sony && fs.statSync(rec.file).size < 1024) fs.unlinkSync(rec.file); } catch (err) {}
     try { writeSessions(readSessions().filter(x => x.id !== rec.sid)); } catch (err) {}
   });
 }

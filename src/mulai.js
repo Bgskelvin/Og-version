@@ -23,6 +23,7 @@
   pasangCouple();
   pasangRekaman();
   pasangPhotobooth();
+  await pasangKameraSony();
   pasangTemplateEditor();
 
   window.addEventListener('unhandledrejection', e => console.log('Error: ' + (e.reason && e.reason.message || e.reason)));
@@ -32,7 +33,8 @@
   document.querySelectorAll('video').forEach(v => { v.disableRemotePlayback = true; });
   ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
 
-  try { await initDevices(); } catch (err) { setNotice('Gagal membuka kamera/mic: ' + err.message); }
+  if (pakaiSony()) await terapkanKamera();          // kamera Sony: webcam & mic komputer tidak dibuka
+  else try { await initDevices(); } catch (err) { setNotice('Gagal membuka kamera/mic: ' + err.message); }
   try {
     const info = await api.getStartupInfo();
     if (info && info.recovered) setNotice(`${info.recovered} rekaman yang sempat terputus berhasil dipulihkan. Cek daftar sesi di Admin.`, 15000);

@@ -48,6 +48,7 @@ function terapkanMenu() {
 // Terapkan pengaturan terbaru ke aplikasi tanpa perlu menutupnya
 function applySettings(s) {
   normalisasiCfg(s);
+  if (s.kamera) cfg.kamera = s.kamera;
   terapkanMenu();
   if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
 }

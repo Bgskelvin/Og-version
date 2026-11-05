@@ -34,6 +34,7 @@ async function loadSessions() {
     const jam = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const jenis = s.label === 'pesan' ? 'Pesan' : s.label === 'quiz' ? 'Quiz' : s.label === 'foto' ? 'Foto (' + (s.photos || 4) + ')' : 'Quiz #' + String(s.label).split('-')[1];
     const st = { photo: ' · foto tersimpan', processing: ' · memproses MP4', done: ' · MP4 siap', failed: ' · gagal konversi (.webm tersimpan)',
+      transfer: ' · menyalin dari kamera', 'card-only': ' · ada di kartu SD kamera (belum tersalin' + (s.error ? ': ' + s.error : '') + ')',
       'write-error': ' · gagal disimpan (' + (s.error || 'error disk') + ')',
       recording: ' · sedang merekam', lost: ' · hilang (rekaman kosong)' }[s.status] || '';
     const rcv = s.recovered ? ' · dipulihkan' : '';
@@ -46,7 +47,7 @@ async function loadSessions() {
 async function refreshAdmin() {
   applyCouples(await api.getCouples()); fillCoupleSel();
   await loadSettings();
-  await fillDevices(); await loadOutDir(); await loadSessions();
+  await fillDevices(); isiKameraAdmin(); await loadOutDir(); await loadSessions();
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
@@ -65,5 +66,5 @@ function pasangAdmin() {
   };
   $('btnResetDir').onclick = async () => { await api.resetOutDir(); await loadOutDir(); };
   $('btnFolder').onclick = () => api.openFolder();
-  $('btnRefresh').onclick = async () => { await openStream(); await refreshAdmin(); };
+  $('btnRefresh').onclick = async () => { if (!pakaiSony()) await openStream(); await refreshAdmin(); };
 }

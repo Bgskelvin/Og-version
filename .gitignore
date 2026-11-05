@@ -9,3 +9,8 @@ dist/
 
 # SDK kamera (berlisensi, jangan masuk Git)
 sdk/
+# Hasil build & uji kamera Sony (dibuat ulang dengan npm run build:sony / uji:sony)
+kamera-sony/bin/
+kamera-sony/.sdk/
+kamera-sony/uji/bin/
+kamera-sony/hasil-uji/

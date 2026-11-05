@@ -19,6 +19,12 @@ const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
 window.LOG = []; window.TPL = [];
+// Kamera Sony tiruan (proses utama aslinya diuji di uji-utama.js)
+window.SONY = { st: { mode: 'webcam', tersambung: false, pesan: '' }, cb: null, foto: 0, besar: 0 };
+window.buatJpeg = async (w, h, warna) => { const c = new OffscreenCanvas(w, h); const g = c.getContext('2d');
+  g.fillStyle = warna; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(w / 4, h / 4, w / 2, h / 2);
+  return new Uint8Array(await (await c.convertToBlob({ type: 'image/jpeg', quality: 0.9 })).arrayBuffer()); };
+window.setSony = st => { SONY.st = st; setTimeout(() => SONY.cb && SONY.cb(st), 30); };
 window.CP = { activeId: 'a', couples: [
   { id: 'a', name: 'Rina & Dimas', welcome: 'Tinggalkan pesan untuk kami', questions: ['Q satu', 'Q dua', 'Q tiga'] },
   { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
@@ -45,19 +51,26 @@ window.api = {
   getSessions: async () => [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
   getSettings: async () => ({ ...ST }),
+  sonyStatus: async () => SONY.st,
+  onSonyStatus: cb => { SONY.cb = cb; },
+  sonySambungUlang: async () => SONY.st,
+  sonyLiveView: async () => SONY.st.tersambung ? buatJpeg(640, 424, '#336') : null,
+  sonyFoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
+    if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
+      : { mode: p.kamera, tersambung: true, model: 'ILCE-6700 (simulasi)', baterai: 100, kartu: 0, sisaDetik: 9000, pesan: '' });
     const next = { ...ST, ...p };   // sama seperti main/pengaturan.js: minimal satu menu tetap tampil
     if (!next.enablePesan && !next.enableQuiz && !next.enablePhoto) return { ...ST, error: 'Minimal satu menu harus tetap tampil di Halaman Utama.' };
     Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Password lama salah.' },
   getStartupInfo: async () => ({ recovered: 0 }),
-  recStart: async label => { LOG.push('start ' + label); return MODE.startFail ? { error: 'Folder penyimpanan tidak bisa ditulisi.' } : { id: ++nextId }; },
+  recStart: async (label, o) => { LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'Folder penyimpanan tidak bisa ditulisi.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : ''));
     return MODE.endOk ? { ok: true } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
-  savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta }; return { ok: true }; },
+  savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) }; return { ok: true }; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
   saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
     const lama = TPL.find(x => x.id === t.id) || {};
@@ -328,6 +341,39 @@ async function main() {
       'couple terhapus beserta templatenya');
   cek(/beserta 1 template/.test(await pg.textContent('#coupleMsg')), 'pesan menyebut template yang ikut terhapus');
   cek(await pg.evaluate(() => isiTeksTemplate('{couple}')) === 'Rina & Dimas', 'di luar halaman couple, {couple} kembali ke couple aktif');
+
+  console.log('\n▶ Kamera Sony');
+  await pg.evaluate(() => show('admin'));
+  cek(await pg.inputValue('#camSumber') === 'webcam' && !(await pg.isVisible('#sonyRow')), 'Admin: sumber kamera bawaan Webcam / HP');
+  await pg.selectOption('#camSumber', 'sony-sim'); await tunggu(400);
+  cek(await pg.evaluate(() => document.body.classList.contains('sonyOn') && mediaStream === null), 'pilih Sony: webcam & mic komputer dilepas');
+  cek(await pg.isVisible('#sonyRow') && !(await pg.isVisible('#camSelRow')) && /tersambung · baterai 100%/.test(await pg.textContent('#sonyStatus')),
+      'status kamera Sony tampil, pilihan webcam disembunyikan', await pg.textContent('#sonyStatus'));
+  cek(/mic ke jack mic kamera/.test(await pg.textContent('#camHint')), 'petunjuk mic & dummy battery tampil');
+  await tunggu(400);
+  cek(await pg.evaluate(() => document.getElementById('camPrevLv').width) === 640, 'live view tampil di pratinjau Admin');
+  await pg.evaluate(() => { applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0, pesanCountdown: 0 }); show('utama'); }); await tunggu(400);
+  cek(await pg.isVisible('#camLv') && !(await pg.isVisible('#cam')), 'live view Sony jadi latar Halaman Utama');
+  await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+  cek(await pg.evaluate(() => SONY.foto) === 4 && await pg.locator('.pb-thumb.filled').count() === 4, 'photobooth memakai jepretan kamera Sony (4 foto)');
+  await pg.click('#pbFinish'); await tunggu(500); await pg.click('#peDone'); await tungguLayar('thanks');
+  const fs = await pg.evaluate(() => ({ foto: window.FOTO, besar: SONY.besar }));
+  cek(fs.foto.n === 4 && fs.foto.asli.every(n => n === fs.besar), 'foto asli kamera disimpan utuh (tidak diperkecil)', fs);
+  await pg.click('#btnCobaLagi'); await bersihkan();
+  await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(400);
+  cek((await log()).includes('start pesan sony'), 'Kirim pesan merekam lewat kamera Sony', await log());
+  await pg.click('#btnFinish'); await tungguLayar('thanks');
+  cek((await log()).some(x => /^end /.test(x)), 'rekaman Sony dihentikan & dicatat');
+  await pg.click('#btnCobaLagi'); await bersihkan();
+  await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(400);
+  await pg.evaluate(() => setSony({ ...SONY.st, tersambung: false, pesan: 'Kamera Sony terputus.' })); await tunggu(400);
+  cek(await layar() === 'utama' && /terputus saat merekam/.test(await pg.textContent('#notice')), 'kabel tercabut saat merekam: kembali ke Utama dengan pesan jelas');
+  await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(200);
+  cek(await layar() === 'pesan' && /belum tersambung/.test(await pg.textContent('#notice')), 'kamera belum tersambung: rekaman tidak dimulai');
+  await pg.evaluate(() => { show('admin'); });
+  await pg.selectOption('#camSumber', 'webcam'); await tunggu(500);
+  cek(await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!mediaStream), 'kembali ke webcam: kamera komputer dibuka lagi');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

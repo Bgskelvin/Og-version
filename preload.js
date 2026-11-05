@@ -22,9 +22,14 @@ contextBridge.exposeInMainWorld('api', {
   getOutDir: () => ipcRenderer.invoke('get-outdir'),
   chooseOutDir: () => ipcRenderer.invoke('choose-outdir'),
   resetOutDir: () => ipcRenderer.invoke('reset-outdir'),
-  recStart: label => ipcRenderer.invoke('rec-start', label),
+  recStart: (label, opsi) => ipcRenderer.invoke('rec-start', label, opsi),
   recChunk: (id, buf) => ipcRenderer.send('rec-chunk', id, buf),
   recEnd: (id, seconds, meta) => ipcRenderer.invoke('rec-end', id, seconds, meta),
   recAbort: id => ipcRenderer.invoke('rec-abort', id),
-  onRecError: cb => ipcRenderer.on('rec-error', (e, id, msg) => cb(id, msg))
+  onRecError: cb => ipcRenderer.on('rec-error', (e, id, msg) => cb(id, msg)),
+  sonyStatus: () => ipcRenderer.invoke('sony-status'),
+  sonyLiveView: () => ipcRenderer.invoke('sony-lv'),
+  sonyFoto: () => ipcRenderer.invoke('sony-foto'),
+  sonySambungUlang: () => ipcRenderer.invoke('sony-sambung-ulang'),
+  onSonyStatus: cb => ipcRenderer.on('sony-status', (e, s) => cb(s))
 });

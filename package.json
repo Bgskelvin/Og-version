@@ -7,7 +7,9 @@
     "start": "electron main.js",
     "test": "node tests/uji-utama.js && node tests/uji-tampilan.js",
     "test:utama": "node tests/uji-utama.js",
-    "test:tampilan": "node tests/uji-tampilan.js"
+    "test:tampilan": "node tests/uji-tampilan.js",
+    "build:sony": "bash kamera-sony/build.sh",
+    "uji:sony": "node tests/uji-kamera-sony.js"
   },
   "keywords": [],
   "author": "",

@@ -36,6 +36,7 @@
 
 <div class="atmo" aria-hidden="true"><b></b><b></b><b></b></div>
 <video id="cam" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video>
+<canvas id="camLv" aria-hidden="true"></canvas>
 <div class="shade"></div>
 <div id="notice" role="status"></div>
 <div id="countOverlay"><div class="glass"><span id="countNum">3</span></div></div>
@@ -120,10 +121,21 @@
 
       <div class="group-title">Kamera dan mikrofon</div>
       <div class="group">
-        <div class="item"><video id="camPrev" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video></div>
-        <div class="item split"><span>Kamera</span><select id="camSel"></select></div>
-        <div class="item split"><span>Mikrofon</span><select id="micSel"></select></div>
+        <div class="item split"><span>Sumber</span><select id="camSumber" aria-label="Sumber kamera">
+          <option value="webcam">Webcam / HP</option>
+          <option value="sony">Sony (USB)</option>
+          <option value="sony-sim">Sony – simulasi (tanpa kamera)</option>
+        </select></div>
+        <div class="item"><video id="camPrev" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video><canvas id="camPrevLv"></canvas></div>
+        <div class="item split" id="camSelRow"><span>Kamera</span><select id="camSel"></select></div>
+        <div class="item split" id="micSelRow"><span>Mikrofon</span><select id="micSel"></select></div>
+        <div class="item split sony-row" id="sonyRow" style="display:none">
+          <i class="sony-dot merah" id="sonyDot"></i><span class="muted" id="sonyStatus" style="width:auto;flex:1"></span>
+          <button class="btn sm tint" id="btnSonyUlang">Sambung ulang</button>
+        </div>
       </div>
+      <p class="pe-hint" style="margin:8px 6px 0" id="camHint"></p>
+      <div class="note ok" id="camMsg"></div>
 
       <div class="group-title">Penyimpanan</div>
       <div class="group">
@@ -460,6 +472,7 @@
 <script src="src/state.js"></script>
 <script src="src/app.js"></script>
 <script src="src/kamera.js"></script>
+<script src="src/kamera-sony.js"></script>
 <script src="src/rekaman.js"></script>
 <script src="src/pesan.js"></script>
 <script src="src/quiz.js"></script>

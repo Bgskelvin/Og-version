@@ -7,10 +7,12 @@
 async function startRecording(label) {
   // tunggu rekaman sebelumnya selesai disimpan, paling lama 15 detik supaya layar tidak pernah tertahan
   await Promise.race([lastSave.catch(() => {}), sleep(15000)]);
-  const r = await api.recStart(label);
+  const sony = pakaiSony();
+  const r = await api.recStart(label, { sony });
   if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
   if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
-  const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null };
+  const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
+  if (sony) { rec = cur; recT0 = cur.t0; return; }   // kamera Sony merekam sendiri ke kartu SD
   try {
     cur.recorder = new MediaRecorder(mediaStream, noCam ? { mimeType: 'audio/webm;codecs=opus' }
       : { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 5000000 });
@@ -48,7 +50,7 @@ function stopRecording(meta) {
       } catch (err) { setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000); }
       resolve(ok);
     };
-    if (cur.recorder.state === 'inactive') finish();
+    if (!cur.recorder || cur.recorder.state === 'inactive') finish();
     else { cur.recorder.onstop = finish; cur.recorder.stop(); }
   });
   lastSave = p;
@@ -107,6 +109,11 @@ async function abortSession(msg) {
   await saving;
 }
 function needStream() {
+  if (pakaiSony()) {
+    if (sonySt.tersambung) return true;
+    setNotice('Kamera Sony belum tersambung. Cek kabel USB & kamera, atau lihat di Admin.', 8000);
+    return false;
+  }
   if (mediaStream) return true;
   setNotice('Tidak ada kamera/mic. Atur di halaman Admin.', 8000);
   return false;

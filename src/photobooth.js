@@ -34,7 +34,26 @@
     c.getContext('2d').drawImage(v, 0, 0, w, h);
     return c;
   }
+  // Kamera Sony: jepret di kamera, foto resolusi penuh masuk lewat USB.
+  // Untuk diedit, foto diperkecil (sisi terpanjang 3000 px); file aslinya tetap disimpan utuh.
+  async function jepretSony() {
+    const fl = $('pbFlash');
+    if (cfg.photoFlash) { fl.classList.remove('go'); fl.classList.add('on'); await sleep(90); }
+    const kerja = api.sonyFoto();
+    if (cfg.photoFlash) { await sleep(250); fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('go'); }
+    const r = await kerja;
+    if (!r || r.error) throw new Error((r && r.error) || 'Kamera Sony tidak mengirim foto');
+    const bmp = await createImageBitmap(new Blob([r.bytes], { type: 'image/jpeg' }), { imageOrientation: 'from-image' });
+    const k = Math.min(1, 3000 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close();
+    c._asli = r.bytes;
+    return c;
+  }
   async function snap() {
+    if (pakaiSony()) return jepretSony();
     if (!cfg.photoFlash) return grabFrame();                // efek kilat dimatikan di Pengaturan photobooth
     const fl = $('pbFlash');
     fl.classList.remove('go'); fl.classList.add('on');   // layar putih sesaat sebagai "flash"
@@ -111,7 +130,7 @@
   async function shoot(indices) {
     if (running) return;
     if (!needStream()) return;
-    if (noCam) { setNotice('Photo booth butuh kamera. Sambungkan kamera lalu pilih di Admin.', 8000); return; }
+    if (noCam && !pakaiSony()) { setNotice('Photo booth butuh kamera. Sambungkan kamera lalu pilih di Admin.', 8000); return; }
     const token = ++pbToken;
     disarmCancel();
     busy = true; resetIdle();
@@ -478,7 +497,7 @@
     let ok = false, err = '';
     const work = (async () => {
       const originals = [];
-      for (const p of photos) originals.push(await toBytes(p, 0.95));
+      for (const p of photos) originals.push(p._asli || await toBytes(p, 0.95));   // Sony: file asli kamera
       const result = await toBytes(out, 0.93);
       const r = await api.savePhotos({ originals, result,
         meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });

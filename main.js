@@ -7,6 +7,7 @@
      rekaman.js      perekaman video, MP4, pemulihan rekaman terputus
      foto.js         penyimpanan Photo Booth
      template.js     template desain foto per couple
+     kamera-sony.js  kamera Sony lewat USB (program penghubung + simulasi)
      jendela.js      jendela, menu, pengaman navigasi
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
@@ -23,6 +24,8 @@ require('./main/pengaturan').daftarkan();
 require('./main/couple').daftarkan();
 require('./main/foto').daftarkan();
 require('./main/template').daftarkan();
+const kameraSony = require('./main/kamera-sony');
+kameraSony.daftarkan();
 rekaman.daftarkan();
 
 app.whenReady().then(async () => {
@@ -35,8 +38,9 @@ app.whenReady().then(async () => {
 
   rekaman.mulai();          // pulihkan rekaman terputus & lanjutkan konversi
   jendela.buatJendela(DEV);
+  kameraSony.mulai();       // sambungkan kamera Sony kalau dipilih di Admin
 });
 
 app.on('second-instance', () => jendela.munculkan());
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => rekaman.tutupSemua());
+app.on('before-quit', () => { rekaman.tutupSemua(); kameraSony.matikan(); });

@@ -226,6 +226,76 @@ const KASUS = {
     electron.__siap(); await tunggu(200);
     cek(electron.__menu.some(m => m.label === 'Developer'), 'menu Developer muncul dengan --dev');
   },
+  async 'kamera sony (simulasi): foto, rekam, salin video'() {
+    const { panggil, electron, sesi, docsDir } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(200);
+    cek((await panggil('sony-status')).mode === 'webcam', 'bawaan memakai webcam');
+    const s = await panggil('save-settings', { kamera: 'sony-sim' });
+    cek(s.kamera === 'sony-sim', 'sumber kamera tersimpan');
+    cek((await panggil('save-settings', { kamera: 'kamera-aneh' })).kamera === 'sony-sim', 'nilai sumber kamera yang tidak dikenal diabaikan');
+    await tunggu(700);
+    const st = await panggil('sony-status');
+    cek(st.tersambung && /ILCE-6700/.test(st.model) && st.baterai === 100, 'kamera simulasi tersambung', st);
+    cek(electron.__jendela.webContents.terkirim.some(([n, x]) => n === 'sony-status' && x.tersambung), 'layar diberi kabar status kamera');
+    const lv = await panggil('sony-lv');
+    cek(Buffer.isBuffer(lv) && lv[0] === 0xff && lv[1] === 0xd8, 'live view berupa gambar JPEG');
+    const f = await panggil('sony-foto');
+    cek(f.ok && f.bytes.length > 50000 && f.bytes[0] === 0xff, 'jepret: foto resolusi penuh masuk', f.bytes && f.bytes.length);
+    const r = await panggil('rec-start', 'pesan', { sony: true });
+    cek(r.id && /_pesan\.mp4$/.test(r.file), 'rekam Sony langsung bernama .mp4', r.file);
+    cek(sesi()[0].status === 'recording' && sesi()[0].kamera === 'sony', 'sesi tercatat sebagai rekaman kamera Sony');
+    cek((await panggil('sony-status')).merekam === true, 'status kamera: sedang merekam');
+    await tunggu(300);
+    const e = await panggil('rec-end', r.id, 12, { couple: 'Rina & Dimas' });
+    cek(e.ok && sesi()[0].status === 'transfer' && /^C\d+\.MP4$/.test(sesi()[0].kartu), 'berhenti rekam: video disalin dari kartu di belakang', sesi()[0]);
+    await tunggu(1500);
+    cek(sesi()[0].status === 'done' && fs.statSync(r.file).size > 10000, 'video tersalin ke folder couple', sesi()[0]);
+    cek(path.dirname(r.file) === path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas'), 'video ada di folder couple');
+    // dua rekaman berurutan: penyalinan antre, keduanya selesai
+    const a = await panggil('rec-start', 'quiz-1', { sony: true }); await panggil('rec-end', a.id, 5, {});
+    const b = await panggil('rec-start', 'quiz-2', { sony: true }); await panggil('rec-end', b.id, 5, {});
+    await tunggu(3000);
+    cek(sesi().filter(x => x.status === 'done').length === 3 && fs.existsSync(a.file) && fs.existsSync(b.file), 'dua rekaman beruntun ikut tersalin');
+    await panggil('save-settings', { kamera: 'webcam' });
+    cek((await panggil('sony-status')).mode === 'webcam' && (await panggil('sony-lv')) === null, 'kembali ke webcam: kamera Sony dilepas');
+  },
+
+  async 'kamera sony: program penghubung belum dibuat'() {
+    process.env.SONY_HELPER = path.join(require('os').tmpdir(), 'tidak-ada', 'sony-helper');
+    const { panggil, electron, dataDir } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(100);
+    const st = await panggil('save-settings', { kamera: 'sony' }) && await panggil('sony-status');
+    cek(!st.tersambung && /npm run build:sony/.test(st.pesan), 'pesan jelas cara membuat program kamera', st.pesan);
+    const f = await panggil('sony-foto');
+    cek(/npm run build:sony/.test(f.error), 'jepret ditolak dengan pesan yang sama');
+    const r = await panggil('rec-start', 'pesan', { sony: true });
+    const fileSesi = path.join(dataDir, 'sessions.json');
+    cek(r.error && (!fs.existsSync(fileSesi) || JSON.parse(fs.readFileSync(fileSesi, 'utf8')).length === 0), 'rekam Sony ditolak, tidak ada sesi kosong', r);
+  },
+
+  async 'kamera sony: program penghubung asli (SDK palsu)'() {
+    const bin = path.join(__dirname, '..', 'kamera-sony', 'uji', 'bin', 'sony-helper-palsu');
+    if (!fs.existsSync(bin)) { cek(true, 'dilewati: program uji belum dibuat (hanya di komputer pengembang)'); return; }
+    process.env.SONY_HELPER = bin;
+    const { panggil, electron, sesi } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(100);
+    await panggil('save-settings', { kamera: 'sony' });
+    await tunggu(1500);
+    const st = await panggil('sony-status');
+    cek(st.tersambung && st.model === 'ILCE-6700' && st.baterai === 87, 'program penghubung tersambung lewat SDK', st);
+    const lv = await panggil('sony-lv');
+    cek(lv && lv[0] === 0xff && lv[1] === 0xd8, 'live view dari SDK terbaca');
+    const f = await panggil('sony-foto');
+    cek(f.ok && f.bytes[0] === 0xff, 'jepret lewat SDK berhasil', f.error);
+    const r = await panggil('rec-start', 'pesan', { sony: true });
+    await tunggu(500);
+    const e = await panggil('rec-end', r.id, 3, {});
+    cek(e.ok, 'rekam lewat SDK berhenti & file barunya ditemukan', e.error);
+    await tunggu(1500);
+    cek(sesi()[0].status === 'done' && fs.readFileSync(r.file, 'utf8').startsWith('video palsu'), 'video tersalin dari "kartu" ke folder couple', sesi()[0]);
+    await panggil('save-settings', { kamera: 'webcam' });
+  },
+
   async 'satu jendela: aplikasi kedua langsung keluar'() {
     process.on('exit', () => { cek(true, 'aplikasi kedua keluar sebelum membuka apa pun'); const h = hasil(); if (h.gagal) process.exitCode = 1; console.log('##HASIL ' + JSON.stringify(h)); });
     nyalakanAplikasi({ lock: false });
