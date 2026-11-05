@@ -9,7 +9,7 @@
    disalin lewat USB ke folder couple (di belakang layar, satu per satu).
    ===================================================================== */
 const { ipcMain } = require('electron');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const path = require('path');
@@ -24,10 +24,22 @@ const SEMENTARA = path.join(userData, 'sony-sementara');
 const MODE = ['webcam', 'sony', 'sony-sim'];
 
 /* ---------------- Program penghubung (proses terpisah) ---------------- */
+// Program penghubung yang tertinggal dari aplikasi sebelumnya (misalnya dihentikan paksa) bisa terus
+// memegang kamera sehingga kamera tidak menjawab (error 0x8208). Hentikan sekali saat aplikasi mulai.
+let sudahBersih = false;
+function bersihkanSisa(file) {
+  if (sudahBersih || process.platform !== 'darwin') return;
+  sudahBersih = true;
+  try { execFileSync('pkill', ['-f', file], { timeout: 3000 }); console.log('Kamera Sony: program penghubung lama yang tertinggal dihentikan.'); }
+  catch (e) { /* tidak ada yang tertinggal */ }
+}
 class Helper extends EventEmitter {
   constructor(file) { super(); this.file = file; this.seq = 0; this.tunggu = new Map(); this.proc = null; }
   mulai() {
-    const p = spawn(this.file, [], { cwd: path.dirname(this.file), stdio: ['pipe', 'pipe', 'pipe'] });
+    bersihkanSisa(this.file);
+    // detached: Ctrl+C di Terminal tidak ikut mematikan program ini secara kasar. Kalau aplikasi
+    // berhenti, stdin-nya tertutup dan program ini memutus sambungan kamera dengan rapi sendiri.
+    const p = spawn(this.file, [], { cwd: path.dirname(this.file), stdio: ['pipe', 'pipe', 'pipe'], detached: true });
     this.proc = p;
     readline.createInterface({ input: p.stdout }).on('line', baris => {
       if (!baris.startsWith('{')) return;                 // abaikan tulisan lain dari SDK
@@ -58,11 +70,16 @@ class Helper extends EventEmitter {
       this.proc.stdin.write([id, cmd, ...args].join('\t') + '\n');
     });
   }
+  // Minta program memutus kamera dengan rapi; selesai saat programnya benar-benar berhenti (maks 4 detik)
   berhenti() {
     const p = this.proc;
-    if (!p) return;
-    this.kirim('keluar', [], 3000);
-    setTimeout(() => { try { p.kill(); } catch (e) {} }, 3000);
+    if (!p) return Promise.resolve();
+    return new Promise(resolve => {
+      const paksa = setTimeout(() => { try { p.kill(); } catch (e) {} resolve(); }, 4000);
+      p.once('exit', () => { clearTimeout(paksa); resolve(); });
+      this.kirim('keluar', [], 3000);
+      try { p.stdin.end(); } catch (e) {}
+    });
   }
 }
 
@@ -214,9 +231,11 @@ function setel(m) {
 }
 function matikan() {
   clearTimeout(timerSambung); clearInterval(timerStatus);
-  if (hub) { const h = hub; hub = null; if (st.merekam) h.kirim('rekam-stop', [], 3000); h.berhenti(); }
+  let selesai = Promise.resolve();
+  if (hub) { const h = hub; hub = null; if (st.merekam) h.kirim('rekam-stop', [], 3000); selesai = h.berhenti(); }
   for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'Kamera Sony dimatikan' });
   unduhTunggu.clear();
+  return selesai;
 }
 
 /* ---------------- Fungsi untuk fitur lain ---------------- */

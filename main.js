@@ -47,4 +47,11 @@ app.whenReady().then(async () => {
 
 app.on('second-instance', () => jendela.munculkan());
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { rekaman.tutupSemua(); kameraSony.matikan(); });
+// Saat keluar: tunggu kamera Sony diputus dengan rapi dulu (maks ±4 detik), baru aplikasi benar-benar tutup
+let sudahBeres = false;
+app.on('before-quit', e => {
+  if (sudahBeres) return;
+  e.preventDefault();
+  rekaman.tutupSemua();
+  Promise.resolve(kameraSony.matikan()).catch(() => {}).then(() => { sudahBeres = true; app.quit(); });
+});
