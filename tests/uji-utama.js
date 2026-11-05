@@ -260,6 +260,33 @@ const KASUS = {
     cek((await panggil('sony-status')).mode === 'webcam' && (await panggil('sony-lv')) === null, 'kembali ke webcam: kamera Sony dilepas');
   },
 
+  async 'riwayat sesi: buka, Finder, coba lagi'() {
+    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(200);
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
+    const foto = sesi()[0];
+    cek((await panggil('session-open', foto.id)).ok && /_hasil\.jpg$/.test(electron.__dibuka), 'foto hasil bisa dibuka');
+    cek((await panggil('session-reveal', foto.id)).ok && /_hasil\.jpg$/.test(electron.__ditunjukkan), 'foto ditunjukkan di Finder');
+    cek(/^data:image\/jpeg;base64,/.test(await panggil('session-thumb', foto.id)), 'gambar kecil foto tersedia');
+    cek((await panggil('session-open', 12345)).error, 'sesi tidak dikenal ditolak dengan pesan');
+    cek(/tidak perlu diulang/.test((await panggil('session-retry', foto.id)).error), 'sesi yang sudah beres tidak bisa diulang');
+    // Video Sony yang tertinggal di kartu: salin lagi
+    await panggil('save-settings', { kamera: 'sony-sim' }); await tunggu(700);
+    const r = await panggil('rec-start', 'pesan', { sony: true });
+    await panggil('rec-end', r.id, 5, {}); await tunggu(1500);
+    const list = sesi(); const v = list.find(x => x.id !== foto.id);
+    cek(v.status === 'done' && v.kartuInfo && v.kartuInfo.contentId, 'info file di kartu SD dicatat untuk salin ulang', v);
+    fs.unlinkSync(r.file);
+    list.find(x => x.id === v.id).status = 'card-only';
+    fs.writeFileSync(path.join(dataDir, 'sessions.json'), JSON.stringify(list));
+    const u = await panggil('session-retry', v.id);
+    cek(u.ok && sesi().find(x => x.id === v.id).status === 'transfer', 'Coba salin lagi: status jadi Menyalin', u);
+    await tunggu(1500);
+    cek(sesi().find(x => x.id === v.id).status === 'done' && fs.existsSync(r.file), 'video tersalin ulang ke folder couple');
+    await panggil('save-settings', { kamera: 'webcam' });
+  },
+
   async 'kamera sony: program penghubung belum dibuat'() {
     process.env.SONY_HELPER = path.join(require('os').tmpdir(), 'tidak-ada', 'sony-helper');
     const { panggil, electron, dataDir } = nyalakanAplikasi();

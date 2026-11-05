@@ -120,6 +120,12 @@
       <p class="pe-hint" style="margin:8px 6px 0">Ketuk couple untuk mengatur nama, pertanyaan quiz, dan template fotonya. Semua pengaturan couple ada di satu halaman.</p>
       <div class="note ok" id="coupleMsg"></div>
 
+      <div class="group-title">Sesi</div>
+      <div class="group">
+        <button class="item nav-row" id="btnRiwayat"><svg class="i"><use href="#i-video"/></svg>
+          <span class="rw-nav"><b>Riwayat sesi</b><small class="muted" id="riwayatRingkas"></small></span>
+          <em class="rw-badge" id="riwayatBadge" style="display:none"></em><svg class="i chev"><use href="#i-next"/></svg></button>
+      </div>
       <div class="group-title">Kamera dan mikrofon</div>
       <div class="group">
         <div class="item split"><span>Sumber</span><select id="camSumber" aria-label="Sumber kamera">
@@ -172,11 +178,6 @@
       </div>
       <div class="note ok" id="loginMsg"></div>
 
-      <div class="group-title">Sesi</div>
-      <div class="group">
-        <div class="item"><p id="stats"></p></div>
-        <div class="item"><ol id="sessList"></ol></div>
-      </div>
     </div>
   </div>
 </div>
@@ -255,6 +256,25 @@
   <div class="row" style="max-width:640px">
     <button id="btnCobaLagi" class="btn glassy"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
     <button id="btnSelesai" class="btn primary">Selesai</button>
+  </div>
+</div>
+
+<!-- RIWAYAT SESI (dibuka dari Admin) -->
+<div class="screen mid" id="riwayat">
+  <div class="sheet glass">
+    <div class="sheet-head">
+      <button id="rwBack" class="btn sm tint">Admin</button>
+      <h2>Riwayat sesi</h2>
+      <button id="rwSegar" class="btn sm tint"><svg class="i"><use href="#i-retry"/></svg>Segarkan</button>
+    </div>
+    <div class="sheet-body">
+      <div class="group"><div class="item split"><span>Couple</span><select id="rwCouple" aria-label="Pilih couple"></select></div></div>
+      <div class="rw-ringkas" id="rwRingkas"></div>
+      <button class="rw-banner" id="rwBanner" style="display:none"></button>
+      <div class="rw-chips" id="rwJenis"></div>
+      <div class="note ok" id="rwMsg"></div>
+      <div id="rwList"></div>
+    </div>
   </div>
 </div>
 
@@ -484,6 +504,7 @@
 <script src="src/pengaturan.js"></script>
 <script src="src/pengaturan-booth.js"></script>
 <script src="src/admin.js"></script>
+<script src="src/riwayat.js"></script>
 <script src="src/template-gambar.js"></script>
 <script src="src/template-editor.js"></script>
 <script src="src/photobooth.js"></script>

@@ -4,7 +4,7 @@
    Dengan kamera Sony: kamera merekam ke kartu SD, lalu file MP4-nya
    disalin ke folder couple di belakang layar (lihat kamera-sony.js).
    ===================================================================== */
-const { ipcMain } = require('electron');
+const { ipcMain, shell } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -125,6 +125,59 @@ function salinVideoSony(sid, info, file) {
 
 function daftarkan() {
   ipcMain.handle('get-sessions', () => readSessions());
+
+  /* ---------- Aksi per sesi (halaman Riwayat sesi di Admin) ---------- */
+  const cariSesi = id => readSessions().find(s => s.id === id);
+  const lokasi = s => path.join(s.dir || defaultDir, s.file || '');
+  ipcMain.handle('session-open', async (e, id) => {
+    const s = cariSesi(id);
+    if (!s || !s.file || !fs.existsSync(lokasi(s))) return { error: 'File tidak ditemukan di folder.' };
+    const err = await shell.openPath(lokasi(s));
+    return err ? { error: err } : { ok: true };
+  });
+  ipcMain.handle('session-reveal', (e, id) => {
+    const s = cariSesi(id);
+    if (!s) return { error: 'Sesi tidak ditemukan.' };
+    if (s.file && fs.existsSync(lokasi(s))) { shell.showItemInFolder(lokasi(s)); return { ok: true }; }
+    if (fs.existsSync(s.dir || '')) { shell.openPath(s.dir); return { ok: true }; }
+    return { error: 'Folder tidak ditemukan.' };
+  });
+  // Gambar kecil hasil photobooth untuk daftar sesi
+  const cacheThumb = new Map();
+  ipcMain.handle('session-thumb', (e, id) => {
+    if (cacheThumb.has(id)) return cacheThumb.get(id);
+    const s = cariSesi(id);
+    if (!s || s.label !== 'foto' || !fs.existsSync(lokasi(s))) return null;
+    let url = null;
+    try {
+      const { nativeImage } = require('electron');
+      if (nativeImage) url = nativeImage.createFromPath(lokasi(s)).resize({ height: 160 }).toDataURL();
+      else if (fs.statSync(lokasi(s)).size < 3e6) url = 'data:image/jpeg;base64,' + fs.readFileSync(lokasi(s)).toString('base64');
+    } catch (err) {}
+    cacheThumb.set(id, url);
+    return url;
+  });
+  // Coba lagi: ubah ke MP4 lagi, atau salin lagi video dari kartu SD kamera Sony
+  ipcMain.handle('session-retry', (e, id) => {
+    const s = cariSesi(id);
+    if (!s) return { error: 'Sesi tidak ditemukan.' };
+    if (s.status === 'failed' || s.status === 'webm') {
+      if (!ffmpegPath) return { error: 'FFmpeg belum terpasang, video tidak bisa diubah ke MP4.' };
+      const webm = path.join(s.dir || defaultDir, String(s.file).replace(/\.mp4$/i, '.webm'));
+      if (!fs.existsSync(webm)) return { error: 'File rekaman aslinya tidak ditemukan.' };
+      updateSession(id, { status: 'processing' });
+      convert(id, webm);
+      return { ok: true };
+    }
+    if (s.status === 'card-only') {
+      if (!s.kartuInfo) return { error: `Video hanya ada di kartu SD kamera${s.kartu ? ' (' + s.kartu + ')' : ''}. Salin manual dari kartunya.` };
+      if (!sony.siap()) return { error: 'Sambungkan kamera Sony dulu, lalu coba lagi.' };
+      updateSession(id, { status: 'transfer', error: undefined });
+      salinVideoSony(id, s.kartuInfo, lokasi(s));
+      return { ok: true };
+    }
+    return { error: 'Sesi ini tidak perlu diulang.' };
+  });
   ipcMain.handle('get-startup-info', () => { const r = { recovered: recoveredCount }; recoveredCount = 0; return r; });
 
   ipcMain.handle('rec-start', async (e, label, opsi) => {
@@ -188,7 +241,8 @@ function daftarkan() {
     if (rec.sony) {
       // Hentikan rekaman di kamera. Tamu tidak perlu menunggu video disalin.
       const r = await sony.rekamStop();
-      const patch = { seconds, ...(meta || {}), ...(r.error ? { status: 'card-only', error: r.error } : { status: 'transfer', kartu: r.nama }) };
+      const patch = { seconds, ...(meta || {}), ...(r.error ? { status: 'card-only', error: r.error }
+        : { status: 'transfer', kartu: r.nama, kartuInfo: { slot: r.slot, contentId: r.contentId, fileId: r.fileId } }) };
       updateSession(sid, patch);
       if (!r.error) salinVideoSony(sid, r, rec.file);
       return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file };

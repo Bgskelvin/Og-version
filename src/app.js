@@ -14,7 +14,7 @@ function show(name) {
 function resetIdle() {
   clearTimeout(idleTimer);
   if (busy) return;
-  const wait = { utama: 60000, pesan: 60000, quiz: 60000, photo: 60000, editphoto: 180000, admin: 180000, setvideo: 180000, setphoto: 180000, tpleditor: 900000, tambah: 900000, thanks: 20000 }[current];
+  const wait = { utama: 60000, pesan: 60000, quiz: 60000, photo: 60000, editphoto: 180000, admin: 180000, riwayat: 600000, setvideo: 180000, setphoto: 180000, tpleditor: 900000, tambah: 900000, thanks: 20000 }[current];
   if (wait) idleTimer = setTimeout(() => show('start'), wait);
 }
 function setNotice(t, ms) {

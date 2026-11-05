@@ -225,3 +225,41 @@ body.sonyOn #camPrevLv { display:block; }
 .sony-row { gap:12px; }
 .sony-dot { width:10px; height:10px; border-radius:50%; flex:none; background:var(--text-2); }
 .sony-dot.hijau { background:var(--green); } .sony-dot.merah { background:var(--red); } .sony-dot.kuning { background:var(--orange); }
+
+/* Riwayat sesi */
+.rw-nav { display:flex; flex-direction:column; gap:2px; }
+.rw-nav b { font-weight:500; }
+.rw-nav small { font-size:14px; }
+.rw-badge { font-style:normal; font-size:14px; font-weight:600; color:#fff; background:var(--orange); padding:3px 10px; border-radius:10px; }
+.rw-ringkas { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:16px 0 4px; }
+.rw-ringkas div { background:rgba(255,255,255,.6); border-radius:16px; padding:12px; text-align:center; }
+.rw-ringkas b { display:block; font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; }
+.rw-ringkas span { font-size:13px; color:var(--text-2); }
+.rw-banner { display:block; width:100%; margin:12px 0 0; padding:12px 16px; border:0; border-radius:14px; text-align:left;
+  background:rgba(255,159,10,.16); color:#8A5300; font:inherit; font-size:16px; font-weight:600; cursor:pointer; }
+.rw-banner.aktif { background:var(--fill); color:var(--text); }
+.rw-chips { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+.rw-chip { border:0; border-radius:999px; padding:8px 14px; background:rgba(255,255,255,.6); font:inherit; font-size:15px; font-weight:500; color:var(--text); cursor:pointer; }
+.rw-chip.on { background:var(--text); color:#fff; }
+.rw-row { display:flex; align-items:center; gap:12px; width:100%; background:transparent; border:0; border-bottom:1px solid var(--hair); text-align:left; font:inherit; color:inherit; cursor:pointer; }
+.rw-row:last-child { border-bottom:0; }
+.rw-row.buka { background:var(--fill); }
+.rw-ikon { width:44px; height:44px; flex:none; border-radius:10px; background:var(--fill); display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--text-2); }
+.rw-ikon img { width:100%; height:100%; object-fit:cover; }
+.rw-teks { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.rw-teks b { font-weight:600; }
+.rw-teks small { font-size:14px; color:var(--text-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rw-tag { font-size:13px; color:var(--text-2); }
+.rw-tag:empty { display:none; }
+.rw-status { flex:none; font-style:normal; font-size:13px; font-weight:600; padding:4px 10px; border-radius:999px; }
+.rw-status.hijau { background:rgba(52,199,89,.16); color:#1E7B3A; }
+.rw-status.biru { background:rgba(10,132,255,.14); color:#0A5CC2; }
+.rw-status.biru::before { content:''; display:inline-block; width:8px; height:8px; margin-right:6px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent; vertical-align:-1px; animation:spin 1s linear infinite; }
+.rw-status.oranye { background:rgba(255,159,10,.18); color:#8A5300; }
+.rw-status.merah { background:rgba(255,59,48,.14); color:#B3261E; }
+.rw-status.abu { background:var(--fill); color:var(--text-2); }
+.rw-detail { background:var(--fill); font-size:15px; line-height:1.45; }
+.rw-detail p { margin:0 0 6px; font-size:15px; line-height:1.45; color:var(--text); max-width:none; }
+.rw-detail ol { margin:4px 0 8px 20px; padding:0; }
+.rw-file { font-size:13px; }
+@media (prefers-reduced-motion: reduce) { .rw-status.biru::before { animation:none; } }

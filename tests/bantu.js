@@ -43,7 +43,7 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
     ipcMain: { handle: (n, f) => { handlers[n] = f; }, on: (n, f) => { listeners[n] = f; } },
     session: { defaultSession: { setPermissionRequestHandler() {} } },
     systemPreferences: { askForMediaAccess: async () => true },
-    shell: { openPath: async p => { electron.__dibuka = p; return ''; } },
+    shell: { openPath: async p => { electron.__dibuka = p; return ''; }, showItemInFolder: p => { electron.__ditunjukkan = p; } },
     dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
     powerSaveBlocker: { start() {} },
     Menu: { buildFromTemplate: t => t, setApplicationMenu: m => { electron.__menu = m; } },

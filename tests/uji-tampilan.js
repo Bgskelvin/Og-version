@@ -48,7 +48,11 @@ window.api = {
     return { ok: true, data: JSON.parse(JSON.stringify(CP)), templateDihapus: n }; },
   countTemplates: async () => TPL.reduce((n, t) => (n[t.coupleId] = (n[t.coupleId] || 0) + 1, n), {}),
   login: async (id, pw) => pw === '1234',
-  getSessions: async () => [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
+  getSessions: async () => window.SESI || [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
+  sessionOpen: async id => { LOG.push('buka ' + id); return { ok: true }; },
+  sessionReveal: async id => { LOG.push('finder ' + id); return { ok: true }; },
+  sessionThumb: async () => null,
+  sessionRetry: async id => { LOG.push('ulang ' + id); const s = SESI.find(x => x.id === id); s.status = s.status === 'card-only' ? 'transfer' : 'processing'; return { ok: true }; },
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
   getSettings: async () => ({ ...ST }),
   sonyStatus: async () => SONY.st,
@@ -391,6 +395,50 @@ async function main() {
   await pg.evaluate(() => { show('admin'); });
   await pg.selectOption('#camSumber', 'webcam'); await tunggu(500);
   cek(await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!mediaStream), 'kembali ke webcam: kamera komputer dibuka lagi');
+
+  console.log('\n▶ Riwayat sesi');
+  await pg.evaluate(() => {
+    const t = (hari, h, m) => { const d = new Date(); d.setDate(d.getDate() - hari); d.setHours(h, m, 0, 0); return d.toISOString(); };
+    window.SESI = [
+      { id: 1, time: t(1, 19, 2), label: 'pesan', couple: 'Ayu & Budi', seconds: 48, status: 'done' },
+      { id: 2, time: t(0, 18, 5), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' },
+      { id: 3, time: t(0, 18, 7), label: 'foto', couple: 'Rina & Dimas', status: 'photo', photos: 4 },
+      { id: 4, time: t(0, 18, 12), label: 'quiz', couple: 'Rina & Dimas', seconds: 60, status: 'failed', questions: ['Kapan pertama bertemu?'] },
+      { id: 5, time: t(0, 18, 20), label: 'pesan', couple: 'Rina & Dimas', seconds: 75, status: 'card-only', kamera: 'sony', kartu: 'C0005.MP4' },
+      { id: 6, time: t(0, 18, 24), label: 'pesan', couple: 'Rina & Dimas', seconds: 1, status: 'done' },
+      { id: 7, time: t(1, 18, 30), label: 'pesan', couple: 'Rina & Dimas', seconds: 30, status: 'done' },
+    ];
+    show('admin'); return loadSessions();
+  });
+  cek(/Rina & Dimas: 5 hari ini · 6 total/.test(await pg.textContent('#riwayatRingkas')) && (await pg.textContent('#riwayatBadge')) === '⚠️ 2',
+      'Admin: ringkasan sesi couple aktif + jumlah yang perlu perhatian', await pg.textContent('#riwayatRingkas'));
+  await pg.click('#btnRiwayat'); await tunggu(300);
+  cek(await layar() === 'riwayat' && await pg.inputValue('#rwCouple') === 'Rina & Dimas', 'Riwayat sesi terbuka untuk couple aktif');
+  cek((await pg.textContent('#rwRingkas')).replace(/\s/g, '') === '4Pesan1Quiz1Foto3Menitvideo', 'ringkasan jumlah pesan/quiz/foto & menit video', await pg.textContent('#rwRingkas'));
+  const judulHari = await pg.locator('#rwList .group-title').allTextContents();
+  cek(judulHari.length === 2 && /^Hari ini/.test(judulHari[0]) && /^Kemarin/.test(judulHari[1]), 'sesi dikelompokkan per hari (Hari ini, Kemarin)', judulHari);
+  cek(await pg.locator('.rw-status.merah').count() === 1 && await pg.locator('.rw-status.oranye').count() === 1 && await pg.locator('.rw-status.hijau').count() === 4,
+      'status berwarna: gagal merah, di kartu SD oranye, siap hijau');
+  cek(/Terlalu pendek/.test(await pg.locator('.rw-row', { hasText: '18:24' }).textContent()), 'rekaman 1 detik ditandai "Terlalu pendek"');
+  await pg.click('#rwBanner'); await tunggu(150);
+  cek(await pg.locator('.rw-row').count() === 2, 'banner peringatan menampilkan 2 sesi bermasalah saja');
+  await pg.locator('.rw-row', { hasText: 'Quiz' }).click(); await tunggu(150);
+  cek(/gagal diubah ke MP4/.test(await pg.textContent('.rw-detail')) && /Kapan pertama bertemu/.test(await pg.textContent('.rw-detail')), 'detail sesi: keterangan & pertanyaan quiz');
+  await bersihkan();
+  await pg.locator('.rw-detail button', { hasText: 'Coba proses lagi' }).click(); await tunggu(400);
+  cek((await log()).includes('ulang 4') && await pg.evaluate(() => SESI[3].status) === 'processing' && await pg.locator('.rw-row').count() === 1,
+      'Coba proses lagi: sesi diproses ulang & keluar dari daftar "perlu perhatian"');
+  await pg.click('#rwBanner'); await pg.locator('.rw-chip', { hasText: 'Foto' }).click();
+  await pg.locator('.rw-row').first().click(); await pg.locator('.rw-detail button', { hasText: 'Lihat foto' }).click();
+  await pg.locator('.rw-detail button', { hasText: 'Tampilkan di Finder' }).click(); await tunggu(100);
+  cek((await log()).includes('buka 3') && (await log()).includes('finder 3'), 'foto bisa dibuka & ditampilkan di Finder');
+  await pg.selectOption('#rwCouple', ''); await pg.locator('.rw-chip', { hasText: 'Semua' }).click(); await tunggu(100);
+  cek(await pg.locator('.rw-row').count() === 7 && /Ayu & Budi/.test(await pg.textContent('#rwList')), 'pilihan "Semua couple" menampilkan semua sesi dengan nama couple');
+  await pg.evaluate(() => { SESI.push({ id: 8, time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 20, status: 'transfer', kamera: 'sony' }); });
+  await tunggu(3500);
+  cek(await pg.locator('.rw-row').count() === 8, 'daftar diperbarui sendiri tanpa menekan Segarkan');
+  await pg.click('#rwBack');
+  cek(await layar() === 'admin', 'tombol Admin kembali');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

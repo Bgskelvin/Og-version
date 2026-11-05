@@ -17,6 +17,7 @@
   pasangPesan();
   pasangQuiz();
   pasangAdmin();
+  pasangRiwayat();
   pasangPengaturan();
   pasangPengaturanBooth();
   terapkanMenu();
