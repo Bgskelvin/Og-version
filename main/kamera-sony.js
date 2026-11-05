@@ -130,6 +130,14 @@ function jadwalSambung(ms) {
   if (mode === 'webcam' || !hub) return;
   timerSambung = setTimeout(cobaSambung, ms);
 }
+// Penjelasan kode error sambungan dari SDK Sony (CrError_Connect_*)
+const PESAN_SAMBUNG = {
+  '0x8208': 'Kamera ditemukan tapi tidak menjawab. Matikan lalu nyalakan kamera, cabut-pasang kabel USB, dan tutup aplikasi lain yang memakai kamera (Image Capture, Foto, Imaging Edge).',
+  '0x820a': 'Kamera menolak sambungan. Cek MENU kamera: PC Remote = On, dan HP tidak sedang tersambung ke kamera.',
+  '0x820b': 'Kamera sedang dipakai program lain. Tutup aplikasi lain yang memakai kamera, atau matikan-nyalakan kamera.',
+  '0x8210': 'Kamera masih tersambung ke program sebelumnya. Matikan lalu nyalakan kamera.',
+};
+const jelaskanSambung = r => (r.kode && PESAN_SAMBUNG[String(r.kode).toLowerCase()]) ? `${PESAN_SAMBUNG[String(r.kode).toLowerCase()]} (${r.kode})` : (r.error || 'Kamera Sony belum tersambung') + (r.kode ? ` (${r.kode})` : '');
 async function cobaSambung() {
   if (!hub || st.tersambung || menyambung) return;
   menyambung = true;
@@ -142,7 +150,7 @@ async function cobaSambung() {
     if (r.catatan) console.log('Kamera Sony: sebagian pengaturan gagal dipasang: ' + r.catatan);
     await perbaruiStatus();
   } else {
-    Object.assign(st, { tersambung: false, pesan: r.error || 'Kamera Sony belum tersambung' });
+    Object.assign(st, { tersambung: false, pesan: jelaskanSambung(r) });
     jadwalSambung(4000);
   }
   kabarkan();
@@ -290,4 +298,4 @@ function mulai() {
   setel(readSettings().kamera);
 }
 
-module.exports = { daftarkan, mulai, setel, matikan, status, pakaiSony, siap, foto, rekamMulai, rekamStop, unduh, MODE };
+module.exports = { jelaskanSambung, daftarkan, mulai, setel, matikan, status, pakaiSony, siap, foto, rekamMulai, rekamStop, unduh, MODE };
