@@ -19,6 +19,7 @@ const UKURAN = {                                   // ukuran hasil dalam piksel 
 };
 const MAX_GAMBAR = 25 * 1024 * 1024;               // batas ukuran file gambar yang diunggah
 const FONT = ['sans', 'serif', 'script'];
+const RASIO = ['3:2', '4:3', '16:9', '1:1', '4:5', '3:4', '2:3'];   // rasio kotak foto (lebar:tinggi)
 
 const angka = (v, lo, hi, d) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const warna = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : d);
@@ -47,6 +48,7 @@ function bersihkan(t) {
     nama: String(t.nama || '').trim().slice(0, 60) || 'Template tanpa nama',
     ukuran, W, H,
     latarWarna: warna(t.latarWarna, '#FFFFFF'),
+    rasio: RASIO.includes(t.rasio) ? t.rasio : null,
     slots, texts,
   };
 }

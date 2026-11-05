@@ -38,6 +38,7 @@
 <video id="cam" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video>
 <canvas id="camLv" aria-hidden="true"></canvas>
 <div class="shade"></div>
+<div class="pb-safe" id="pbSafe" aria-hidden="true"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><div class="frame"></div></div>
 <div id="notice" role="status"></div>
 <div id="countOverlay"><div class="glass"><span id="countNum">3</span></div></div>
 
@@ -354,6 +355,9 @@
           <input type="file" id="teBingkaiFile" accept="image/png" hidden>
         </div>
         <div class="pe-pane te-pane" data-pane="foto">
+          <div class="pe-sec">Rasio foto</div>
+          <div class="pe-grid" id="teRasio" style="grid-template-columns:repeat(4,1fr)"></div>
+          <p class="pe-hint" id="teRasioInfo" style="margin-top:8px"></p>
           <div class="pe-sec">Susunan cepat</div>
           <div class="pe-grid" id="teSusunan" style="grid-template-columns:repeat(4,1fr)"></div>
           <div class="pe-sec">Foto terpilih</div>
@@ -363,7 +367,7 @@
           </div>
           <div class="pe-sec">Sudut membulat</div>
           <input type="range" id="teSudut" min="0" max="120" step="2" style="width:100%">
-          <p class="pe-hint">Geser kotak foto di gambar untuk memindahkannya. Tarik titik di pojok kanan bawah untuk mengubah ukurannya. Kotak akan menempel otomatis ke tengah dan tepi.</p>
+          <p class="pe-hint">Geser kotak foto di gambar untuk memindahkannya. Tarik titik di pojok kanan bawah untuk mengubah ukurannya; rasionya tetap. Kotak akan menempel otomatis ke tengah dan tepi.</p>
         </div>
         <div class="pe-pane te-pane" data-pane="teks">
           <div class="pe-row"><button class="btn sm primary" id="teTeksTambah"><svg class="i"><use href="#i-plus"/></svg>Tambah teks</button></div>

@@ -190,6 +190,11 @@ async function main() {
       'template couple Rina & Dimas masih kosong');
   await pg.click('#btnTplNew'); await tunggu(400);
   cek(await layar() === 'tpleditor' && await pg.locator('.te-slot').count() === 4, 'editor template terbuka dengan kotak foto 1-4');
+  const rasioSlot = () => pg.evaluate(() => te.tpl.slots.map(s => s.w / s.h));
+  cek(await pg.evaluate(() => te.tpl.rasio) === '3:2' && (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01), 'template baru memakai rasio 3:2 (sama dengan foto kamera)');
+  await pg.click('[data-tab="foto"]'); await pg.locator('#teRasio .pe-opt', { hasText: '1:1' }).click(); await tunggu(150);
+  cek((await rasioSlot()).every(r => Math.abs(r - 1) < 0.01) && /rasio 1:1/.test(await pg.textContent('#teRasioInfo')), 'pilih rasio 1:1: semua kotak foto jadi persegi', await rasioSlot());
+  await pg.click('[data-tab="desain"]');
   cek(/Rina & Dimas/.test(await pg.textContent('#teTitle')), 'judul editor menyebut couple-nya', await pg.textContent('#teTitle'));
   await pg.fill('#teNama', 'Rustic emas');
   const slot = await pg.locator('.te-slot').first().boundingBox();
@@ -202,6 +207,7 @@ async function main() {
   await pg.mouse.move(pj.x + pj.width / 2, pj.y + pj.height / 2); await pg.mouse.down();
   await pg.mouse.move(pj.x - 30, pj.y + pj.height / 2, { steps: 5 }); await pg.mouse.up();
   cek(await pg.evaluate(() => te.tpl.slots[1].w) < w0, 'ukuran kotak foto bisa diubah dari pojoknya');
+  cek(await pg.evaluate(() => Math.abs(te.tpl.slots[1].w - te.tpl.slots[1].h) <= 1), 'saat diubah ukurannya, rasio kotak foto tetap 1:1');
   const posisi = await pg.evaluate(() => JSON.stringify(te.tpl.slots.slice(0, 2)));
   await pg.click('[data-tab="foto"]'); await pg.locator('#teSlotPilih button').first().click(); await pg.click('#teSlotTukar');
   cek(await pg.evaluate(p => JSON.stringify([te.tpl.slots[1], te.tpl.slots[0]]) === p, posisi), 'posisi foto 1 dan 2 bisa ditukar');
@@ -212,7 +218,7 @@ async function main() {
   cek(await pg.evaluate(() => te.tpl.texts.length === 3 && te.tpl.texts[2].text === 'Terima kasih sudah datang' && te.tpl.texts[2].font === 'serif'),
       'teks baru ditambahkan & hurufnya bisa diganti', await pg.evaluate(() => te.tpl.texts.map(t => t.text + '|' + t.font)));
   await pg.click('[data-tab="desain"]'); await pg.locator('#teUkuran .pe-opt').nth(2).click(); await tunggu(200);
-  cek(await pg.evaluate(() => te.tpl.W === 600 && te.tpl.H === 1800 && te.tpl.slots.every(s => s.x + s.w <= 600)), 'ganti ukuran ke Strip: posisi ikut menyesuaikan');
+  cek(await pg.evaluate(() => te.tpl.W === 600 && te.tpl.H === 1800 && te.tpl.slots.every(s => s.x + s.w <= 600 && Math.abs(s.w / s.h - 1) < 0.02)), 'ganti ukuran ke Strip: posisi menyesuaikan, rasio tetap');
   await pg.locator('#teUkuran .pe-opt').nth(0).click(); await tunggu(200);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
   await pg.setInputFiles('#teBingkaiFile', { name: 'bingkai.png', mimeType: 'image/png', buffer: png }); await tunggu(300);
@@ -230,6 +236,12 @@ async function main() {
   cek(await layar() === 'tpleditor' && /Buang/.test(await pg.textContent('#teBatal')), 'Batal dengan perubahan minta konfirmasi');
   await pg.click('#teBatal'); await tunggu(200);
   cek(await layar() === 'tambah' && await pg.evaluate(() => TPL[0].nama) === 'Rustic emas', 'Batal tidak menyimpan perubahan');
+  cek(await pg.evaluate(() => TPL[0].rasio) === '1:1', 'rasio foto ikut tersimpan di template');
+  await pg.evaluate(() => bukaEditorTemplate({ ...TPL[0], id: 'lama', rasio: undefined })); await tunggu(300);
+  await pg.click('#teSimpan'); await tunggu(200);
+  cek(await layar() === 'tpleditor' && /Pilih rasio foto dulu/.test(await pg.textContent('#teMsg')) && /belum punya rasio/.test(await pg.textContent('#teRasioInfo')),
+      'template lama tanpa rasio tidak bisa disimpan sebelum rasio dipilih');
+  await pg.click('#teBatal'); await tunggu(200);
   console.log('\n▶ Menu per couple');
   cek(await pg.isChecked('#fMenuPesan') && await pg.isChecked('#fMenuQuiz') && await pg.isChecked('#fMenuPhoto'), 'halaman couple menampilkan saklar 3 menu');
   await pg.click('#fMenuPesan'); await pg.click('#fMenuQuiz'); await pg.click('#fMenuPhoto'); await tunggu(100);
@@ -266,8 +278,13 @@ async function main() {
       document.getElementById('pbCountNum').textContent + (document.getElementById('pbCount').classList.contains('kecil') ? 'k' : 'B')))
     .observe(document.getElementById('pbCountNum'), { childList: true }); });
   const t0 = Date.now();
-  await pg.click('#pbStart');
+  await pg.click('#pbStart'); await tunggu(700);
+  const zona = await pg.evaluate(() => { const r = document.querySelector('#pbSafe .frame').getBoundingClientRect();
+    return { on: document.getElementById('pbSafe').classList.contains('on'), w: r.width, h: r.height, x: r.left + r.width / 2, lebar: innerWidth }; });
+  cek(zona.on && Math.abs(zona.w / zona.h - 1) < 0.02 && Math.abs(zona.x - zona.lebar / 2) < 2,
+      'saat difoto: zona aman tampil di tengah sesuai rasio template (1:1)', zona);
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+  cek(!(await pg.evaluate(() => document.getElementById('pbSafe').classList.contains('on'))), 'setelah 4 foto selesai, zona aman disembunyikan');
   const lama = (Date.now() - t0) / 1000;
   cek(lama < 19, 'sesi 4 foto dengan hitung mundur 3 detik & tanpa pratinjau selesai lebih cepat', lama);
   cek(await pg.evaluate(() => KILAT) === 0, 'efek kilat mati sesuai pengaturan');

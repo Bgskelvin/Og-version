@@ -102,13 +102,45 @@ function lebarTeks(t) {
   return c.measureText(isiTeksTemplate(t.text) || ' ').width;
 }
 
+/* Rasio kotak foto (lebar : tinggi). Dipilih admin per template; semua foto 1-4 memakai rasio ini.
+   Kamera Sony memotret 3:2, webcam umumnya 16:9. Rasio lain berarti foto dipotong. */
+const RASIO_FOTO = [['3:2', 3 / 2], ['4:3', 4 / 3], ['16:9', 16 / 9], ['1:1', 1], ['4:5', 4 / 5], ['3:4', 3 / 4], ['2:3', 2 / 3]];
+const nilaiRasio = key => { const r = RASIO_FOTO.find(x => x[0] === key); return r ? r[1] : null; };
+// Kotak terbesar dengan rasio r yang muat di cw × ch
+const muatRasio = (cw, ch, r) => (cw / ch > r ? [ch * r, ch] : [cw, cw / r]);
+// Ubah satu kotak foto ke rasio r: titik tengah & luasnya dipertahankan, tetap di dalam template
+function pasRasio(s, r, W, H) {
+  let w = Math.sqrt(s.w * s.h * r), h = w / r;
+  const k = Math.min(1, W / w, H / h); w *= k; h *= k;
+  const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+  const x = Math.min(W - w, Math.max(0, cx - w / 2)), y = Math.min(H - h, Math.max(0, cy - h / 2));
+  return { ...s, x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+}
+
 /* Susunan cepat posisi foto 1-4, menyesuaikan ukuran template.
-   Bagian bawah dikosongkan untuk teks (nama couple & tanggal). */
-function susunanFoto(jenis, W, H) {
+   Bagian bawah dikosongkan untuk teks (nama couple & tanggal).
+   Dengan rasio: setiap kotak memakai rasio itu, lalu susunannya dirapikan ke tengah. */
+function susunanFoto(jenis, W, H, rasio = null) {
   const m = Math.round(Math.min(W, H) * 0.05), g = Math.round(Math.min(W, H) * 0.025);
   const datar = W > H;
   const x0 = m, y0 = m, aw = W - 2 * m, ah = Math.round(H * (datar ? 0.80 : 0.84)) - m;
   const r = 8, k = [];
+  if (rasio) {
+    const baris = [];                             // setiap baris: daftar [lebar, tinggi]
+    if (jenis === 'kisi') { const c = muatRasio((aw - g) / 2, (ah - g) / 2, rasio); baris.push([c, c], [c, c]); }
+    else if (jenis === 'kolom') { const c = muatRasio(aw, (ah - 3 * g) / 4, rasio); for (let i = 0; i < 4; i++) baris.push([c]); }
+    else if (jenis === 'baris') { const c = muatRasio((aw - 3 * g) / 4, ah, rasio); baris.push([c, c, c, c]); }
+    else { baris.push([muatRasio(aw, (ah - g) * 0.62, rasio)]); const c = muatRasio((aw - 2 * g) / 3, (ah - g) * 0.38, rasio); baris.push([c, c, c]); }
+    const tinggi = baris.reduce((t, b) => t + b[0][1], 0) + g * (baris.length - 1);
+    let y = y0 + (ah - tinggi) / 2;
+    for (const b of baris) {
+      const lebar = b.reduce((t, c) => t + c[0], 0) + g * (b.length - 1);
+      let x = x0 + (aw - lebar) / 2;
+      for (const [w, h] of b) { k.push({ x, y, w, h, r }); x += w + g; }
+      y += b[0][1] + g;
+    }
+    return k.map(s => ({ x: Math.round(s.x), y: Math.round(s.y), w: Math.round(s.w), h: Math.round(s.h), r: s.r }));
+  }
   if (jenis === 'kisi') {
     const w = (aw - g) / 2, h = (ah - g) / 2;
     for (let i = 0; i < 4; i++) k.push({ x: x0 + (i % 2) * (w + g), y: y0 + Math.floor(i / 2) * (h + g), w, h, r });

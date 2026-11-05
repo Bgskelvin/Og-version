@@ -119,6 +119,35 @@
   }
   function markNext(i) { for (let k = 0; k < SHOTS; k++) $('pbThumb' + k).classList.toggle('next', k === i); }
 
+  /* ---------------- Zona aman ----------------
+     Foto kamera (mis. 3:2) dipotong ke rasio kotak foto di template. Saat difoto, area yang
+     akan dipakai ditandai bingkai, dan bagian di luarnya dibuat blur tipis.
+     Hitungannya sama dengan pemotongan saat foto dipasang ke template (tengah, tanpa gepeng). */
+  let amanIdx = -1, siapTemplate = Promise.resolve();
+  const slotsLayout = lay => (lay.tpl ? lay.siap.tpl.slots : lay.slots());
+  function rasioFoto(i) {
+    const p = pilihanLayout(), lay = p[ed.layout] || p[Object.keys(p)[0]];
+    const s = lay && slotsLayout(lay)[i];
+    return s && s.w > 0 && s.h > 0 ? s.w / s.h : null;
+  }
+  function ukuranSumber() {
+    if (pakaiSony()) { const c = $('camLv'); return [c.width, c.height]; }
+    const v = $('cam'); return [v.videoWidth, v.videoHeight];
+  }
+  function aturZonaAman(i = amanIdx) {
+    amanIdx = i;
+    const el = $('pbSafe'), r = i >= 0 ? rasioFoto(i) : null, [fw, fh] = ukuranSumber();
+    if (!r || !fw || !fh || current !== 'photo') { el.classList.remove('on'); return; }
+    // Kamera tampil memenuhi layar (object-fit: cover), jadi hitung dengan skala yang sama
+    const SW = window.innerWidth, SH = window.innerHeight, k = Math.max(SW / fw, SH / fh);
+    const [aw, ah] = fw / fh > r ? [fh * r, fh] : [fw, fw / r];
+    const w = aw * k, h = ah * k;
+    if (w >= SW - 2 && h >= SH - 2) { el.classList.remove('on'); return; }     // seluruh layar sudah masuk
+    el.style.setProperty('--l', (SW - w) / 2 + 'px'); el.style.setProperty('--t', (SH - h) / 2 + 'px');
+    el.style.setProperty('--w', w + 'px'); el.style.setProperty('--h', h + 'px');
+    el.classList.add('on');
+  }
+
   /* ---------------- Alur foto ---------------- */
   function setRunningUI(on) {
     running = on;
@@ -135,10 +164,12 @@
     disarmCancel();
     busy = true; resetIdle();
     setRunningUI(true);
+    await siapTemplate;                         // rasio zona aman berasal dari template couple
     try {
       for (const i of indices) {
         $('pbPillText').textContent = indices.length === 1 ? `Ulangi foto ${i + 1}` : `Foto ${i + 1} dari ${SHOTS}`;
         markNext(i);
+        aturZonaAman(i);
         const besar = indices.length === SHOTS && i === indices[0];   // hanya hitungan pertama sesi
         if (!(await countdown(token, besar))) return;
         photos[i] = await snap();
@@ -159,6 +190,7 @@
     $('pbBack').style.display = '';
     $('pbBackLabel').textContent = photos.some(Boolean) ? 'Batal' : 'Kembali';
     markNext(-1);
+    aturZonaAman(-1);
   }
   function openPhoto() {
     $('pbIntro').textContent = `Kamu akan difoto ${SHOTS} kali. Sebelum setiap foto ada hitungan mundur ${COUNTDOWN()} detik, jadi siapkan gayamu.`;
@@ -166,6 +198,9 @@
     photos.fill(null);
     ed = fresh();
     $('peShowText').checked = true;
+    aturZonaAman(-1);
+    // Muat template couple sekarang: rasionya dipakai untuk zona aman saat difoto
+    siapTemplate = muatTemplateCouple().then(() => { const p = pilihanLayout(); if (!p[ed.layout]) ed.layout = Object.keys(p)[0]; });
     buildStrip();
     $('pbPre').style.display = 'flex';
     $('pbBottom').style.display = 'none';
@@ -534,6 +569,8 @@
     $('peClear').onclick = () => { ed.strokes = []; redrawInk(); };
     $('peBox').addEventListener('pointerdown', e => { if (e.target.id === 'peCanvas' || e.target.id === 'peStickers') select(null); });
     attachDrawing();
-    window.addEventListener('resize', () => { if ($('editphoto').classList.contains('on')) fitStage(); });
+    window.addEventListener('resize', () => { if ($('editphoto').classList.contains('on')) fitStage(); aturZonaAman(); });
+    // Ukuran gambar kamera baru diketahui setelah gambar pertama datang: perbarui zona aman
+    setInterval(() => { if (amanIdx >= 0) aturZonaAman(); }, 500);
   };
 })();

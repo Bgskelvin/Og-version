@@ -104,10 +104,10 @@
 /* ---------- Editor template (Admin) ---------- */
 #teHandles { position:absolute; inset:0; }
 .te-slot { position:absolute; border:2px dashed rgba(255,255,255,.85); box-shadow:0 0 0 1px rgba(0,0,0,.25); border-radius:4px; cursor:move; touch-action:none; }
-.te-slot.sel { border:3px solid var(--accent); box-shadow:0 0 0 1px #fff; }
+.te-slot.sel { z-index:2; border:3px solid var(--accent); box-shadow:0 0 0 1px #fff; }
 .te-no { position:absolute; left:6px; top:6px; min-width:26px; height:26px; padding:0 6px; border-radius:13px; background:var(--accent); color:#fff;
   font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center; pointer-events:none; }
-.te-resize { position:absolute; right:-14px; bottom:-14px; width:28px; height:28px; border-radius:50%; background:#fff; border:3px solid var(--accent);
+.te-resize { z-index:3; position:absolute; right:-14px; bottom:-14px; width:28px; height:28px; border-radius:50%; background:#fff; border:3px solid var(--accent);
   box-shadow:0 2px 6px rgba(0,0,0,.3); cursor:nwse-resize; touch-action:none; }
 .te-text { position:absolute; border:1.5px dashed transparent; border-radius:6px; cursor:move; touch-action:none; }
 .te-text:hover, .te-text.sel { border-color:var(--accent); background:rgba(10,132,255,.08); }
@@ -123,3 +123,20 @@
 .tpl-info { flex:1; min-width:0; display:flex; flex-direction:column; }
 .tpl-info b { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .pe-frame-hint { display:none; }
+
+/* Rasio foto di editor template */
+.te-rasio-opt { padding:8px 4px; font-size:14px; font-weight:600; }
+.te-rasio { display:block; margin:2px auto 4px; border:2px solid currentColor; border-radius:3px; opacity:.7; }
+.te-rasio-opt.on .te-rasio { opacity:1; border-color:var(--accent); }
+
+/* Zona aman saat difoto: di luar area yang masuk ke template dibuat blur tipis */
+.pb-safe { position:absolute; inset:0; pointer-events:none; display:none; --l:0px; --t:0px; --w:100vw; --h:100vh; }
+body.camOn .pb-safe.on { display:block; }
+.pb-safe i { position:absolute; -webkit-backdrop-filter:blur(9px) saturate(.85); backdrop-filter:blur(9px) saturate(.85); background:rgba(18,18,22,.22); }
+.pb-safe .t { left:0; right:0; top:0; height:max(0px, var(--t)); }
+.pb-safe .b { left:0; right:0; top:calc(var(--t) + var(--h)); bottom:0; }
+.pb-safe .l { left:0; width:max(0px, var(--l)); top:var(--t); height:var(--h); }
+.pb-safe .r { left:calc(var(--l) + var(--w)); right:0; top:var(--t); height:var(--h); }
+.pb-safe .frame { position:absolute; left:var(--l); top:var(--t); width:var(--w); height:var(--h); border-radius:4px;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.9), 0 0 0 1px rgba(0,0,0,.25); }
+#teTitle { font-size:20px; line-height:1.25; }
