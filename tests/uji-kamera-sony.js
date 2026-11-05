@@ -64,16 +64,22 @@ function simpanLaporan() { fs.writeFileSync(path.join(HASIL, 'laporan.txt'), lap
   r = await kirim('status');
   tulis(`✓ Status: baterai ${r.baterai}%, kartu ${r.kartu === 0 ? 'OK' : 'BERMASALAH (' + r.kartu + ')'}, sisa rekam ${Math.round(r.sisaDetik / 60)} menit, sisa foto ${r.sisaFoto}`);
 
-  // Live view: 40 gambar
+  // Live view selama 3 detik: hitung gambar yang BERBEDA (SDK bisa mengirim ulang gambar yang sama)
   t = Date.now();
-  let n = 0, terbesar = null;
-  for (let i = 0; i < 40; i++) {
+  let n = 0, beda = 0, terakhir = '', terbesar = null;
+  while (Date.now() - t < 3000) {
     const x = await kirim('lv');
-    if (x.ok) { n++; const b = Buffer.from(x.jpg, 'base64'); if (!terbesar || b.length > terbesar.length) terbesar = b; } else await jeda(100);
+    if (!x.ok) { await jeda(100); continue; }
+    n++;
+    const b = Buffer.from(x.jpg, 'base64');
+    const sidik = b.length + ':' + b.subarray(b.length - 64).toString('hex');
+    if (sidik !== terakhir) { beda++; terakhir = sidik; }
+    if (!terbesar || b.length > terbesar.length) terbesar = b;
+    await jeda(10);
   }
-  const fps = n / ((Date.now() - t) / 1000);
+  const fps = beda / ((Date.now() - t) / 1000);
   if (terbesar) fs.writeFileSync(path.join(HASIL, 'liveview.jpg'), terbesar);
-  tulis(`${n ? '✓' : '✗'} Live view: ${n}/40 gambar, ±${fps.toFixed(1)} gambar/detik, ukuran ${terbesar ? ukuranJpeg(terbesar) : '-'}`);
+  tulis(`${beda ? '✓' : '✗'} Live view: ±${fps.toFixed(1)} gambar baru/detik (${n} diminta), ukuran ${terbesar ? ukuranJpeg(terbesar) : '-'}`);
 
   // Jepret 3 kali
   for (let i = 1; i <= 3; i++) {
@@ -81,7 +87,7 @@ function simpanLaporan() { fs.writeFileSync(path.join(HASIL, 'laporan.txt'), lap
     const f = await kirim('foto', HASIL);
     if (!f.ok) { tulis(`✗ Jepret ${i}: ${f.error} ${f.kode || ''}`); continue; }
     const b = fs.readFileSync(f.file);
-    tulis(`✓ Jepret ${i}: foto masuk dalam ${detik(Date.now() - t)}, ${(b.length / 1e6).toFixed(1)} MB, ${ukuranJpeg(b)} (${path.basename(f.file)})`);
+    tulis(`✓ Jepret ${i}: foto masuk dalam ${detik(Date.now() - t)}, ${(b.length / 1e6).toFixed(1)} MB, ${ukuranJpeg(b)} (${path.basename(f.file)}) · lewat ${f.sumber === 'kartu' ? 'kartu SD' : 'post view'} · fokus: ${f.fokus}`);
     await jeda(800);
   }
 

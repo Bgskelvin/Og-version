@@ -4,7 +4,9 @@
    Skenario lewat variabel lingkungan SONY_PALSU:
      (kosong)      kamera ada & normal
      tanpa-kamera  tidak ada kamera tersambung
-     foto-hilang   jepret berhasil tapi foto tidak pernah masuk
+     foto-hilang   kamera tidak memotret sama sekali
+     tidak-fokus   kamera gagal fokus dan tidak memotret
+     postview-mati foto tersimpan di kartu, tapi post view tidak pernah dikirim
      putus         kamera terputus 1,5 detik setelah tersambung */
 #include <atomic>
 #include <chrono>
@@ -59,6 +61,7 @@ std::string folder = ".";
 std::atomic<bool> merekam{false};
 std::mutex mx;
 std::vector<std::pair<uint32_t, std::string>> video = {{1, "C0001.MP4"}};   // isi "kartu"
+std::vector<std::pair<uint32_t, std::string>> fotoKartu = {{900, "DSC00900.JPG"}};
 uint32_t nomorFile = 1;
 const unsigned char JPG[] = {0xFF, 0xD8, 0xFF, 0xE0, 0, 16, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0xFF, 0xD9};
 void tulis(const std::string& f, const std::string& isi) { std::ofstream o(f, std::ios::binary); o << isi; }
@@ -124,6 +127,7 @@ CrError GetSelectDeviceProperties(CrDeviceHandle, CrInt32u, CrInt32u* codes, CrD
     case CrDeviceProperty_MediaSLOT1_RemainingTime: v = 7800; break;
     case CrDeviceProperty_MediaSLOT1_RemainingNumber: v = 2400; break;
     case CrDeviceProperty_RecordingState: v = merekam ? CrMovie_Recording_State_Recording : CrMovie_Recording_State_Not_Recording; break;
+    case CrDeviceProperty_FocusIndication: v = skenario() == "tidak-fokus" ? CrFocusIndicator_NotFocused_AF_S : CrFocusIndicator_Focused_AF_S; break;
   }
   p[0].SetCurrentValue(v);
   *props = p; *n = 1; return CrError_None;
@@ -144,7 +148,12 @@ CrError GetLiveViewImage(CrDeviceHandle, CrImageDataBlock* b) {
 }
 CrError SendCommand(CrDeviceHandle, CrInt32u cmd, CrCommandParam p) {
   if (cmd == CrCommandId_Release && p == CrCommandParam_Up) {
-    if (skenario() == "foto-hilang") return CrError_None;
+    if (skenario() == "foto-hilang" || skenario() == "tidak-fokus") return CrError_None;
+    nanti(200, [] {                        // foto tersimpan di kartu
+      std::lock_guard<std::mutex> l(mx);
+      fotoKartu.push_back({1000 + (uint32_t)fotoKartu.size(), "DSC0" + std::to_string(1000 + fotoKartu.size()) + ".JPG"});
+    });
+    if (skenario() == "postview-mati") return CrError_None;
     nanti(300, [] {
       std::string f = folder + "/DSC0" + std::to_string(++nomorFile) + ".JPG";
       tulis(f, std::string((const char*)JPG, sizeof(JPG)));
@@ -172,30 +181,36 @@ CrError GetRemoteTransferContentsInfoList(CrDeviceHandle, CrSlotNumber, CrGetCon
                                           CrContentsInfo** out, CrInt32u* n) {
   if (tgl->day != 8) { *out = nullptr; *n = 0; return CrError_None; }   // helper harus memilih tanggal terbaru
   std::lock_guard<std::mutex> l(mx);
-  *out = new CrContentsInfo[video.size() + 1];
-  // satu foto JPG yang harus diabaikan
-  CrContentsInfo& foto = (*out)[0];
-  foto.contentId = 900; foto.filesNum = 1; foto.files = new CrContentsFile[1];
-  foto.files[0].fileFormat = CrContentsFile_FileFormat_Jpeg; foto.files[0].filePath = (CrInt8*)"DSC00900.JPG"; foto.files[0].filePathLength = 13;
+  const size_t nf = fotoKartu.size();
+  *out = new CrContentsInfo[video.size() + nf];
+  for (size_t i = 0; i < nf; i++) {          // foto JPG (diabaikan saat mencari video)
+    CrContentsInfo& foto = (*out)[i];
+    foto.contentId = fotoKartu[i].first; foto.filesNum = 1; foto.files = new CrContentsFile[1];
+    foto.files[0].fileFormat = CrContentsFile_FileFormat_Jpeg;
+    foto.files[0].filePath = (CrInt8*)strdup(fotoKartu[i].second.c_str()); foto.files[0].filePathLength = (CrInt32u)fotoKartu[i].second.size() + 1;
+  }
   for (size_t i = 0; i < video.size(); i++) {
-    CrContentsInfo& c = (*out)[i + 1];
+    CrContentsInfo& c = (*out)[i + nf];
     c.contentId = video[i].first; c.filesNum = 1; c.files = new CrContentsFile[1];
     c.files[0].fileId = 1; c.files[0].fileFormat = CrContentsFile_FileFormat_Mp4;
     c.files[0].filePath = (CrInt8*)strdup(video[i].second.c_str());
     c.files[0].filePathLength = (CrInt32u)video[i].second.size() + 1; c.files[0].fileSize = 52428800;
   }
-  *n = (CrInt32u)video.size() + 1; return CrError_None;
+  *n = (CrInt32u)(video.size() + nf); return CrError_None;
 }
 CrError ReleaseRemoteTransferContentsInfoList(CrDeviceHandle, CrContentsInfo* l) { delete[] l; return CrError_None; }
 CrError GetRemoteTransferContentsDataFile(CrDeviceHandle, CrSlotNumber, CrInt32u contentId, CrInt32u, CrInt32u, CrChar* path, CrChar*) {
   std::string dir = path ? path : folder;
   std::string nama;
-  { std::lock_guard<std::mutex> l(mx); for (auto& v : video) if (v.first == contentId) nama = v.second; }
+  bool jpg = false;
+  { std::lock_guard<std::mutex> l(mx);
+    for (auto& v : video) if (v.first == contentId) nama = v.second;
+    for (auto& v : fotoKartu) if (v.first == contentId) { nama = v.second; jpg = true; } }
   if (nama.empty()) return CrError_Generic_InvalidParameter;
   nanti(100, [] { cb->OnNotifyRemoteTransferResult(CrNotify_RemoteTransfer_InProgress, 50, (CrChar*)""); });
   nanti(400, [=] {
     std::string f = dir + "/" + nama;
-    tulis(f, "video palsu " + nama);
+    tulis(f, jpg ? std::string((const char*)JPG, sizeof(JPG)) : "video palsu " + nama);
     std::vector<CrChar> buf(f.begin(), f.end()); buf.push_back(0);
     cb->OnNotifyRemoteTransferResult(CrNotify_RemoteTransfer_Result_OK, 100, buf.data());
   });

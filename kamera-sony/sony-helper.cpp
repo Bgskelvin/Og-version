@@ -107,8 +107,11 @@ static uint32_t g_kodeSambung = 0;
 // tunggu foto
 static bool g_tungguFoto = false;
 static std::string g_fileFoto;
-// unduh file (jalan di belakang)
+// unduh file (jalan di belakang). Job negatif = unduhan internal (foto dari kartu), ditunggu di sini.
 static std::atomic<long> g_unduhJob{0};
+static long g_unduhSelesai = 0;          // job yang baru selesai
+static bool g_unduhOk = false;
+static std::string g_unduhFile;
 
 static std::string teks(const CrChar* s) { return s ? std::string(s) : std::string(); }
 
@@ -158,14 +161,16 @@ class Panggilan : public SDK::IDeviceCallback {
       return;
     }
     if (!job) return;
-    if (notify == SDK::CrNotify_RemoteTransfer_Result_OK) {
-      g_unduhJob = 0;
-      kabar("unduh-selesai", "\"job\":" + std::to_string(job) + ",\"file\":\"" + esc(teks(filename)) + "\"");
-    } else if (notify == SDK::CrNotify_RemoteTransfer_Result_NG || notify == SDK::CrNotify_RemoteTransfer_Result_DeviceBusy ||
-               notify == SDK::CrNotify_RemoteTransfer_Control_Canceled || notify == SDK::CrNotify_RemoteTransfer_Control_Stopped) {
-      g_unduhJob = 0;
-      kabar("unduh-gagal", "\"job\":" + std::to_string(job) + ",\"kode\":\"" + hex(notify) + "\"");
-    }
+    bool ok = notify == SDK::CrNotify_RemoteTransfer_Result_OK;
+    bool gagal = notify == SDK::CrNotify_RemoteTransfer_Result_NG || notify == SDK::CrNotify_RemoteTransfer_Result_DeviceBusy ||
+                 notify == SDK::CrNotify_RemoteTransfer_Control_Canceled || notify == SDK::CrNotify_RemoteTransfer_Control_Stopped;
+    if (!ok && !gagal) return;
+    g_unduhJob = 0;
+    { std::lock_guard<std::mutex> l(g_mx); g_unduhSelesai = job; g_unduhOk = ok; g_unduhFile = ok ? teks(filename) : hex(notify); }
+    g_cv.notify_all();
+    if (job < 0) return;                  // unduhan internal: hasilnya dipakai perintah foto
+    if (ok) kabar("unduh-selesai", "\"job\":" + std::to_string(job) + ",\"file\":\"" + esc(teks(filename)) + "\"");
+    else kabar("unduh-gagal", "\"job\":" + std::to_string(job) + ",\"kode\":\"" + hex(notify) + "\"");
   }
   void OnNotifyRemoteTransferResult(CrInt32u, CrInt32u, CrInt8u*, CrInt64u) override {}
   void OnNotifyRemoteTransferContentsListChanged(CrInt32u notify, CrInt32u slot, CrInt32u n) override {
@@ -216,10 +221,10 @@ static std::string setelKamera() {
 }
 static void setelJikaPerlu() { if (g_perluSetel && g_tersambung) setelKamera(); }
 
-/* ---------------- Isi kartu: daftar file video ---------------- */
+/* ---------------- Isi kartu: daftar file (video MP4 / foto JPEG) ---------------- */
 struct FileKartu { uint32_t slot, contentId, fileId; std::string nama; uint64_t ukuran; };
 
-static std::vector<FileKartu> daftarVideo(uint32_t slot) {
+static std::vector<FileKartu> daftarFile(uint32_t slot, SDK::CrContentsFile_FileFormat format) {
   std::vector<FileKartu> out;
   SDK::CrCaptureDate* tanggal = nullptr;
   CrInt32u nTanggal = 0;
@@ -240,7 +245,7 @@ static std::vector<FileKartu> daftarVideo(uint32_t slot) {
     for (CrInt32u i = 0; i < nIsi; i++)
       for (CrInt32u f = 0; f < isi[i].filesNum; f++) {
         auto& fl = isi[i].files[f];
-        if (fl.fileFormat != SDK::CrContentsFile_FileFormat_Mp4) continue;
+        if (fl.fileFormat != format) continue;
         out.push_back({slot, isi[i].contentId, fl.fileId,
                        fl.filePath ? std::string((const char*)fl.filePath, fl.filePathLength ? strnlen((const char*)fl.filePath, fl.filePathLength) : strlen((const char*)fl.filePath)) : "",
                        fl.fileSize});
@@ -250,6 +255,7 @@ static std::vector<FileKartu> daftarVideo(uint32_t slot) {
   SDK::ReleaseRemoteTransferCapturedDateList(g_dev, tanggal);
   return out;
 }
+static std::vector<FileKartu> daftarVideo(uint32_t slot) { return daftarFile(slot, SDK::CrContentsFile_FileFormat_Mp4); }
 static std::set<uint64_t> g_videoSebelum;   // video yang sudah ada sebelum rekam dimulai
 static uint64_t kunci(const FileKartu& f) { return ((uint64_t)f.slot << 48) | ((uint64_t)f.contentId << 16) | f.fileId; }
 
@@ -334,25 +340,77 @@ static void cmdLiveView(long id) {
   jawabOk(id, "\"jpg\":\"" + base64(blok.GetImageData(), blok.GetImageSize()) + "\"");
 }
 
-static uint32_t tekan(uint32_t perintah) {
+static uint32_t tekan(uint32_t perintah, int tahanMs = 35) {
   SDK::CrError e = SDK::SendCommand(g_dev, perintah, SDK::CrCommandParam_Down);
   if (e) return e;
-  std::this_thread::sleep_for(std::chrono::milliseconds(35));
+  std::this_thread::sleep_for(std::chrono::milliseconds(tahanMs));
   return SDK::SendCommand(g_dev, perintah, SDK::CrCommandParam_Up);
 }
 
+// Tekan setengah (fokus) seperti tombol rana sungguhan. Kembali: teks hasil fokus (untuk laporan).
+static std::string fokus() {
+  if (tulisProp(SDK::CrDeviceProperty_S1, SDK::CrLockIndicator_Locked)) return "tidak-didukung";
+  auto batas = Clock::now() + std::chrono::milliseconds(2500);
+  while (Clock::now() < batas) {
+    int64_t v = -1;
+    if (bacaProp(SDK::CrDeviceProperty_FocusIndication, v)) {
+      if (v == SDK::CrFocusIndicator_Focused_AF_S || v == SDK::CrFocusIndicator_Focused_AF_C) return "fokus";
+      if (v == SDK::CrFocusIndicator_NotFocused_AF_S) return "tidak-fokus";
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+  }
+  return "waktu-habis";
+}
+
+// Salin satu file dari kartu ke folder, lalu tunggu sampai selesai
+static bool unduhSekarang(const FileKartu& f, const std::string& folder, long job, std::string& hasil, int ms) {
+  if (g_unduhJob) { hasil = "kartu sedang dipakai menyalin file lain"; return false; }
+  g_unduhJob = job;
+  SDK::CrError e = SDK::GetRemoteTransferContentsDataFile(g_dev, (SDK::CrSlotNumber)f.slot, f.contentId, f.fileId,
+                                                          0x5000000, const_cast<CrChar*>(folder.c_str()), nullptr);
+  if (e) { g_unduhJob = 0; hasil = "gagal mulai menyalin " + hex(e); return false; }
+  if (!tunggu(ms, [job] { return g_unduhSelesai == job; })) { hasil = "menyalin terlalu lama"; return false; }
+  hasil = g_unduhFile;
+  return g_unduhOk;
+}
+
+/* Jepret:
+   1. tekan setengah (fokus), tunggu fokus maks 2,5 detik
+   2. tekan penuh, lalu lepas
+   3. foto masuk lewat post view (cepat), ATAU kalau tidak datang, JPEG aslinya disalin dari kartu SD */
 static void cmdFoto(long id, const std::vector<std::string>& a) {
   if (!g_tersambung) return jawabGagal(id, "Kamera belum tersambung");
   setelJikaPerlu();
-  if (a.size() > 0 && !a[0].empty()) SDK::SetSaveInfo(g_dev, const_cast<CrChar*>(a[0].c_str()), const_cast<CrChar*>(""), -1);
+  std::string folder = a.size() > 0 ? a[0] : "";
+  if (!folder.empty()) SDK::SetSaveInfo(g_dev, const_cast<CrChar*>(folder.c_str()), const_cast<CrChar*>(""), -1);
+  std::set<uint64_t> sebelum;
+  for (auto& f : daftarFile(SDK::CrSlotNumber_Slot1, SDK::CrContentsFile_FileFormat_Jpeg)) sebelum.insert(kunci(f));
   { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = true; g_fileFoto.clear(); }
   auto t0 = Clock::now();
-  SDK::CrError e = tekan(SDK::CrCommandId_Release);
-  if (e) { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = false; return jawabGagal(id, "Kamera menolak jepret", e); }
-  bool ok = tunggu(15000, [] { return !g_tungguFoto; });
-  if (!ok) { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = false; return jawabGagal(id, "Foto tidak masuk ke komputer dalam 15 detik"); }
-  long ms = (long)std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t0).count();
-  jawabOk(id, "\"file\":\"" + esc(g_fileFoto) + "\",\"ms\":" + std::to_string(ms));
+  std::string hasilFokus = fokus();
+  SDK::CrError e = tekan(SDK::CrCommandId_Release, 100);
+  tulisProp(SDK::CrDeviceProperty_S1, SDK::CrLockIndicator_Unlocked);
+  if (e) { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = false; return jawabGagal(id, "Kamera menolak jepret (fokus: " + hasilFokus + ")", e); }
+  auto selesai = [&](const std::string& file, const char* sumber) {
+    long ms = (long)std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - t0).count();
+    jawabOk(id, "\"file\":\"" + esc(file) + "\",\"ms\":" + std::to_string(ms) + ",\"sumber\":\"" + sumber + "\",\"fokus\":\"" + hasilFokus + "\"");
+  };
+  if (tunggu(4000, [] { return !g_tungguFoto; })) return selesai(g_fileFoto, "postview");
+  { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = false; }
+  // Post view tidak datang: cari JPEG baru di kartu dan salin aslinya
+  auto batas = Clock::now() + std::chrono::seconds(8);
+  while (Clock::now() < batas) {
+    for (auto& f : daftarFile(SDK::CrSlotNumber_Slot1, SDK::CrContentsFile_FileFormat_Jpeg)) {
+      if (sebelum.count(kunci(f))) continue;
+      std::string hasil;
+      if (unduhSekarang(f, folder, -id, hasil, 20000)) return selesai(hasil, "kartu");
+      return jawabGagal(id, "Foto ada di kartu SD (" + f.nama + "), tapi gagal disalin: " + hasil);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  }
+  jawabGagal(id, hasilFokus == "tidak-fokus" || hasilFokus == "waktu-habis"
+    ? "Kamera tidak memotret karena belum fokus (fokus: " + hasilFokus + "). Arahkan ke objek yang lebih terang/berkontras, atau pakai fokus manual (MF)."
+    : "Kamera tidak memotret (fokus: " + hasilFokus + "). Cek mode kamera (harus mode foto, bukan video) dan kartu SD.");
 }
 
 static bool tungguRekam(bool merekam, int ms) {

@@ -284,7 +284,10 @@ function daftarkan() {
     st.tersambung = false; menyambung = false; jadwalSambung(0); return status();
   });
 }
-// Saat aplikasi dibuka: pakai sumber kamera dari pengaturan
-function mulai() { setel(readSettings().kamera); }
+// Saat aplikasi dibuka: bersihkan sisa file sementara, lalu pakai sumber kamera dari pengaturan
+function mulai() {
+  try { fs.rmSync(SEMENTARA, { recursive: true, force: true }); } catch (e) {}
+  setel(readSettings().kamera);
+}
 
 module.exports = { daftarkan, mulai, setel, matikan, status, pakaiSony, siap, foto, rekamMulai, rekamStop, unduh, MODE };
