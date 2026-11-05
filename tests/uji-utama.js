@@ -260,17 +260,12 @@ const KASUS = {
     cek((await panggil('sony-status')).mode === 'webcam' && (await panggil('sony-lv')) === null, 'kembali ke webcam: kamera Sony dilepas');
   },
 
-  async 'bahasa tamu & isi versi Inggris'() {
+  async 'bahasa tamu'() {
     const { panggil } = nyalakanAplikasi();
     cek((await panggil('get-settings')).bahasa === 'id', 'bawaan bahasa Indonesia');
     cek((await panggil('save-settings', { bahasa: 'en' })).bahasa === 'en', 'bahasa tamu bisa diganti ke English');
     cek((await panggil('save-settings', { bahasa: 'fr' })).bahasa === 'en', 'bahasa yang tidak dikenal diabaikan');
     cek((await panggil('get-config')).bahasa === 'en', 'bahasa ikut terkirim ke layar saat aplikasi dibuka');
-    const r = await panggil('save-couple', { name: 'X', welcome: 'Halo', welcomeEn: ' Hello ', questions: ['Satu', '', 'Tiga'], questionsEn: ['One', 'nyasar', ''] });
-    cek(r.couple.welcomeEn === 'Hello' && JSON.stringify(r.couple.questions) === '["Satu","Tiga"]' && JSON.stringify(r.couple.questionsEn) === '["One",""]',
-        'pertanyaan & versi Inggrisnya tetap berpasangan setelah baris kosong dibuang', r.couple);
-    const t = await panggil('save-template', { coupleId: r.couple.id, nama: 'T', texts: [{ text: 'Terima kasih', textEn: 'Thank you' }] });
-    cek(t.template.texts[0].textEn === 'Thank you', 'teks template versi Inggris tersimpan');
   },
 
   async 'riwayat sesi: buka, Finder, coba lagi'() {

@@ -85,7 +85,7 @@ function gambarTemplate(ctx, siap, opsi = {}) {
   if (bingkai) ctx.drawImage(bingkai, 0, 0, tpl.W, tpl.H);
 
   for (const t of tpl.texts) {
-    const isi = isiTeksTemplate(pilihBahasa(t.text, t.textEn));
+    const isi = isiTeksTemplate(t.text);
     if (!isi) continue;
     ctx.font = fontTeks(t);
     ctx.fillStyle = t.color;
@@ -99,7 +99,7 @@ function gambarTemplate(ctx, siap, opsi = {}) {
 function lebarTeks(t) {
   const c = lebarTeks.c || (lebarTeks.c = document.createElement('canvas').getContext('2d'));
   c.font = fontTeks(t);
-  return c.measureText(isiTeksTemplate(pilihBahasa(t.text, t.textEn)) || ' ').width;
+  return c.measureText(isiTeksTemplate(t.text) || ' ').width;
 }
 
 /* Rasio kotak foto (lebar : tinggi). Dipilih admin per template; semua foto 1-4 memakai rasio ini.

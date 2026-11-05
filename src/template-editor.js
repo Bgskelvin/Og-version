@@ -249,10 +249,6 @@ function isiPanelEditor() {
   $('teTeksEdit').style.display = tx ? '' : 'none';
   if (tx) {
     if (document.activeElement !== $('teTeksIsi')) $('teTeksIsi').value = tx.text;
-    if (document.activeElement !== $('teTeksIsiEn')) $('teTeksIsiEn').value = tx.textEn || '';
-    $('teBahasaInfo').textContent = bahasa === 'en'
-      ? 'Bahasa tamu sekarang English: pratinjau memakai versi Inggris (kalau diisi), tanggal ditulis dalam bahasa Inggris.'
-      : 'Versi Inggris dipakai saat bahasa tamu diatur ke English (Admin → Tampilan).';
     $('teTeksUkuran').value = tx.size;
     const fo = $('teTeksFont'); fo.innerHTML = '';
     for (const [key, nama] of Object.entries(NAMA_FONT)) {
@@ -370,7 +366,6 @@ function pasangTemplateEditor() {
     tandaiBerubah(); $('teTeksIsi').focus(); $('teTeksIsi').select();
   };
   const teksTerpilih = () => (te.sel.jenis === 'teks' ? te.tpl.texts[te.sel.i] : null);
-  $('teTeksIsiEn').oninput = e => { const t = teksTerpilih(); if (!t) return; t.textEn = e.target.value; te.berubah = true; gambarEditor(); };
   $('teTeksIsi').oninput = e => {
     const t = teksTerpilih(); if (!t) return;
     t.text = e.target.value; te.berubah = true; gambarEditor();

@@ -168,7 +168,7 @@
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Layar penuh terkunci (kiosk)</span>
           <label class="switch"><input type="checkbox" id="setKiosk"><i></i></label></div>
       </div>
-      <p class="pe-hint" style="margin:8px 6px 0">Bahasa tamu mengubah semua tulisan di layar tamu. Sambutan, pertanyaan quiz, dan teks template memakai versi Inggris kalau diisi. Halaman Admin tetap bahasa Indonesia.</p>
+      <p class="pe-hint" style="margin:8px 6px 0">Bahasa tamu mengubah tulisan bawaan di layar tamu (tombol, petunjuk, tanggal di foto). Sambutan, pertanyaan quiz, dan teks template tampil persis seperti yang kamu ketik. Halaman Admin tetap bahasa Indonesia.</p>
       <div class="note ok" id="setMsg"></div>
 
       <div class="group-title">Login Admin</div>
@@ -198,7 +198,6 @@
       <div class="group">
         <div class="item split"><span>Nama</span><input id="fName" class="field" maxlength="80" placeholder="Rina &amp; Dimas" autocomplete="off"></div>
         <div class="item split"><span>Sambutan</span><input id="fWelcome" class="field" maxlength="160" placeholder="Opsional" autocomplete="off"></div>
-        <div class="item split"><span>Sambutan (English)</span><input id="fWelcomeEn" class="field" maxlength="160" placeholder="Opsional, dipakai saat bahasa tamu English" autocomplete="off"></div>
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Jadikan couple aktif</span>
           <label class="switch"><input type="checkbox" id="fActive"><i></i></label></div>
       </div>
@@ -214,9 +213,6 @@
       <p class="pe-hint" style="margin:8px 6px 0">Minimal satu menu harus aktif. Tamu hanya melihat menu yang aktif untuk couple ini.</p>
       <div class="note err" id="fMenuMsg"></div>
       <div class="group-title">Pertanyaan quiz <span id="qCount" style="font-weight:500"></span><span id="qWajib" style="font-weight:500"></span></div>
-      <div class="rw-chips" id="qBahasaPilih" style="margin:0 0 10px">
-        <button class="rw-chip on" data-b="id">Bahasa Indonesia</button><button class="rw-chip" data-b="en">English (opsional)</button>
-      </div>
       <div class="group" id="qInputs"></div>
       <div class="note err" id="tambahErr"></div>
       <div class="group-title">Template foto <span id="tplCouple" style="display:none"></span></div>
@@ -403,9 +399,6 @@
           <div id="teTeksEdit">
             <div class="pe-sec">Isi teks</div>
             <div class="group"><div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off"></div></div>
-            <div class="pe-sec">Isi teks (English, opsional)</div>
-            <div class="group"><div class="item"><input id="teTeksIsiEn" class="field" maxlength="120" autocomplete="off" placeholder="Kosongkan kalau sama"></div></div>
-            <p class="pe-hint" id="teBahasaInfo" style="margin-top:6px"></p>
             <p class="pe-hint" style="margin-top:6px">Ketik <b>{couple}</b> untuk nama couple dan <b>{tanggal}</b> untuk tanggal hari ini.</p>
             <div class="pe-sec">Huruf</div>
             <div class="pe-row" id="teTeksFont"></div>

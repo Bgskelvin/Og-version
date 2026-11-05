@@ -39,8 +39,7 @@ window.api = {
     if (!c.name.trim()) return { error: 'Nama couple wajib diisi.' };
     if (!Object.values(c.menu).some(Boolean)) return { error: 'Minimal satu menu harus aktif.' };
     if (c.menu.quiz && !q.length) return { error: 'Quick quiz aktif: isi minimal 1 pertanyaan, atau matikan Quick quiz.' };
-    const baru = { id: c.id || 'n' + CP.couples.length, name: c.name.trim(), welcome: c.welcome, welcomeEn: c.welcomeEn,
-      questions: q, questionsEn: c.questions.map((x, i) => [x, (c.questionsEn || [])[i] || '']).filter(([x]) => x.trim()).map(p => p[1]), menu: c.menu };
+    const baru = { id: c.id || 'n' + CP.couples.length, name: c.name.trim(), welcome: c.welcome, questions: q, menu: c.menu };
     const i = CP.couples.findIndex(x => x.id === baru.id); if (i < 0) CP.couples.push(baru); else CP.couples[i] = baru;
     return { ok: true, couple: baru, data: JSON.parse(JSON.stringify(CP)) }; },
   setActiveCouple: async id => { CP.activeId = id; return { ok: true, data: JSON.parse(JSON.stringify(CP)) }; },
@@ -444,29 +443,18 @@ async function main() {
   console.log('\n▶ Bahasa layar tamu');
   await pg.evaluate(() => show('admin'));
   cek(await pg.inputValue('#setBahasa') === 'id', 'bawaan: bahasa Indonesia');
-  // Versi Inggris isi couple
-  await pg.locator('#coupleList .cp-row').first().click(); await tunggu(300);
-  await pg.fill('#fWelcomeEn', 'Leave a message for us');
-  await pg.click('#qBahasaPilih [data-b="en"]');
-  cek(await pg.isVisible('.qInEn') && !(await pg.isVisible('.qIn')) && /English: Q satu/.test(await pg.locator('.qInEn').first().getAttribute('placeholder')),
-      'pertanyaan quiz versi Inggris diisi di samping versi Indonesia');
-  await pg.locator('.qInEn').first().fill('Question one');
-  await pg.click('#fMenuQuiz').catch(() => {}); if (!(await pg.isChecked('#fMenuQuiz'))) await pg.click('#fMenuQuiz');
-  await pg.click('#btnTambahSimpan'); await tunggu(300);
-  const a = await pg.evaluate(() => CP.couples.find(c => c.id === 'a'));
-  cek(a.welcomeEn === 'Leave a message for us' && a.questionsEn[0] === 'Question one' && a.questions[0] === 'Q satu', 'versi Inggris sambutan & pertanyaan tersimpan', a);
   // Ganti bahasa tamu ke English
   await pg.selectOption('#setBahasa', 'en'); await tunggu(300);
   cek(/berbahasa Inggris/.test(await pg.textContent('#setMsg')) && /Tambah couple/.test(await pg.textContent('#btnAddCouple')) && /Riwayat sesi/.test(await pg.textContent('#btnRiwayat')),
       'halaman Admin tetap berbahasa Indonesia');
   await pg.click('#btnAdminBack'); await tunggu(200);
-  cek(/Leave a message/.test(await pg.textContent('#btnToPesan')) && await pg.textContent('#welcome') === 'Leave a message for us' && await pg.locator('#btnToPesan svg').count() === 1,
-      'Halaman Utama berbahasa Inggris (ikon tombol tetap ada)');
+  cek(/Leave a message/.test(await pg.textContent('#btnToPesan')) && await pg.textContent('#welcome') === 'Tinggalkan pesan untuk kami' && await pg.locator('#btnToPesan svg').count() === 1,
+      'Halaman Utama berbahasa Inggris (ikon tombol tetap ada); sambutan tampil seperti yang diketik');
   await pg.evaluate(() => { activeCouple.menu.quiz = true; terapkanMenu(); });
   await pg.click('#btnToQuiz');
   cek(/random questions/.test(await pg.textContent('#quizInfo')) && /Start quiz/.test(await pg.textContent('#btnQuizMulai')) && /Back/.test(await pg.textContent('#btnQuizBack')),
       'halaman Quiz berbahasa Inggris');
-  cek(await pg.evaluate(() => cfg.quiz[0]) === 'Question one' && await pg.evaluate(() => cfg.quiz[1]) === 'Q dua', 'quiz memakai pertanyaan Inggris; yang belum diterjemahkan tetap versi Indonesia');
+  cek(await pg.evaluate(() => cfg.quiz[0]) === 'Q satu', 'pertanyaan quiz tampil seperti yang diketik admin');
   await pg.click('#btnQuizBack'); await pg.click('#btnToPhoto');
   cek(/We'll take 4 photos/.test(await pg.textContent('#pbIntro')) && /Start/.test(await pg.textContent('#pbStart')), 'halaman Photo booth berbahasa Inggris');
   await pg.click('#pbStart');
@@ -474,9 +462,8 @@ async function main() {
   cek(/Retake/.test(await pg.textContent('[data-redo="0"]')) && /Finish & edit/.test(await pg.textContent('#pbFinish')), 'tombol Retake & Finish & edit');
   await pg.click('#pbFinish'); await tunggu(500);
   cek(/Edit photo/.test(await pg.textContent('#editphoto h2')) && /Stickers/.test(await pg.textContent('[data-tab="sticker"]')), 'halaman Edit foto berbahasa Inggris');
-  cek(await pg.evaluate(() => isiTeksTemplate(pilihBahasa('{tanggal}', '')) === new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
-      && pilihBahasa('Terima kasih', 'Thank you') === 'Thank you' && pilihBahasa('Terima kasih', '') === 'Terima kasih'),
-      'teks template: versi Inggris dipakai kalau ada, tanggal format Inggris');
+  cek(await pg.evaluate(() => isiTeksTemplate('{tanggal}') === new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })),
+      'tanggal di template foto ditulis dalam bahasa Inggris');
   await pg.click('#peDone'); await tungguLayar('thanks');
   cek(/Thank you/.test(await pg.textContent('#thanks h1')) && /Your photos have been saved/.test(await pg.textContent('#thanksMsg')) && /Try again/.test(await pg.textContent('#btnCobaLagi')),
       'halaman Terima kasih berbahasa Inggris');

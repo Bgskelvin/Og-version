@@ -1,6 +1,7 @@
 /* =====================================================================
    bahasa.js — bahasa layar tamu (diatur di Admin → Tampilan).
-   Halaman Admin selalu berbahasa Indonesia.
+   Halaman Admin selalu berbahasa Indonesia. Isi yang diketik admin
+   (sambutan, pertanyaan quiz, teks template) tampil apa adanya.
 
    Cara pakai:
    - Tulisan tetap di index.html: beri atribut data-t="kunci". Teks bahasa
@@ -75,8 +76,6 @@ function t(kunci, isi = {}) {
   return String(s).replace(/\{(\w+)\}/g, (_, k) => (isi[k] ?? ''));
 }
 const tanggalHariIni = () => new Date().toLocaleDateString(LOKAL[bahasa] || 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-// Teks yang diketik admin dengan versi Inggris opsional: pakai versi Inggris kalau ada
-const pilihBahasa = (id, en) => (bahasa === 'en' && en && String(en).trim() ? en : id);
 
 // Ganti semua tulisan bertanda data-t. Hanya teksnya yang diganti; ikon di dalam tombol tetap.
 function terapkanBahasa() {

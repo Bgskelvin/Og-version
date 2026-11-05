@@ -36,7 +36,6 @@ function bersihkan(t) {
   const texts = (Array.isArray(t.texts) ? t.texts : []).slice(0, 12).map((x, i) => ({
     id: String(x.id || 't' + i).slice(0, 20),
     text: String(x.text || '').slice(0, 120),
-    textEn: String(x.textEn || '').slice(0, 120),
     x: angka(x.x, 0, W, W / 2), y: angka(x.y, 0, H, H / 2),
     size: angka(x.size, 10, 400, 60),
     color: warna(x.color, '#1D1D1F'),
