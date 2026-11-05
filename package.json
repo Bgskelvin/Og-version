@@ -10,6 +10,7 @@
     "test:tampilan": "node tests/uji-tampilan.js",
     "build:sony": "bash kamera-sony/build.sh",
     "uji:sony": "node tests/uji-kamera-sony.js",
+    "uji:sony-tidur": "node tests/uji-sony-tidur.js",
     "cloud:pasang": "bash cloud/pasang.sh"
   },
   "keywords": [],
