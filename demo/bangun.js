@@ -35,10 +35,10 @@ function bangun() {
     html = html.replace(lama, baru);
   };
   ganti('<meta name="viewport" content="width=device-width, initial-scale=1">',
-    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">\n' +
     '<meta name="robots" content="noindex">\n' +
     '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n' +
-    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n<meta name="apple-mobile-web-app-title" content="Leura">\n' +
+    '<meta name="apple-mobile-web-app-status-bar-style" content="default">\n<meta name="apple-mobile-web-app-title" content="Leura">\n' +
     '<meta name="theme-color" content="#f5f5f7">\n<link rel="manifest" href="manifest.json">\n<link rel="apple-touch-icon" href="ikon-180.png">');
   ganti('<title>Videobooth</title>', '<title>Leura Demo</title>');
   ganti('<link rel="stylesheet" href="styles/photobooth.css">', '<link rel="stylesheet" href="styles/photobooth.css">\n<link rel="stylesheet" href="demo.css">');
@@ -46,7 +46,7 @@ function bangun() {
   fs.writeFileSync(path.join(KELUAR, 'index.html'), html);
 
   fs.writeFileSync(path.join(KELUAR, 'manifest.json'), JSON.stringify({
-    name: 'Leura Demo', short_name: 'Leura', start_url: './', scope: './', display: 'fullscreen', orientation: 'portrait',
+    name: 'Leura Demo', short_name: 'Leura', start_url: './', scope: './', display: 'fullscreen', orientation: 'landscape',
     background_color: '#f5f5f7', theme_color: '#f5f5f7',
     icons: [{ src: 'ikon-180.png', sizes: '180x180', type: 'image/png' }, { src: 'ikon-512.png', sizes: '512x512', type: 'image/png' }],
   }, null, 2));

@@ -349,6 +349,26 @@
   };
   void cbErrorRekam;
 
+  /* ---------- Ukuran tampilan di HP landscape ----------
+     Leura dirancang untuk layar booth setinggi ±540–800 titik. HP landscape cuma ±390,
+     jadi seluruh tampilan diperkecil secara proporsional: halaman ditata seolah
+     layarnya setinggi TINGGI_DASAR lalu dikecilkan agar pas (lewat meta viewport). */
+  const TINGGI_DASAR = 540;
+  function aturSkala() {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const panjang = Math.max(screen.width, screen.height), pendek = Math.min(screen.width, screen.height);
+    const datar = matchMedia('(orientation: landscape)').matches;
+    const isi = datar && pendek < TINGGI_DASAR
+      ? `width=${Math.round(panjang * TINGGI_DASAR / pendek)}, user-scalable=no`
+      : 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+    if (meta.getAttribute('content') !== isi) meta.setAttribute('content', isi);
+    document.documentElement.classList.toggle('demo-datar', datar);
+  }
+  aturSkala();
+  addEventListener('orientationchange', () => setTimeout(aturSkala, 250));
+  matchMedia('(orientation: landscape)').addEventListener('change', aturSkala);
+
   /* ---------- Tambahan khusus demo ---------- */
   // Layar HP tetap menyala selama presentasi
   let kunciLayar = null;
