@@ -21,11 +21,21 @@ function salinFolder(dari, ke) {
   }
 }
 
+// vh/vw → ukuran tampilan demo (lihat "Ukuran tampilan di HP landscape" di api-demo.js)
+const ubahVhVw = t => t.replace(/(^|[^\w.-])(\d*\.?\d+)(vh|vw)\b/g, (m, a, n, u) => `${a}calc(${n} * var(--${u}, 1${u}))`);
+
 function bangun() {
   fs.rmSync(KELUAR, { recursive: true, force: true });
   fs.mkdirSync(KELUAR, { recursive: true });
   salinFolder(path.join(AKAR, 'src'), path.join(KELUAR, 'src'));
   salinFolder(path.join(AKAR, 'styles'), path.join(KELUAR, 'styles'));
+  for (const f of fs.readdirSync(path.join(KELUAR, 'styles'))) {
+    const p = path.join(KELUAR, 'styles', f);
+    let css = ubahVhVw(fs.readFileSync(p, 'utf8'));
+    // Editor foto bertumpuk hanya di HP tegak (di HP landscape tampilannya selebar layar booth)
+    css = css.replace('@media (max-width:900px), (orientation:portrait) {', '@media (orientation:portrait) {');
+    fs.writeFileSync(p, css);
+  }
   for (const f of ['api-demo.js', 'demo.css', 'contoh-unduh.html', 'ikon-180.png', 'ikon-512.png'])
     fs.copyFileSync(path.join(__dirname, f), path.join(KELUAR, f));
 
@@ -41,12 +51,16 @@ function bangun() {
     '<meta name="apple-mobile-web-app-status-bar-style" content="default">\n<meta name="apple-mobile-web-app-title" content="Leura">\n' +
     '<meta name="theme-color" content="#f5f5f7">\n<link rel="manifest" href="manifest.json">\n<link rel="apple-touch-icon" href="ikon-180.png">');
   ganti('<title>Videobooth</title>', '<title>Leura Demo</title>');
+  // Seluruh tampilan dibungkus supaya bisa diperkecil di HP landscape
+  html = html.replace(/<body>\n/, '<body>\n<div id="skala">\n');
+  ganti('<script src="src/state.js"></script>', '</div>\n<script src="src/state.js"></script>');
+  html = html.replace(/style="([^"]*)"/g, (m, isi) => `style="${ubahVhVw(isi)}"`);
   ganti('<link rel="stylesheet" href="styles/photobooth.css">', '<link rel="stylesheet" href="styles/photobooth.css">\n<link rel="stylesheet" href="demo.css">');
   ganti('<script src="src/state.js"></script>', '<script src="api-demo.js"></script>\n<script src="src/state.js"></script>');
   fs.writeFileSync(path.join(KELUAR, 'index.html'), html);
 
   fs.writeFileSync(path.join(KELUAR, 'manifest.json'), JSON.stringify({
-    name: 'Leura Demo', short_name: 'Leura', start_url: './', scope: './', display: 'fullscreen', orientation: 'landscape',
+    name: 'Leura Demo', short_name: 'Leura', start_url: './', scope: './', display: 'fullscreen', orientation: 'any',
     background_color: '#f5f5f7', theme_color: '#f5f5f7',
     icons: [{ src: 'ikon-180.png', sizes: '180x180', type: 'image/png' }, { src: 'ikon-512.png', sizes: '512x512', type: 'image/png' }],
   }, null, 2));

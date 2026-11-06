@@ -1,6 +1,8 @@
 /* demo.css — penyesuaian Leura untuk layar HP (hanya dipakai versi demo) */
 html.demo, html.demo body { overscroll-behavior:none; -webkit-tap-highlight-color:transparent; }
-html.demo body { padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+/* Bungkus seluruh tampilan: diperkecil di HP landscape (ukurannya diatur api-demo.js) */
+#skala { position:fixed; left:0; top:0; width:var(--skW, 100vw); height:var(--skH, 100vh); overflow:hidden;
+  transform:scale(var(--sk, 1)); transform-origin:0 0; }
 
 /* Tombol Start muat di layar HP */
 @media (max-width:600px) {

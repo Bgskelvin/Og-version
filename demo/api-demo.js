@@ -350,24 +350,31 @@
   void cbErrorRekam;
 
   /* ---------- Ukuran tampilan di HP landscape ----------
-     Leura dirancang untuk layar booth setinggi ±540–800 titik. HP landscape cuma ±390,
-     jadi seluruh tampilan diperkecil secara proporsional: halaman ditata seolah
-     layarnya setinggi TINGGI_DASAR lalu dikecilkan agar pas (lewat meta viewport). */
+     Leura dirancang untuk layar booth (tinggi ±540–800 titik); HP landscape cuma ±390.
+     Seluruh tampilan ada di dalam <div id="skala">: ditata seolah layarnya setinggi
+     TINGGI_DASAR, lalu dikecilkan dengan transform supaya pas di layar HP.
+     Ukuran vh/vw di CSS sudah diganti var(--vh)/var(--vw) oleh demo/bangun.js. */
   const TINGGI_DASAR = 540;
+  const nyata = () => ({ w: document.documentElement.clientWidth || screen.width, h: document.documentElement.clientHeight || screen.height });
+  let ukuran = nyata(), skala = 1;
   function aturSkala() {
-    const meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) return;
-    const panjang = Math.max(screen.width, screen.height), pendek = Math.min(screen.width, screen.height);
-    const datar = matchMedia('(orientation: landscape)').matches;
-    const isi = datar && pendek < TINGGI_DASAR
-      ? `width=${Math.round(panjang * TINGGI_DASAR / pendek)}, user-scalable=no`
-      : 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
-    if (meta.getAttribute('content') !== isi) meta.setAttribute('content', isi);
-    document.documentElement.classList.toggle('demo-datar', datar);
+    const { w, h } = nyata();
+    skala = w > h && h < TINGGI_DASAR ? h / TINGGI_DASAR : 1;
+    ukuran = { w: w / skala, h: h / skala };
+    const r = document.documentElement.style;
+    r.setProperty('--sk', skala);
+    r.setProperty('--skW', ukuran.w + 'px'); r.setProperty('--skH', ukuran.h + 'px');
+    r.setProperty('--vw', ukuran.w / 100 + 'px'); r.setProperty('--vh', ukuran.h / 100 + 'px');
   }
+  // Kode aplikasi yang membaca lebar/tinggi layar ikut memakai ukuran tampilan yang diperkecil
+  try {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => ukuran.w });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => ukuran.h });
+  } catch (e) {}
   aturSkala();
-  addEventListener('orientationchange', () => setTimeout(aturSkala, 250));
-  matchMedia('(orientation: landscape)').addEventListener('change', aturSkala);
+  addEventListener('resize', aturSkala);
+  addEventListener('orientationchange', () => setTimeout(aturSkala, 300));
+  addEventListener('DOMContentLoaded', aturSkala);
 
   /* ---------- Tambahan khusus demo ---------- */
   // Layar HP tetap menyala selama presentasi
