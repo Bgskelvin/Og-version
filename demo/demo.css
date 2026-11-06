@@ -52,3 +52,12 @@ html.demo, html.demo body { overscroll-behavior:none; -webkit-tap-highlight-colo
   html.demo .rw-ringkas { gap:6px; }
   html.demo .rw-ringkas div { padding:10px 4px; }
 }
+
+/* ============ HP landscape (tampilan diperkecil, lihat api-demo.js) ============ */
+/* Kotak "Photo booth · Mulai" selalu di bawah, seperti Kirim pesan & Quiz */
+html.demo #photo #pbPre { margin-top:auto; }
+/* Quiz: kartu pertanyaan & tombol Lanjut lebih ramping */
+html.demo-kecil #qCard, html.demo-kecil #quizRun .row { width:100%; max-width:680px; }
+html.demo-kecil #qCard { padding:18px 28px; }
+html.demo-kecil #qText { font-size:30px !important; }
+html.demo-kecil #btnNext { min-height:56px; font-size:20px; }

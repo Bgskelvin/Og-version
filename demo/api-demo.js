@@ -354,7 +354,7 @@
      Seluruh tampilan ada di dalam <div id="skala">: ditata seolah layarnya setinggi
      TINGGI_DASAR, lalu dikecilkan dengan transform supaya pas di layar HP.
      Ukuran vh/vw di CSS sudah diganti var(--vh)/var(--vw) oleh demo/bangun.js. */
-  const TINGGI_DASAR = 540;
+  const TINGGI_DASAR = 580;
   const nyata = () => ({ w: document.documentElement.clientWidth || screen.width, h: document.documentElement.clientHeight || screen.height });
   let ukuran = nyata(), skala = 1;
   function aturSkala() {
@@ -365,6 +365,7 @@
     r.setProperty('--sk', skala);
     r.setProperty('--skW', ukuran.w + 'px'); r.setProperty('--skH', ukuran.h + 'px');
     r.setProperty('--vw', ukuran.w / 100 + 'px'); r.setProperty('--vh', ukuran.h / 100 + 'px');
+    document.documentElement.classList.toggle('demo-kecil', skala < 1);
   }
   // Kode aplikasi yang membaca lebar/tinggi layar ikut memakai ukuran tampilan yang diperkecil
   try {
