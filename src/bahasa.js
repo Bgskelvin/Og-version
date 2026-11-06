@@ -37,6 +37,7 @@ const KAMUS = {
     '@start.sentuh': 'Touch to start',
     '@nama.judul': "What's your name?", '@nama.info': 'Your name will be saved with your video and photos for the couple.',
     '@utama.pesan': 'Leave a message', '@utama.quiz': 'Quick quiz', '@utama.foto': 'Photo booth',
+    '@utama.pesanInfo': 'Record a message for the couple', '@utama.quizInfo': 'Answer a few fun questions', '@utama.fotoInfo': 'Take 4 photos, then decorate them',
     '@kembali': 'Back', '@mulai': 'Start', '@selesai': 'Done', '@hapus': 'Delete',
     '@pesan.judul': 'Leave a message', '@pesan.petunjuk': 'Press Start, share your message, then press Done.',
     '@quiz.mulai': 'Start quiz',

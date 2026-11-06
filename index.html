@@ -61,11 +61,20 @@
 <!-- 2. HALAMAN UTAMA -->
 <div class="screen" id="utama">
   <button class="chip right" id="btnAdminOpen"><svg class="i"><use href="#i-sliders"/></svg>Admin</button>
-  <div class="card glass"><p id="sapaTamu" class="sapa" style="display:none"></p><h1 id="couple"></h1><p id="welcome"></p></div>
-  <div class="row">
-    <button id="btnToPesan" class="btn primary" data-t="utama.pesan"><svg class="i"><use href="#i-msg"/></svg>Kirim pesan</button>
-    <button id="btnToQuiz" class="btn glassy" data-t="utama.quiz"><svg class="i"><use href="#i-spark"/></svg>Quick quiz</button>
-    <button id="btnToPhoto" class="btn glassy" data-t="utama.foto"><svg class="i"><use href="#i-camera"/></svg>Photo booth</button>
+  <div class="menu-utama glass">
+    <div class="mu-kepala">
+      <p id="sapaTamu" class="sapa" style="display:none"></p>
+      <h1 id="couple"></h1>
+      <p id="welcome"></p>
+    </div>
+    <div class="mu-pilihan">
+      <button id="btnToPesan" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-msg"/></svg></span>
+        <b data-t="utama.pesan">Kirim pesan</b><small data-t="utama.pesanInfo">Rekam ucapan untuk mempelai</small></button>
+      <button id="btnToQuiz" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-spark"/></svg></span>
+        <b data-t="utama.quiz">Quick quiz</b><small data-t="utama.quizInfo">Jawab pertanyaan seru</small></button>
+      <button id="btnToPhoto" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-camera"/></svg></span>
+        <b data-t="utama.foto">Photo booth</b><small data-t="utama.fotoInfo">Ambil 4 foto, lalu hias hasilnya</small></button>
+    </div>
   </div>
 </div>
 
