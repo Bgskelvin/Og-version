@@ -11,6 +11,7 @@
     "build:sony": "bash kamera-sony/build.sh",
     "uji:sony": "node tests/uji-kamera-sony.js",
     "uji:sony-tidur": "node tests/uji-sony-tidur.js",
+    "uji:sony-mode": "node tests/uji-sony-mode.js",
     "cloud:pasang": "bash cloud/pasang.sh"
   },
   "keywords": [],

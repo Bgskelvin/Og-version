@@ -7,11 +7,13 @@
      foto-hilang   kamera tidak memotret sama sekali
      tidak-fokus   kamera gagal fokus dan tidak memotret
      postview-mati foto tersimpan di kartu, tapi post view tidak pernah dikirim
-     putus         kamera terputus 1,5 detik setelah tersambung */
+     putus         kamera terputus 1,5 detik setelah tersambung
+     mode-terkunci mode foto/video tidak bisa diubah dari komputer (ikut tombol kamera) */
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -35,6 +37,12 @@ void CrDeviceProperty::SetCode(CrInt32u c) { code = c; }
 CrInt32u CrDeviceProperty::GetCode() const { return code; }
 void CrDeviceProperty::SetCurrentValue(CrInt64u v) { currentValue = v; }
 CrInt64u CrDeviceProperty::GetCurrentValue() const { return currentValue; }
+bool CrDeviceProperty::IsSetEnableCurrentValue() const { return enableFlag == CrPropertyEnableFlag(1); }
+void CrDeviceProperty::SetPropertyEnableFlag(CrPropertyEnableFlag f) { enableFlag = f; }
+void CrDeviceProperty::SetValueSize(CrInt32u s) { valuesSize = s; }
+CrInt32u CrDeviceProperty::GetValueSize() const { return valuesSize; }
+void CrDeviceProperty::SetValues(CrInt8u* v) { values = v; }
+CrInt8u* CrDeviceProperty::GetValues() const { return values; }
 CrImageInfo::CrImageInfo() : width(640), height(424), bufferSize(0) {}
 CrImageInfo::~CrImageInfo() {}
 CrInt32u CrImageInfo::GetBufferSize() const { return bufferSize; }
@@ -118,6 +126,10 @@ CrError Connect(ICrCameraObjectInfo*, IDeviceCallback* c, CrDeviceHandle* h, CrS
 }
 CrError Disconnect(CrDeviceHandle) { nanti(50, [] { cb->OnDisconnected(0); }); return CrError_None; }
 CrError ReleaseDevice(CrDeviceHandle) { return CrError_None; }
+// Mode kamera tiruan: mulai di mode foto (P), pilihan foto P/A/S/M + video P/A/S/M + S&Q P
+static uint32_t modeKamera = CrExposure_P_Auto;
+static uint32_t MODE_PILIHAN[] = { CrExposure_M_Manual, CrExposure_P_Auto, CrExposure_A_AperturePriority, CrExposure_S_ShutterSpeedPriority,
+                                   CrExposure_Movie_P, CrExposure_Movie_A, CrExposure_Movie_S, CrExposure_Movie_M, CrExposure_Movie_SQMotion_P };
 CrError GetSelectDeviceProperties(CrDeviceHandle, CrInt32u, CrInt32u* codes, CrDeviceProperty** props, CrInt32* n) {
   auto* p = new CrDeviceProperty[1];
   p[0].SetCode(codes[0]);
@@ -128,12 +140,21 @@ CrError GetSelectDeviceProperties(CrDeviceHandle, CrInt32u, CrInt32u* codes, CrD
     case CrDeviceProperty_MediaSLOT1_RemainingNumber: v = 2400; break;
     case CrDeviceProperty_RecordingState: v = merekam ? CrMovie_Recording_State_Recording : CrMovie_Recording_State_Not_Recording; break;
     case CrDeviceProperty_FocusIndication: v = skenario() == "tidak-fokus" ? CrFocusIndicator_NotFocused_AF_S : CrFocusIndicator_Focused_AF_S; break;
+    case CrDeviceProperty_ExposureProgramMode:
+      v = modeKamera;
+      p[0].SetPropertyEnableFlag(CrPropertyEnableFlag(skenario() == "mode-terkunci" ? 0 : 1));
+      p[0].SetValues(reinterpret_cast<CrInt8u*>(MODE_PILIHAN));
+      p[0].SetValueSize(sizeof(MODE_PILIHAN));
+      break;
   }
   p[0].SetCurrentValue(v);
   *props = p; *n = 1; return CrError_None;
 }
 CrError ReleaseDeviceProperties(CrDeviceHandle, CrDeviceProperty* p) { delete[] p; return CrError_None; }
-CrError SetDeviceProperty(CrDeviceHandle, CrDeviceProperty*) { return CrError_None; }
+CrError SetDeviceProperty(CrDeviceHandle, CrDeviceProperty* p) {
+  if (p && p->GetCode() == CrDeviceProperty_ExposureProgramMode && skenario() != "mode-terkunci") modeKamera = (uint32_t)p->GetCurrentValue();
+  return CrError_None;
+}
 CrError SetDeviceSetting(CrDeviceHandle, CrInt32u, CrInt32u) { return CrError_None; }
 CrError SetSaveInfo(CrDeviceHandle, CrChar* path, CrChar*, CrInt32) { folder = path; return CrError_None; }
 CrError GetLiveViewImageInfo(CrDeviceHandle, CrImageInfo* info) {

@@ -22,6 +22,9 @@
        unduh <slot> <contentId> <fileId> <folder>
                                       salin file dari kartu ke <folder>
                                       (jalan di belakang; selesai = kabar "unduh-selesai")
+       mode [foto|video]              tanpa argumen: baca mode kamera (ExposureProgramMode)
+                                      foto/video: pindah mode dari komputer (tanpa memutar tombol
+                                      kamera; butuh "Position Key" = PC Remote, dipasang saat sambung)
        keluar
    ===================================================================== */
 #include <atomic>
@@ -308,6 +311,61 @@ static void cmdPutus(long id) {
   jawabOk(id);
 }
 
+/* ---------------- Mode kamera: foto / video ---------------- */
+// Baca properti beserta "bisa diubah?" dan daftar pilihan nilainya (seperti contoh resmi Sony)
+static bool bacaPropLengkap(uint32_t kode, uint64_t& nilai, bool& bisaUbah, std::vector<uint32_t>& pilihan) {
+  CrInt32 n = 0;
+  SDK::CrDeviceProperty* daftar = nullptr;
+  CrInt32u k = kode;
+  if (SDK::GetSelectDeviceProperties(g_dev, 1, &k, &daftar, &n) || !daftar || n < 1) {
+    if (daftar) SDK::ReleaseDeviceProperties(g_dev, daftar);
+    return false;
+  }
+  nilai = daftar[0].GetCurrentValue();
+  bisaUbah = daftar[0].IsSetEnableCurrentValue();
+  pilihan.clear();
+  CrInt32u jml = daftar[0].GetValueSize() / sizeof(uint32_t);
+  const CrInt8u* buf = daftar[0].GetValues();
+  for (CrInt32u i = 0; buf && i < jml; i++) { uint32_t v; std::memcpy(&v, buf + i * sizeof(uint32_t), sizeof v); pilihan.push_back(v); }
+  SDK::ReleaseDeviceProperties(g_dev, daftar);
+  return true;
+}
+static bool modeVideo(uint64_t m) { return m >= 0x8050 && m < 0x8100; }   // CrExposure_Movie_* (termasuk S&Q, interval)
+static std::string jenisMode(uint64_t m) { return modeVideo(m) ? (m >= 0x8059 && m <= 0x805E ? "sq" : "video") : "foto"; }
+static std::string jsonMode(uint64_t m, bool bisa, const std::vector<uint32_t>& pil) {
+  std::string p;
+  for (auto v : pil) p += (p.empty() ? "\"" : ",\"") + hex(v) + "\"";
+  return "\"mode\":\"" + hex((uint32_t)m) + "\",\"jenis\":\"" + jenisMode(m) + "\",\"bisaUbah\":" + (bisa ? "true" : "false") + ",\"pilihan\":[" + p + "]";
+}
+static void cmdMode(long id, const std::vector<std::string>& a) {
+  if (!g_tersambung) return jawabGagal(id, "Kamera belum tersambung");
+  uint64_t m = 0; bool bisa = false; std::vector<uint32_t> pil;
+  if (!bacaPropLengkap(SDK::CrDeviceProperty_ExposureProgramMode, m, bisa, pil)) return jawabGagal(id, "Mode kamera tidak bisa dibaca");
+  if (a.empty() || a[0].empty()) return jawabOk(id, jsonMode(m, bisa, pil));
+  const bool keVideo = a[0] == "video";
+  if (jenisMode(m) == (keVideo ? "video" : "foto")) return jawabOk(id, jsonMode(m, bisa, pil) + ",\"diubah\":false");
+  // Pilih nilai tujuan: P (otomatis) kalau tersedia, kalau tidak nilai pertama dari jenis yang sama
+  const uint32_t utama = keVideo ? (uint32_t)SDK::CrExposure_Movie_P : (uint32_t)SDK::CrExposure_P_Auto;
+  uint32_t tujuan = 0;
+  for (auto v : pil) if (v == utama) tujuan = v;
+  if (!tujuan) for (auto v : pil) if (modeVideo(v) == keVideo && jenisMode(v) != "sq") { tujuan = v; break; }
+  if (!tujuan) tujuan = utama;     // daftar pilihan kosong: coba saja
+  tulisProp(SDK::CrDeviceProperty_PriorityKeySettings, SDK::CrPriorityKey_PCRemote);
+  // Seperti contoh resmi Sony: kirim, tunggu, baca lagi; ulangi sampai 5x
+  SDK::CrError e = 0;
+  int coba = 0;
+  for (; coba < 5; coba++) {
+    e = tulisProp(SDK::CrDeviceProperty_ExposureProgramMode, tujuan);
+    std::this_thread::sleep_for(std::chrono::milliseconds(coba ? 1000 : 600));
+    bacaPropLengkap(SDK::CrDeviceProperty_ExposureProgramMode, m, bisa, pil);
+    if (m == tujuan || jenisMode(m) == (keVideo ? "video" : "foto")) break;
+  }
+  bool ok = jenisMode(m) == (keVideo ? "video" : "foto");
+  if (!ok) return jawabGagal(id, std::string("Kamera tidak mau pindah ke mode ") + (keVideo ? "video" : "foto") +
+                             " (mode sekarang " + hex((uint32_t)m) + (bisa ? "" : ", terkunci tombol kamera") + ")", e);
+  jawabOk(id, jsonMode(m, bisa, pil) + ",\"diubah\":true,\"coba\":" + std::to_string(coba + 1));
+}
+
 static void cmdStatus(long id) {
   if (!g_tersambung) return jawabOk(id, "\"tersambung\":false");
   setelJikaPerlu();
@@ -492,6 +550,7 @@ int main() {
       else if (cmd == "rekam-mulai") cmdRekamMulai(id);
       else if (cmd == "rekam-stop") cmdRekamStop(id);
       else if (cmd == "unduh") cmdUnduh(id, arg);
+      else if (cmd == "mode") cmdMode(id, arg);
       else if (cmd == "keluar") { jawabOk(id); break; }
       else jawabGagal(id, "Perintah tidak dikenal: " + cmd);
     } catch (const std::exception& ex) {
