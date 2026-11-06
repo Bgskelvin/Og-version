@@ -12,8 +12,8 @@
 .pb-bottom { width:100%; max-width:900px; display:flex; flex-direction:column; align-items:center; gap:2vh; }
 /* Deretan foto kecil tanpa kotak, langsung di atas gambar kamera */
 .pb-strip { display:flex; justify-content:center; gap:12px; }
-.pb-slot { width:clamp(110px,12vw,170px); display:flex; flex-direction:column; gap:8px; }
-.pb-thumb { position:relative; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:rgba(0,0,0,.18);
+.pb-slot { min-width:110px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+.pb-thumb { position:relative; height:clamp(62px,11vh,100px); aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:rgba(0,0,0,.18);
   border:1.5px dashed rgba(255,255,255,.8); display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 18px rgba(0,0,0,.25); }
 .pb-thumb.filled { border:2px solid #fff; background:#000; }
@@ -38,10 +38,10 @@
 .pb-count span { animation:tick 1s ease-out infinite; }
 .pb-preview { position:absolute; inset:0 0 14vh 0; z-index:31; display:none; align-items:center; justify-content:center; pointer-events:none; }
 .pb-preview.on { display:flex; }
-.pb-preview-card { position:relative; width:min(62vw,880px); padding:10px; border-radius:22px; background:#fff;
+.pb-preview-card { position:relative; max-width:min(80vw,1100px); padding:10px; border-radius:22px; background:#fff;
   box-shadow:0 24px 70px rgba(0,0,0,.4); animation:pbIn .35s cubic-bezier(.3,.7,.4,1.2); }
 .pb-preview.out .pb-preview-card { animation:pbOut .25s ease-in forwards; }
-.pb-preview-card img { width:100%; max-height:62vh; object-fit:contain; display:block; border-radius:14px; background:#000; }
+.pb-preview-card img { display:block; width:auto; height:auto; max-width:min(80vw,1100px); max-height:66vh; object-fit:contain; border-radius:14px; }
 .pb-preview-card span { position:absolute; top:22px; left:22px; padding:6px 14px; border-radius:999px; background:rgba(0,0,0,.55);
   color:#fff; font-size:16px; font-weight:600; }
 @keyframes pbIn { from { transform:scale(.85); opacity:0; } }

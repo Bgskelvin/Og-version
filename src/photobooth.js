@@ -65,7 +65,8 @@
   async function preview(i, token) {
     if (PREVIEW_MS() <= 0) { await sleep(400); return token === pbToken; }   // pratinjau dimatikan
     const box = $('pbPreview');
-    $('pbPreviewImg').src = thumbURL(photos[i], 1600);
+    // Dipotong ke rasio kotak foto di template (sama dengan zona aman), dari tengah seperti hasil akhirnya
+    $('pbPreviewImg').src = potongRasio(photos[i], rasioFoto(i), 1600);
     $('pbPreviewLabel').textContent = t('pb.label', { i: i + 1 });
     box.classList.remove('out'); box.classList.add('on');
     await sleep(PREVIEW_MS());
@@ -93,6 +94,15 @@
     el.style.display = 'none';
     return true;
   }
+  // Gambar kecil dari foto, dipotong dari tengah ke rasio r (lebar/tinggi); tanpa r = rasio asli foto
+  function potongRasio(c, r, width = 1600) {
+    if (!r) return thumbURL(c, width);
+    const s = Math.min(c.width, c.height * r), sh = s / r;      // bagian foto terbesar dengan rasio r
+    const w = Math.min(width, Math.round(s)), h = Math.round(w / r);
+    const t = document.createElement('canvas'); t.width = w; t.height = h;
+    t.getContext('2d').drawImage(c, (c.width - s) / 2, (c.height - sh) / 2, s, sh, 0, 0, w, h);
+    return t.toDataURL('image/jpeg', 0.85);
+  }
   function thumbURL(c, width = 480) {
     const t = document.createElement('canvas');
     t.width = Math.min(width, c.width); t.height = Math.round(t.width * c.height / c.width);
@@ -110,12 +120,16 @@
       s.appendChild(slot);
     }
     s.querySelectorAll('[data-redo]').forEach(b => b.onclick = () => shoot([Number(b.dataset.redo)]));
+    for (let i = 0; i < SHOTS; i++) rasioThumb(i);
   }
+  // Kotak kecil mengikuti rasio kotak foto di template (sama dengan pratinjau & zona aman)
+  function rasioThumb(i) { const r = rasioFoto(i); $('pbThumb' + i).style.aspectRatio = String(r || 16 / 9); }
   function renderSlot(i) {
     const el = $('pbThumb' + i);
+    rasioThumb(i);
     if (!photos[i]) { el.classList.remove('filled'); el.innerHTML = `<span class="empty">${i + 1}</span>`; return; }
     el.classList.add('filled');
-    el.innerHTML = `<img alt="Foto ${i + 1}" src="${thumbURL(photos[i])}"><span class="n">${i + 1}</span>`;
+    el.innerHTML = `<img alt="Foto ${i + 1}" src="${potongRasio(photos[i], rasioFoto(i), 480)}"><span class="n">${i + 1}</span>`;
   }
   function markNext(i) { for (let k = 0; k < SHOTS; k++) $('pbThumb' + k).classList.toggle('next', k === i); }
 
