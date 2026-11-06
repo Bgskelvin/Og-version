@@ -47,10 +47,21 @@
   <button id="btnStart" class="glass"><span class="t">Start</span><span class="s" data-t="start.sentuh">Sentuh untuk mulai</span></button>
 </div>
 
+<!-- 1b. HALAMAN NAMA TAMU (Admin → Tampilan → Tanya nama tamu) -->
+<div class="screen mid" id="nama">
+  <button class="chip left" id="btnNamaBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
+  <div class="nama-kartu glass">
+    <h1 data-t="nama.judul">Siapa namamu?</h1>
+    <p data-t="nama.info">Namamu disimpan bersama video dan fotomu untuk mempelai.</p>
+    <input id="namaInput" class="nama-input" type="text" aria-label="Nama">
+  </div>
+  <div id="namaKeyboard"></div>
+</div>
+
 <!-- 2. HALAMAN UTAMA -->
 <div class="screen" id="utama">
   <button class="chip right" id="btnAdminOpen"><svg class="i"><use href="#i-sliders"/></svg>Admin</button>
-  <div class="card glass"><h1 id="couple"></h1><p id="welcome"></p></div>
+  <div class="card glass"><p id="sapaTamu" class="sapa" style="display:none"></p><h1 id="couple"></h1><p id="welcome"></p></div>
   <div class="row">
     <button id="btnToPesan" class="btn primary" data-t="utama.pesan"><svg class="i"><use href="#i-msg"/></svg>Kirim pesan</button>
     <button id="btnToQuiz" class="btn glassy" data-t="utama.quiz"><svg class="i"><use href="#i-spark"/></svg>Quick quiz</button>
@@ -169,10 +180,12 @@
         <div class="item split"><span>Warna</span><div class="swatches" id="swatches"></div></div>
         <div class="item split"><span>Bahasa tamu</span><select id="setBahasa" aria-label="Bahasa layar tamu">
           <option value="id">Bahasa Indonesia</option><option value="en">English</option></select></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">Tanya nama tamu setelah Start</span>
+          <label class="switch"><input type="checkbox" id="setTanyaNama"><i></i></label></div>
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Layar penuh terkunci (kiosk)</span>
           <label class="switch"><input type="checkbox" id="setKiosk"><i></i></label></div>
       </div>
-      <p class="pe-hint" style="margin:8px 6px 0">Bahasa tamu mengubah tulisan bawaan di layar tamu (tombol, petunjuk, tanggal di foto). Sambutan, pertanyaan quiz, dan teks template tampil persis seperti yang kamu ketik. Halaman Admin tetap bahasa Indonesia.</p>
+      <p class="pe-hint" style="margin:8px 6px 0">Bahasa tamu mengubah tulisan bawaan di layar tamu (tombol, petunjuk, tanggal di foto). Sambutan, pertanyaan quiz, dan teks template tampil persis seperti yang kamu ketik. Halaman Admin tetap bahasa Indonesia. Nama tamu dipakai sebagai nama file di folder couple, mis. <b>Budi_pesan.mp4</b> dan <b>Budi_hasil.jpg</b>.</p>
       <div class="note ok" id="setMsg"></div>
 
       <div class="group-title">Login Admin</div>
@@ -532,6 +545,8 @@
 <script src="src/bahasa.js"></script>
 <script src="src/qr.js"></script>
 <script src="src/app.js"></script>
+<script src="src/keyboard.js"></script>
+<script src="src/nama.js"></script>
 <script src="src/kamera.js"></script>
 <script src="src/kamera-sony.js"></script>
 <script src="src/rekaman.js"></script>

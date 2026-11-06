@@ -69,13 +69,13 @@ window.api = {
     Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Password lama salah.' },
   getStartupInfo: async () => ({ recovered: 0 }),
-  recStart: async (label, o) => { LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'Folder penyimpanan tidak bisa ditulisi.' } : { id: ++nextId }; },
+  recStart: async (label, o) => { window.TAMU_REC = o && o.tamu; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'Folder penyimpanan tidak bisa ditulisi.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : ''));
     return MODE.endOk ? { ok: true } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
-  savePhotos: async p => { window.FOTO = { n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
+  savePhotos: async p => { window.FOTO = { tamu: p.tamu, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
     return { ok: true, link: UNG.st.aktif ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
   unggahStatus: async () => ({ ...UNG.st }),
   unggahSimpan: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}); return { ...UNG.st }; },
@@ -125,13 +125,24 @@ async function main() {
   console.log('\n▶ Halaman awal');
   cek(await layar() === 'start', 'aplikasi dibuka di halaman Start');
   await pg.click('#btnStart');
+  cek(await layar() === 'nama' && await pg.isVisible('#namaKeyboard .kb-tombol'), 'Start membuka halaman "Siapa namamu?" dengan keyboard layar');
+  cek(await pg.isDisabled('#namaKeyboard [data-k="enter"]'), 'tombol Lanjut mati selama nama masih kosong');
+  const ketik = async ks => { for (const k of ks) await pg.click(`#namaKeyboard [data-k="${k}"]`); };
+  await ketik(['b', 'u', 'd', 'i', 'spasi', 's', '⌫', 'a', 'r', 'i']);
+  cek(await pg.inputValue('#namaInput') === 'Budi Ari', 'keyboard layar: huruf besar otomatis di awal kata, spasi, hapus', await pg.inputValue('#namaInput'));
+  await ketik(['123', '2', 'ABC']);
+  cek(await pg.inputValue('#namaInput') === 'Budi Ari2', 'keyboard layar: tombol 123 untuk angka');
+  await ketik(['⌫']);
+  await pg.click('#namaKeyboard [data-k="enter"]');
   cek(await layar() === 'utama' && await pg.textContent('#couple') === 'Rina & Dimas', 'Halaman Utama menampilkan couple aktif');
+  cek(await pg.textContent('#sapaTamu') === 'Hai, Budi Ari!' && await pg.isVisible('#sapaTamu'), 'Halaman Utama menyapa tamu dengan namanya');
   cek(await pg.isVisible('#btnToPhoto'), 'tombol Photo booth ada di Halaman Utama');
 
   console.log('\n▶ Kirim pesan');
   await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai');
   await tunggu(4300); await pg.click('#btnFinish');
   await tunggu(500); cek(await layar() === 'saving', 'setelah Selesai muncul layar Menyimpan');
+  cek(await pg.evaluate(() => window.TAMU_REC) === 'Budi Ari', 'nama tamu ikut dikirim untuk nama file rekaman');
   await tungguLayar('thanks');
   cek(await pg.textContent('#thanksMsg') === 'Rekamanmu sudah tersimpan.', 'Terima kasih: rekaman tersimpan');
   cek(JSON.stringify(await log()) === '["start pesan","end 1"]', 'satu rekaman dimulai dan disimpan', await log());
@@ -535,6 +546,26 @@ async function main() {
   await pg.click('.rw-row[data-id="21"]'); await tunggu(200);
   cek(await pg.textContent('.rw-detail .rw-link') === 'https://leura-foto.uji.workers.dev/f/LamaKode99', 'sesi lama (hanya kode) tetap mendapat link dari alamat server');
   await pg.click('#rwBack'); await tunggu(200);
+
+  console.log('\n▶ Nama tamu');
+  await pg.evaluate(() => show('start')); await pg.click('#btnStart');
+  cek(await layar() === 'nama' && await pg.inputValue('#namaInput') === '', 'tamu berikutnya mulai dengan kolom nama kosong');
+  await pg.click('#btnNamaBack');
+  cek(await layar() === 'start', 'Kembali dari halaman nama ke halaman Start');
+  await pg.click('#btnStart'); await pg.fill('#namaInput', 'Sari'); await pg.press('#namaInput', 'Enter');
+  cek(await layar() === 'utama' && await pg.textContent('#sapaTamu') === 'Hai, Sari!', 'keyboard fisik juga bisa (Enter = Lanjut)');
+  await pg.evaluate(() => show('start'));
+  cek(await pg.evaluate(() => namaTamu) === '' && !(await pg.isVisible('#sapaTamu')), 'kembali ke Start menghapus nama tamu sebelumnya');
+  await pg.evaluate(() => { setBahasa('en'); }); await pg.click('#btnStart');
+  cek(await pg.textContent('#nama h1') === "What's your name?" && await pg.textContent('#namaKeyboard [data-k="enter"]') === 'Continue', 'halaman nama & keyboard ikut bahasa tamu');
+  await pg.evaluate(() => { setBahasa('id'); show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });
+  await pg.locator('#setTanyaNama').scrollIntoViewIfNeeded();
+  cek(await pg.isChecked('#setTanyaNama'), 'Admin: "Tanya nama tamu" menyala sebagai bawaan');
+  await pg.click('#setTanyaNama'); await tunggu(200);
+  cek(/"tanyaNama":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
+  await pg.evaluate(() => show('start')); await pg.click('#btnStart');
+  cek(await layar() === 'utama' && !(await pg.isVisible('#sapaTamu')), 'tanpa tanya nama: Start langsung ke Halaman Utama');
+  await pg.evaluate(() => show('admin')); await pg.click('#setTanyaNama'); await tunggu(200);
 
   console.log('\n▶ Tutup aplikasi dari Admin');
   await pg.evaluate(() => { show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });

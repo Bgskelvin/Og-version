@@ -151,7 +151,7 @@ function barisSesi(s) {
       api.sessionThumb(s._id).then(url => { if (url) { rw.thumb.set(s._id, url); gambarRiwayat(); } }).catch(() => {});
     }
   }
-  b.querySelector('b').textContent = `${jamSesi(s.time)} · ${nama}`;
+  b.querySelector('b').textContent = `${jamSesi(s.time)} · ${nama}${s.tamu ? ' · ' + s.tamu : ''}`;
   b.querySelector('small').textContent = (rw.couple ? '' : (s.couple || '-') + ' · ') + sub;
   b.querySelector('.rw-tag').textContent = terlaluPendek(s) ? 'Terlalu pendek' : s.recovered ? 'Dipulihkan' : '';
   b.querySelector('.rw-status').textContent = label;

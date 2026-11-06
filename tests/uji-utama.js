@@ -137,6 +137,31 @@ const KASUS = {
     cek((await panggil('save-photos', { originals: [], result: null })).error === 'Data foto kosong', 'data kosong ditolak');
   },
 
+  async 'nama tamu jadi nama file (video & foto)'() {
+    const { panggil, kirim, docsDir, sesi } = nyalakanAplikasi();
+    const dirCouple = path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas');
+    const A = await panggil('rec-start', 'pesan', { tamu: '  Budi Ari ' }); kirim('rec-chunk', A.id, Buffer.from('AA'));
+    const ra = await panggil('rec-end', A.id, 4, {});
+    cek(path.basename(ra.file) === 'Budi Ari_pesan.webm' && path.dirname(ra.file) === dirCouple, 'video pesan: <couple>/Budi Ari_pesan', ra.file);
+    // Seolah sudah diubah ke MP4 (file .webm hilang, .mp4 ada): nama yang sama tidak boleh dipakai lagi
+    fs.renameSync(ra.file, ra.file.replace(/\.webm$/, '.mp4'));
+    const B = await panggil('rec-start', 'pesan', { tamu: 'Budi Ari' }); await panggil('rec-end', B.id, 3, {});
+    cek(path.basename(B.file || sesi().at(-1).file).startsWith('Budi Ari_2_pesan'), 'tamu bernama sama: Budi Ari_2_pesan (tidak menimpa)', sesi().at(-1).file);
+    const C = await panggil('rec-start', 'quiz', { tamu: 'Budi Ari' }); await panggil('rec-end', C.id, 3, {});
+    cek(sesi().at(-1).file === 'Budi Ari_quiz.webm', 'tamu yang sama ikut quiz: Budi Ari_quiz', sesi().at(-1).file);
+    cek(sesi().filter(x => x.tamu === 'Budi Ari').length === 3, 'nama tamu tercatat di riwayat sesi');
+    const D = await panggil('rec-start', 'pesan', { tamu: 'Ani/Bu:di?' }); await panggil('rec-end', D.id, 3, {});
+    cek(sesi().at(-1).file === 'AniBudi_pesan.webm', 'karakter terlarang di nama file dibuang', sesi().at(-1).file);
+    const E = await panggil('rec-start', 'pesan', { tamu: '' }); await panggil('rec-end', E.id, 3, {});
+    cek(/^Rina & Dimas_\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d_pesan\.webm$/.test(sesi().at(-1).file), 'tanpa nama tamu: nama lama (couple + waktu)', sesi().at(-1).file);
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    await panggil('save-photos', { originals: [jpg, jpg], result: jpg, meta: {}, tamu: 'Sari' });
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, tamu: 'Sari' });
+    const foto = fs.readdirSync(path.join(dirCouple, 'Foto')).sort();
+    cek(JSON.stringify(foto) === JSON.stringify(['Sari_2_foto-1.jpg', 'Sari_2_hasil.jpg', 'Sari_foto-1.jpg', 'Sari_foto-2.jpg', 'Sari_hasil.jpg']), 'foto: Sari_hasil.jpg + Sari_foto-1…, berikutnya Sari_2_…', foto);
+    cek(sesi().at(-1).tamu === 'Sari' && sesi().at(-1).file === 'Sari_2_hasil.jpg', 'sesi foto mencatat nama tamu');
+  },
+
   async 'template desain foto per couple'() {
     const { panggil, dataDir } = nyalakanAplikasi();
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);

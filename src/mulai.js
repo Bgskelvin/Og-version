@@ -15,6 +15,7 @@
   buildQInputs();
 
   pasangNavigasi();
+  pasangNama();
   pasangPesan();
   pasangQuiz();
   pasangAdmin();

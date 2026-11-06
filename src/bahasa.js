@@ -29,11 +29,13 @@ const KAMUS = {
     'tk.gagal': 'Rekamanmu belum berhasil tersimpan. Silakan hubungi petugas.',
     'layout.grid': 'Kisi 2×2', 'layout.strip': 'Strip', 'layout.big': '1 besar + 3',
     'filter.none': 'Normal', 'filter.bw': 'Hitam putih', 'filter.warm': 'Hangat', 'filter.soft': 'Lembut', 'filter.vintage': 'Vintage', 'filter.bright': 'Cerah',
+    'nama.hai': 'Hai, {nama}!', 'kb.spasi': 'spasi', 'kb.lanjut': 'Lanjut', 'kb.hapus': 'Hapus',
     'bingkai.0': 'Putih', 'bingkai.1': 'Krem', 'bingkai.2': 'Blush', 'bingkai.3': 'Sage', 'bingkai.4': 'Hitam', 'bingkai.5': 'Aksen',
   },
   en: {
     // tulisan tetap di index.html (data-t)
     '@start.sentuh': 'Touch to start',
+    '@nama.judul': "What's your name?", '@nama.info': 'Your name will be saved with your video and photos for the couple.',
     '@utama.pesan': 'Leave a message', '@utama.quiz': 'Quick quiz', '@utama.foto': 'Photo booth',
     '@kembali': 'Back', '@mulai': 'Start', '@selesai': 'Done', '@hapus': 'Delete',
     '@pesan.judul': 'Leave a message', '@pesan.petunjuk': 'Press Start, share your message, then press Done.',
@@ -67,6 +69,7 @@ const KAMUS = {
     'tk.gagal': 'Your recording could not be saved. Please ask our staff for help.',
     'layout.grid': 'Grid 2×2', 'layout.strip': 'Strip', 'layout.big': '1 large + 3',
     'filter.none': 'Normal', 'filter.bw': 'Black & white', 'filter.warm': 'Warm', 'filter.soft': 'Soft', 'filter.vintage': 'Vintage', 'filter.bright': 'Bright',
+    'nama.hai': 'Hi, {nama}!', 'kb.spasi': 'space', 'kb.lanjut': 'Continue', 'kb.hapus': 'Delete',
     'bingkai.0': 'White', 'bingkai.1': 'Cream', 'bingkai.2': 'Blush', 'bingkai.3': 'Sage', 'bingkai.4': 'Black', 'bingkai.5': 'Accent',
   },
 };
@@ -92,4 +95,5 @@ function terapkanBahasa() {
 function setBahasa(b) {
   bahasa = KAMUS[b] ? b : 'id';
   terapkanBahasa();
+  if (typeof kbNama !== 'undefined' && kbNama) kbNama.gambarUlang();   // tulisan tombol keyboard layar
 }

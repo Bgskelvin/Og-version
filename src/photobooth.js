@@ -535,7 +535,7 @@
       const originals = [];
       for (const p of photos) originals.push(p._asli || await toBytes(p, 0.95));   // Sony: file asli kamera
       const result = await toBytes(out, 0.93);
-      const r = await api.savePhotos({ originals, result,
+      const r = await api.savePhotos({ originals, result, tamu: namaTamu,
         meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
       ok = !!(r && r.ok); err = r && r.error; link = r && r.link;
     })().catch(e => { err = e.message; });

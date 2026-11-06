@@ -28,7 +28,7 @@ function renderSwatches(accent) {
 }
 // Nilai bawaan kalau ada pengaturan yang belum tersedia
 const BAWAAN = { quizSeconds: 60, quizRounds: 3, pesanCountdown: 3, pesanMaxSeconds: 0, photoCountdown: 5, photoPreview: 2,
-                 photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true };
+                 photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true, tanyaNama: true };
 function normalisasiCfg(src) {
   for (const [k, d] of Object.entries(BAWAAN)) {
     const v = src[k];
@@ -62,6 +62,7 @@ async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
+  $('setTanyaNama').checked = cfg.tanyaNama;
   $('setBahasa').value = s.bahasa || 'id';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
@@ -72,6 +73,7 @@ async function saveSetting(patch, msg) {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
+  $('setTanyaNama').checked = cfg.tanyaNama;
   flash('setMsg', msg || 'Tersimpan.');
 }
 async function saveLogin() {
@@ -89,5 +91,7 @@ function pasangPengaturan() {
     e.target.checked ? 'Layar penuh aktif. Untuk keluar, matikan lagi di sini.' : 'Layar penuh dimatikan.');
   $('setBahasa').onchange = e => saveSetting({ bahasa: e.target.value },
     e.target.value === 'en' ? 'Layar tamu sekarang berbahasa Inggris. Halaman Admin tetap bahasa Indonesia.' : 'Layar tamu sekarang berbahasa Indonesia.');
+  $('setTanyaNama').onchange = e => saveSetting({ tanyaNama: e.target.checked },
+    e.target.checked ? 'Tamu akan diminta mengetik nama setelah menekan Start.' : 'Tamu langsung ke Halaman Utama tanpa mengetik nama.');
   $('btnSaveLogin').onclick = saveLogin;
 }

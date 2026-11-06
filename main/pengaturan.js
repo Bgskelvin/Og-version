@@ -20,10 +20,11 @@ const ANGKA = {
 const SAKLAR = {
   enablePesan: true, enableQuiz: true,   // Videobooth: menu di Halaman Utama
   enablePhoto: true, photoFlash: true,   // Photobooth: menu & efek kilat layar
+  tanyaNama: true,                       // layar "Siapa namamu?" setelah Start; nama tamu jadi nama file
 };
 const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
-const KAMERA = ['webcam', 'sony', 'sony-sim'];
-const BAHASA = ['id', 'en'];                      // bahasa layar tamu (Admin tetap bahasa Indonesia)    // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
+const KAMERA = ['webcam', 'sony', 'sony-sim'];  // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
+const BAHASA = ['id', 'en'];                      // bahasa layar tamu (Admin tetap bahasa Indonesia)
 const clampInt = (v, [lo, hi], dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
 const isColor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 function effective() {

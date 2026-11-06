@@ -86,6 +86,16 @@ function updateSession(id, patch) {
   if (s) { Object.assign(s, patch); writeSessions(list); }
 }
 
+// Nama tamu dari layar "Siapa namamu?" -> nama file yang aman (maks 40 huruf)
+const namaTamu = t => safeName(String(t || '').slice(0, 40));
+// Nama dasar file yang belum dipakai di folder itu: "Budi", lalu "Budi_2", "Budi_3", ...
+// `dipakai(nama)` mengembalikan true kalau nama dasar itu sudah terpakai.
+function namaBebas(dasar, dipakai) {
+  if (!dipakai(dasar)) return dasar;
+  for (let n = 2; n < 10000; n++) if (!dipakai(`${dasar}_${n}`)) return `${dasar}_${n}`;
+  return `${dasar}_${Date.now()}`;
+}
+
 const pad = n => String(n).padStart(2, '0');
 function stamp() {
   const d = new Date();
@@ -95,5 +105,5 @@ function stamp() {
 module.exports = {
   config, configPath, userData, defaultDir,
   readJSON, writeJSON, readSettings, writeSettings, readSessions, writeSessions, updateSession,
-  getOutDir, usableDir, safeName, coupleDir, stamp
+  getOutDir, usableDir, safeName, coupleDir, stamp, namaTamu, namaBebas
 };

@@ -8,7 +8,7 @@ async function startRecording(label) {
   // tunggu rekaman sebelumnya selesai disimpan, paling lama 15 detik supaya layar tidak pernah tertahan
   await Promise.race([lastSave.catch(() => {}), sleep(15000)]);
   const sony = pakaiSony();
-  const r = await api.recStart(label, { sony });
+  const r = await api.recStart(label, { sony, tamu: namaTamu });
   if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
   if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
   const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };

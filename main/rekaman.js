@@ -8,7 +8,7 @@ const { ipcMain, shell } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { defaultDir, readSessions, writeSessions, updateSession, getOutDir, usableDir, safeName, coupleDir, stamp } = require('./penyimpanan');
+const { defaultDir, readSessions, writeSessions, updateSession, getOutDir, usableDir, safeName, coupleDir, stamp, namaTamu, namaBebas } = require('./penyimpanan');
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./jendela-aktif');
 const sony = require('./kamera-sony');
@@ -191,11 +191,14 @@ function daftarkan() {
     }
     let dir = coupleDir(base, name);
     if (!usableDir(dir)) dir = base;
-    const prefix = safeName(name) ? safeName(name) + '_' : '';
     const ext = pakaiSony ? 'mp4' : 'webm';
-    let file = path.join(dir, `${prefix}${stamp()}_${label}.${ext}`);
-    let n = 2;
-    while (fs.existsSync(file)) file = path.join(dir, `${prefix}${stamp()}_${label}_${n++}.${ext}`);
+    // Nama file: nama tamu (dari layar "Siapa namamu?"), mis. "Budi_pesan.mp4". Tanpa nama tamu: "<couple>_<waktu>_pesan".
+    // Nama yang sudah dipakai (file .webm/.mp4 atau sesi yang videonya belum selesai disalin) tidak ditimpa: "Budi_2_pesan".
+    const tamu = namaTamu(opsi && opsi.tamu);
+    const sesiDiFolder = new Set(readSessions().filter(s => s.dir === dir).map(s => String(s.file || '').replace(/\.(webm|mp4)$/i, '')));
+    const dipakai = b => { const d = tamu ? `${b}_${label}` : b; return sesiDiFolder.has(d) || ['webm', 'mp4'].some(x => fs.existsSync(path.join(dir, `${d}.${x}`))); };
+    const dasar = tamu ? namaBebas(tamu, dipakai) : namaBebas(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${label}`, dipakai);
+    const file = path.join(dir, `${tamu ? `${dasar}_${label}` : dasar}.${ext}`);
 
     const id = ++recSeq;
     const sid = Date.now() * 1000 + (id % 1000);
@@ -212,7 +215,7 @@ function daftarkan() {
     try {
       const list = readSessions();
       list.push({ id: sid, time: new Date(rec.t0).toISOString(), label, file: path.basename(file), dir,
-        couple: name, seconds: 0, status: 'recording', ...(pakaiSony ? { kamera: 'sony' } : {}) });
+        couple: name, ...(tamu ? { tamu: String(opsi.tamu).trim().slice(0, 40) } : {}), seconds: 0, status: 'recording', ...(pakaiSony ? { kamera: 'sony' } : {}) });
       writeSessions(list);
     } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
     // Disk penuh / SSD tercabut: jangan crash, catat error dan beri tahu layar

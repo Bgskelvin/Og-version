@@ -17,7 +17,7 @@ const store = {
 
 // ---------- Daftar halaman ----------
 // Setiap halaman di index.html (div.screen) harus terdaftar di sini.
-const SCREENS = ['start', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'riwayat', 'setvideo', 'setphoto', 'tpleditor', 'tambah', 'saving', 'thanks'];
+const SCREENS = ['start', 'nama', 'utama', 'pesan', 'quiz', 'photo', 'editphoto', 'admin', 'riwayat', 'setvideo', 'setphoto', 'tpleditor', 'tambah', 'saving', 'thanks'];
 const MAX_Q = 10;                     // maksimal pertanyaan quiz per couple
 
 // ---------- Status aplikasi ----------
@@ -25,6 +25,7 @@ let cfg;                              // pengaturan dari main.js (api.getConfig)
 let current = 'start';                // halaman yang sedang tampil
 let busy = false;                     // true saat merekam / memotret: tombol & idle dikunci
 let idleTimer = null, noticeTimer = null;
+let namaTamu = '';                    // nama tamu dari halaman "Siapa namamu?" (kosong = tidak ditanya)
 
 // ---------- Kamera & mic ----------
 let mediaStream = null;               // aliran kamera + mic yang sedang dibuka
