@@ -3,7 +3,18 @@
    (daftar sesi ada di riwayat.js)
    ===================================================================== */
 
+// Login Admin cukup sekali selama aplikasi terbuka. Disimpan di memori saja (bukan di disk),
+// jadi setelah aplikasi ditutup lalu dibuka lagi, Admin harus login lagi.
+let adminMasuk = false;
+
+async function bukaPanelAdmin() {
+  $('adminLogin').style.display = 'none';
+  $('adminPanel').style.display = 'flex';
+  show('admin');
+  await refreshAdmin();
+}
 function openAdmin() {
+  if (adminMasuk) return bukaPanelAdmin();
   $('adminLogin').style.display = 'block';
   $('adminPanel').style.display = 'none';
   $('uid').value = ''; $('pw').value = ''; $('loginErr').textContent = '';
@@ -12,10 +23,9 @@ function openAdmin() {
 }
 async function doLogin() {
   if (await api.login($('uid').value.trim(), $('pw').value)) {
-    $('adminLogin').style.display = 'none';
-    $('adminPanel').style.display = 'flex';
+    adminMasuk = true;
     $('pw').value = '';
-    await refreshAdmin();
+    await bukaPanelAdmin();
   } else { $('loginErr').textContent = 'ID atau password salah'; $('pw').value = ''; }
 }
 async function loadOutDir() {
@@ -38,6 +48,8 @@ function pasangAdmin() {
   $('uid').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
   $('btnAdminBack').onclick = () => show('utama');
   $('btnTutupApp').onclick = konfirmasiTutup;
+  // Kunci Admin lagi (mis. booth ditinggal tanpa operator): berikutnya harus login
+  $('btnKunciAdmin').onclick = () => { adminMasuk = false; show('utama'); };
   $('camSel').onchange = async e => { store.set('camId', e.target.value); await openStream(); await fillDevices(); };
   $('micSel').onchange = async e => { store.set('micId', e.target.value); await openStream(); await fillDevices(); };
   $('btnChooseDir').onclick = async () => {

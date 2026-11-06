@@ -182,6 +182,8 @@ async function main() {
   await pg.click('#btnCobaLagi'); await pg.click('#btnAdminOpen'); await pg.fill('#uid', 'leura'); await pg.fill('#pw', '1234'); await pg.click('#btnLogin');
   await pg.waitForSelector('#adminPanel', { state: 'visible', timeout: 5000 }).catch(() => {}); await tunggu(300);
   cek(await pg.isVisible('#adminPanel'), 'login Admin berhasil');
+  await pg.click('#btnAdminBack'); await pg.click('#btnAdminOpen'); await tunggu(300);
+  cek(await pg.isVisible('#adminPanel') && !(await pg.isVisible('#adminLogin')), 'Admin dibuka lagi: tidak perlu login lagi');
   const body = pg.locator('#adminPanel .sheet-body'); const bb = await body.boundingBox();
   await pg.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2); await pg.mouse.wheel(0, 500); await tunggu(400);
   cek(await body.evaluate(e => e.scrollTop) > 0, 'panel Admin bisa digulir');
@@ -567,6 +569,15 @@ async function main() {
   cek(await layar() === 'utama' && !(await pg.isVisible('#sapaTamu')), 'tanpa tanya nama: Start langsung ke Halaman Utama');
   await pg.evaluate(() => show('admin')); await pg.click('#setTanyaNama'); await tunggu(200);
 
+  console.log('\n▶ Kunci Admin');
+  await pg.evaluate(() => { show('utama'); }); await pg.click('#btnAdminOpen'); await tunggu(300);
+  await pg.locator('#btnKunciAdmin').scrollIntoViewIfNeeded(); await pg.click('#btnKunciAdmin'); await tunggu(200);
+  cek(await layar() === 'utama', 'Kunci Admin: kembali ke Halaman Utama');
+  await pg.click('#btnAdminOpen'); await tunggu(200);
+  cek(await pg.isVisible('#adminLogin') && !(await pg.isVisible('#adminPanel')), 'setelah dikunci, Admin harus login lagi');
+  await pg.fill('#uid', 'leura'); await pg.fill('#pw', '1234'); await pg.click('#btnLogin'); await tunggu(300);
+  cek(await pg.isVisible('#adminPanel'), 'login lagi berhasil');
+
   console.log('\n▶ Tutup aplikasi dari Admin');
   await pg.evaluate(() => { show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });
   await bersihkan();
@@ -581,6 +592,13 @@ async function main() {
   await pg.click('#dlgTutupYa'); await tunggu(200);
   cek((await log()).includes('tutup aplikasi') && /Menutup aplikasi/.test(await pg.textContent('#dlgTutup')), 'Ya: aplikasi ditutup lewat jalur resmi');
   await pg.evaluate(() => document.getElementById('dlgTutup').remove());
+
+  console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
+  await pg.evaluate(() => { show('utama'); }); await pg.click('#btnAdminOpen'); await tunggu(200);
+  cek(await pg.isVisible('#adminPanel'), 'sebelum ditutup: Admin masih terbuka tanpa login');
+  await pg.reload(); await tunggu(1200);
+  await pg.evaluate(() => show('utama')); await pg.click('#btnAdminOpen'); await tunggu(200);
+  cek(await pg.isVisible('#adminLogin') && !(await pg.isVisible('#adminPanel')), 'setelah aplikasi dibuka lagi: Admin minta login');
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);
