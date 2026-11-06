@@ -71,6 +71,8 @@ let finishing = false;
 function setThanks(result) {
   const ok = result === true, slow = result === 'slow';
   // Pratinjau foto hanya untuk Photo Booth; photobooth.js menampilkannya setelah memanggil fungsi ini
+  $('thanks').classList.remove('tk-foto', 'tk-ada-qr');
+  $('thanksNama').textContent = namaTamu || '';
   $('thanksPhoto').style.display = 'none';
   $('thanksQR').style.display = 'none';
   $('thanksBadge').style.display = '';

@@ -543,6 +543,9 @@ async function main() {
   await pg.click('#peDone'); await tungguLayar('thanks');
   cek(await pg.isVisible('#thanksQR') && await pg.evaluate(() => document.getElementById('qrCanvas').width) > 200
       && await pg.textContent('#qrLink') === 'leura-foto.uji.workers.dev/f/Ab3dEf9hJk', 'halaman Terima kasih menampilkan QR + link');
+  cek(await pg.evaluate(() => { const th = document.getElementById('thanks'), f = document.getElementById('thanksPhoto').getBoundingClientRect(), q = document.getElementById('qrCanvas').getBoundingClientRect();
+    return th.classList.contains('tk-foto') && th.classList.contains('tk-ada-qr') && f.height > innerHeight * .6 && q.width >= 240 && f.right < q.left; }),
+    'Terima kasih: hasil foto besar di kiri, QR besar di kanan');
   await pg.evaluate(() => { window.QRPNG = document.getElementById('qrCanvas').toDataURL('image/png'); });
   await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(400);
   await pg.click('#btnFinish'); await tungguLayar('thanks');
@@ -601,7 +604,7 @@ async function main() {
   cek(await layar() === 'utama' && !(await pg.isVisible('#btnSelesaiTamu')), 'belum ada kegiatan: tombol Selesai belum muncul');
   await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
   await pg.click('#btnFinish'); await tungguLayar('thanks');
-  cek(/Kembali ke menu/.test(await pg.textContent('#btnCobaLagi')) && await pg.locator('#thanks .row button:visible').count() === 1, 'Terima kasih: satu tombol "Kembali ke menu"');
+  cek(/Kembali ke menu/.test(await pg.textContent('#btnCobaLagi')) && await pg.locator('#thanks button:visible').count() === 1, 'Terima kasih: satu tombol "Kembali ke menu"');
   await pg.click('#btnCobaLagi');
   cek(await layar() === 'utama' && await pg.textContent('#sapaTamu') === 'Hai, Rani!', 'kembali ke menu: nama tamu tetap (tidak perlu mengetik ulang)');
   cek(await pg.isVisible('#btnSelesaiTamu') && (await pg.textContent('#btnSelesaiTamu')).trim() === 'Selesai', 'setelah satu kegiatan: tombol Selesai muncul di menu');

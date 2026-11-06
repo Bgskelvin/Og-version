@@ -13,9 +13,11 @@ function tampilkanQR(link) {
     gambarQR($('qrCanvas'), url, 8);
     $('qrLink').textContent = url.replace(/^https:\/\//, '');
     $('thanksQR').style.display = '';
+    $('thanks').classList.add('tk-ada-qr');
   } catch (e) {
     console.log('QR gagal dibuat: ' + e.message);
     $('thanksQR').style.display = 'none';
+    $('thanks').classList.remove('tk-ada-qr');
   }
 }
 

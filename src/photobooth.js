@@ -560,7 +560,7 @@
     $('thanksMsg').textContent = ok ? t('tk.fotoOk') : t('tk.fotoGagal');
     if (!ok) setNotice('Foto gagal disimpan: ' + (err || 'waktu habis'), 15000);
     const tp = $('thanksPhoto');
-    if (ok) { tp.src = out.toDataURL('image/jpeg', .8); tp.style.display = 'block'; $('thanksBadge').style.display = 'none'; }
+    if (ok) { tp.src = out.toDataURL('image/jpeg', .85); tp.style.display = 'block'; $('thanksBadge').style.display = 'none'; $('thanks').classList.add('tk-foto'); }
     if (ok && link) tampilkanQR(link);
     photos.fill(null);
     saving = false; busy = false;
