@@ -26,9 +26,10 @@ function buatJendela(DEV) {
   });
   const wc = win.webContents;
   // Pesan dari tampilan masuk catatan; error (merah di DevTools) ditandai ✗
-  wc.on('console-message', (e, level, msg, line, src) => {
-    const lv = typeof level === 'number' ? level : e && e.level;
-    const teks = msg != null ? msg : e && e.message;
+  // Electron baru: semua keterangan ada di objek event (e.level, e.message, e.lineNumber, e.sourceId)
+  // (satu parameter saja: kalau listener menerima lebih, Electron menulis peringatan "deprecated")
+  wc.on('console-message', (e, ...lama) => {
+    const [lv, teks, line, src] = e && e.message != null ? [e.level, e.message, e.lineNumber, e.sourceId] : lama;
     const err = lv === 3 || lv === 'error';
     catatan.catat('[tampilan] ' + teks + (err && src ? ` (${String(src).split('/').pop()}:${line})` : ''), err ? 'error' : lv === 2 || lv === 'warning' ? 'peringatan' : 'info');
   });

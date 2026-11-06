@@ -18,14 +18,16 @@ const jalankan = (cmd, args, ms) => new Promise(res => {
 async function prosesKamera() {
   const out = await jalankan('ps', ['-axo', 'pid=,lstart=,comm='], 4000);
   return out.split('\n').filter(l => POLA_PROSES.test(l)).map(l => {
-    const m = /^\s*(\d+)\s+\w{3}\s+(\w{3}\s+\d+\s+[\d:]+)\s+\d{4}\s+(.*)$/.exec(l);
-    return m ? `${m[3].split('/').pop()} (pid ${m[1]}, mulai ${m[2]})` : l.trim().split('/').pop();
+    // "  512 Fri  6 Nov 16:05:13 2026 /usr/libexec/ptpcamerad" (urutan hari/bulan ikut bahasa Mac)
+    const m = /^\s*(\d+)\s+(.*?(\d{1,2}:\d\d:\d\d)).*?\d{4}\s+(.*)$/.exec(l);
+    return m ? `${m[4].split('/').pop()} (pid ${m[1]}, mulai ${m[3]})` : l.trim().split('/').pop();
   });
 }
 // Kamera Sony di daftar USB macOS (nama, kecepatan, nomor seri dipendekkan)
 async function usbSony() {
   if (process.platform !== 'darwin') return [];
-  const out = await jalankan('system_profiler', ['SPUSBDataType', '-detailLevel', 'mini'], 8000);
+  // macOS baru memakai SPUSBHostDataType; macOS lama SPUSBDataType
+  const out = (await jalankan('system_profiler', ['SPUSBHostDataType', 'SPUSBDataType', '-detailLevel', 'mini'], 10000));
   const baris = out.split('\n'), hasil = [];
   baris.forEach((l, i) => {
     if (!/sony|ilce|054c/i.test(l)) return;
