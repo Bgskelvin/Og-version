@@ -1,0 +1,8 @@
+# Leura demo untuk HP — hanya file statis (tanpa server, tanpa database).
+# Unggah dengan:  npm run demo:pasang
+name = "leura-demo"
+compatibility_date = "2025-06-01"
+
+[assets]
+directory = "./web"
+not_found_handling = "single-page-application"

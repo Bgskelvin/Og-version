@@ -17,3 +17,6 @@ kamera-sony/hasil-uji/
 # Hasil pemasangan server QR (berisi kunci booth) & berkas kerja wrangler
 cloud/.hasil-pasang.json
 cloud/.wrangler/
+# Hasil bangun demo HP (dibuat ulang dengan npm run demo:bangun)
+demo/web/
+demo/.wrangler/

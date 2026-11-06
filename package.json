@@ -12,7 +12,11 @@
     "uji:sony": "node tests/uji-kamera-sony.js",
     "uji:sony-tidur": "node tests/uji-sony-tidur.js",
     "uji:sony-mode": "node tests/uji-sony-mode.js",
-    "cloud:pasang": "bash cloud/pasang.sh"
+    "cloud:pasang": "bash cloud/pasang.sh",
+    "demo:bangun": "node demo/bangun.js",
+    "demo:lihat": "node demo/bangun.js --lihat",
+    "demo:pasang": "node demo/bangun.js && cd demo && npx wrangler deploy",
+    "uji:demo": "node tests/uji-demo.js"
   },
   "keywords": [],
   "author": "",
