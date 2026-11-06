@@ -3,6 +3,10 @@
    Daftar pesan, quiz, dan foto per hari, dengan status berwarna,
    peringatan sesi bermasalah, dan aksi per sesi (putar, Finder, coba lagi).
    Status diperbarui otomatis setiap 3 detik selama halaman terbuka.
+   Supaya tetap ringan walau sesinya ribuan:
+   - daftar ditampilkan per 60 sesi (tombol "Tampilkan lebih banyak");
+   - gambar kecil foto hanya dimuat untuk baris yang terlihat di layar,
+     dan dipasang langsung ke barisnya tanpa menggambar ulang daftar.
    ===================================================================== */
 
 // status → [label, warna, perlu perhatian?, keterangan]
@@ -21,7 +25,31 @@ const STATUS_SESI = {
 const BISA_ULANG = ['failed', 'webm', 'card-only'];
 const JENIS_SESI = [['semua', 'Semua'], ['pesan', 'Pesan'], ['quiz', 'Quiz'], ['foto', 'Foto'], ['perhatian', 'Perlu perhatian']];
 
-const rw = { couple: null, jenis: 'semua', buka: null, data: [], jejak: '', timer: null, thumb: new Map() };
+const PER_HALAMAN = 60;
+const rw = { couple: null, jenis: 'semua', buka: null, data: [], jejak: '', timer: null, thumb: new Map(), batas: PER_HALAMAN, amati: null };
+
+// Gambar kecil dimuat saat barisnya mendekati layar (bukan semua sekaligus)
+function pengamatThumb() {
+  if (rw.amati || typeof IntersectionObserver === 'undefined') return rw.amati;
+  rw.amati = new IntersectionObserver(entri => {
+    for (const en of entri) {
+      if (!en.isIntersecting) continue;
+      rw.amati.unobserve(en.target);
+      muatThumb(Number(en.target.dataset.id));
+    }
+  }, { root: $('riwayat').querySelector('.sheet-body'), rootMargin: '300px 0px' });
+  return rw.amati;
+}
+function muatThumb(id) {
+  if (rw.thumb.has(id)) return;
+  rw.thumb.set(id, null);
+  api.sessionThumb(id).then(url => {
+    if (!url) return;
+    rw.thumb.set(id, url);
+    const el = document.querySelector(`#rwList .rw-row[data-id="${id}"] .rw-ikon`);   // pasang langsung ke barisnya
+    if (el) el.innerHTML = `<img alt="" src="${url}">`;
+  }).catch(() => {});
+}
 
 const jenisSesi = s => (s.label === 'foto' ? 'foto' : /^quiz/.test(s.label) ? 'quiz' : 'pesan');
 const infoStatus = s => STATUS_SESI[s.status] || ['—', 'abu', false, ''];
@@ -59,7 +87,7 @@ async function loadSessions() {
 /* ---------- Halaman Riwayat sesi ---------- */
 async function bukaRiwayat() {
   rw.couple = activeCouple ? activeCouple.name : '';
-  rw.jenis = 'semua'; rw.buka = null; rw.jejak = '';
+  rw.jenis = 'semua'; rw.buka = null; rw.jejak = ''; rw.batas = PER_HALAMAN;
   show('riwayat');
   $('riwayat').querySelector('.sheet-body').scrollTop = 0;
   try { unggahSt = await api.unggahStatus(); } catch (e) {}   // untuk menyusun link QR sesi lama
@@ -108,7 +136,7 @@ function gambarRiwayat() {
     const b = document.createElement('button');
     b.className = 'rw-chip' + (rw.jenis === k ? ' on' : '');
     b.textContent = t + (k === 'perhatian' && masalah ? ` (${masalah})` : '');
-    b.onclick = () => { rw.jenis = k; rw.buka = null; gambarRiwayat(); };
+    b.onclick = () => { rw.jenis = k; rw.buka = null; rw.batas = PER_HALAMAN; gambarRiwayat(); };
     chips.appendChild(b);
   }
 
@@ -120,8 +148,9 @@ function gambarRiwayat() {
     const k = document.createElement('div'); k.className = 'group'; k.innerHTML = '<div class="item muted">Belum ada sesi di sini.</div>';
     box.appendChild(k); return;
   }
+  if (rw.amati) rw.amati.disconnect();
   let hari = null, grup = null;
-  for (const s of tampil) {
+  for (const s of tampil.slice(0, rw.batas)) {
     const h = new Date(s.time).toDateString();
     if (h !== hari) {
       hari = h;
@@ -131,6 +160,13 @@ function gambarRiwayat() {
     }
     grup.appendChild(barisSesi(s));
     if (rw.buka === s._id) grup.appendChild(detailSesi(s));
+  }
+  if (tampil.length > rw.batas) {
+    const lagi = document.createElement('button');
+    lagi.className = 'btn sm tint rw-lagi'; lagi.id = 'rwLagi';
+    lagi.textContent = `Tampilkan lebih banyak (${tampil.length - rw.batas} sesi lagi)`;
+    lagi.onclick = () => { rw.batas += PER_HALAMAN; gambarRiwayat(); };
+    box.appendChild(lagi);
   }
 }
 
@@ -147,8 +183,8 @@ function barisSesi(s) {
   else {
     b.querySelector('.rw-ikon').innerHTML = `<svg class="i"><use href="#${ikon}"/></svg>`;
     if (jenis === 'foto' && !rw.thumb.has(s._id) && typeof s._id === 'number') {
-      rw.thumb.set(s._id, null);
-      api.sessionThumb(s._id).then(url => { if (url) { rw.thumb.set(s._id, url); gambarRiwayat(); } }).catch(() => {});
+      const o = pengamatThumb();
+      if (o) o.observe(b); else muatThumb(s._id);
     }
   }
   b.querySelector('b').textContent = `${jamSesi(s.time)} · ${nama}${s.tamu ? ' · ' + s.tamu : ''}`;

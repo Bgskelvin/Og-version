@@ -52,7 +52,7 @@ window.api = {
   getSessions: async () => window.SESI || [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
   sessionOpen: async id => { LOG.push('buka ' + id); return { ok: true }; },
   sessionReveal: async id => { LOG.push('finder ' + id); return { ok: true }; },
-  sessionThumb: async () => null,
+  sessionThumb: async id => { window.NTHUMB = (window.NTHUMB || 0) + 1; return window.THUMB_URL || null; },
   sessionRetry: async id => { LOG.push('ulang ' + id); const s = SESI.find(x => x.id === id); s.status = s.status === 'card-only' ? 'transfer' : 'processing'; return { ok: true }; },
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
   getSettings: async () => ({ ...ST }),
@@ -588,6 +588,30 @@ async function main() {
   await pg.evaluate(() => { kegiatanTamu = 1; show('thanks'); idleTimer && clearTimeout(idleTimer); idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), 50); });
   await tunggu(300);
   cek(await layar() === 'utama' && await pg.evaluate(() => namaTamu) === 'Tono', 'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start');
+
+  console.log('\n▶ Riwayat sesi tetap ringan dengan banyak sesi');
+  await pg.evaluate(() => {
+    window.SESI_LAMA = SESI.slice();
+    const t0 = Date.now();
+    for (let i = 0; i < 400; i++) SESI.push({ id: 1000 + i, time: new Date(t0 - i * 60000).toISOString(), label: 'foto', couple: 'Rina & Dimas', status: 'photo', photos: 4, file: `F${i}_hasil.jpg` });
+    window.NTHUMB = 0;
+    window.THUMB_URL = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+    window.NGAMBAR = 0; const asli = gambarRiwayat; gambarRiwayat = function () { window.NGAMBAR++; return asli.apply(this, arguments); };
+    show('admin');
+  });
+  await pg.click('#btnRiwayat'); await tunggu(800);
+  const nBaris = await pg.locator('#rwList .rw-row').count();
+  cek(nBaris === 60 && await pg.isVisible('#rwLagi') && /\(\d+ sesi lagi\)/.test(await pg.textContent('#rwLagi')), 'daftar ditampilkan per 60 sesi + tombol "Tampilkan lebih banyak"', nBaris);
+  const nThumb = await pg.evaluate(() => window.NTHUMB);
+  cek(nThumb > 0 && nThumb < 40, 'gambar kecil hanya dimuat untuk baris yang terlihat (bukan 400)', nThumb);
+  cek(await pg.locator('#rwList .rw-row .rw-ikon img').count() === nThumb, 'gambar kecil langsung dipasang ke barisnya');
+  cek(await pg.evaluate(() => window.NGAMBAR) <= 2, 'daftar tidak digambar ulang setiap gambar kecil selesai', await pg.evaluate(() => window.NGAMBAR));
+  await pg.click('#rwLagi'); await tunggu(300);
+  cek(await pg.locator('#rwList .rw-row').count() === 120, 'Tampilkan lebih banyak: 60 sesi berikutnya');
+  await pg.evaluate(() => { const b = $('riwayat').querySelector('.sheet-body'); b.scrollTop = b.scrollHeight; }); await tunggu(500);
+  cek(await pg.evaluate(() => window.NTHUMB) > nThumb, 'menggulir ke bawah memuat gambar kecil berikutnya');
+  await pg.evaluate(() => { SESI.length = 0; SESI.push(...window.SESI_LAMA); window.THUMB_URL = null; });
+  await pg.click('#rwBack'); await tunggu(200);
 
   console.log('\n▶ Catatan aplikasi di Admin');
   await pg.evaluate(() => { show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });

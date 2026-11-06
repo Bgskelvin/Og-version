@@ -144,20 +144,34 @@ function daftarkan() {
     if (fs.existsSync(s.dir || '')) { shell.openPath(s.dir); return { ok: true }; }
     return { error: 'Folder tidak ditemukan.' };
   });
-  // Gambar kecil hasil photobooth untuk daftar sesi
+  // Gambar kecil hasil photobooth untuk daftar sesi.
+  // - Dibuat SATU PER SATU (antrean), tidak sekaligus, supaya aplikasi tidak tersendat.
+  // - Memakai pembuat thumbnail bawaan macOS (asinkron, tidak membekukan aplikasi).
+  // - Disimpan di <folder data>/thumb/<id>.jpg, jadi saat Riwayat dibuka lagi langsung tampil.
   const cacheThumb = new Map();
-  ipcMain.handle('session-thumb', (e, id) => {
-    if (cacheThumb.has(id)) return cacheThumb.get(id);
+  const FOLDER_THUMB = path.join(require('./penyimpanan').userData, 'thumb');
+  let antreanThumb = Promise.resolve();
+  async function buatThumb(id) {
+    const simpan = path.join(FOLDER_THUMB, `${id}.jpg`);
+    try { if (fs.existsSync(simpan)) return 'data:image/jpeg;base64,' + fs.readFileSync(simpan).toString('base64'); } catch (err) {}
     const s = cariSesi(id);
     if (!s || s.label !== 'foto' || !fs.existsSync(lokasi(s))) return null;
-    let url = null;
-    try {
-      const { nativeImage } = require('electron');
-      if (nativeImage) url = nativeImage.createFromPath(lokasi(s)).resize({ height: 160 }).toDataURL();
-      else if (fs.statSync(lokasi(s)).size < 3e6) url = 'data:image/jpeg;base64,' + fs.readFileSync(lokasi(s)).toString('base64');
-    } catch (err) {}
-    cacheThumb.set(id, url);
-    return url;
+    const { nativeImage } = require('electron');
+    if (!nativeImage) return fs.statSync(lokasi(s)).size < 3e6 ? 'data:image/jpeg;base64,' + fs.readFileSync(lokasi(s)).toString('base64') : null;
+    let img = null;
+    try { if (nativeImage.createThumbnailFromPath) img = await nativeImage.createThumbnailFromPath(lokasi(s), { width: 240, height: 240 }); } catch (err) {}
+    if (!img || img.isEmpty()) img = nativeImage.createFromPath(lokasi(s)).resize({ height: 160 });
+    if (img.isEmpty()) return null;
+    const jpg = img.toJPEG(80);
+    try { fs.mkdirSync(FOLDER_THUMB, { recursive: true }); fs.writeFileSync(simpan, jpg); } catch (err) {}
+    return 'data:image/jpeg;base64,' + jpg.toString('base64');
+  }
+  ipcMain.handle('session-thumb', (e, id) => {
+    if (cacheThumb.has(id)) return cacheThumb.get(id);
+    const hasil = antreanThumb.then(() => buatThumb(id)).catch(() => null);
+    antreanThumb = hasil;
+    cacheThumb.set(id, hasil);
+    return hasil;
   });
   // Coba lagi: ubah ke MP4 lagi, atau salin lagi video dari kartu SD kamera Sony
   ipcMain.handle('session-retry', (e, id) => {

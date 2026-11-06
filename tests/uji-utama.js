@@ -337,13 +337,28 @@ const KASUS = {
     cek((await panggil('session-open', foto.id)).ok && /_hasil\.jpg$/.test(electron.__dibuka), 'foto hasil bisa dibuka');
     cek((await panggil('session-reveal', foto.id)).ok && /_hasil\.jpg$/.test(electron.__ditunjukkan), 'foto ditunjukkan di Finder');
     cek(/^data:image\/jpeg;base64,/.test(await panggil('session-thumb', foto.id)), 'gambar kecil foto tersedia');
+    // Dengan pembuat thumbnail macOS: satu per satu, disimpan di folder data/thumb, dipakai lagi tanpa membuat ulang
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
+    const [f2, f3] = sesi().slice(-2);
+    let jalan = 0, puncak = 0, dibuat = 0;
+    electron.nativeImage = {
+      createThumbnailFromPath: async () => { jalan++; puncak = Math.max(puncak, jalan); dibuat++; await tunggu(60); jalan--; return { isEmpty: () => false, toJPEG: () => Buffer.from([0xff, 0xd8, 0xff, 0xd9]) }; },
+      createFromPath: () => ({ resize: () => ({ isEmpty: () => true }), isEmpty: () => true }),
+    };
+    const [a2, a3] = await Promise.all([panggil('session-thumb', f2.id), panggil('session-thumb', f3.id)]);
+    cek(a2 && a3 && puncak === 1, 'gambar kecil dibuat satu per satu (tidak sekaligus)', puncak);
+    cek(fs.existsSync(path.join(dataDir, 'thumb', f2.id + '.jpg')) && fs.existsSync(path.join(dataDir, 'thumb', f3.id + '.jpg')), 'gambar kecil disimpan di folder data/thumb');
+    await panggil('session-thumb', f2.id);
+    cek(dibuat === 2, 'gambar kecil yang sudah ada tidak dibuat ulang');
+    delete electron.nativeImage;
     cek((await panggil('session-open', 12345)).error, 'sesi tidak dikenal ditolak dengan pesan');
     cek(/tidak perlu diulang/.test((await panggil('session-retry', foto.id)).error), 'sesi yang sudah beres tidak bisa diulang');
     // Video Sony yang tertinggal di kartu: salin lagi
     await panggil('save-settings', { kamera: 'sony-sim' }); await tunggu(700);
     const r = await panggil('rec-start', 'pesan', { sony: true });
     await panggil('rec-end', r.id, 5, {}); await tunggu(1500);
-    const list = sesi(); const v = list.find(x => x.id !== foto.id);
+    const list = sesi(); const v = list.find(x => x.label !== 'foto');
     cek(v.status === 'done' && v.kartuInfo && v.kartuInfo.contentId, 'info file di kartu SD dicatat untuk salin ulang', v);
     fs.unlinkSync(r.file);
     list.find(x => x.id === v.id).status = 'card-only';
