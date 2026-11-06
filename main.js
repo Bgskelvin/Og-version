@@ -11,7 +11,7 @@
      unggah.js       unduh foto lewat QR: antrean unggah ke Cloudflare
      jendela.js      jendela, menu, pengaman navigasi
      catatan.js      catatan harian (log) untuk melacak masalah
-     keluar.js       tombol Tutup aplikasi di Admin
+     keluar.js       tutup aplikasi dengan konfirmasi (Admin, tombol ✕, ⌘Q)
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
 
@@ -58,9 +58,11 @@ app.on('second-instance', () => jendela.munculkan());
 app.on('window-all-closed', () => app.quit());
 // Saat keluar: tunggu kamera Sony diputus dengan rapi dulu (maks ±4 detik), baru aplikasi benar-benar tutup
 let sudahBeres = false;
+const keluar = require('./main/keluar');
 app.on('before-quit', e => {
   if (sudahBeres) return;
   e.preventDefault();
+  if (!keluar.boleh()) return keluar.minta('⌘Q');      // tanya dulu, seperti tombol Tutup aplikasi di Admin
   catatan.catat('Aplikasi ditutup');
   rekaman.tutupSemua();
   Promise.resolve(kameraSony.matikan()).catch(() => {}).then(() => { sudahBeres = true; app.quit(); });

@@ -481,8 +481,19 @@ const KASUS = {
     // Tombol "Tutup aplikasi" di Admin
     const c = await panggil('cek-tutup');
     cek(c.salin === 0 && c.proses === 0 && c.foto === 0, 'cek sebelum tutup: tidak ada yang tertunda', c);
+    // Tombol ✕ jendela / ⌘Q: belum ditutup, tampilan diminta menampilkan dialog konfirmasi
+    const tutupJendela = { dicegah: false, preventDefault() { this.dicegah = true; } };
+    electron.__wc.terkirim.length = 0;
+    electron.__jendela.ev.close(tutupJendela);
+    cek(tutupJendela.dicegah && electron.__wc.terkirim.some(a => a[0] === 'minta-tutup'), 'tombol ✕: jendela tidak langsung tertutup, muncul dialog konfirmasi');
+    const cmdQ = { dicegah: false, preventDefault() { this.dicegah = true; } };
+    electron.__appEvents['before-quit'](cmdQ); await tunggu(300);
+    cek(cmdQ.dicegah && !electron.__keluar && electron.__wc.terkirim.filter(a => a[0] === 'minta-tutup').length === 2, '⌘Q: tanya dulu, kamera belum diputus');
     await panggil('tutup-aplikasi'); await tunggu(400);
     cek(electron.__keluar === true, 'Tutup aplikasi memakai jalur resmi (app.quit)');
+    const tutupLagi = { dicegah: false, preventDefault() { this.dicegah = true; } };
+    electron.__jendela.ev.close(tutupLagi);
+    cek(!tutupLagi.dicegah, 'setelah dikonfirmasi: jendela boleh tertutup');
     electron.__keluar = false;
     const jalan = () => { try { return require('child_process').execFileSync('pgrep', ['-f', '^\\S*sony-helper-palsu$']).toString().trim(); } catch (e) { return ''; } };
     cek(jalan() !== '', 'program penghubung kamera berjalan sebelum ditutup');

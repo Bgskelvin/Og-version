@@ -48,6 +48,8 @@ function pasangAdmin() {
   $('uid').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
   $('btnAdminBack').onclick = () => show('utama');
   $('btnTutupApp').onclick = konfirmasiTutup;
+  // Tombol ✕ jendela / ⌘Q: dialog yang sama (sekali saja walau ditekan berulang)
+  api.onMintaTutup(() => konfirmasiTutup());
   $('btnLihatCatatan').onclick = lihatCatatan;
   $('btnSimpanCatatan').onclick = simpanCatatan;
   // Kunci Admin lagi (mis. booth ditinggal tanpa operator): berikutnya harus login
@@ -64,9 +66,13 @@ function pasangAdmin() {
 }
 
 /* ---------- Tutup aplikasi (dari Admin) ---------- */
+let tutupDibuka = false;   // cegah dua dialog kalau ✕ / tombol ditekan berulang
 async function konfirmasiTutup() {
+  if (tutupDibuka || $('dlgTutup')) return;
+  tutupDibuka = true;
   let c = { salin: 0, proses: 0, foto: 0 };
   try { c = await api.cekTutup(); } catch (e) {}
+  tutupDibuka = false;
   const catatan = [];
   if (c.salin) catatan.push(`${c.salin} video masih disalin dari kamera Sony. File aslinya aman di kartu kamera; bisa disalin lagi lewat Riwayat sesi.`);
   if (c.proses) catatan.push(`${c.proses} video masih diproses. Prosesnya dilanjutkan otomatis saat aplikasi dibuka lagi.`);

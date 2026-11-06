@@ -51,6 +51,14 @@ function buatJendela(DEV) {
     setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 1000);
   });
 
+  // Tombol ✕ merah: tanya dulu (dialog yang sama dengan Admin → Tutup aplikasi)
+  win.on('close', e => {
+    const keluar = require('./keluar');
+    if (keluar.boleh()) return;
+    e.preventDefault();
+    keluar.minta('tombol ✕');
+  });
+
   setWin(win);
   win.loadFile(path.join(__dirname, '..', 'index.html'));
 }

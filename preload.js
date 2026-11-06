@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
   catatanBaca: () => ipcRenderer.invoke('catatan-baca'),
   catatanSimpan: () => ipcRenderer.invoke('catatan-simpan'),
   catat: (pesan, tingkat) => ipcRenderer.send('catat', String(pesan), tingkat),
+  onMintaTutup: cb => ipcRenderer.on('minta-tutup', () => cb()),
   cekTutup: () => ipcRenderer.invoke('cek-tutup'),
   tutupAplikasi: () => ipcRenderer.invoke('tutup-aplikasi'),
   onUnggahStatus: cb => ipcRenderer.on('unggah-status', (e, s) => cb(s)),

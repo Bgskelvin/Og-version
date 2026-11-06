@@ -40,6 +40,7 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
       constructor(o) { this.opsi = o; this.webContents = wc; electron.__jendela = this; }
       isDestroyed() { return false; } loadFile(f) { this.dimuat = f; } isMinimized() { return false; }
       show() {} focus() { this.difokuskan = true; } restore() {} setKiosk(v) { this.kiosk = v; } setFullScreen() {}
+      on(n, f) { (this.ev = this.ev || {})[n] = f; }
     },
     ipcMain: { handle: (n, f) => { handlers[n] = f; }, on: (n, f) => { listeners[n] = f; } },
     session: { defaultSession: { setPermissionRequestHandler() {} } },

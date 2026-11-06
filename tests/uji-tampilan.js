@@ -86,6 +86,7 @@ window.api = {
   catatanBaca: async () => ({ file: '2026-11-06', teks: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
   catatanSimpan: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
   catat: () => {},
+  onMintaTutup: cb => { window.MINTA_TUTUP = cb; },
   cekTutup: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
   tutupAplikasi: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
   bukaLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
@@ -643,6 +644,10 @@ async function main() {
   await pg.click('#dlgTutupYa'); await tunggu(200);
   cek((await log()).includes('tutup aplikasi') && /Menutup aplikasi/.test(await pg.textContent('#dlgTutup')), 'Ya: aplikasi ditutup lewat jalur resmi');
   await pg.evaluate(() => document.getElementById('dlgTutup').remove());
+  await pg.evaluate(() => { window.TUTUP = null; show('utama'); window.MINTA_TUTUP(); window.MINTA_TUTUP(); }); await tunggu(300);
+  cek(await pg.locator('#dlgTutup').count() === 1 && /Tutup aplikasi\?/.test(await pg.textContent('#dlgTutup h2')), 'tombol ✕ / ⌘Q: dialog Tutup aplikasi muncul (sekali, walau ditekan dua kali)');
+  await pg.click('#dlgTutupBatal'); await tunggu(100);
+  cek(await pg.locator('#dlgTutup').count() === 0, 'tombol ✕ lalu Batal: aplikasi tetap terbuka');
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => { show('utama'); }); await pg.click('#btnAdminOpen'); await tunggu(200);
