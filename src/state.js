@@ -25,6 +25,7 @@ let cfg;                              // pengaturan dari main.js (api.getConfig)
 let current = 'start';                // halaman yang sedang tampil
 let busy = false;                     // true saat merekam / memotret: tombol & idle dikunci
 let idleTimer = null, noticeTimer = null;
+let kegiatanTamu = 0;                 // jumlah kegiatan (pesan/quiz/foto) tamu ini; > 0 = tombol Selesai muncul
 let namaTamu = '';                    // nama tamu dari halaman "Siapa namamu?" (kosong = tidak ditanya)
 
 // ---------- Kamera & mic ----------

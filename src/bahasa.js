@@ -42,7 +42,7 @@ const KAMUS = {
     '@pesan.judul': 'Leave a message', '@pesan.petunjuk': 'Press Start, share your message, then press Done.',
     '@quiz.mulai': 'Start quiz',
     '@simpan.tunggu': 'Please wait a moment',
-    '@tk.judul': 'Thank you', '@tk.coba': 'Try again',
+    '@tk.judul': 'Thank you', '@tk.menu': 'Back to menu',
     '@pb.selesaiEdit': 'Finish & edit',
     '@tk.qr': 'Scan to download your photo', '@tk.qrInfo': 'Available for 7 days.',
     '@pe.foto': 'Photos', '@pe.judul': 'Edit photo',

@@ -490,7 +490,7 @@ async function main() {
   cek(await pg.evaluate(() => isiTeksTemplate('{tanggal}') === new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })),
       'tanggal di template foto ditulis dalam bahasa Inggris');
   await pg.click('#peDone'); await tungguLayar('thanks');
-  cek(/Thank you/.test(await pg.textContent('#thanks h1')) && /Your photos have been saved/.test(await pg.textContent('#thanksMsg')) && /Try again/.test(await pg.textContent('#btnCobaLagi')),
+  cek(/Thank you/.test(await pg.textContent('#thanks h1')) && /Your photos have been saved/.test(await pg.textContent('#thanksMsg')) && /Back to menu/.test(await pg.textContent('#btnCobaLagi')),
       'halaman Terima kasih berbahasa Inggris');
   await pg.evaluate(() => show('admin')); await pg.selectOption('#setBahasa', 'id'); await tunggu(300);
   await pg.evaluate(() => show('utama'));
@@ -568,6 +568,23 @@ async function main() {
   await pg.evaluate(() => show('start')); await pg.click('#btnStart');
   cek(await layar() === 'utama' && !(await pg.isVisible('#sapaTamu')), 'tanpa tanya nama: Start langsung ke Halaman Utama');
   await pg.evaluate(() => show('admin')); await pg.click('#setTanyaNama'); await tunggu(200);
+
+  console.log('\n▶ Alur tamu: Terima kasih → menu → Selesai');
+  await pg.evaluate(() => show('start')); await pg.click('#btnStart'); await pg.fill('#namaInput', 'Rani'); await pg.press('#namaInput', 'Enter');
+  cek(await layar() === 'utama' && !(await pg.isVisible('#btnSelesaiTamu')), 'belum ada kegiatan: tombol Selesai belum muncul');
+  await bersihkan(); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
+  await pg.click('#btnFinish'); await tungguLayar('thanks');
+  cek(/Kembali ke menu/.test(await pg.textContent('#btnCobaLagi')) && await pg.locator('#thanks .row button:visible').count() === 1, 'Terima kasih: satu tombol "Kembali ke menu"');
+  await pg.click('#btnCobaLagi');
+  cek(await layar() === 'utama' && await pg.textContent('#sapaTamu') === 'Hai, Rani!', 'kembali ke menu: nama tamu tetap (tidak perlu mengetik ulang)');
+  cek(await pg.isVisible('#btnSelesaiTamu') && (await pg.textContent('#btnSelesaiTamu')).trim() === 'Selesai', 'setelah satu kegiatan: tombol Selesai muncul di menu');
+  await pg.click('#btnSelesaiTamu');
+  cek(await layar() === 'start' && await pg.evaluate(() => namaTamu) === '', 'Selesai: kembali ke Start, nama tamu dihapus');
+  await pg.click('#btnStart'); await pg.fill('#namaInput', 'Tono'); await pg.press('#namaInput', 'Enter');
+  cek(!(await pg.isVisible('#btnSelesaiTamu')), 'tamu berikutnya: tombol Selesai tersembunyi lagi');
+  await pg.evaluate(() => { kegiatanTamu = 1; show('thanks'); idleTimer && clearTimeout(idleTimer); idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), 50); });
+  await tunggu(300);
+  cek(await layar() === 'utama' && await pg.evaluate(() => namaTamu) === 'Tono', 'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start');
 
   console.log('\n▶ Kunci Admin');
   await pg.evaluate(() => { show('utama'); }); await pg.click('#btnAdminOpen'); await tunggu(300);

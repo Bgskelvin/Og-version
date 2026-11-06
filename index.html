@@ -75,6 +75,8 @@
       <button id="btnToPhoto" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-camera"/></svg></span>
         <b data-t="utama.foto">Photo booth</b><small data-t="utama.fotoInfo">Ambil 4 foto, lalu hias hasilnya</small></button>
     </div>
+    <!-- Muncul setelah tamu melakukan minimal satu kegiatan; kembali ke halaman Start untuk tamu berikutnya -->
+    <button id="btnSelesaiTamu" class="mu-selesai" data-t="selesai" style="display:none">Selesai</button>
   </div>
 </div>
 
@@ -295,8 +297,7 @@
     <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
   </div>
   <div class="row" style="max-width:640px">
-    <button id="btnCobaLagi" class="btn glassy" data-t="tk.coba"><svg class="i"><use href="#i-retry"/></svg>Coba lagi</button>
-    <button id="btnSelesai" class="btn primary" data-t="selesai">Selesai</button>
+    <button id="btnCobaLagi" class="btn primary" data-t="tk.menu"><svg class="i"><use href="#i-back"/></svg>Kembali ke menu</button>
   </div>
 </div>
 
