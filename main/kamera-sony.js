@@ -149,7 +149,14 @@ function jadwalSambung(ms) {
 }
 const { jelaskanSambung } = require('./pesan-sony');
 const catatan = require('./catatan');
-let pesanGagalTerakhir = '';   // supaya gagal sambung yang sama (dicoba tiap 4 dtk) tidak memenuhi catatan
+let pesanGagalTerakhir = '';
+let sudahPotretBerhasil = false;
+// Potret kondisi Mac ke catatan (program yang mungkin merebut kamera, USB, disk). Tidak menunggu, tidak pernah gagal.
+function catatKondisiMac(alasan) {
+  require('./diagnosa-mac').potret()
+    .then(b => b.forEach(x => catatan.catat(`  [kondisi Mac · ${alasan}] ${x}`)))
+    .catch(() => {});
+}   // supaya gagal sambung yang sama (dicoba tiap 4 dtk) tidak memenuhi catatan
 async function cobaSambung() {
   if (!hub || st.tersambung || menyambung) return;
   menyambung = true;
@@ -160,12 +167,13 @@ async function cobaSambung() {
   if (r.ok) {
     Object.assign(st, { tersambung: true, model: r.model || 'Sony', pesan: '' });
     catatan.catat(`Kamera Sony tersambung: ${st.model}`);
+    if (!sudahPotretBerhasil) { sudahPotretBerhasil = true; catatKondisiMac('berhasil'); }
     pesanGagalTerakhir = '';
     if (r.catatan) console.log('Kamera Sony: sebagian pengaturan gagal dipasang: ' + r.catatan);
     await perbaruiStatus();
   } else {
     Object.assign(st, { tersambung: false, pesan: jelaskanSambung(r) });
-    if (st.pesan !== pesanGagalTerakhir) { catatan.peringatan('Kamera Sony gagal tersambung: ' + st.pesan + ' (dicoba lagi tiap 4 detik)'); pesanGagalTerakhir = st.pesan; }
+    if (st.pesan !== pesanGagalTerakhir) { catatan.peringatan('Kamera Sony gagal tersambung: ' + st.pesan + ' (dicoba lagi tiap 4 detik)'); pesanGagalTerakhir = st.pesan; catatKondisiMac('gagal ' + (r.kode || '')); }
     jadwalSambung(4000);
   }
   kabarkan();

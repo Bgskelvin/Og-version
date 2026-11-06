@@ -462,7 +462,7 @@ const KASUS = {
     const bin = path.join(__dirname, '..', 'kamera-sony', 'uji', 'bin', 'sony-helper-palsu');
     if (!fs.existsSync(bin)) { cek(true, 'dilewati: program uji belum dibuat (hanya di komputer pengembang)'); return; }
     process.env.SONY_HELPER = bin;
-    const { panggil, electron, sesi } = nyalakanAplikasi();
+    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi();
     electron.__siap(); await tunggu(100);
     await panggil('save-settings', { kamera: 'sony' });
     await tunggu(1500);
@@ -486,6 +486,10 @@ const KASUS = {
     electron.__keluar = false;
     const jalan = () => { try { return require('child_process').execFileSync('pgrep', ['-f', '^\\S*sony-helper-palsu$']).toString().trim(); } catch (e) { return ''; } };
     cek(jalan() !== '', 'program penghubung kamera berjalan sebelum ditutup');
+    const fileCatatan = path.join(dataDir, 'catatan', fs.readdirSync(path.join(dataDir, 'catatan'))[0]);
+    const isiCatatan = fs.readFileSync(fileCatatan, 'utf8');
+    cek(/\[kondisi Mac · berhasil\] proses kamera: .*sony-helper[-a-z]* \(pid \d+, mulai/.test(isiCatatan) && /\[kondisi Mac · berhasil\] disk luar:/.test(isiCatatan),
+        'kamera tersambung: kondisi Mac (program kamera, USB, disk) dicatat sekali', isiCatatan.split('\n').filter(l => /kondisi Mac/.test(l)));
     const ev = { ditahan: false, preventDefault() { this.ditahan = true; } };
     const t0 = Date.now();
     electron.__appEvents['before-quit'](ev);
