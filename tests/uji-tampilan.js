@@ -60,7 +60,7 @@ window.api = {
   onSonyStatus: cb => { SONY.cb = cb; },
   sonySambungUlang: async () => SONY.st,
   sonyLiveView: async () => SONY.st.tersambung ? buatJpeg(640, 424, '#336') : null,
-  sonyMode: async j => { LOG.push('mode ' + j); return { ok: true }; },
+  sonyMode: async j => { LOG.push('mode ' + j); const beda = !!SONY.st.jenisMode && SONY.st.jenisMode !== j; if (beda) await new Promise(r => setTimeout(r, window.MODE_DELAY || 0)); SONY.st = { ...SONY.st, jenisMode: j }; return { ok: true, jenis: j, diubah: beda }; },
   sonyFoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
     if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
@@ -414,6 +414,19 @@ async function main() {
   await pg.evaluate(() => show('utama'));
   await pg.click('#btnToPhoto'); await tunggu(100);
   cek((await log()).includes('mode foto'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
+  // Transisi halus saat kamera berganti mode
+  await pg.click('#pbBack'); await tunggu(100);
+  await pg.evaluate(() => { SONY.st = { ...SONY.st, jenisMode: 'foto' }; sonySt.jenisMode = 'foto'; window.MODE_DELAY = 900; });
+  await pg.click('#btnToPesan'); await tunggu(150);
+  const n1 = await pg.evaluate(() => lvNo); await tunggu(400); const n2 = await pg.evaluate(() => lvNo);
+  cek(await pg.evaluate(() => document.body.classList.contains('lvGanti')) && n1 === n2, 'ganti mode: gambar kamera dibekukan + kabut (blur) selama berganti');
+  await tunggu(1800);
+  cek(!(await pg.evaluate(() => document.body.classList.contains('lvGanti'))) && await pg.evaluate(() => lvNo) > n2, 'mode selesai: kabut hilang, gambar kamera jalan lagi');
+  await pg.evaluate(() => { sonySt.jenisMode = 'video'; window.MODE_DELAY = 0; });
+  await pg.click('#btnPesanBack'); await pg.evaluate(() => show('quiz')); await tunggu(100);
+  cek(!(await pg.evaluate(() => document.body.classList.contains('lvGanti'))), 'mode sudah benar (pesan → quiz): tanpa kabut');
+  await pg.evaluate(() => show('utama'));
+  await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   cek(await pg.evaluate(() => SONY.foto) === 4 && await pg.locator('.pb-thumb.filled').count() === 4, 'photobooth memakai jepretan kamera Sony (4 foto)');

@@ -7,6 +7,9 @@
 
 let sonySt = { mode: 'webcam', tersambung: false, pesan: '' };   // status terakhir dari proses utama
 let lvJalan = false;
+let lvTahan = false;    // true = gambar kamera dibekukan (saat kamera berganti mode)
+let lvNo = 0;           // jumlah gambar live view yang sudah digambar
+let gantiId = 0;
 
 const pakaiSony = () => !!cfg && (cfg.kamera === 'sony' || cfg.kamera === 'sony-sim');
 
@@ -27,10 +30,26 @@ async function terapkanKamera() {
 /* ---------- Mode kamera mengikuti halaman ----------
    Kirim pesan / Quiz → VIDEO, Photo booth → FOTO. Dipanggil dari show() (app.js).
    Kamera pindah ±2 detik; rekam & jepret menunggu sampai modenya benar. */
+// Transisi halus: selama kamera berganti mode, gambar kamera dibekukan + diberi kabut (blur
+// lembut, sedikit memudar). Kabut hilang setelah gambar baru dengan bentuk yang benar masuk.
+// Ringan: gambar yang dibekukan tidak digambar ulang, jadi blur hanya dihitung sekali.
 function modeUntukLayar(name) {
   if (!pakaiSony() || !api.sonyMode) return;
   const jenis = { pesan: 'video', quiz: 'video', photo: 'foto' }[name];
-  if (jenis) api.sonyMode(jenis).catch(() => {});
+  if (!jenis) return;
+  const id = ++gantiId;
+  const perluGanti = sonySt.tersambung && sonySt.jenisMode && sonySt.jenisMode !== jenis;
+  if (perluGanti) { lvTahan = true; document.body.classList.add('lvGanti'); }
+  const selesai = async () => {
+    if (id !== gantiId) return;                 // sudah ada pergantian lain yang lebih baru
+    lvTahan = false;
+    if (!document.body.classList.contains('lvGanti')) return;
+    const n = lvNo, t0 = performance.now();     // tunggu 2 gambar baru (bentuk sudah benar), maks 1,5 dtk
+    while (lvNo < n + 2 && performance.now() - t0 < 1500) await sleep(40);
+    if (id === gantiId) document.body.classList.remove('lvGanti');
+  };
+  const pengaman = setTimeout(selesai, 6000);   // jangan sampai kabut tertinggal
+  api.sonyMode(jenis).catch(() => {}).finally(() => { clearTimeout(pengaman); selesai(); });
 }
 
 /* ---------- Live view ---------- */
@@ -52,7 +71,7 @@ async function jalankanLiveView() {
       if (buf) {
         try {
           const bmp = await createImageBitmap(new Blob([buf], { type: 'image/jpeg' }));
-          gambarLv($('camLv'), bmp);
+          if (!lvTahan) { gambarLv($('camLv'), bmp); lvNo++; }
           if (current === 'admin') gambarLv($('camPrevLv'), bmp);
           bmp.close();
         } catch (e) {}
