@@ -60,6 +60,7 @@ window.api = {
   onSonyStatus: cb => { SONY.cb = cb; },
   sonySambungUlang: async () => SONY.st,
   sonyLiveView: async () => SONY.st.tersambung ? buatJpeg(640, 424, '#336') : null,
+  sonyMode: async j => { LOG.push('mode ' + j); return { ok: true }; },
   sonyFoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
     if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
@@ -404,7 +405,16 @@ async function main() {
   cek(await pg.evaluate(() => document.getElementById('camPrevLv').width) === 640, 'live view tampil di pratinjau Admin');
   await pg.evaluate(() => { applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0, pesanCountdown: 0 }); show('utama'); }); await tunggu(400);
   cek(await pg.isVisible('#camLv') && !(await pg.isVisible('#cam')), 'live view Sony jadi latar Halaman Utama');
-  await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await bersihkan();
+  await pg.click('#btnToPesan'); await tunggu(100);
+  cek((await log()).includes('mode video'), 'buka Kirim pesan: kamera Sony dipindah ke mode VIDEO');
+  await pg.click('#btnPesanBack');
+  await pg.evaluate(() => show('quiz')); await tunggu(100);
+  cek((await log()).filter(x => x === 'mode video').length === 2, 'buka Quiz: kamera Sony ke mode VIDEO');
+  await pg.evaluate(() => show('utama'));
+  await pg.click('#btnToPhoto'); await tunggu(100);
+  cek((await log()).includes('mode foto'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
+  await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   cek(await pg.evaluate(() => SONY.foto) === 4 && await pg.locator('.pb-thumb.filled').count() === 4, 'photobooth memakai jepretan kamera Sony (4 foto)');
   await pg.click('#pbFinish'); await tunggu(500); await pg.click('#peDone'); await tungguLayar('thanks');

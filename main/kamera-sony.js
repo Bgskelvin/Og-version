@@ -107,6 +107,12 @@ class Simulasi extends EventEmitter {
         return { ok: true, file: f, ms: 450 };
       }
       case 'rekam-mulai': await tunda(200); this.merekam = true; return { ok: true };
+      case 'mode': {
+        const jenis = this.jenisMode || 'foto';
+        if (!args[0] || args[0] === jenis) return { ok: true, jenis, mode: jenis === 'video' ? '0x8050' : '0x1', diubah: false };
+        await tunda(300); this.jenisMode = args[0];
+        return { ok: true, jenis: args[0], mode: args[0] === 'video' ? '0x8050' : '0x1', diubah: true, coba: 1 };
+      }
       case 'rekam-stop': {
         await tunda(400); this.merekam = false;
         const n = ++this.no;
@@ -167,6 +173,8 @@ async function cobaSambung() {
   if (r.ok) {
     Object.assign(st, { tersambung: true, model: r.model || 'Sony', pesan: '' });
     catatan.catat(`Kamera Sony tersambung: ${st.model}`);
+    st.jenisMode = null;
+    hub.kirim('mode', [], 5000).then(m => { if (m && m.ok) { st.jenisMode = m.jenis; catatan.catat(`Mode kamera saat tersambung: ${m.jenis.toUpperCase()} (${m.mode})`); } }).catch(() => {});
     if (!sudahPotretBerhasil) { sudahPotretBerhasil = true; catatKondisiMac('berhasil'); }
     pesanGagalTerakhir = '';
     if (r.catatan) console.log('Kamera Sony: sebagian pengaturan gagal dipasang: ' + r.catatan);
@@ -190,7 +198,7 @@ async function perbaruiStatus() {
 
 function olahKabar(m) {
   if (m.ev === 'terputus') {
-    Object.assign(st, { tersambung: false, pesan: 'Kamera Sony terputus. Cek kabel USB & daya kamera.' });
+    Object.assign(st, { tersambung: false, pesan: 'Kamera Sony terputus. Cek kabel USB & daya kamera.', jenisMode: null });
     catatan.peringatan('Kamera Sony terputus' + (m.kode ? ' (' + m.kode + ')' : ''));
     // SDK mencoba menyambung ulang sendiri; kalau 8 detik belum berhasil, aplikasi mencari kamera lagi
     jadwalSambung(8000);
@@ -216,6 +224,7 @@ function setel(m) {
   m = MODE.includes(m) ? m : 'webcam';
   if (m === mode && (hub || m === 'webcam')) return status();
   matikan();
+  modeTakDidukung = false;          // program penghubung baru bisa saja sudah mendukung ganti mode
   catatan.catat('Sumber kamera: ' + m);
   mode = m;
   st = { tersambung: false, model: '', pesan: '' };
@@ -266,8 +275,38 @@ async function liveView() {
   if (!r.ok) return null;
   return r.buf || Buffer.from(r.jpg, 'base64');
 }
+/* ---------- Mode kamera: foto / video (tanpa memutar tombol di kamera) ----------
+   Kirim pesan & Quiz → mode VIDEO (live view 16:9 = sama dengan hasil video).
+   Photo booth → mode FOTO (resolusi penuh, live view 3:2).
+   Kamera kembali ke mode foto/video terakhir yang dipakai operator (mis. M).
+   Kalau program penghubung lama (belum npm run build:sony) atau kamera menolak,
+   booth tetap jalan seperti sebelumnya. */
+let antrianMode = Promise.resolve();
+let modeTakDidukung = false;
+function aturMode(jenis) {
+  if (!['foto', 'video'].includes(jenis) || !siap() || modeTakDidukung) return Promise.resolve({ ok: false, dilewati: true });
+  if (st.jenisMode === jenis) return Promise.resolve({ ok: true, jenis, diubah: false });
+  const kerja = antrianMode.then(async () => {
+    if (!siap()) return { ok: false };
+    if (st.jenisMode === jenis) return { ok: true, jenis, diubah: false };
+    const r = await hub.kirim('mode', [jenis], 15000);
+    if (r.ok) {
+      st.jenisMode = r.jenis;
+      if (r.diubah) catatan.catat(`Mode kamera: ${r.jenis.toUpperCase()} (${r.mode}, ${r.coba || 1}x coba)`);
+      kabarkan();
+    } else if (/Perintah tidak dikenal/.test(r.error || '')) {
+      modeTakDidukung = true;
+      catatan.peringatan('Ganti mode foto/video belum tersedia: jalankan npm run build:sony');
+    } else catatan.peringatan(`Mode kamera tidak bisa diganti ke ${jenis}: ${r.error}`);
+    return r;
+  });
+  antrianMode = kerja.catch(() => {});
+  return kerja;
+}
+
 async function foto() {
   if (!siap()) return { error: st.pesan || 'Kamera Sony belum tersambung' };
+  await aturMode('foto');
   fs.mkdirSync(SEMENTARA, { recursive: true });
   const r = await hub.kirim('foto', [SEMENTARA], 20000);
   if (!r.ok) return { error: r.error };
@@ -279,6 +318,7 @@ async function foto() {
 }
 async function rekamMulai() {
   if (!siap()) return { error: st.pesan || 'Kamera Sony belum tersambung' };
+  await aturMode('video');
   const r = await hub.kirim('rekam-mulai', [], 10000);
   if (r.ok) { st.merekam = true; kabarkan(); }
   return r.ok ? { ok: true } : { error: r.error };
@@ -317,6 +357,7 @@ function daftarkan() {
   ipcMain.handle('sony-status', () => status());
   ipcMain.handle('sony-lv', () => liveView());
   ipcMain.handle('sony-foto', () => foto());
+  ipcMain.handle('sony-mode', (e, jenis) => aturMode(jenis));
   ipcMain.handle('sony-sambung-ulang', () => {
     if (!hub) { const m = mode; mode = 'webcam'; return setel(m); }   // mis. program penghubung baru saja dibuat
     st.tersambung = false; menyambung = false; jadwalSambung(0); return status();

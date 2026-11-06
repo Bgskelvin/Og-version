@@ -24,6 +24,15 @@ async function terapkanKamera() {
   }
 }
 
+/* ---------- Mode kamera mengikuti halaman ----------
+   Kirim pesan / Quiz → VIDEO, Photo booth → FOTO. Dipanggil dari show() (app.js).
+   Kamera pindah ±2 detik; rekam & jepret menunggu sampai modenya benar. */
+function modeUntukLayar(name) {
+  if (!pakaiSony() || !api.sonyMode) return;
+  const jenis = { pesan: 'video', quiz: 'video', photo: 'foto' }[name];
+  if (jenis) api.sonyMode(jenis).catch(() => {});
+}
+
 /* ---------- Live view ---------- */
 // Hanya diambil saat dibutuhkan (halaman dengan kamera di belakang, atau Admin)
 const butuhLiveView = () => document.body.classList.contains('camOn') || current === 'admin';

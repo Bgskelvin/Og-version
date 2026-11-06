@@ -330,6 +330,9 @@ static bool bacaPropLengkap(uint32_t kode, uint64_t& nilai, bool& bisaUbah, std:
   SDK::ReleaseDeviceProperties(g_dev, daftar);
   return true;
 }
+// Mode foto/video terakhir yang dipakai kamera (mis. M untuk foto), supaya saat pindah balik
+// kamera kembali ke pengaturan operator, bukan selalu ke P.
+static uint32_t g_modeFoto = 0, g_modeVideo = 0;
 static bool modeVideo(uint64_t m) { return m >= 0x8050 && m < 0x8100; }   // CrExposure_Movie_* (termasuk S&Q, interval)
 static std::string jenisMode(uint64_t m) { return modeVideo(m) ? (m >= 0x8059 && m <= 0x805E ? "sq" : "video") : "foto"; }
 static std::string jsonMode(uint64_t m, bool bisa, const std::vector<uint32_t>& pil) {
@@ -341,13 +344,15 @@ static void cmdMode(long id, const std::vector<std::string>& a) {
   if (!g_tersambung) return jawabGagal(id, "Kamera belum tersambung");
   uint64_t m = 0; bool bisa = false; std::vector<uint32_t> pil;
   if (!bacaPropLengkap(SDK::CrDeviceProperty_ExposureProgramMode, m, bisa, pil)) return jawabGagal(id, "Mode kamera tidak bisa dibaca");
+  auto ingat = [](uint64_t v) { if (jenisMode(v) == "video") g_modeVideo = (uint32_t)v; else if (jenisMode(v) == "foto") g_modeFoto = (uint32_t)v; };
+  ingat(m);
   if (a.empty() || a[0].empty()) return jawabOk(id, jsonMode(m, bisa, pil));
   const bool keVideo = a[0] == "video";
   if (jenisMode(m) == (keVideo ? "video" : "foto")) return jawabOk(id, jsonMode(m, bisa, pil) + ",\"diubah\":false");
   // Pilih nilai tujuan: P (otomatis) kalau tersedia, kalau tidak nilai pertama dari jenis yang sama
   const uint32_t utama = keVideo ? (uint32_t)SDK::CrExposure_Movie_P : (uint32_t)SDK::CrExposure_P_Auto;
-  uint32_t tujuan = 0;
-  for (auto v : pil) if (v == utama) tujuan = v;
+  uint32_t tujuan = keVideo ? g_modeVideo : g_modeFoto;      // mode terakhir yang dipakai (mis. M)
+  if (!tujuan) for (auto v : pil) if (v == utama) tujuan = v;
   if (!tujuan) for (auto v : pil) if (modeVideo(v) == keVideo && jenisMode(v) != "sq") { tujuan = v; break; }
   if (!tujuan) tujuan = utama;     // daftar pilihan kosong: coba saja
   tulisProp(SDK::CrDeviceProperty_PriorityKeySettings, SDK::CrPriorityKey_PCRemote);
@@ -361,6 +366,7 @@ static void cmdMode(long id, const std::vector<std::string>& a) {
     if (m == tujuan || jenisMode(m) == (keVideo ? "video" : "foto")) break;
   }
   bool ok = jenisMode(m) == (keVideo ? "video" : "foto");
+  if (ok) ingat(m);
   if (!ok) return jawabGagal(id, std::string("Kamera tidak mau pindah ke mode ") + (keVideo ? "video" : "foto") +
                              " (mode sekarang " + hex((uint32_t)m) + (bisa ? "" : ", terkunci tombol kamera") + ")", e);
   jawabOk(id, jsonMode(m, bisa, pil) + ",\"diubah\":true,\"coba\":" + std::to_string(coba + 1));

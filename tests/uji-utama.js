@@ -299,12 +299,19 @@ const KASUS = {
     cek(electron.__jendela.webContents.terkirim.some(([n, x]) => n === 'sony-status' && x.tersambung), 'layar diberi kabar status kamera');
     const lv = await panggil('sony-lv');
     cek(Buffer.isBuffer(lv) && lv[0] === 0xff && lv[1] === 0xd8, 'live view berupa gambar JPEG');
+    // Mode foto/video tanpa memutar tombol kamera
+    const mv = await panggil('sony-mode', 'video');
+    cek(mv.ok && mv.jenis === 'video' && mv.diubah, 'mode kamera pindah ke VIDEO dari aplikasi');
+    cek((await panggil('sony-mode', 'video')).diubah === false, 'sudah video: tidak dikirim ulang ke kamera');
     const f = await panggil('sony-foto');
     cek(f.ok && f.bytes.length > 50000 && f.bytes[0] === 0xff, 'jepret: foto resolusi penuh masuk', f.bytes && f.bytes.length);
+    cek((await panggil('sony-mode', '')).dilewati && (await panggil('sony-mode', 'video')).diubah === true, 'jepret otomatis memindah kamera ke FOTO dulu');
+    await panggil('sony-mode', 'foto');
     const r = await panggil('rec-start', 'pesan', { sony: true });
     cek(r.id && /_pesan\.mp4$/.test(r.file), 'rekam Sony langsung bernama .mp4', r.file);
     cek(sesi()[0].status === 'recording' && sesi()[0].kamera === 'sony', 'sesi tercatat sebagai rekaman kamera Sony');
     cek((await panggil('sony-status')).merekam === true, 'status kamera: sedang merekam');
+    cek((await panggil('sony-mode', 'video')).diubah === false, 'mulai rekam otomatis memindah kamera ke VIDEO dulu');
     await tunggu(300);
     const e = await panggil('rec-end', r.id, 12, { couple: 'Rina & Dimas' });
     cek(e.ok && sesi()[0].status === 'transfer' && /^C\d+\.MP4$/.test(sesi()[0].kartu), 'berhenti rekam: video disalin dari kartu di belakang', sesi()[0]);
