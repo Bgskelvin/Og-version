@@ -15,7 +15,7 @@
     "cloud:pasang": "bash cloud/pasang.sh",
     "demo:bangun": "node demo/bangun.js",
     "demo:lihat": "node demo/bangun.js --lihat",
-    "demo:pasang": "node demo/bangun.js && cd demo && npx wrangler deploy",
+    "demo:pasang": "node demo/bangun.js && cd demo && npx wrangler deploy && (npx wrangler r2 bucket lifecycle add leura-foto hapus-demo-1-hari demo/ --expire-days 1 --force || echo '⚠ Aturan hapus foto demo (1 hari) belum terpasang — jalankan lagi nanti')",
     "uji:demo": "node tests/uji-demo.js"
   },
   "keywords": [],

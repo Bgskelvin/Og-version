@@ -1,8 +1,14 @@
-# Leura demo untuk HP — hanya file statis (tanpa server, tanpa database).
+# Leura demo untuk HP — tampilan (demo/web) + server kecil untuk QR demo (server.mjs).
 # Unggah dengan:  npm run demo:pasang
 name = "leura-demo"
+main = "server.mjs"
 compatibility_date = "2025-06-01"
 
 [assets]
 directory = "./web"
-not_found_handling = "single-page-application"
+binding = "ASSETS"
+
+# Bucket yang sama dengan server QR asli, tapi demo hanya memakai folder "demo/"
+[[r2_buckets]]
+binding = "FOTO"
+bucket_name = "leura-foto"

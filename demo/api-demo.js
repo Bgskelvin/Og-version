@@ -1,10 +1,11 @@
 /* =====================================================================
    api-demo.js — Leura versi DEMO untuk browser HP (presentasi ke klien)
    Menggantikan bagian Mac (preload.js + folder main/) dengan versi browser:
-   - Kamera depan HP, rekaman & foto disimpan HANYA di HP itu (IndexedDB).
-     Tidak ada yang diunggah ke server.
+   - Kamera depan HP, rekaman & foto disimpan di HP itu (IndexedDB).
+     Hanya foto hasil photobooth yang dikirim ke server demo (untuk QR).
    - Admin bisa dibuka (ID: leura, password: 1234). Perubahan hanya di HP ini.
-   - Yang tidak ada di demo: kamera Sony, MP4, unggah QR sungguhan,
+   - QR unduh foto jalan sungguhan (lewat demo/server.mjs, foto disimpan 1 hari).
+   - Yang tidak ada di demo: kamera Sony, MP4,
      folder penyimpanan, ganti password, tutup aplikasi.
    File ini dimuat SEBELUM src/state.js. Kode aplikasi aslinya tidak diubah.
    ===================================================================== */
@@ -167,6 +168,29 @@
     document.body.appendChild(lapis);
   }
 
+  /* ---------- Unduh lewat QR (demo): foto dikirim ke server demo, disimpan 1 hari ---------- */
+  function kodeBaru() {
+    const huruf = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+    const acak = crypto.getRandomValues(new Uint8Array(12));
+    return Array.from(acak, b => huruf[b % huruf.length]).join('');
+  }
+  async function tandaiUnggah(kode, st) {
+    const x = SESI.find(z => z.kode === kode);
+    if (x && x.unggah !== st) { x.unggah = st; await simpan('sessions', SESI); }
+  }
+  async function unggahFoto(kode, bytes) {
+    for (let coba = 1; coba <= 5; coba++) {
+      try {
+        const r = await fetch('/u/' + kode, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: new Blob([bytes], { type: 'image/jpeg' }) });
+        if (r.ok) { catat(`QR ${kode}: foto terkirim`); return tandaiUnggah(kode, 'terkirim'); }
+        catat(`QR ${kode}: ditolak server (${r.status})`, 'peringatan');
+        if (r.status < 500) return tandaiUnggah(kode, 'ditolak server');
+      } catch (e) { catat(`QR ${kode}: belum terkirim (${e.message}), coba lagi`, 'peringatan'); }
+      await tandaiUnggah(kode, 'menunggu');
+      await new Promise(ok => setTimeout(ok, coba * 3000));
+    }
+  }
+
   /* ---------- Rekaman yang sedang berjalan ---------- */
   const rekam = new Map();
   let nomor = 0, cbErrorRekam = null;
@@ -306,18 +330,22 @@
       const { originals = [], result, meta = {}, tamu: t } = p || {};
       if (!result) return { ok: false, error: 'Data foto kosong' };
       const tamu = namaFile(t);
+      // QR sungguhan kalau demo dibuka dari internet (https); di komputer sendiri: halaman contoh
+      const qrAsli = location.protocol === 'https:' || window.DEMO_QR_UJI === true;   // DEMO_QR_UJI: dipakai tests/uji-demo.js
+      const kode = qrAsli ? kodeBaru() : null;
+      const link = qrAsli ? `${location.origin}/f/${kode}${ST.bahasa === 'en' ? '?b=en' : ''}` : new URL('contoh-unduh.html', location.href).href;
       const sesi = { id: Date.now() * 1000 + Math.floor(Math.random() * 1000), time: new Date().toISOString(), label: 'foto',
         file: `${tamu || 'Tamu'}_hasil.jpg`, dir: 'HP ini', couple: coupleAktif().name, ...(tamu ? { tamu } : {}),
-        seconds: 0, status: 'photo', photos: originals.length, ...meta };
+        seconds: 0, status: 'photo', photos: originals.length, ...(qrAsli ? { kode, link, unggah: 'antre' } : {}), ...meta };
       try { await tambahSesi(sesi, new Blob([result], { type: 'image/jpeg' })); }
       catch (e) { return { ok: false, error: 'Memori HP penuh.' }; }
       catat(`Foto tersimpan: ${sesi.file}`);
-      // QR contoh: membuka halaman contoh unduh (di booth asli, ini link foto tamu sendiri)
-      return { ok: true, link: new URL('contoh-unduh.html', location.href).href };
+      if (qrAsli) unggahFoto(kode, result);   // dikirim di belakang; halaman unduh menunggu sampai fotonya sampai
+      return { ok: true, link };
     },
 
     unggahStatus: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: false }),
-    unggahSimpan: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', error: 'Unduh lewat QR diatur di aplikasi Mac. Di demo, QR membuka halaman contoh.' }),
+    unggahSimpan: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', error: 'Unduh lewat QR diatur di aplikasi Mac. Di demo, QR selalu aktif (foto disimpan 1 hari).' }),
     unggahTes: async () => ({ error: DEMO }),
     unggahHasilPasang: async () => null,
     unggahCobaSekarang: async () => ({ aktif: false }),

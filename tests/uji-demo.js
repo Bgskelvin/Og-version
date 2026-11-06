@@ -16,7 +16,21 @@ async function main() {
   bangun();
   // Server kecil (localhost boleh memakai kamera)
   const http = require('http');
-  const server = http.createServer((req, res) => {
+  // Server demo (demo/server.mjs) dengan R2 tiruan, untuk QR demo
+  const { default: serverDemo } = await import('../demo/server.mjs');
+  const R2 = new Map();
+  const bucket = {
+    get: async k => R2.has(k) ? { body: R2.get(k).data, customMetadata: R2.get(k).meta, uploaded: new Date() } : null,
+    head: async k => R2.has(k) ? { key: k } : null,
+    put: async (k, v, o) => { R2.set(k, { data: Buffer.from(v), meta: (o && o.customMetadata) || {} }); },
+  };
+  const server = http.createServer(async (req, res) => {
+    if (/^\/(u|f|i|d)\//.test(req.url)) {
+      const isi = []; for await (const c of req) isi.push(c);
+      const r = await serverDemo.fetch(new Request('http://' + req.headers.host + req.url, { method: req.method, headers: req.headers, body: isi.length ? Buffer.concat(isi) : undefined }),
+        { FOTO: bucket, ASSETS: { fetch: async () => new Response('aset') } }, {});
+      res.writeHead(r.status, Object.fromEntries(r.headers)); return res.end(Buffer.from(await r.arrayBuffer()));
+    }
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (p.endsWith('/')) p += 'index.html';
     const f = path.join(KELUAR, path.normalize(p));
@@ -30,6 +44,7 @@ async function main() {
   const browser = await playwright.chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, permissions: ['camera', 'microphone'] });
   const pg = await ctx.newPage();
+  await pg.addInitScript(() => { window.DEMO_QR_UJI = true; });
   const errors = []; pg.on('pageerror', e => errors.push(e.message));
   const tunggu = ms => pg.waitForTimeout(ms);
   const tungguLayar = (id, ms = 20000) => pg.waitForSelector('#' + id + '.on', { timeout: ms });
@@ -55,7 +70,17 @@ async function main() {
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 45000 }); await pg.click('#pbFinish'); await tunggu(600);
   await pg.click('#peDone'); await tungguLayar('thanks');
   cek(await pg.isVisible('#thanksPhoto') && await pg.isVisible('#thanksQR'), 'hasil foto + QR contoh tampil');
-  cek(/contoh-unduh\.html/.test(await pg.textContent('#qrLink')), 'QR mengarah ke halaman contoh unduh');
+  const linkQR = await pg.textContent('#qrLink');
+  cek(/\/f\/[A-Za-z0-9]{12}$/.test(linkQR), 'QR berisi link unduh demo', linkQR);
+  await tunggu(1500);
+  const kodeQR = linkQR.split('/f/')[1];
+  cek(R2.has('demo/' + kodeQR + '.jpg') && R2.get('demo/' + kodeQR + '.jpg').data[0] === 0xFF, 'foto hasil terkirim ke server demo (folder demo/)');
+  const halUnduh = await (await fetch(URL_DEMO + 'f/' + kodeQR)).text();
+  cek(halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('LEURA'), 'halaman unduh asli Leura menampilkan foto itu');
+  cek((await fetch(URL_DEMO + 'u/' + 'BukanJPEG1234', { method: 'PUT', body: 'halo' })).status === 415, 'server demo menolak file yang bukan foto JPEG');
+  cek((await fetch(URL_DEMO + 'u/' + 'DariLuar12345', { method: 'PUT', headers: { origin: 'https://situs-lain.com' }, body: Buffer.from([0xFF, 0xD8, 0xFF, 1]) })).status === 403, 'server demo menolak unggahan dari situs lain');
+  R2.set('foto/RahasiaAsli123.jpg', { data: Buffer.from([0xFF, 0xD8, 0xFF]), meta: {} });
+  cek((await fetch(URL_DEMO + 'i/RahasiaAsli123')).status === 404, 'foto booth asli (folder foto/) tidak bisa dibuka dari demo');
   cek(await pg.evaluate(() => { const r = document.getElementById('thanksPhoto').getBoundingClientRect(); return r.width > 0 && r.right <= innerWidth + 1; }), 'hasil foto muat di layar HP');
   const sesi = await pg.evaluate(() => api.getSessions());
   cek(sesi.length === 2 && sesi.some(s => s.label === 'pesan' && s.tamu === 'Budi') && sesi.some(s => s.label === 'foto'), 'pesan & foto tersimpan di HP', sesi.map(s => s.label));
