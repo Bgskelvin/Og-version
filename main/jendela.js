@@ -37,8 +37,10 @@ function buatJendela(DEV) {
   const appUrl = require('url').pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
   wc.on('will-navigate', (e, url) => { if (url !== appUrl) e.preventDefault(); });
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
-  // Kunci zoom (pinch di trackpad / layar sentuh, Ctrl+scroll)
-  wc.setVisualZoomLevelLimits(1, 1);
+  // Kunci zoom (pinch di trackpad / layar sentuh, Ctrl+scroll).
+  // Dipasang setelah halaman selesai dimuat: kalau dipanggil terlalu awal Electron menolak
+  // ("Render frame was disposed before WebFrameMain could be accessed").
+  wc.on('did-finish-load', () => { Promise.resolve(wc.setVisualZoomLevelLimits(1, 1)).catch(() => {}); });
   wc.on('zoom-changed', () => wc.setZoomFactor(1));
   // Kalau tampilan aplikasi crash, muat ulang otomatis supaya layar tidak tertinggal kosong
   wc.on('render-process-gone', async (e, d) => {
