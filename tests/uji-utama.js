@@ -162,6 +162,41 @@ const KASUS = {
     cek(sesi().at(-1).tamu === 'Sari' && sesi().at(-1).file === 'Sari_2_hasil.jpg', 'sesi foto mencatat nama tamu');
   },
 
+  async 'catatan harian (log) untuk melacak masalah'() {
+    const { electron, panggil, kirim, dataDir, akar } = nyalakanAplikasi();
+    const folder = path.join(dataDir, 'catatan');
+    // catatan lama (40 hari lalu) harus dihapus saat aplikasi dibuka
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, '2020-01-01.txt'), 'lama\n');
+    electron.__siap(); await tunggu(300);
+    const hariIni = fs.readdirSync(folder).find(f => f !== '2020-01-01.txt');
+    cek(!fs.existsSync(path.join(folder, '2020-01-01.txt')), 'catatan lebih dari 30 hari dihapus otomatis');
+    const isi = () => fs.readFileSync(path.join(folder, hariIni), 'utf8');
+    cek(/^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) && /Aplikasi dibuka/.test(isi()) && /Leura versi 1\.0\.0/.test(isi()), 'satu file per hari, dimulai "Aplikasi dibuka" + versi', hariIni);
+    const A = await panggil('rec-start', 'pesan', { tamu: 'Budi' }); kirim('rec-chunk', A.id, Buffer.from('AA'));
+    await panggil('rec-end', A.id, 5, {});
+    cek(/\d\d:\d\d:\d\d +Rekam mulai: pesan → Budi_pesan\.webm/.test(isi()) && /Rekam selesai \(5 dtk\): Budi_pesan\.webm/.test(isi()), 'rekaman mulai & selesai tercatat dengan jam');
+    await panggil('login', 'leura', 'salah');
+    cek(/⚠ Login Admin gagal/.test(isi()), 'login Admin gagal tercatat sebagai peringatan');
+    console.error('uji error proses utama');
+    cek(/✗ uji error proses utama/.test(isi()), 'console.error di proses utama masuk catatan (✗)');
+    electron.__wcEvents['console-message'] && electron.__wcEvents['console-message']({}, 3, 'Uncaught TypeError: x is undefined', 12, 'file:///app/src/photobooth.js');
+    cek(/✗ \[tampilan\] Uncaught TypeError: x is undefined \(photobooth\.js:12\)/.test(isi()), 'error di tampilan masuk catatan beserta file & baris');
+    kirim('catat', 'baris\ndua', 'peringatan');
+    cek(/⚠ \[tampilan\] baris ⏎ dua/.test(isi()), 'baris dari tampilan: satu baris per kejadian');
+    await panggil('unggah-simpan', { url: 'http://127.0.0.1:9', kunci: 'RAHASIA-KUNCI-123', aktif: true });
+    cek(/Pengaturan QR disimpan: aktif/.test(isi()) && !/RAHASIA-KUNCI-123/.test(isi()), 'kunci booth QR tidak pernah ditulis ke catatan');
+    const baca = await panggil('catatan-baca');
+    cek(baca.file === hariIni.replace('.txt', '') && /Rekam selesai/.test(baca.teks), 'Admin "Lihat catatan": isi catatan hari ini');
+    electron.__simpanKe = path.join(akar, 'kirim.txt');
+    const simpan = await panggil('catatan-simpan');
+    const kirimIsi = fs.readFileSync(electron.__simpanKe, 'utf8');
+    cek(simpan.ok && /Catatan aplikasi Leura/.test(kirimIsi) && /===== \d{4}-\d\d-\d\d =====/.test(kirimIsi) && /Rekam selesai/.test(kirimIsi) && electron.__ditunjukkan === electron.__simpanKe,
+        'Admin "Simpan catatan": file gabungan tersimpan & ditunjukkan di Finder');
+    electron.__simpanKe = null;
+    cek((await panggil('catatan-simpan')).batal === true, 'Simpan catatan dibatalkan: tidak ada yang ditulis');
+  },
+
   async 'template desain foto per couple'() {
     const { panggil, dataDir } = nyalakanAplikasi();
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);

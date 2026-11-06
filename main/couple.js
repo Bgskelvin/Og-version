@@ -90,6 +90,7 @@ function daftarkan() {
     if (!d.couples.find(c => c.id === id)) return { error: 'Couple tidak ditemukan.' };
     d.activeId = id;
     writeCouples(d);
+    require('./catatan').catat('Couple aktif: ' + d.couples.find(c => c.id === id).name);
     return { ok: true, data: d };
   });
   // id kosong = couple aktif

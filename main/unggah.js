@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { userData, readJSON, writeJSON, readSettings, writeSettings, updateSession } = require('./penyimpanan');
 const { getWin } = require('./jendela-aktif');
+const catatan = require('./catatan');
 
 const FILE_ANTREAN = path.join(userData, 'antrean-unggah.json');
 const HASIL_PASANG = path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
@@ -73,11 +74,14 @@ async function jalankan() {
       const err = await kirim(item, pengaturan());
       st.sedang = null;
       if (!err || err === 'HILANG') {
+        if (err) catatan.error(`QR ${item.kode}: file foto hilang, tidak bisa dikirim (${path.basename(item.file)})`);
+        else catatan.catat(`QR ${item.kode}: foto terkirim${item.coba ? ` (setelah ${item.coba}x gagal)` : ''}`);
         antrean = antrean.filter(x => x !== item);
         if (item.sid) updateSession(item.sid, { unggah: err ? 'hilang' : 'terkirim' });
         if (!err) { st.terkirim++; st.errorTerakhir = ''; }
       } else {
         item.coba = (item.coba || 0) + 1;
+        if (err !== st.errorTerakhir) catatan.peringatan(`QR ${item.kode}: belum terkirim — ${err} (dicoba lagi otomatis)`);
         item.berikut = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(item.coba, 5));
         st.errorTerakhir = err;
         if (item.sid) updateSession(item.sid, { unggah: 'menunggu' });
@@ -126,6 +130,7 @@ function daftarkan() {
     if (aktif && (!url || !kunci)) return { ...status(), error: 'Isi alamat server dan kunci booth sebelum menyalakan QR.' };
     s.unggah = { aktif, url, kunci };
     writeSettings(s);
+    catatan.catat(`Pengaturan QR disimpan: ${aktif ? 'aktif' : 'mati'}, server ${url || '-'}`);   // kunci tidak pernah dicatat
     setImmediate(jalankan);
     return status();
   });

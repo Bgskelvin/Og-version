@@ -23,7 +23,11 @@ function cekSebelumTutup() {
 
 function daftarkan() {
   ipcMain.handle('cek-tutup', () => cekSebelumTutup());
-  ipcMain.handle('tutup-aplikasi', () => { setTimeout(() => app.quit(), 300); return { ok: true }; });
+  ipcMain.handle('tutup-aplikasi', () => {
+    require('./catatan').catat('Tutup aplikasi ditekan di Admin');
+    setTimeout(() => app.quit(), 300);
+    return { ok: true };
+  });
 }
 
 module.exports = { daftarkan, cekSebelumTutup };

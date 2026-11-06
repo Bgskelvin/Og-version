@@ -12,6 +12,7 @@ const { defaultDir, readSessions, writeSessions, updateSession, getOutDir, usabl
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./jendela-aktif');
 const sony = require('./kamera-sony');
+const catatan = require('./catatan');
 
 /* ---------- FFmpeg: .webm -> .mp4 ---------- */
 let ffmpegPath = null;
@@ -32,7 +33,7 @@ function convert(id, webmPath) {
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-r', '30',
       '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', mp4
     ], { stdio: 'ignore' });
-    p.on('error', () => { updateSession(id, { status: 'failed' }); resolve(); });
+    p.on('error', err => { catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}): ${err.message}`); updateSession(id, { status: 'failed' }); resolve(); });
     p.on('close', code => {
       try {
         if (code === 0 && fs.existsSync(mp4)) {
@@ -40,8 +41,9 @@ function convert(id, webmPath) {
           fs.mkdirSync(od, { recursive: true });
           fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
           updateSession(id, { file: path.basename(mp4), status: 'done' });
-        } else updateSession(id, { status: 'failed' });
-      } catch (e) { updateSession(id, { status: 'failed' }); }
+          catatan.catat('MP4 selesai: ' + path.basename(mp4));
+        } else { catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}), kode FFmpeg ${code}`); updateSession(id, { status: 'failed' }); }
+      } catch (e) { catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}): ${e.message}`); updateSession(id, { status: 'failed' }); }
       resolve();
     });
   }));
@@ -118,8 +120,8 @@ function tutupSemua() { for (const rec of recs.values()) { try { if (rec.stream)
 // Salin video Sony dari kartu ke folder couple, lalu perbarui catatan sesi
 function salinVideoSony(sid, info, file) {
   sony.unduh(info, file).then(h => {
-    if (h.ok) updateSession(sid, { status: 'done', file: path.basename(file) });
-    else updateSession(sid, { status: 'card-only', error: h.error });
+    if (h.ok) { updateSession(sid, { status: 'done', file: path.basename(file) }); catatan.catat('Video Sony tersalin: ' + path.basename(file)); }
+    else { updateSession(sid, { status: 'card-only', error: h.error }); catatan.error(`Video Sony belum tersalin (${path.basename(file)}): ${h.error} — masih aman di kartu`); }
   });
 }
 
@@ -205,10 +207,10 @@ function daftarkan() {
     const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now(), sony: pakaiSony };
     if (pakaiSony) {
       const r = await sony.rekamMulai();
-      if (r.error) return { error: r.error };
+      if (r.error) { catatan.error(`Rekam ${label} (Sony) tidak bisa dimulai: ${r.error}`); return { error: r.error }; }
     } else {
       try { rec.stream = fs.createWriteStream(file); }
-      catch (err) { return { error: 'Tidak bisa membuat file rekaman: ' + err.message }; }
+      catch (err) { catatan.error(`Rekam ${label} tidak bisa dimulai: ${err.message}`); return { error: 'Tidak bisa membuat file rekaman: ' + err.message }; }
     }
     // Catat sesi sejak awal dengan status "recording". Kalau aplikasi atau komputer mati di tengah
     // rekaman, sesi ini dikenali dan dipulihkan saat aplikasi dibuka lagi.
@@ -222,11 +224,12 @@ function daftarkan() {
     if (rec.stream) rec.stream.on('error', err => {
       if (rec.error) return;
       rec.error = err.message;
-      console.log('Gagal menulis rekaman: ' + err.message);
+      catatan.error(`Gagal menulis rekaman ${path.basename(file)} (disk penuh / SSD tercabut?): ${err.message}`);
       const win = getWin();
       if (win) win.webContents.send('rec-error', id, err.message);
     });
     recs.set(id, rec);
+    catatan.catat(`Rekam mulai: ${label}${pakaiSony ? ' (Sony)' : ''} → ${path.basename(file)}${fallback ? ' [folder cadangan]' : ''}`);
     return { id, file, fallback };
   });
 
@@ -247,6 +250,8 @@ function daftarkan() {
       const patch = { seconds, ...(meta || {}), ...(r.error ? { status: 'card-only', error: r.error }
         : { status: 'transfer', kartu: r.nama, kartuInfo: { slot: r.slot, contentId: r.contentId, fileId: r.fileId } }) };
       updateSession(sid, patch);
+      if (r.error) catatan.error(`Rekam Sony berhenti dengan error (${path.basename(rec.file)}): ${r.error}`);
+      else catatan.catat(`Rekam selesai (Sony, ${seconds} dtk): ${path.basename(rec.file)}, menyalin dari kartu ${r.nama}`);
       if (!r.error) salinVideoSony(sid, r, rec.file);
       return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file };
     }
@@ -261,6 +266,8 @@ function daftarkan() {
       else list.push({ id: sid, time: new Date(rec.t0).toISOString(), label: rec.label, file: path.basename(rec.file), dir: rec.dir, ...patch });
       writeSessions(list);
     } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
+    if (ok) catatan.catat(`Rekam selesai (${seconds} dtk): ${path.basename(rec.file)}`);
+    else catatan.error(`Rekam gagal disimpan (${path.basename(rec.file)}): ${rec.error}`);
     if (ok) convert(sid, rec.file);
     return { ok, file: rec.file, error: rec.error };
   });

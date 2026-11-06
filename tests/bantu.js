@@ -33,6 +33,7 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
       whenReady: () => new Promise(r => { readyResolve = r; }),
       on: (n, f) => { appEvents[n] = f; },
       requestSingleInstanceLock: () => lock,
+      getVersion: () => '1.0.0',
       quit() { electron.__keluar = true; }
     },
     BrowserWindow: class {
@@ -44,7 +45,8 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
     session: { defaultSession: { setPermissionRequestHandler() {} } },
     systemPreferences: { askForMediaAccess: async () => true },
     shell: { openPath: async p => { electron.__dibuka = p; return ''; }, showItemInFolder: p => { electron.__ditunjukkan = p; } },
-    dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
+    dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+              showSaveDialog: async () => (electron.__simpanKe ? { canceled: false, filePath: electron.__simpanKe } : { canceled: true }) },
     powerSaveBlocker: { start() {} },
     Menu: { buildFromTemplate: t => t, setApplicationMenu: m => { electron.__menu = m; } },
     __handlers: handlers, __listeners: listeners, __appEvents: appEvents, __wcEvents: wcEvents, __wc: wc,

@@ -48,6 +48,8 @@ function pasangAdmin() {
   $('uid').addEventListener('keydown', e => { if (e.key === 'Enter') $('pw').focus(); });
   $('btnAdminBack').onclick = () => show('utama');
   $('btnTutupApp').onclick = konfirmasiTutup;
+  $('btnLihatCatatan').onclick = lihatCatatan;
+  $('btnSimpanCatatan').onclick = simpanCatatan;
   // Kunci Admin lagi (mis. booth ditinggal tanpa operator): berikutnya harus login
   $('btnKunciAdmin').onclick = () => { adminMasuk = false; show('utama'); };
   $('camSel').onchange = async e => { store.set('camId', e.target.value); await openStream(); await fillDevices(); };
@@ -84,4 +86,30 @@ async function konfirmasiTutup() {
     lapis.onclick = null;
     await api.tutupAplikasi();
   };
+}
+
+/* ---------- Catatan aplikasi (log) ---------- */
+async function lihatCatatan() {
+  let r = { teks: '', file: '' };
+  try { r = await api.catatanBaca(); } catch (e) {}
+  const lapis = document.createElement('div'); lapis.className = 'dialog-lapis'; lapis.id = 'dlgCatatan';
+  lapis.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
+    <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Simpan untuk dikirim</button><button class="btn sm primary" id="dlgCatatanTutup">Tutup</button></div></div>`;
+  lapis.querySelector('h2').textContent = 'Catatan aplikasi' + (r.file ? ' · ' + r.file : '');
+  lapis.querySelector('p').textContent = r.teks ? '✗ = error, ⚠ = peringatan. Yang terbaru ada di bawah.' : 'Belum ada catatan.';
+  const pre = lapis.querySelector('pre');
+  pre.textContent = r.teks || '';
+  if (!r.teks) pre.remove();
+  document.body.appendChild(lapis);
+  if (r.teks) pre.scrollTop = pre.scrollHeight;
+  const tutup = () => lapis.remove();
+  lapis.onclick = e => { if (e.target === lapis) tutup(); };
+  lapis.querySelector('#dlgCatatanTutup').onclick = tutup;
+  lapis.querySelector('#dlgCatatanSimpan').onclick = async () => { tutup(); await simpanCatatan(); };
+}
+async function simpanCatatan() {
+  const r = await api.catatanSimpan();
+  if (r.batal) return;
+  if (r.error) setNotice(r.error, 5000);
+  else setNotice('Catatan tersimpan: ' + r.file.split('/').pop() + ' (ditunjukkan di Finder)', 5000);
 }

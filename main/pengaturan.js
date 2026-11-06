@@ -58,7 +58,11 @@ function daftarkan() {
     const { loginId, accent, ...booth } = e;
     return { ...config, login: undefined, ...booth, colors: { ...(config.colors || {}), accent } };
   });
-  ipcMain.handle('login', (e, id, pw) => checkLogin(id, pw));
+  ipcMain.handle('login', (e, id, pw) => {
+    const ok = checkLogin(id, pw);
+    require('./catatan').catat(ok ? 'Login Admin berhasil' : 'Login Admin gagal (ID atau password salah)', ok ? 'info' : 'peringatan');
+    return ok;
+  });
 
   ipcMain.handle('get-settings', () => effective());
   ipcMain.handle('save-settings', (e, patch) => {

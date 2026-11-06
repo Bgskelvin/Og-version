@@ -10,6 +10,8 @@
      kamera-sony.js  kamera Sony lewat USB (program penghubung + simulasi)
      unggah.js       unduh foto lewat QR: antrean unggah ke Cloudflare
      jendela.js      jendela, menu, pengaman navigasi
+     catatan.js      catatan harian (log) untuk melacak masalah
+     keluar.js       tombol Tutup aplikasi di Admin
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
 
@@ -18,6 +20,11 @@ const { app, session, systemPreferences, powerSaveBlocker } = require('electron'
 // bukan membuka aplikasi kedua yang berebut kamera dan file data.
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 const DEV = process.argv.includes('--dev');   // npx electron main.js --dev  -> menu Reload & DevTools aktif
+
+// Catatan harian dipasang paling awal, supaya semua pesan & error sesudahnya ikut tercatat
+const catatan = require('./main/catatan');
+catatan.pasangConsole();
+catatan.daftarkan();
 
 const rekaman = require('./main/rekaman');
 const jendela = require('./main/jendela');
@@ -40,6 +47,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'media'));
   powerSaveBlocker.start('prevent-display-sleep'); // layar & PC tidak tidur selama aplikasi jalan
 
+  catatan.mulai();          // "Aplikasi dibuka" + hapus catatan lama
   rekaman.mulai();          // pulihkan rekaman terputus & lanjutkan konversi
   jendela.buatJendela(DEV);
   kameraSony.mulai();       // sambungkan kamera Sony kalau dipilih di Admin
@@ -53,6 +61,7 @@ let sudahBeres = false;
 app.on('before-quit', e => {
   if (sudahBeres) return;
   e.preventDefault();
+  catatan.catat('Aplikasi ditutup');
   rekaman.tutupSemua();
   Promise.resolve(kameraSony.matikan()).catch(() => {}).then(() => { sudahBeres = true; app.quit(); });
 });

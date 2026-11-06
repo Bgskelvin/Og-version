@@ -83,6 +83,9 @@ window.api = {
   unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
   unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
   onUnggahStatus: cb => { UNG.cb = cb; },
+  catatanBaca: async () => ({ file: '2026-11-06', teks: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
+  catatanSimpan: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
+  catat: () => {},
   cekTutup: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
   tutupAplikasi: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
   bukaLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
@@ -585,6 +588,13 @@ async function main() {
   await pg.evaluate(() => { kegiatanTamu = 1; show('thanks'); idleTimer && clearTimeout(idleTimer); idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), 50); });
   await tunggu(300);
   cek(await layar() === 'utama' && await pg.evaluate(() => namaTamu) === 'Tono', 'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start');
+
+  console.log('\n▶ Catatan aplikasi di Admin');
+  await pg.evaluate(() => { show('admin'); $('adminLogin').style.display = 'none'; $('adminPanel').style.display = 'flex'; });
+  await pg.locator('#btnLihatCatatan').scrollIntoViewIfNeeded(); await pg.click('#btnLihatCatatan'); await tunggu(200);
+  cek(await pg.isVisible('#dlgCatatan pre') && /0x8208/.test(await pg.textContent('#dlgCatatan pre')) && /2026-11-06/.test(await pg.textContent('#dlgCatatan h2')), 'Lihat catatan: isi catatan hari ini tampil');
+  await pg.click('#dlgCatatanSimpan'); await tunggu(200);
+  cek((await log()).includes('simpan catatan') && /Catatan tersimpan: Leura-catatan-2026-11-06\.txt/.test(await pg.textContent('#notice')) && await pg.locator('#dlgCatatan').count() === 0, 'Simpan catatan: file tersimpan + pemberitahuan');
 
   console.log('\n▶ Kunci Admin');
   await pg.evaluate(() => { show('utama'); }); await pg.click('#btnAdminOpen'); await tunggu(300);

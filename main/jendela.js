@@ -6,6 +6,7 @@ const path = require('path');
 const { effective } = require('./pengaturan');
 const rekaman = require('./rekaman');
 const { getWin, setWin } = require('./jendela-aktif');
+const catatan = require('./catatan');
 
 function buatJendela(DEV) {
   // ---------- Menu ----------
@@ -24,7 +25,13 @@ function buatJendela(DEV) {
     webPreferences: { preload: path.join(__dirname, '..', 'preload.js') }
   });
   const wc = win.webContents;
-  wc.on('console-message', (e, level, msg) => console.log('[app]', msg));
+  // Pesan dari tampilan masuk catatan; error (merah di DevTools) ditandai ✗
+  wc.on('console-message', (e, level, msg, line, src) => {
+    const lv = typeof level === 'number' ? level : e && e.level;
+    const teks = msg != null ? msg : e && e.message;
+    const err = lv === 3 || lv === 'error';
+    catatan.catat('[tampilan] ' + teks + (err && src ? ` (${String(src).split('/').pop()}:${line})` : ''), err ? 'error' : lv === 2 || lv === 'warning' ? 'peringatan' : 'info');
+  });
 
   // Jangan pernah pindah halaman (mis. file atau link terseret ke jendela) dan jangan buka jendela baru
   const appUrl = require('url').pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
@@ -36,7 +43,7 @@ function buatJendela(DEV) {
   // Kalau tampilan aplikasi crash, muat ulang otomatis supaya layar tidak tertinggal kosong
   wc.on('render-process-gone', async (e, d) => {
     if (d.reason === 'clean-exit') return;
-    console.log('Tampilan aplikasi berhenti (' + d.reason + '), menyelamatkan rekaman lalu memuat ulang');
+    catatan.error('Tampilan aplikasi berhenti (' + d.reason + ', kode ' + d.exitCode + '), menyelamatkan rekaman lalu memuat ulang');
     try { await rekaman.selamatkan(); } catch (err) { console.log(err.message); }
     setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 1000);
   });

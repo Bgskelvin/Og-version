@@ -319,3 +319,9 @@ body.sonyOn #camPrevLv { display:block; }
 .kb-enter { flex:2.2 1 0; max-width:220px; background:var(--accent); color:#fff; font-size:clamp(18px,2.6vh,24px); font-weight:600; }
 .kb-enter:disabled { opacity:.4; }
 @media (max-height:700px) { #nama { padding-top:5vh; gap:2vh; } .nama-kartu p { display:none; } }
+
+/* Catatan aplikasi (Admin) */
+.baris-aksi .btn.sm + .btn.sm { margin-left:-8px; }
+.catatan-kartu { width:min(980px,100%); }
+.catatan-isi { margin:4px 0 0; max-height:58vh; overflow:auto; padding:14px 16px; border-radius:14px; background:#F2F2F7; color:#1D1D1F;
+  font:12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap; word-break:break-word; user-select:text; -webkit-user-select:text; }

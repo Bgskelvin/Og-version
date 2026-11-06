@@ -4,6 +4,7 @@
 const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const catatan = require('./catatan');
 const { defaultDir, readSessions, writeSessions, getOutDir, usableDir, safeName, coupleDir, stamp, namaTamu, namaBebas } = require('./penyimpanan');
 const { activeCoupleName } = require('./couple');
 const unggah = require('./unggah');
@@ -14,7 +15,7 @@ function daftarkan() {
   ipcMain.handle('save-photos', async (e, payload) => {
     try {
       const { originals = [], result, meta = {}, tamu: tamuAsli } = payload || {};
-      if (!result || !originals.length) return { ok: false, error: 'Data foto kosong' };
+      if (!result || !originals.length) { catatan.error('Simpan foto ditolak: data foto kosong'); return { ok: false, error: 'Data foto kosong' }; }
       const name = activeCoupleName();
       let base = getOutDir();
       if (!usableDir(base)) { base = defaultDir; if (!usableDir(base)) return { ok: false, error: 'Folder penyimpanan tidak bisa ditulisi.' }; }
@@ -43,9 +44,10 @@ function daftarkan() {
           photos: originals.length, originalFiles: files, ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'antre' } : {}), ...meta });
         writeSessions(list);
       } catch (err) { console.log('Gagal mencatat sesi foto: ' + err.message); }
+      catatan.catat(`Foto tersimpan: ${hasil} (+${originals.length} foto asli)${qr ? ', QR ' + qr.kode : ''}`);
       return { ok: true, file: path.join(dir, hasil), link: qr ? qr.link : null };
     } catch (err) {
-      console.log('Gagal menyimpan foto: ' + err.message);
+      catatan.error('Gagal menyimpan foto: ' + err.message);
       return { ok: false, error: err.message };
     }
   });

@@ -148,6 +148,8 @@ function jadwalSambung(ms) {
   timerSambung = setTimeout(cobaSambung, ms);
 }
 const { jelaskanSambung } = require('./pesan-sony');
+const catatan = require('./catatan');
+let pesanGagalTerakhir = '';   // supaya gagal sambung yang sama (dicoba tiap 4 dtk) tidak memenuhi catatan
 async function cobaSambung() {
   if (!hub || st.tersambung || menyambung) return;
   menyambung = true;
@@ -157,10 +159,13 @@ async function cobaSambung() {
   if (!hub) return;
   if (r.ok) {
     Object.assign(st, { tersambung: true, model: r.model || 'Sony', pesan: '' });
+    catatan.catat(`Kamera Sony tersambung: ${st.model}`);
+    pesanGagalTerakhir = '';
     if (r.catatan) console.log('Kamera Sony: sebagian pengaturan gagal dipasang: ' + r.catatan);
     await perbaruiStatus();
   } else {
     Object.assign(st, { tersambung: false, pesan: jelaskanSambung(r) });
+    if (st.pesan !== pesanGagalTerakhir) { catatan.peringatan('Kamera Sony gagal tersambung: ' + st.pesan + ' (dicoba lagi tiap 4 detik)'); pesanGagalTerakhir = st.pesan; }
     jadwalSambung(4000);
   }
   kabarkan();
@@ -178,6 +183,7 @@ async function perbaruiStatus() {
 function olahKabar(m) {
   if (m.ev === 'terputus') {
     Object.assign(st, { tersambung: false, pesan: 'Kamera Sony terputus. Cek kabel USB & daya kamera.' });
+    catatan.peringatan('Kamera Sony terputus' + (m.kode ? ' (' + m.kode + ')' : ''));
     // SDK mencoba menyambung ulang sendiri; kalau 8 detik belum berhasil, aplikasi mencari kamera lagi
     jadwalSambung(8000);
     for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'Kamera terputus saat menyalin video' });
@@ -186,9 +192,11 @@ function olahKabar(m) {
     Object.assign(st, { tersambung: false, pesan: 'Menyambung ulang ke kamera…' });
   } else if (m.ev === 'tersambung') {
     Object.assign(st, { tersambung: true, pesan: '' });
+    catatan.catat('Kamera Sony tersambung lagi');
     clearTimeout(timerSambung);
   } else if (m.ev === 'unduh-selesai' || m.ev === 'unduh-gagal') {
     const t = unduhTunggu.get(m.job);
+    if (m.ev === 'unduh-gagal') catatan.error('Gagal menyalin video dari kartu kamera (' + m.kode + ')');
     if (t) { unduhTunggu.delete(m.job); t.resolve(m.ev === 'unduh-selesai' ? { ok: true, file: m.file } : { ok: false, error: 'Gagal menyalin video (' + m.kode + ')' }); }
     return;
   } else return;
@@ -200,6 +208,7 @@ function setel(m) {
   m = MODE.includes(m) ? m : 'webcam';
   if (m === mode && (hub || m === 'webcam')) return status();
   matikan();
+  catatan.catat('Sumber kamera: ' + m);
   mode = m;
   st = { tersambung: false, model: '', pesan: '' };
   if (m === 'webcam') { kabarkan(); return status(); }
@@ -218,6 +227,7 @@ function setel(m) {
   hub.on('ev', olahKabar);
   hub.on('mati', pesan => {
     if (hub !== ini) return;
+    catatan.error(pesan + ' — dinyalakan lagi dalam 3 detik');
     Object.assign(st, { tersambung: false, pesan });
     kabarkan();
     // program penghubung berhenti mendadak: nyalakan lagi
