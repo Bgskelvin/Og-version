@@ -22,10 +22,26 @@
   display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#fff; background:rgba(0,0,0,.5); }
 .pb-thumb .empty { font-size:18px; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,.45); }
 .pb-thumb.next { border:2px solid #fff; box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 75%, transparent), 0 6px 18px rgba(0,0,0,.25); }
-.pb-slot .btn.sm { width:100%; min-height:34px; padding:0 8px; font-size:14px; gap:4px; justify-content:center; visibility:hidden; }
-.pb-slot .btn.sm svg.i { width:15px; height:15px; }
-.pb-strip.done .pb-slot .btn.sm { visibility:visible; }
-.pb-actions { max-width:640px; }
+/* Tombol Ulangi: kecil, menempel di bawah foto, hanya saat 4 foto sudah lengkap */
+.pb-slot { position:relative; }
+.pb-ulang { display:none; position:absolute; left:50%; bottom:10px; transform:translateX(-50%); align-items:center; gap:6px;
+  height:34px; padding:0 14px; border-radius:999px; background:rgba(0,0,0,.55); color:#fff; font-size:14px; font-weight:600;
+  -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); white-space:nowrap; }
+.pb-ulang svg.i { width:15px; height:15px; }
+.pb-ulang:active { transform:translateX(-50%) scale(.94); }
+.pb-strip.done .pb-ulang { display:inline-flex; }
+
+/* Setelah 4 foto lengkap: foto tampil besar (sebesar muat 4 sejajar), tombol lanjut kecil di bawahnya */
+.pb-strip.done { gap:16px; }
+.pb-strip.done .pb-slot { min-width:0; }
+.pb-strip.done .pb-thumb { height:auto; width:min(calc((min(94vw, 1240px) - 48px) / 4), calc(40vh * var(--r, 1.5)));
+  border-radius:14px; border:3px solid #fff; box-shadow:0 14px 40px rgba(0,0,0,.35); }
+.pb-strip.done .pb-thumb .n { top:8px; left:8px; }
+.pb-strip.done .pb-thumb.next { box-shadow:0 14px 40px rgba(0,0,0,.35); }
+#photo .pb-bottom { max-width:none; }
+.pb-actions { display:flex; justify-content:center; }
+#pbFinish { flex:none; min-height:56px; padding:0 30px; font-size:20px; gap:8px; }
+#pbFinish svg.i { width:20px; height:20px; }
 
 /* Hitung mundur: besar di tengah hanya untuk foto pertama. Saat angka 3 ia
    mengecil ke pojok kiri atas (.kecil) dan tetap di sana sampai foto ke-4. */
@@ -148,3 +164,4 @@ body.camOn .pb-safe.on { display:block; }
 .tk-qr div { display:flex; flex-direction:column; gap:4px; }
 .tk-qr b { font-size:19px; line-height:1.25; }
 .tk-qr small { font-size:13px; color:#6E6E73; word-break:break-all; }
+#photo:has(.pb-strip.done) { justify-content:center; }

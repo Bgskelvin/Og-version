@@ -116,14 +116,14 @@
     for (let i = 0; i < SHOTS; i++) {
       const slot = document.createElement('div'); slot.className = 'pb-slot';
       slot.innerHTML = `<div class="pb-thumb" id="pbThumb${i}"><span class="empty">${i + 1}</span></div>
-        <button class="btn sm glassy" data-redo="${i}"><svg class="i"><use href="#i-retry"/></svg>${t('pb.ulangi')}</button>`;
+        <button class="pb-ulang" data-redo="${i}" aria-label="${t('pb.ulangiKe', { i: i + 1 })}"><svg class="i"><use href="#i-retry"/></svg>${t('pb.ulangi')}</button>`;
       s.appendChild(slot);
     }
     s.querySelectorAll('[data-redo]').forEach(b => b.onclick = () => shoot([Number(b.dataset.redo)]));
     for (let i = 0; i < SHOTS; i++) rasioThumb(i);
   }
   // Kotak kecil mengikuti rasio kotak foto di template (sama dengan pratinjau & zona aman)
-  function rasioThumb(i) { const r = rasioFoto(i); $('pbThumb' + i).style.aspectRatio = String(r || 16 / 9); }
+  function rasioThumb(i) { const r = rasioFoto(i) || 16 / 9, el = $('pbThumb' + i); el.style.aspectRatio = String(r); el.style.setProperty('--r', r); }
   function renderSlot(i) {
     const el = $('pbThumb' + i);
     rasioThumb(i);
