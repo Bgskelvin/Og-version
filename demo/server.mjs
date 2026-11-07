@@ -4,7 +4,7 @@
    - PUT /u/<kode>  demo mengunggah foto hasil photobooth (tanpa kunci booth,
                     tapi dibatasi: hanya JPEG, maks 8 MB, hanya dari halaman demo).
    - GET /f/<kode>  halaman unduh ASLI Leura (dipakai ulang dari cloud/worker.mjs),
-     GET /i/<kode>, /d/<kode>  gambar & unduhan.
+     GET /s/<kode>, /i/<kode>, /d/<kode>  status, gambar & unduhan.
    Foto demo disimpan di bucket yang sama (leura-foto) tapi di folder terpisah
    "demo/", hanya 1 hari (aturan R2 "hapus-demo-1-hari" menghapusnya otomatis).
    Foto booth asli (folder "foto/") tidak bisa dibaca atau ditimpa dari sini.
@@ -48,7 +48,7 @@ export default {
       return json({ ok: true });
     }
 
-    if (jalur === 'f' || jalur === 'i' || jalur === 'd') {
+    if (jalur === 'f' || jalur === 's' || jalur === 'i' || jalur === 'd') {
       return leura.fetch(req, { ...env, FOTO: bucketDemo(env.FOTO), HARI_SIMPAN: '1', KUNCI_BOOTH: '' }, ctx);
     }
 

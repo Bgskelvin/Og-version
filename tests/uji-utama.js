@@ -411,11 +411,14 @@ const KASUS = {
     const env = { KUNCI_BOOTH: 'kunci-booth-rahasia-123', HARI_SIMPAN: '7', FOTO: {
       async put(k, data, o) { toko.set(k, { data: Buffer.from(data), meta: o.customMetadata }); },
       async get(k) { const x = toko.get(k); return x ? { body: x.data, customMetadata: x.meta } : null; },
+      async head(k) { const x = toko.get(k); return x ? { customMetadata: x.meta } : null; },
     } };
+    const serverLama = { aktif: false };                 // tiruan server versi lama (belum kenal foto satuan)
     let server = null, port = 0;
     const nyalakan = () => new Promise(r => {
       server = http.createServer(async (req, res) => {
         const isi = []; for await (const c of req) isi.push(c);
+        if (serverLama.aktif && req.url === '/ping') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end('{"ok":true,"hari":7}'); }
         const jawab = await worker.fetch(new Request(`http://127.0.0.1:${port}${req.url}`, { method: req.method, headers: req.headers,
           body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(isi) }), env);
         res.writeHead(jawab.status, Object.fromEntries(jawab.headers)); res.end(Buffer.from(await jawab.arrayBuffer()));
@@ -448,8 +451,9 @@ const KASUS = {
     cek(st.menunggu === 0 && st.terkirim === 1, 'status antrean: kosong, 1 terkirim', st);
 
     const hal = await (await ambil(`/f/${kode}`)).text();
-    cek(hal.includes(`/i/${kode}`) && hal.includes('Simpan foto') && hal.includes('7 hari'), 'halaman unduh menampilkan foto & tombol Simpan foto');
-    cek((await (await ambil(`/f/${kode}?b=en`)).text()).includes('Save photo'), 'halaman unduh bahasa Inggris (?b=en)');
+    cek(hal.includes(`/i/${kode}`) && hal.includes('Simpan foto ini') && hal.includes('Tersedia sampai') && !hal.includes('id="grid"'),
+        'halaman unduh: foto template, tombol Simpan, masa simpan; tanpa foto satuan kalau tidak dikirim');
+    cek((await (await ambil(`/f/${kode}?b=en`)).text()).includes('Your photos are ready'), 'halaman unduh bahasa Inggris (?b=en)');
     const d = await ambil(`/d/${kode}`);
     cek(/attachment/.test(d.headers.get('content-disposition')) && Buffer.from(await d.arrayBuffer()).equals(Buffer.from(jpg)), 'tombol unduh mengirim file foto yang sama');
     cek((await (await ambil('/f/BelumAda123')).text()).includes('sedang dikirim'), 'foto yang belum sampai: halaman "sedang dikirim" (muat ulang sendiri)');
@@ -476,6 +480,41 @@ const KASUS = {
     await nyalakan();
     await panggil('unggah-coba-sekarang'); await tunggu(800);
     cek(toko.has(`foto/${kode2}.jpg`) && (await panggil('unggah-status')).menunggu === 0, 'internet kembali: foto yang tertunda ikut terkirim');
+
+    // Foto satuan: ikut diunggah setelah foto hasil, bisa diunduh satu per satu
+    const s1b = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 11, 0xff, 0xd9]), s2b = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 22, 0xff, 0xd9]);
+    const r3 = await panggil('save-photos', { originals: [jpg, jpg], result: jpg, satuan: [s1b, s2b, new Uint8Array([1, 2, 3])], meta: {} });
+    const kode3 = r3.link.split('/f/')[1];
+    await tunggu(1200);
+    cek(toko.has(`foto/${kode3}-1.jpg`) && toko.has(`foto/${kode3}-2.jpg`) && !toko.has(`foto/${kode3}-3.jpg`), 'foto satuan terunggah (file yang bukan JPEG dilewati)');
+    cek(toko.get(`foto/${kode3}.jpg`).meta.jumlah === '2' && toko.get(`foto/${kode3}.jpg`).meta.couple === 'Rina & Dimas', 'foto hasil membawa jumlah foto satuan & nama couple', toko.get(`foto/${kode3}.jpg`).meta);
+    cek(!fs.existsSync(path.join(dataDir, 'qr-satuan')) || fs.readdirSync(path.join(dataDir, 'qr-satuan')).length === 0, 'file sementara foto satuan dihapus setelah terkirim');
+    const st3 = await (await ambil(`/s/${kode3}`)).json();
+    cek(st3.ok && st3.jumlah === 2 && st3.ada.join() === '1,2' && st3.couple === 'Rina & Dimas', 'status JSON: foto satuan mana yang sudah ada', st3);
+    const hal3 = await (await ambil(`/f/${kode3}`)).text();
+    cek(hal3.includes('Foto satuan') && hal3.includes('data-n="2"') && hal3.includes('Simpan semua (3 foto)') && hal3.includes('Rina &amp; Dimas'),
+        'halaman unduh: nama couple, foto satuan, tombol Simpan semua (3 foto)');
+    const d3 = await ambil(`/d/${kode3}/2`);
+    cek(/filename="Rina-Dimas_foto-2_/.test(d3.headers.get('content-disposition')) && Buffer.from(await d3.arrayBuffer()).equals(Buffer.from(s2b)),
+        'unduh foto satuan ke-2: file benar, nama file rapi', d3.headers.get('content-disposition'));
+    cek(/filename="Rina-Dimas_template_/.test((await ambil(`/d/${kode3}`)).headers.get('content-disposition')), 'nama file foto template rapi');
+    cek((await ambil(`/i/${kode3}/5`)).status === 404 && (await ambil(`/u/${kode3}/9`, { method: 'PUT', body: jpg, headers: kunci })).status !== 200,
+        'nomor foto satuan di luar 1–4 ditolak');
+    cek((await ambil(`/u/${kode3}/1`, { method: 'PUT', body: jpg })).status === 401, 'unggah foto satuan tanpa kunci booth ditolak');
+    // Urutan saat internet kembali: semua foto hasil dulu, baru foto satuan
+    await matikan();
+    const a = (await panggil('save-photos', { originals: [jpg], result: jpg, satuan: [s1b], meta: {} })).link.split('/f/')[1];
+    const b = (await panggil('save-photos', { originals: [jpg], result: jpg, satuan: [s2b], meta: {} })).link.split('/f/')[1];
+    await nyalakan(); toko.clear();
+    await panggil('unggah-coba-sekarang'); await tunggu(1500);
+    const urutan = [...toko.keys()].map(k => k.replace('foto/', '').replace(a, 'A').replace(b, 'B'));
+    cek(urutan.join() === 'A.jpg,B.jpg,A-1.jpg,B-1.jpg', 'internet kembali: semua foto hasil dikirim dulu, baru foto satuan', urutan);
+    // Server versi lama: foto satuan TIDAK dikirim (akan menimpa foto hasil)
+    serverLama.aktif = true; await panggil('unggah-simpan', {}); toko.clear();
+    const c = (await panggil('save-photos', { originals: [jpg], result: jpg, satuan: [s1b], meta: {} })).link.split('/f/')[1];
+    await tunggu(1200);
+    cek(toko.has(`foto/${c}.jpg`) && !toko.has(`foto/${c}-1.jpg`) && (await panggil('unggah-status')).menungguSatuan === 0
+        && fs.readdirSync(path.join(dataDir, 'qr-satuan')).length === 0, 'server QR lama: foto satuan dilewati, foto hasil tetap aman');
     await matikan();
   },
 

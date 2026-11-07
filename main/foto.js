@@ -14,7 +14,7 @@ function daftarkan() {
   // Lokasi: <folder penyimpanan>/<nama couple>/Foto/
   ipcMain.handle('save-photos', async (e, payload) => {
     try {
-      const { originals = [], result, meta = {}, tamu: tamuAsli } = payload || {};
+      const { originals = [], result, satuan = [], meta = {}, tamu: tamuAsli } = payload || {};
       if (!result || !originals.length) { catatan.error('Simpan foto ditolak: data foto kosong'); return { ok: false, error: 'Data foto kosong' }; }
       const name = activeCoupleName();
       let base = getOutDir();
@@ -39,7 +39,9 @@ function daftarkan() {
       let qr = null;
       try {
         const list = readSessions();
-        qr = unggah.daftarkanFoto(path.join(dir, hasil), sid);
+        // Foto satuan (tanpa template) ikut diunggah supaya tamu bisa mengunduhnya juga
+        const fileSatuan = unggah.siap() ? await unggah.simpanSatuan(sid, satuan) : [];
+        qr = unggah.daftarkanFoto(path.join(dir, hasil), sid, { satuan: fileSatuan, couple: name });
         list.push({ id: sid, time: new Date().toISOString(), label: 'foto', file: hasil, dir, couple: name, ...(tamu ? { tamu: String(tamuAsli).trim().slice(0, 40) } : {}), seconds: 0, status: 'photo',
           photos: originals.length, originalFiles: files, ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'antre' } : {}), ...meta });
         writeSessions(list);

@@ -331,6 +331,18 @@
     });
   }
 
+  // Satu foto utuh dengan filter yang dipilih (untuk unduhan QR "foto satuan")
+  function fotoSatuan(lay, i, sisiMaks = 2000) {
+    const lut = ed.filter === 'tpl' && lay.lut;
+    const src = lut ? fotoDenganLut(lay)[i] : photos[i];
+    const w0 = src.width, h0 = src.height, s = Math.min(1, sisiMaks / Math.max(w0, h0));
+    const c = document.createElement('canvas'); c.width = Math.round(w0 * s); c.height = Math.round(h0 * s);
+    const ctx = c.getContext('2d');
+    if (!lut) ctx.filter = cssFilter(ed.filter);
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+
   // Lapisan dasar: bingkai, foto dengan filter, nama & tanggal
   function renderBase(ctx, lay, scale = 1, filterKey = ed.filter) {
     if (lay.tpl) {
@@ -592,7 +604,10 @@
       const originals = [];
       for (const p of photos) originals.push(p._asli || await toBytes(p, 0.95));   // Sony: file asli kamera
       const result = await toBytes(out, 0.93);
-      const r = await api.savePhotos({ originals, result, tamu: namaTamu,
+      // Foto satuan untuk diunduh lewat QR: utuh (tidak dipotong template), dengan filter yang sama, maks 2000 piksel
+      const satuan = [];
+      for (let i = 0; i < photos.length; i++) if (photos[i]) satuan.push(await toBytes(fotoSatuan(lay, i), 0.9));
+      const r = await api.savePhotos({ originals, result, satuan, tamu: namaTamu,
         meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter === 'tpl' ? 'template: ' + (lay.lut ? lay.lut.nama : '-') : ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
       ok = !!(r && r.ok); err = r && r.error; link = r && r.link;
     })().catch(e => { err = e.message; });
