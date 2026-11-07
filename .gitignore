@@ -20,3 +20,6 @@ cloud/.wrangler/
 # Hasil bangun demo HP (dibuat ulang dengan npm run demo:bangun)
 demo/web/
 demo/.wrangler/
+
+# Pengaturan VS Code pribadi
+.vscode/
