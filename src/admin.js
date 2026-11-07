@@ -26,12 +26,12 @@ async function doLogin() {
     adminMasuk = true;
     $('pw').value = '';
     await bukaPanelAdmin();
-  } else { $('loginErr').textContent = 'ID atau password salah'; $('pw').value = ''; }
+  } else { $('loginErr').textContent = 'Wrong ID or password'; $('pw').value = ''; }
 }
 async function loadOutDir() {
   const r = await api.getOutDir();
   $('outDir').textContent = r.dir + (r.isDefault ? '  (default)' : '');
-  $('dirMsg').textContent = r.ok ? '' : 'Folder ini tidak tersedia. Rekaman akan disimpan di folder default.';
+  $('dirMsg').textContent = r.ok ? '' : 'This folder is not available. Recordings will be saved to the default folder.';
 }
 async function refreshAdmin() {
   applyCouples(await api.getCouples()); fillCoupleSel();
@@ -74,13 +74,13 @@ async function konfirmasiTutup() {
   try { c = await api.cekTutup(); } catch (e) {}
   tutupDibuka = false;
   const catatan = [];
-  if (c.salin) catatan.push(`${c.salin} video masih disalin dari kamera Sony. File aslinya aman di kartu kamera; bisa disalin lagi lewat Riwayat sesi.`);
-  if (c.proses) catatan.push(`${c.proses} video masih diproses. Prosesnya dilanjutkan otomatis saat aplikasi dibuka lagi.`);
-  if (c.foto) catatan.push(`${c.foto} foto QR belum terkirim. Pengirimannya dilanjutkan otomatis saat aplikasi dibuka lagi (perlu internet).`);
+  if (c.salin) catatan.push(`${c.salin} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`);
+  if (c.proses) catatan.push(`${c.proses} video(s) still processing. Processing continues automatically when the app is opened again.`);
+  if (c.foto) catatan.push(`${c.foto} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`);
   const lapis = document.createElement('div'); lapis.className = 'dialog-lapis'; lapis.id = 'dlgTutup';
-  lapis.innerHTML = `<div class="dialog-kartu"><h2>Tutup aplikasi?</h2><p></p><ul></ul>
-    <div class="dialog-aksi"><button class="btn sm tint" id="dlgTutupBatal">Batal</button><button class="btn sm primary" id="dlgTutupYa">Tutup aplikasi</button></div></div>`;
-  lapis.querySelector('p').textContent = 'Kamera Sony akan diputus dengan rapi, lalu aplikasi tertutup.';
+  lapis.innerHTML = `<div class="dialog-kartu"><h2>Quit the app?</h2><p></p><ul></ul>
+    <div class="dialog-aksi"><button class="btn sm tint" id="dlgTutupBatal">Cancel</button><button class="btn sm primary" id="dlgTutupYa">Quit app</button></div></div>`;
+  lapis.querySelector('p').textContent = 'The Sony camera will be disconnected cleanly, then the app will close.';
   const ul = lapis.querySelector('ul');
   if (catatan.length) catatan.forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
   else ul.remove();
@@ -88,7 +88,7 @@ async function konfirmasiTutup() {
   lapis.querySelector('#dlgTutupBatal').onclick = () => lapis.remove();
   lapis.onclick = e => { if (e.target === lapis) lapis.remove(); };
   lapis.querySelector('#dlgTutupYa').onclick = async () => {
-    lapis.querySelector('.dialog-kartu').innerHTML = '<div class="spinner"></div><h2>Menutup aplikasi…</h2><p>Memutus kamera dengan rapi. Tunggu sebentar.</p>';
+    lapis.querySelector('.dialog-kartu').innerHTML = '<div class="spinner"></div><h2>Closing the app…</h2><p>Disconnecting the camera cleanly. One moment.</p>';
     lapis.onclick = null;
     await api.tutupAplikasi();
   };
@@ -100,9 +100,9 @@ async function lihatCatatan() {
   try { r = await api.catatanBaca(); } catch (e) {}
   const lapis = document.createElement('div'); lapis.className = 'dialog-lapis'; lapis.id = 'dlgCatatan';
   lapis.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
-    <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Simpan untuk dikirim</button><button class="btn sm primary" id="dlgCatatanTutup">Tutup</button></div></div>`;
-  lapis.querySelector('h2').textContent = 'Catatan aplikasi' + (r.file ? ' · ' + r.file : '');
-  lapis.querySelector('p').textContent = r.teks ? '✗ = error, ⚠ = peringatan. Yang terbaru ada di bawah.' : 'Belum ada catatan.';
+    <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Save to send</button><button class="btn sm primary" id="dlgCatatanTutup">Close</button></div></div>`;
+  lapis.querySelector('h2').textContent = 'App log' + (r.file ? ' · ' + r.file : '');
+  lapis.querySelector('p').textContent = r.teks ? '✗ = error, ⚠ = warning. Newest at the bottom.' : 'No log entries yet.';
   const pre = lapis.querySelector('pre');
   pre.textContent = r.teks || '';
   if (!r.teks) pre.remove();
@@ -117,5 +117,5 @@ async function simpanCatatan() {
   const r = await api.catatanSimpan();
   if (r.batal) return;
   if (r.error) setNotice(r.error, 5000);
-  else setNotice('Catatan tersimpan: ' + r.file.split('/').pop() + ' (ditunjukkan di Finder)', 5000);
+  else setNotice('Log saved: ' + r.file.split('/').pop() + ' (shown in Finder)', 5000);
 }

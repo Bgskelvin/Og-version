@@ -22,10 +22,10 @@ async function fillCoupleSel() {
     row.innerHTML = '<span><b></b><small></small></span><svg class="i chev"><use href="#i-next"/></svg>';
     row.querySelector('b').textContent = c.name;
     const m = menuCouple(c);
-    const menu = [m.pesan && 'Pesan', m.quiz && `Quiz (${c.questions.length} soal)`, m.photo && 'Foto'].filter(Boolean).join(', ');
-    row.querySelector('small').textContent = `${menu} · ${nTpl} template · ${nSesi} sesi`;
+    const menu = [m.pesan && 'Message', m.quiz && `Quiz (${c.questions.length} questions)`, m.photo && 'Photo'].filter(Boolean).join(', ');
+    row.querySelector('small').textContent = `${menu} · ${nTpl} template${nTpl === 1 ? '' : 's'} · ${nSesi} session${nSesi === 1 ? '' : 's'}`;
     if (c.id === couplesData.activeId) {
-      const t = document.createElement('em'); t.className = 'cp-aktif'; t.textContent = 'Aktif';
+      const t = document.createElement('em'); t.className = 'cp-aktif'; t.textContent = 'Active';
       row.insertBefore(t, row.lastElementChild);
     }
     row.onclick = () => openTambah(c);
@@ -40,13 +40,13 @@ function flash(id, text, isErr) {
 }
 function disarmDelete() {
   clearTimeout(delArmed); delArmed = null;
-  $('delLabel').textContent = 'Hapus couple';
+  $('delLabel').textContent = 'Delete couple';
 }
 async function deleteCouple() {
   const target = couplesData.couples.find(c => c.id === editingId);
   if (!target) return;
   if (!delArmed) {  // tekan dua kali untuk konfirmasi
-    $('delLabel').textContent = 'Yakin hapus?';
+    $('delLabel').textContent = 'Delete for sure?';
     delArmed = setTimeout(disarmDelete, 3000);
     return;
   }
@@ -56,8 +56,8 @@ async function deleteCouple() {
   applyCouples(r.data);
   show('admin');
   await fillCoupleSel(); await loadSessions();
-  const tpl = r.templateDihapus ? ` beserta ${r.templateDihapus} template` : '';
-  flash('coupleMsg', `"${target.name}"${tpl} dihapus. Rekaman dan fotonya tetap tersimpan.`);
+  const tpl = r.templateDihapus ? ` and ${r.templateDihapus} template(s)` : '';
+  flash('coupleMsg', `"${target.name}"${tpl} deleted. Their recordings and photos are still saved.`);
 }
 
 /* ---------- Halaman couple ---------- */
@@ -65,16 +65,16 @@ async function deleteCouple() {
 function tandaiQuiz() {
   const on = $('fMenuQuiz').checked;
   $('qInputs').classList.toggle('mati', !on);
-  $('qWajib').textContent = on ? '' : ' · Quick quiz mati, pertanyaan tidak dipakai';
+  $('qWajib').textContent = on ? '' : ' · Quick quiz is off, questions are not used';
   const pertama = document.querySelector('.qIn');
-  if (pertama) pertama.placeholder = on ? 'Pertanyaan pertama (wajib)' : 'Opsional';
+  if (pertama) pertama.placeholder = on ? 'First question (required)' : 'Optional';
 }
 // Saklar menu: menolak mematikan menu terakhir
 function saklarMenu(e) {
   const semua = ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].map(id => $(id).checked);
   if (!semua.some(Boolean)) {
     e.target.checked = true;
-    flash('fMenuMsg', 'Minimal satu menu harus aktif.', true);
+    flash('fMenuMsg', 'At least one option must be on.', true);
   }
   tandaiQuiz();
 }
@@ -85,20 +85,20 @@ function buildQInputs() {
     const n = document.createElement('span'); n.className = 'qnum'; n.textContent = i + 1;
     const inp = document.createElement('input');
     inp.className = 'field qIn'; inp.maxLength = 200; inp.autocomplete = 'off';
-    inp.placeholder = i === 0 ? 'Pertanyaan pertama (wajib)' : 'Opsional';
+    inp.placeholder = i === 0 ? 'First question (required)' : 'Optional';
     inp.addEventListener('input', updateQCount);
     row.append(n, inp); box.appendChild(row);
   }
 }
 function updateQCount() {
   const n = [...document.querySelectorAll('.qIn')].filter(i => i.value.trim()).length;
-  $('qCount').textContent = `(${n}/${MAX_Q} terisi)`;
+  $('qCount').textContent = `(${n}/${MAX_Q} filled)`;
 }
 // Halaman couple: info, pertanyaan quiz, template foto, folder & hapus — semua di satu tempat
 function openTambah(c, tetapDiForm = false) {
   editingId = c ? c.id : null;
   disarmDelete();
-  $('tambahTitle').textContent = c ? c.name : 'Tambah couple';
+  $('tambahTitle').textContent = c ? c.name : 'Add couple';
   $('cpTplBaru').style.display = c ? 'none' : '';
   $('cpTplBox').style.display = c ? '' : 'none';
   $('cpLainBox').style.display = c ? '' : 'none';
@@ -127,22 +127,22 @@ async function saveTambah() {
     menu: { pesan: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked }
   };
   const gagal = teks => { $('tambahErr').textContent = teks; $('tambahErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); };
-  if (!Object.values(data.menu).some(Boolean)) return gagal('Minimal satu menu harus aktif: Kirim pesan, Quick quiz, atau Photo booth.');
+  if (!Object.values(data.menu).some(Boolean)) return gagal('At least one option must be on: Send a message, Quick quiz or Photo booth.');
   const r = await api.saveCouple(data);
   if (r.error) return gagal(r.error);
   let d = r.data;
   if ($('fActive').checked && d.activeId !== r.couple.id) d = (await api.setActiveCouple(r.couple.id)).data;
   applyCouples(d);
-  const aktif = d.activeId === r.couple.id ? ' dan aktif' : '';
+  const aktif = d.activeId === r.couple.id ? ' and set as active' : '';
   if (!editingId) {                       // couple baru: tetap di halaman ini supaya bisa langsung membuat template
     openTambah(r.couple, true);
-    flash('tplMsg', `"${r.couple.name}" tersimpan${aktif}. Sekarang kamu bisa membuat template fotonya.`);
+    flash('tplMsg', `"${r.couple.name}" saved${aktif}. You can now create their photo templates.`);
     fillCoupleSel();
     return;
   }
   show('admin');
   await fillCoupleSel(); await loadSessions();
-  flash('coupleMsg', `"${r.couple.name}" tersimpan${aktif}.`);
+  flash('coupleMsg', `"${r.couple.name}" saved${aktif}.`);
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)

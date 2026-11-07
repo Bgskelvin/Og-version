@@ -3,9 +3,9 @@
    serta penerapan semua pengaturan ke aplikasi (applySettings)
    ===================================================================== */
 
-const SWATCHES = [['#B08D57', 'Emas'], ['#C47A86', 'Rose'], ['#7C9A7E', 'Sage'], ['#3E6E9E', 'Biru'], ['#48484A', 'Grafit']];
+const SWATCHES = [['#B08D57', 'Gold'], ['#C47A86', 'Rose'], ['#7C9A7E', 'Sage'], ['#3E6E9E', 'Blue'], ['#48484A', 'Graphite']];
 const SECONDS = [20, 30, 45, 60, 90, 120, 180];
-const secLabel = v => v < 60 ? `${v} detik` : `${String(v / 60).replace('.', ',')} menit`;
+const secLabel = v => v < 60 ? `${v} seconds` : `${v / 60} minute${v === 60 ? '' : 's'}`;
 function fillSelect(sel, values, current, label) {
   sel.innerHTML = '';
   [...new Set([...values, current])].sort((a, b) => a - b).forEach(v => {
@@ -16,13 +16,13 @@ function fillSelect(sel, values, current, label) {
 }
 function renderSwatches(accent) {
   const box = $('swatches'); box.innerHTML = '';
-  const list = SWATCHES.some(([c]) => c.toLowerCase() === accent.toLowerCase()) ? SWATCHES : [...SWATCHES, [accent, 'Warna saat ini']];
+  const list = SWATCHES.some(([c]) => c.toLowerCase() === accent.toLowerCase()) ? SWATCHES : [...SWATCHES, [accent, 'Current color']];
   list.forEach(([c, name]) => {
     const b = document.createElement('button');
     b.className = 'sw' + (c.toLowerCase() === accent.toLowerCase() ? ' on' : '');
     b.style.background = c; b.style.setProperty('--c', c);
-    b.title = name; b.setAttribute('aria-label', 'Warna ' + name);
-    b.onclick = () => saveSetting({ accent: c }, `Warna diganti ke ${name}.`);
+    b.title = name; b.setAttribute('aria-label', 'Color ' + name);
+    b.onclick = () => saveSetting({ accent: c }, `Color changed to ${name}.`);
     box.appendChild(b);
   });
 }
@@ -63,7 +63,7 @@ async function loadSettings() {
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
   $('setTanyaNama').checked = cfg.tanyaNama;
-  $('setBahasa').value = s.bahasa || 'id';
+  $('setBahasa').value = s.bahasa || 'en';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
 }
@@ -74,24 +74,24 @@ async function saveSetting(patch, msg) {
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
   $('setTanyaNama').checked = cfg.tanyaNama;
-  flash('setMsg', msg || 'Tersimpan.');
+  flash('setMsg', msg || 'Saved.');
 }
 async function saveLogin() {
-  if (!$('setOld').value) return flash('loginMsg', 'Isi password lama dulu.', true);
-  if ($('setNew').value !== $('setNew2').value) return flash('loginMsg', 'Password baru dan ulangannya tidak sama.', true);
+  if (!$('setOld').value) return flash('loginMsg', 'Enter your current password first.', true);
+  if ($('setNew').value !== $('setNew2').value) return flash('loginMsg', 'The new passwords do not match.', true);
   const r = await api.changeLogin($('setOld').value, $('setId').value, $('setNew').value);
   if (r.error) return flash('loginMsg', r.error, true);
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
-  flash('loginMsg', `Login diganti. Masuk berikutnya pakai ID "${r.id}" dan password baru.`);
+  flash('loginMsg', `Login changed. Next time, sign in with ID "${r.id}" and the new password.`);
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
 function pasangPengaturan() {
   $('setKiosk').onchange = e => saveSetting({ kiosk: e.target.checked },
-    e.target.checked ? 'Layar penuh aktif. Untuk keluar, matikan lagi di sini.' : 'Layar penuh dimatikan.');
+    e.target.checked ? 'Full screen is on. To leave it, turn it off here.' : 'Full screen is off.');
   $('setBahasa').onchange = e => saveSetting({ bahasa: e.target.value },
-    e.target.value === 'en' ? 'Layar tamu sekarang berbahasa Inggris. Halaman Admin tetap bahasa Indonesia.' : 'Layar tamu sekarang berbahasa Indonesia.');
+    e.target.value === 'en' ? 'Guest screens are now in English.' : 'Guest screens are now in Indonesian.');
   $('setTanyaNama').onchange = e => saveSetting({ tanyaNama: e.target.checked },
-    e.target.checked ? 'Tamu akan diminta mengetik nama setelah menekan Start.' : 'Tamu langsung ke Halaman Utama tanpa mengetik nama.');
+    e.target.checked ? 'Guests will be asked to type their name after pressing Start.' : 'Guests go straight to the main menu without typing a name.');
   $('btnSaveLogin').onclick = saveLogin;
 }

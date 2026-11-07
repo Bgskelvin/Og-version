@@ -33,7 +33,7 @@ function writeCouples(d) { writeJSON(couplesPath, d); }
 
 /* Menu di Halaman Utama, diatur per couple. Couple lama yang belum punya
    pengaturan ini memakai pengaturan menu lama (dulu berlaku untuk semua couple). */
-const MENU = { pesan: 'Kirim pesan', quiz: 'Quick quiz', photo: 'Photo booth' };
+const MENU = { pesan: 'Send a message', quiz: 'Quick quiz', photo: 'Photo booth' };
 function menuBawaan() {
   const s = readSettings();
   return { pesan: s.enablePesan !== false, quiz: s.enableQuiz !== false, photo: s.enablePhoto !== false };
@@ -66,9 +66,9 @@ function daftarkan() {
   ipcMain.handle('get-couples', () => readCouples());
   ipcMain.handle('save-couple', (e, input) => {
     const c = cleanCouple(input || {});
-    if (!c.name) return { error: 'Nama couple wajib diisi.' };
-    if (!Object.values(c.menu).some(Boolean)) return { error: 'Minimal satu menu harus aktif: Kirim pesan, Quick quiz, atau Photo booth.' };
-    if (c.menu.quiz && !c.questions.length) return { error: 'Quick quiz aktif: isi minimal 1 pertanyaan, atau matikan Quick quiz.' };
+    if (!c.name) return { error: 'Please enter the couple\'s name.' };
+    if (!Object.values(c.menu).some(Boolean)) return { error: 'At least one option must be on: Send a message, Quick quiz or Photo booth.' };
+    if (c.menu.quiz && !c.questions.length) return { error: 'Quick quiz is on: add at least 1 question, or turn Quick quiz off.' };
     const d = readCouples();
     const i = d.couples.findIndex(x => x.id === c.id);
     if (i >= 0) d.couples[i] = c; else d.couples.push(c);
@@ -78,7 +78,7 @@ function daftarkan() {
   });
   ipcMain.handle('delete-couple', (e, id) => {
     const d = readCouples();
-    if (d.couples.length <= 1) return { error: 'Minimal harus ada 1 couple.' };
+    if (d.couples.length <= 1) return { error: 'There must be at least 1 couple.' };
     d.couples = d.couples.filter(c => c.id !== id);
     if (d.activeId === id) d.activeId = d.couples[0].id;
     writeCouples(d);
@@ -87,7 +87,7 @@ function daftarkan() {
   });
   ipcMain.handle('set-active-couple', (e, id) => {
     const d = readCouples();
-    if (!d.couples.find(c => c.id === id)) return { error: 'Couple tidak ditemukan.' };
+    if (!d.couples.find(c => c.id === id)) return { error: 'Couple not found.' };
     d.activeId = id;
     writeCouples(d);
     require('./catatan').catat('Couple aktif: ' + d.couples.find(c => c.id === id).name);
@@ -99,8 +99,8 @@ function daftarkan() {
     const c = data.couples.find(x => x.id === id);
     const nama = c ? c.name : activeCoupleName();
     const d = coupleDir(getOutDir(), nama);
-    if (!fs.existsSync(d)) return 'Belum ada rekaman atau foto untuk couple ini.';
-    if (!usableDir(d)) return 'Folder tidak tersedia';
+    if (!fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
+    if (!usableDir(d)) return 'Folder not available';
     return shell.openPath(d);
   });
 }

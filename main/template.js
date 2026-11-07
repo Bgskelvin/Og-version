@@ -12,10 +12,10 @@ const { userData, readJSON, writeJSON } = require('./penyimpanan');
 
 const templatesDir = path.join(userData, 'templates');
 const UKURAN = {                                   // ukuran hasil dalam piksel (300 dpi)
-  '4r-tegak':   { W: 1200, H: 1800, nama: '4R tegak (4×6)' },
-  '4r-datar':   { W: 1800, H: 1200, nama: '4R mendatar (6×4)' },
+  '4r-tegak':   { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
+  '4r-datar':   { W: 1800, H: 1200, nama: '4R landscape (6×4)' },
   'strip':      { W: 600,  H: 1800, nama: 'Strip 2×6' },
-  'persegi':    { W: 1200, H: 1200, nama: 'Persegi' },
+  'persegi':    { W: 1200, H: 1200, nama: 'Square' },
 };
 const MAX_GAMBAR = 25 * 1024 * 1024;               // batas ukuran file gambar yang diunggah
 const FONT = ['sans', 'serif', 'script'];
@@ -45,7 +45,7 @@ function bersihkan(t) {
   return {
     id: String(t.id || 'tpl' + Date.now()).replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || 'tpl' + Date.now(),
     coupleId: String(t.coupleId || ''),
-    nama: String(t.nama || '').trim().slice(0, 60) || 'Template tanpa nama',
+    nama: String(t.nama || '').trim().slice(0, 60) || 'Untitled template',
     ukuran, W, H,
     latarWarna: warna(t.latarWarna, '#FFFFFF'),
     rasio: RASIO.includes(t.rasio) ? t.rasio : null,
@@ -120,7 +120,7 @@ function daftarkan() {
   // gambar: { latar, bingkai } — masing-masing Uint8Array (ganti), null (hapus), atau tidak ada (biarkan)
   ipcMain.handle('save-template', (e, input, gambar = {}) => {
     try {
-      if (!input || !input.coupleId) return { error: 'Couple belum dipilih.' };
+      if (!input || !input.coupleId) return { error: 'No couple selected.' };
       const t = bersihkan(input);
       const lama = readJSON(path.join(folder(t.id), 'template.json'), null);
       t.dibuat = (lama && lama.dibuat) || Date.now();
@@ -131,10 +131,10 @@ function daftarkan() {
         hapusGambar(t.id, dasar);
         if (gambar[dasar] === null) continue;
         const bytes = Buffer.from(gambar[dasar]);
-        if (bytes.length > MAX_GAMBAR) return { error: 'Gambar terlalu besar (maksimal 25 MB).' };
+        if (bytes.length > MAX_GAMBAR) return { error: 'The image is too large (max 25 MB).' };
         const ext = ekstensi(bytes);
-        if (!ext) return { error: 'Gambar harus berformat PNG atau JPG.' };
-        if (dasar === 'bingkai' && ext !== 'png') return { error: 'Bingkai harus PNG supaya bagian fotonya bisa transparan.' };
+        if (!ext) return { error: 'The image must be a PNG or JPG.' };
+        if (dasar === 'bingkai' && ext !== 'png') return { error: 'The frame must be a PNG so the photo areas can be transparent.' };
         fs.writeFileSync(path.join(folder(t.id), `${dasar}.${ext}`), bytes);
       }
       writeJSON(path.join(folder(t.id), 'template.json'), t);
@@ -147,7 +147,7 @@ function daftarkan() {
 
   ipcMain.handle('delete-template', (e, id) => {
     const bersih = String(id || '').replace(/[^a-z0-9_-]/gi, '');
-    if (!bersih) return { error: 'Template tidak ditemukan.' };
+    if (!bersih) return { error: 'Template not found.' };
     try { fs.rmSync(folder(bersih), { recursive: true, force: true }); return { ok: true }; }
     catch (err) { return { error: err.message }; }
   });

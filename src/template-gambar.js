@@ -10,7 +10,7 @@ const FONT_TEMPLATE = {
   serif: 'Georgia, "Times New Roman", serif',
   script: '"Snell Roundhand", "Segoe Script", "Brush Script MT", cursive',
 };
-const NAMA_FONT = { sans: 'Modern', serif: 'Klasik', script: 'Tulisan tangan' };
+const NAMA_FONT = { sans: 'Modern', serif: 'Classic', script: 'Handwriting' };
 
 // {couple} dan {tanggal} diganti otomatis saat foto dibuat.
 // Di editor template, {couple} memakai nama couple yang sedang diedit.

@@ -38,9 +38,9 @@
   ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
 
   if (pakaiSony()) await terapkanKamera();          // kamera Sony: webcam & mic komputer tidak dibuka
-  else try { await initDevices(); } catch (err) { setNotice('Gagal membuka kamera/mic: ' + err.message); }
+  else try { await initDevices(); } catch (err) { setNotice('Could not open the camera/mic: ' + err.message); }
   try {
     const info = await api.getStartupInfo();
-    if (info && info.recovered) setNotice(`${info.recovered} rekaman yang sempat terputus berhasil dipulihkan. Cek daftar sesi di Admin.`, 15000);
+    if (info && info.recovered) setNotice(`${info.recovered} interrupted recording(s) were recovered. Check Session history in Admin.`, 15000);
   } catch (err) {}
 })();

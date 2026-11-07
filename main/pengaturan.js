@@ -24,7 +24,7 @@ const SAKLAR = {
 };
 const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
 const KAMERA = ['webcam', 'sony', 'sony-sim'];  // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
-const BAHASA = ['id', 'en'];                      // bahasa layar tamu (Admin tetap bahasa Indonesia)
+const BAHASA = ['en', 'id'];                      // bahasa layar tamu (Admin selalu bahasa Inggris); bawaan: English
 const clampInt = (v, [lo, hi], dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
 const isColor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 function effective() {
@@ -34,7 +34,7 @@ function effective() {
     ...Object.fromEntries(Object.entries(SAKLAR).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
     kamera: KAMERA.includes(s.kamera) ? s.kamera : 'webcam',
-    bahasa: BAHASA.includes(s.bahasa) ? s.bahasa : 'id',
+    bahasa: BAHASA.includes(s.bahasa) ? s.bahasa : 'en',
     accent: isColor(s.accent) ? s.accent : ((config.colors && isColor(config.colors.accent)) ? config.colors.accent : '#B08D57'),
     loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin'
   };
@@ -71,7 +71,7 @@ function daftarkan() {
     for (const k of Object.keys(SAKLAR)) if (k in patch) s[k] = !!patch[k];
     // Minimal satu menu harus tetap tampil di Halaman Utama
     const now = effective(), next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
-    if (!MENU.some(k => next[k])) return { ...now, error: 'Minimal satu menu harus tetap tampil di Halaman Utama.' };
+    if (!MENU.some(k => next[k])) return { ...now, error: 'At least one option must stay on the main menu.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
     if ('bahasa' in patch && BAHASA.includes(patch.bahasa)) s.bahasa = patch.bahasa;
     if ('kamera' in patch && KAMERA.includes(patch.kamera)) {
@@ -88,9 +88,9 @@ function daftarkan() {
   });
   ipcMain.handle('change-login', (e, oldPw, newId, newPw) => {
     const id = String(newId || '').trim();
-    if (!checkLogin(effective().loginId, oldPw)) return { error: 'Password lama salah.' };
-    if (!id) return { error: 'ID tidak boleh kosong.' };
-    if (String(newPw || '').length < 4) return { error: 'Password baru minimal 4 karakter.' };
+    if (!checkLogin(effective().loginId, oldPw)) return { error: 'Current password is wrong.' };
+    if (!id) return { error: 'ID cannot be empty.' };
+    if (String(newPw || '').length < 4) return { error: 'The new password needs at least 4 characters.' };
     const salt = crypto.randomBytes(16).toString('hex');
     const s = readSettings();
     s.login = { id, salt, hash: hashPw(newPw, salt) };
@@ -105,11 +105,11 @@ function daftarkan() {
   });
   ipcMain.handle('choose-outdir', async () => {
     const r = await dialog.showOpenDialog(getWin(), {
-      title: 'Pilih folder penyimpanan', defaultPath: getOutDir(), properties: ['openDirectory', 'createDirectory']
+      title: 'Choose storage folder', defaultPath: getOutDir(), properties: ['openDirectory', 'createDirectory']
     });
     if (r.canceled || !r.filePaths[0]) return { canceled: true };
     const dir = r.filePaths[0];
-    if (!usableDir(dir)) return { error: 'Folder itu tidak bisa ditulisi. Pilih folder lain.' };
+    if (!usableDir(dir)) return { error: 'That folder is not writable. Choose another folder.' };
     const s = readSettings(); s.outDir = dir; writeSettings(s);
     return { dir };
   });

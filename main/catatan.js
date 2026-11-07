@@ -83,9 +83,9 @@ function daftarkan() {
   // Admin → "Simpan catatan": gabungan 7 hari terakhir dalam satu file, untuk dikirim
   ipcMain.handle('catatan-simpan', async () => {
     const files = daftar().slice(0, 7).reverse();
-    if (!files.length) return { error: 'Belum ada catatan.' };
+    if (!files.length) return { error: 'No log entries yet.' };
     const r = await dialog.showSaveDialog({
-      title: 'Simpan catatan aplikasi',
+      title: 'Save app log',
       defaultPath: path.join(app.getPath('downloads'), `Leura-catatan-${tanggal()}.txt`),
       filters: [{ name: 'Teks', extensions: ['txt'] }],
     });
@@ -97,7 +97,7 @@ function daftarkan() {
       shell.showItemInFolder(r.filePath);
       catat('Catatan disimpan ke ' + r.filePath);
       return { ok: true, file: r.filePath };
-    } catch (e) { return { error: 'Gagal menyimpan: ' + e.message }; }
+    } catch (e) { return { error: 'Could not save: ' + e.message }; }
   });
 }
 

@@ -5,12 +5,12 @@
    ===================================================================== */
 
 const UKURAN_TEMPLATE = {
-  '4r-tegak': { W: 1200, H: 1800, nama: '4R tegak (4×6)' },
-  '4r-datar': { W: 1800, H: 1200, nama: '4R mendatar (6×4)' },
+  '4r-tegak': { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
+  '4r-datar': { W: 1800, H: 1200, nama: '4R landscape (6×4)' },
   'strip':    { W: 600,  H: 1800, nama: 'Strip 2×6' },
-  'persegi':  { W: 1200, H: 1200, nama: 'Persegi' },
+  'persegi':  { W: 1200, H: 1200, nama: 'Square' },
 };
-const SUSUNAN = [['kisi', 'Kisi 2×2'], ['kolom', 'Kolom'], ['baris', 'Baris'], ['besar', '1 besar + 3']];
+const SUSUNAN = [['kisi', 'Grid 2×2'], ['kolom', 'Column'], ['baris', 'Row'], ['besar', '1 big + 3']];
 const WARNA_LATAR = ['#FFFFFF', '#F3EDE4', '#F6E1E3', '#E3EBE1', '#E6ECF5', '#1D1D1F'];
 const WARNA_TEKS = ['#1D1D1F', '#FFFFFF', '#6E6E73', '#8C6A4F', '#5B3A40', '#2F4030'];
 
@@ -29,7 +29,7 @@ async function daftarTemplateCouple(couple = coupleTemplate) {
   if (couple !== coupleTemplate) return;              // sudah pindah ke couple lain
   if (!list.length) {
     const kosong = document.createElement('div'); kosong.className = 'item muted';
-    kosong.textContent = 'Belum ada template. Tamu memakai layout bawaan (Kisi 2×2, Strip, 1 besar + 3).';
+    kosong.textContent = 'No templates yet. Guests use the built-in layouts (Grid 2×2, Strip, 1 big + 3).';
     box.appendChild(kosong); return;
   }
   for (const t of list) {
@@ -40,19 +40,19 @@ async function daftarTemplateCouple(couple = coupleTemplate) {
     const info = document.createElement('div'); info.className = 'tpl-info';
     info.innerHTML = `<b></b><span class="muted"></span>`;
     info.querySelector('b').textContent = t.nama;
-    info.querySelector('span').textContent = ((UKURAN_TEMPLATE[t.ukuran] || {}).nama || t.ukuran) + (t.filter ? ' · dengan filter' : '');
+    info.querySelector('span').textContent = ((UKURAN_TEMPLATE[t.ukuran] || {}).nama || t.ukuran) + (t.filter ? ' · with filter' : '');
     const edit = document.createElement('button'); edit.className = 'btn sm tint'; edit.textContent = 'Edit';
     edit.onclick = () => bukaEditorTemplate(t);
-    const hapus = document.createElement('button'); hapus.className = 'btn sm tint danger'; hapus.textContent = 'Hapus';
+    const hapus = document.createElement('button'); hapus.className = 'btn sm tint danger'; hapus.textContent = 'Delete';
     hapus.onclick = async () => {
       if (hapusTplArmed !== t.id) {           // tekan dua kali untuk konfirmasi
-        hapusTplArmed = t.id; hapus.textContent = 'Yakin hapus?';
-        setTimeout(() => { if (hapusTplArmed === t.id) { hapusTplArmed = null; hapus.textContent = 'Hapus'; } }, 3000);
+        hapusTplArmed = t.id; hapus.textContent = 'Delete for sure?';
+        setTimeout(() => { if (hapusTplArmed === t.id) { hapusTplArmed = null; hapus.textContent = 'Delete'; } }, 3000);
         return;
       }
       hapusTplArmed = null;
       const r = await api.deleteTemplate(t.id);
-      if (r.error) flash('tplMsg', r.error, true); else flash('tplMsg', `Template "${t.nama}" dihapus.`);
+      if (r.error) flash('tplMsg', r.error, true); else flash('tplMsg', `Template "${t.nama}" deleted.`);
       daftarTemplateCouple();
     };
     row.append(mini, info, edit, hapus);
@@ -68,7 +68,7 @@ function templateBaru() {
            slots: susunanFoto('kisi', W, H, 3 / 2), texts: teksBawaan(W, H) };
 }
 async function bukaEditorTemplate(tpl) {
-  if (!coupleTemplate) return flash('tplMsg', 'Simpan couple ini dulu.', true);
+  if (!coupleTemplate) return flash('tplMsg', 'Save this couple first.', true);
   te.tpl = tpl ? JSON.parse(JSON.stringify({ ...tpl, latarUrl: undefined, bingkaiUrl: undefined })) : templateBaru();
   te.gambar = {};
   te.latar = tpl ? await muatGambar(tpl.latarUrl) : null;
@@ -76,10 +76,10 @@ async function bukaEditorTemplate(tpl) {
   te.sel = { jenis: 'slot', i: 0 }; te.berubah = false; te.contohFoto = null; batalTidakJadi();
   if (te.tpl.filterKekuatan == null) te.tpl.filterKekuatan = 100;
   if (te.tpl.filterTamu == null) te.tpl.filterTamu = true;
-  $('teTitle').textContent = (tpl ? 'Edit template' : 'Template baru') + ' · ' + coupleTemplate.name;
+  $('teTitle').textContent = (tpl ? 'Edit template' : 'New template') + ' · ' + coupleTemplate.name;
   $('teNama').value = te.tpl.nama;
-  $('teLatarStatus').textContent = te.latar ? 'Ada gambar' : 'Belum ada';
-  $('teBingkaiStatus').textContent = te.bingkai ? 'Ada bingkai' : 'Belum ada';
+  $('teLatarStatus').textContent = te.latar ? 'Image added' : 'None';
+  $('teBingkaiStatus').textContent = te.bingkai ? 'Frame added' : 'None';
   show('tpleditor');
   setTabEditor('desain');
   isiPanelEditor();
@@ -116,7 +116,7 @@ function pasangPegangan() {
     box.innerHTML = '';
     te.tpl.slots.forEach((s, i) => {
       const el = document.createElement('div'); el.className = 'te-slot';
-      el.innerHTML = `<span class="te-no">${i + 1}</span><span class="te-resize" title="Ubah ukuran"></span>`;
+      el.innerHTML = `<span class="te-no">${i + 1}</span><span class="te-resize" title="Resize"></span>`;
       geserDenganJari(el, 'slot', i);
       geserDenganJari(el.querySelector('.te-resize'), 'resize', i);
       box.appendChild(el);
@@ -225,7 +225,7 @@ async function isiPanelFilter() {
     b.insertAdjacentText('beforeend', nama);
     return b;
   };
-  kotak(null, 'Tanpa filter', !t.filter, () => pilihFilterTemplate(null));
+  kotak(null, 'No filter', !t.filter, () => pilihFilterTemplate(null));
   for (const [i, f] of daftar.entries()) {
     const item = siap[i];
     if (!item) continue;
@@ -238,9 +238,9 @@ async function isiPanelFilter() {
   $('teFilterKekuatanNilai').textContent = k + '%';
   $('teFilterTamu').checked = t.filterTamu !== false;
   $('teFilterInfo').textContent = !ada
-    ? (te.filterDaftar.length ? 'Template ini belum memakai filter. Pilih salah satu di atas.' : 'Belum ada filter. Tekan "Tambah filter (.cube)" untuk mengunggah file filter.')
-    : `Semua foto tamu memakai filter "${namaFilterTpl()}" (${k}%). ` + (t.filterTamu !== false ? 'Tamu masih bisa memilih filter lain saat mengedit foto.' : 'Tamu tidak bisa menggantinya.');
-  hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Hapus filter ini';
+    ? (te.filterDaftar.length ? 'This template has no filter yet. Pick one above.' : 'No filters yet. Press "Add filter (.cube)" to upload a filter file.')
+    : `All guest photos use the "${namaFilterTpl()}" filter (${k}%). ` + (t.filterTamu !== false ? 'Guests can still choose another filter while editing.' : 'Guests can\'t change it.');
+  hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Delete this filter';
   perbaruiContohFilter();
 }
 function pilihFilterTemplate(id) {
@@ -249,27 +249,27 @@ function pilihFilterTemplate(id) {
 }
 async function tambahFilter(file) {
   if (!file) return;
-  if (!/\.cube$/i.test(file.name)) return flash('teMsg', 'Pilih file filter berakhiran .cube (LUT 3D).', true);
-  if (file.size > 20 * 1024 * 1024) return flash('teMsg', 'File filter terlalu besar (maksimal 20 MB).', true);
+  if (!/\.cube$/i.test(file.name)) return flash('teMsg', 'Choose a filter file ending in .cube (3D LUT).', true);
+  if (file.size > 20 * 1024 * 1024) return flash('teMsg', 'The filter file is too large (max 20 MB).', true);
   const r = await api.filterTambah(file.name, new Uint8Array(await file.arrayBuffer()));
-  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Filter gagal ditambahkan.', true);
-  flash('teMsg', `Filter "${r.filter.nama}" ditambahkan dan dipakai di template ini.`);
+  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not add the filter.', true);
+  flash('teMsg', `Filter "${r.filter.nama}" added and applied to this template.`);
   te.tpl.filter = r.filter.id; te.berubah = true;
   isiPanelFilter();
 }
 async function hapusFilterTerpilih() {
   const id = te.tpl.filter; if (!id) return;
   if (hapusFilterArmed !== id) {                       // tekan dua kali: filter hilang dari SEMUA template
-    hapusFilterArmed = id; $('teFilterHapus').lastChild.textContent = 'Yakin? Hilang dari semua template';
-    setTimeout(() => { if (hapusFilterArmed === id) { hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Hapus filter ini'; } }, 3000);
+    hapusFilterArmed = id; $('teFilterHapus').lastChild.textContent = 'Sure? Removes it from every template';
+    setTimeout(() => { if (hapusFilterArmed === id) { hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Delete this filter'; } }, 3000);
     return;
   }
   const nama = namaFilterTpl();
   const r = await api.filterHapus(id);
-  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Filter gagal dihapus.', true);
+  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not delete the filter.', true);
   lupakanLut(id);
   te.tpl.filter = null; te.berubah = true;
-  flash('teMsg', `Filter "${nama}" dihapus dari koleksi.`);
+  flash('teMsg', `Filter "${nama}" deleted from your collection.`);
   isiPanelFilter();
 }
 function tombolPilihan(box, isi, aktif, onClick, kelas = 'pe-opt') {
@@ -305,8 +305,8 @@ function isiPanelEditor() {
     tombolPilihan(ra, `<span class="te-rasio" style="width:${w}px;height:${h}px"></span>${key}`, t.rasio === key, () => pilihRasio(key), 'pe-opt te-rasio-opt');
   }
   $('teRasioInfo').textContent = !t.rasio
-    ? '⚠️ Template ini belum punya rasio foto. Pilih salah satu supaya foto tamu pas di kotaknya.'
-    : `Semua foto memakai rasio ${t.rasio}. ${t.rasio === '3:2' ? 'Sama dengan foto kamera Sony, jadi tidak ada yang terpotong.' : 'Foto kamera (3:2) akan dipotong; tamu melihat area aman saat difoto.'}`;
+    ? '⚠️ This template has no photo ratio yet. Pick one so guest photos fit their boxes.'
+    : `All photos use a ${t.rasio} ratio. ${t.rasio === '3:2' ? 'Same as Sony camera photos, so nothing is cropped.' : 'Camera photos (3:2) will be cropped; guests see the safe area while shooting.'}`;
   // Susunan cepat
   const su = $('teSusunan'); su.innerHTML = '';
   for (const [key, nama] of SUSUNAN) {
@@ -319,16 +319,16 @@ function isiPanelEditor() {
   }
   // Foto terpilih
   const sp = $('teSlotPilih'); sp.innerHTML = '';
-  t.slots.forEach((s, i) => tombolPilihan(sp, `Foto ${i + 1}`, te.sel.jenis === 'slot' && te.sel.i === i,
+  t.slots.forEach((s, i) => tombolPilihan(sp, `Photo ${i + 1}`, te.sel.jenis === 'slot' && te.sel.i === i,
     () => { te.sel = { jenis: 'slot', i }; isiPanelEditor(); pasangPegangan(); }, 'btn sm tint'));
   $('teSudut').value = t.slots[0] ? t.slots[0].r : 8;
   // Teks
   const tl = $('teTeksList'); tl.innerHTML = '';
-  if (!t.texts.length) { const k = document.createElement('div'); k.className = 'item muted'; k.textContent = 'Belum ada teks.'; tl.appendChild(k); }
+  if (!t.texts.length) { const k = document.createElement('div'); k.className = 'item muted'; k.textContent = 'No text yet.'; tl.appendChild(k); }
   t.texts.forEach((x, i) => {
     const b = document.createElement('button'); b.className = 'item nav-row' + (te.sel.jenis === 'teks' && te.sel.i === i ? ' te-aktif' : '');
     b.innerHTML = '<span></span><svg class="i chev"><use href="#i-next"/></svg>';
-    b.querySelector('span').textContent = x.text || '(kosong)';
+    b.querySelector('span').textContent = x.text || '(empty)';
     b.onclick = () => { te.sel = { jenis: 'teks', i }; isiPanelEditor(); pasangPegangan(); };
     tl.appendChild(b);
   });
@@ -346,7 +346,7 @@ function isiPanelEditor() {
     const daftar = [...new Set([...WARNA_TEKS, getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().toUpperCase()])];
     for (const w of daftar) {
       const b = tombolPilihan(wt, '', tx.color.toLowerCase() === w.toLowerCase(), () => { tx.color = w; tandaiBerubah(); }, 'pe-dot');
-      b.style.background = w; b.setAttribute('aria-label', 'Warna teks ' + w);
+      b.style.background = w; b.setAttribute('aria-label', 'Text color ' + w);
     }
     const ci = document.createElement('input'); ci.type = 'color'; ci.className = 'te-warna'; ci.value = tx.color;
     ci.oninput = e => { tx.color = e.target.value.toUpperCase(); te.berubah = true; gambarEditor(); };
@@ -364,7 +364,7 @@ function pilihRasio(key) {
   const tumpuk = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   if (t.slots.some((a, i) => t.slots.some((b, j) => j > i && tumpuk(a, b)))) {
     t.slots = susunanFoto('kisi', t.W, t.H, r).map((s, i) => ({ ...s, r: t.slots[i].r }));
-    flash('teMsg', 'Kotak foto dirapikan ke susunan kisi supaya tidak bertumpuk.');
+    flash('teMsg', 'Photo boxes were rearranged into a grid so they don\'t overlap.');
   }
   tandaiBerubah();
 }
@@ -383,20 +383,20 @@ function gantiUkuran(key) {
 // Unggah gambar latar / bingkai dari Canva, Photoshop, dsb.
 async function pilihGambar(file, jenis) {
   if (!file) return;
-  if (jenis === 'bingkai' && file.type !== 'image/png') return flash('teMsg', 'Bingkai harus PNG supaya bagian fotonya bisa transparan.', true);
-  if (!/^image\/(png|jpeg)$/.test(file.type)) return flash('teMsg', 'Pilih gambar PNG atau JPG.', true);
-  if (file.size > 25 * 1024 * 1024) return flash('teMsg', 'Gambar terlalu besar (maksimal 25 MB).', true);
+  if (jenis === 'bingkai' && file.type !== 'image/png') return flash('teMsg', 'The frame must be a PNG so the photo areas can be transparent.', true);
+  if (!/^image\/(png|jpeg)$/.test(file.type)) return flash('teMsg', 'Choose a PNG or JPG image.', true);
+  if (file.size > 25 * 1024 * 1024) return flash('teMsg', 'The image is too large (max 25 MB).', true);
   te.gambar[jenis] = new Uint8Array(await file.arrayBuffer());
   te[jenis] = await muatGambar(URL.createObjectURL(file));
   $(jenis === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = file.name;
   const img = te[jenis];
   if (img && Math.abs(img.naturalWidth / img.naturalHeight - te.tpl.W / te.tpl.H) > 0.02)
-    flash('teMsg', `Perbandingan gambar berbeda dari ukuran template (${te.tpl.W}×${te.tpl.H}). Gambar akan dipotong atau diregangkan.`, true);
+    flash('teMsg', `The image proportions differ from the template size (${te.tpl.W}×${te.tpl.H}). It will be cropped or stretched.`, true);
   te.berubah = true; gambarEditor();
 }
 function hapusGambarTemplate(jenis) {
   te.gambar[jenis] = null; te[jenis] = null;
-  $(jenis === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = 'Belum ada';
+  $(jenis === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = 'None';
   te.berubah = true; gambarEditor();
 }
 
@@ -404,17 +404,17 @@ function hapusGambarTemplate(jenis) {
 async function simpanTemplate() {
   if (!te.tpl.rasio) {
     setTabEditor('foto');
-    return flash('teMsg', 'Pilih rasio foto dulu (tab Posisi foto).', true);
+    return flash('teMsg', 'Choose a photo ratio first (Photo layout tab).', true);
   }
-  te.tpl.nama = $('teNama').value.trim() || 'Template ' + new Date().toLocaleDateString('id-ID');
+  te.tpl.nama = $('teNama').value.trim() || 'Template ' + new Date().toLocaleDateString('en-GB');
   const r = await api.saveTemplate(te.tpl, te.gambar);
   if (r.error) return flash('teMsg', r.error, true);
   te.berubah = false;
   show('tambah');
   await daftarTemplateCouple();
-  flash('tplMsg', `Template "${r.template.nama}" tersimpan.`);
+  flash('tplMsg', `Template "${r.template.nama}" saved.`);
 }
-function batalTidakJadi() { clearTimeout(te.batalArmed); te.batalArmed = null; $('teBatal').textContent = 'Batal'; }
+function batalTidakJadi() { clearTimeout(te.batalArmed); te.batalArmed = null; $('teBatal').textContent = 'Cancel'; }
 function batalEditor() {
   if (te.berubah && !te.batalArmed) {                 // ada perubahan: tekan dua kali
     $('teBatal').textContent = 'Buang perubahan?';
@@ -443,12 +443,12 @@ function pasangTemplateEditor() {
     const i = te.sel.jenis === 'slot' ? te.sel.i : 0, j = (i + 1) % 4, s = te.tpl.slots;
     [s[i], s[j]] = [s[j], s[i]];
     te.sel = { jenis: 'slot', i: j };
-    flash('teMsg', `Posisi foto ${i + 1} dan ${j + 1} ditukar.`);
+    flash('teMsg', `Photos ${i + 1} and ${j + 1} swapped.`);
     tandaiBerubah();
   };
   $('teTeksTambah').onclick = () => {
     const { W, H } = te.tpl;
-    te.tpl.texts.push({ id: 't' + Date.now(), text: 'Teks baru', x: W / 2, y: H / 2, size: Math.round(Math.min(W, H) * 0.06), color: '#1D1D1F', font: 'sans', bold: false });
+    te.tpl.texts.push({ id: 't' + Date.now(), text: 'New text', x: W / 2, y: H / 2, size: Math.round(Math.min(W, H) * 0.06), color: '#1D1D1F', font: 'sans', bold: false });
     te.sel = { jenis: 'teks', i: te.tpl.texts.length - 1 };
     tandaiBerubah(); $('teTeksIsi').focus(); $('teTeksIsi').select();
   };
@@ -457,7 +457,7 @@ function pasangTemplateEditor() {
     const t = teksTerpilih(); if (!t) return;
     t.text = e.target.value; te.berubah = true; gambarEditor();
     const label = $('teTeksList').children[te.sel.i];            // perbarui nama di daftar tanpa membuat ulang panel
-    if (label && label.querySelector('span')) label.querySelector('span').textContent = t.text || '(kosong)';
+    if (label && label.querySelector('span')) label.querySelector('span').textContent = t.text || '(empty)';
   };
   $('teTeksUkuran').oninput = e => { const t = teksTerpilih(); if (!t) return; t.size = Number(e.target.value); te.berubah = true; gambarEditor(); };
   $('teTeksTebal').onclick = () => { const t = teksTerpilih(); if (t) { t.bold = !t.bold; tandaiBerubah(); } };

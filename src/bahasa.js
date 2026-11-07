@@ -1,6 +1,6 @@
 /* =====================================================================
    bahasa.js — bahasa layar tamu (diatur di Admin → Tampilan).
-   Halaman Admin selalu berbahasa Indonesia. Isi yang diketik admin
+   Halaman Admin selalu berbahasa Inggris (bawaan layar tamu juga English). Isi yang diketik admin
    (sambutan, pertanyaan quiz, teks template) tampil apa adanya.
 
    Cara pakai:
@@ -10,7 +10,7 @@
    Menambah bahasa lain: tambahkan KAMUS.xx, LOKAL.xx, dan pilihannya di Admin.
    ===================================================================== */
 
-let bahasa = 'id';
+let bahasa = 'en';
 const LOKAL = { id: 'id-ID', en: 'en-GB' };          // format tanggal
 
 const KAMUS = {
@@ -94,7 +94,7 @@ function terapkanBahasa() {
   });
 }
 function setBahasa(b) {
-  bahasa = KAMUS[b] ? b : 'id';
+  bahasa = KAMUS[b] ? b : 'en';
   terapkanBahasa();
   if (typeof kbNama !== 'undefined' && kbNama) kbNama.gambarUlang();   // tulisan tombol keyboard layar
 }

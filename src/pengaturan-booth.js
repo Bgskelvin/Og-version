@@ -5,10 +5,10 @@
    ===================================================================== */
 
 const PILIHAN = {
-  pesanCountdown:  [[0, 'Langsung merekam'], [3, '3 detik'], [5, '5 detik'], [10, '10 detik']],
-  pesanMaxSeconds: [[0, 'Tanpa batas'], [30, '30 detik'], [60, '1 menit'], [120, '2 menit'], [180, '3 menit'], [300, '5 menit']],
-  photoCountdown:  [[3, '3 detik'], [5, '5 detik'], [7, '7 detik'], [10, '10 detik']],
-  photoPreview:    [[0, 'Tanpa pratinjau'], [1, '1 detik'], [2, '2 detik'], [3, '3 detik']],
+  pesanCountdown:  [[0, 'Record right away'], [3, '3 seconds'], [5, '5 seconds'], [10, '10 seconds']],
+  pesanMaxSeconds: [[0, 'No limit'], [30, '30 seconds'], [60, '1 minute'], [120, '2 minutes'], [180, '3 minutes'], [300, '5 minutes']],
+  photoCountdown:  [[3, '3 seconds'], [5, '5 seconds'], [7, '7 seconds'], [10, '10 seconds']],
+  photoPreview:    [[0, 'No preview'], [1, '1 second'], [2, '2 seconds'], [3, '3 seconds']],
 };
 const labelDari = key => v => (PILIHAN[key].find(([n]) => n === v) || [v, secLabel(v)])[1];
 
@@ -45,18 +45,18 @@ function pasangPengaturanBooth() {
 
   const saklar = (id, key, nama) => { $(id).onchange = e => {
     const msgId = key === 'enablePhoto' || key === 'photoFlash' ? 'setPhotoMsg' : 'setVideoMsg';
-    simpanBooth({ [key]: e.target.checked }, msgId, `${nama} ${e.target.checked ? 'aktif' : 'dimatikan'}.`);
+    simpanBooth({ [key]: e.target.checked }, msgId, `${nama} ${e.target.checked ? 'on' : 'off'}.`);
   }; };
-  saklar('setPhotoFlash', 'photoFlash', 'Efek kilat');
+  saklar('setPhotoFlash', 'photoFlash', 'Screen flash');
 
   const pilih = (id, key, msgId, teks) => { $(id).onchange = e => {
     const v = Number(e.target.value);
     simpanBooth({ [key]: v }, msgId, teks(v));
   }; };
-  pilih('setPesanCountdown', 'pesanCountdown', 'setVideoMsg', v => `Hitung mundur pesan: ${labelDari('pesanCountdown')(v).toLowerCase()}.`);
-  pilih('setPesanMax', 'pesanMaxSeconds', 'setVideoMsg', v => `Batas durasi pesan: ${labelDari('pesanMaxSeconds')(v).toLowerCase()}.`);
-  pilih('setSeconds', 'quizSeconds', 'setVideoMsg', v => `Waktu jawab: ${secLabel(v)}.`);
-  pilih('setRounds', 'quizRounds', 'setVideoMsg', v => `Jumlah soal per sesi: ${v}.`);
-  pilih('setPhotoCountdown', 'photoCountdown', 'setPhotoMsg', v => `Hitung mundur foto: ${labelDari('photoCountdown')(v)}.`);
-  pilih('setPhotoPreview', 'photoPreview', 'setPhotoMsg', v => `Pratinjau: ${labelDari('photoPreview')(v).toLowerCase()}.`);
+  pilih('setPesanCountdown', 'pesanCountdown', 'setVideoMsg', v => `Message countdown: ${labelDari('pesanCountdown')(v).toLowerCase()}.`);
+  pilih('setPesanMax', 'pesanMaxSeconds', 'setVideoMsg', v => `Message time limit: ${labelDari('pesanMaxSeconds')(v).toLowerCase()}.`);
+  pilih('setSeconds', 'quizSeconds', 'setVideoMsg', v => `Answer time: ${secLabel(v)}.`);
+  pilih('setRounds', 'quizRounds', 'setVideoMsg', v => `Questions per session: ${v}.`);
+  pilih('setPhotoCountdown', 'photoCountdown', 'setPhotoMsg', v => `Photo countdown: ${labelDari('photoCountdown')(v)}.`);
+  pilih('setPhotoPreview', 'photoPreview', 'setPhotoMsg', v => `Preview: ${labelDari('photoPreview')(v).toLowerCase()}.`);
 }

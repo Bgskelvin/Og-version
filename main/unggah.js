@@ -96,9 +96,9 @@ async function kirim(item, p, n = 0) {
     if (r.ok) return '';
     let pesan = '';
     try { pesan = (await r.json()).error || ''; } catch (e) {}
-    return `Server menolak (${r.status}${pesan ? ': ' + pesan : ''})`;
+    return `Server refused (${r.status}${pesan ? ': ' + pesan : ''})`;
   } catch (e) {
-    return e.name === 'AbortError' ? 'Unggah terlalu lama (internet lambat?)' : 'Tidak ada internet / server tidak terjangkau';
+    return e.name === 'AbortError' ? 'Upload took too long (slow internet?)' : 'No internet / server unreachable';
   } finally { clearTimeout(batas); }
 }
 
@@ -174,14 +174,14 @@ function daftarkanFoto(file, sid, opsi = {}) {
 }
 
 async function tesSambungan(p = pengaturan()) {
-  if (!p.url || !p.kunci) return { error: 'Isi alamat server dan kunci booth dulu.' };
+  if (!p.url || !p.kunci) return { error: 'Enter the server address and booth key first.' };
   try {
     const r = await fetch(`${alamat(p.url)}/ping`, { headers: { authorization: 'Bearer ' + p.kunci }, signal: AbortSignal.timeout(10000) });
-    if (r.status === 401) return { error: 'Kunci booth salah.' };
-    if (!r.ok) return { error: `Server menjawab ${r.status}. Cek alamat server.` };
+    if (r.status === 401) return { error: 'Wrong booth key.' };
+    if (!r.ok) return { error: `Server answered ${r.status}. Check the server address.` };
     const j = await r.json();
-    return j.ok ? { ok: true, hari: j.hari } : { error: 'Jawaban server tidak dikenal.' };
-  } catch (e) { return { error: 'Server tidak terjangkau. Cek internet dan alamat server.' }; }
+    return j.ok ? { ok: true, hari: j.hari } : { error: 'Unknown server response.' };
+  } catch (e) { return { error: 'Server unreachable. Check the internet and the server address.' }; }
 }
 
 function daftarkan() {
@@ -190,10 +190,10 @@ function daftarkan() {
     const s = readSettings(), lama = s.unggah || {};
     const url = alamat(masuk.url != null ? masuk.url : lama.url);
     // https wajib; http hanya untuk server uji di komputer ini
-    if (url && !/^https:\/\/[^\s/]+/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) return { ...status(), error: 'Alamat server harus diawali https://' };
+    if (url && !/^https:\/\/[^\s/]+/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) return { ...status(), error: 'The server address must start with https://' };
     const kunci = masuk.kunci != null ? String(masuk.kunci).trim() : lama.kunci || '';
     const aktif = masuk.aktif != null ? !!masuk.aktif : !!lama.aktif;
-    if (aktif && (!url || !kunci)) return { ...status(), error: 'Isi alamat server dan kunci booth sebelum menyalakan QR.' };
+    if (aktif && (!url || !kunci)) return { ...status(), error: 'Enter the server address and booth key before turning the QR on.' };
     s.unggah = { aktif, url, kunci };
     writeSettings(s);
     dukungSatuan = null;                     // server bisa berganti: tanya lagi
@@ -205,12 +205,12 @@ function daftarkan() {
   // Isi alamat & kunci dari hasil "npm run cloud:pasang"
   ipcMain.handle('unggah-hasil-pasang', () => {
     const h = readJSON(HASIL_PASANG, null);
-    if (!h || !h.url || !h.kunci) return { error: 'Belum ada hasil pemasangan. Jalankan dulu: npm run cloud:pasang' };
+    if (!h || !h.url || !h.kunci) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
     return { url: h.url, kunci: h.kunci };
   });
   // Dari Riwayat sesi: buka link foto di browser / salin link
   ipcMain.handle('buka-link', (e, url) => {
-    if (!/^https:\/\/[^\s]+$/.test(String(url || ''))) return { error: 'Link tidak valid.' };
+    if (!/^https:\/\/[^\s]+$/.test(String(url || ''))) return { error: 'Invalid link.' };
     shell.openExternal(url); return { ok: true };
   });
   ipcMain.handle('salin-teks', (e, teks) => { clipboard.writeText(String(teks || '')); return { ok: true }; });

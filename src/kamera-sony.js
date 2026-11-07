@@ -85,14 +85,14 @@ async function jalankanLiveView() {
 /* ---------- Status kamera di Admin ---------- */
 function teksStatusSony(s) {
   if (s.tersambung) {
-    const bagian = [`${s.model || 'Kamera Sony'} tersambung`];
-    if (s.baterai >= 0) bagian.push(`baterai ${s.baterai}%`);
-    if (s.kartu > 0) bagian.push('⚠️ kartu SD bermasalah / tidak ada');
-    else if (s.sisaDetik > 0) bagian.push(`sisa rekam ±${Math.floor(s.sisaDetik / 3600)} j ${Math.floor(s.sisaDetik % 3600 / 60)} m`);
-    if (s.mengunduh) bagian.push('sedang menyalin video');
+    const bagian = [`${s.model || 'Sony camera'} connected`];
+    if (s.baterai >= 0) bagian.push(`battery ${s.baterai}%`);
+    if (s.kartu > 0) bagian.push('⚠️ SD card problem / no card');
+    else if (s.sisaDetik > 0) bagian.push(`±${Math.floor(s.sisaDetik / 3600)} h ${Math.floor(s.sisaDetik % 3600 / 60)} m recording left`);
+    if (s.mengunduh) bagian.push('copying video');
     return bagian.join(' · ');
   }
-  return s.pesan || 'Mencari kamera Sony…';
+  return s.pesan || 'Looking for the Sony camera…';
 }
 function tulisStatusSony() {
   if (!$('sonyStatus')) return;
@@ -105,8 +105,8 @@ function isiKameraAdmin() {
   $('camSelRow').style.display = $('micSelRow').style.display = sony ? 'none' : '';
   $('sonyRow').style.display = sony ? '' : 'none';
   $('camHint').textContent = sony
-    ? 'Suara video berasal dari kamera Sony: colokkan mic ke jack mic kamera. Video direkam ke kartu SD lalu otomatis disalin ke folder couple. Pakai dummy battery supaya kamera tidak mati di tengah acara.'
-    : 'Kamera & mic komputer, webcam USB, atau HP sebagai webcam.';
+    ? 'Video sound comes from the Sony camera: plug the mic into the camera\'s mic jack. Videos are recorded to the SD card and copied to the couple folder automatically. Use a dummy battery so the camera doesn\'t die mid-event.'
+    : 'Computer camera & mic, a USB webcam, or a phone used as a webcam.';
   tulisStatusSony();
 }
 function terimaStatusSony(s) {
@@ -115,7 +115,7 @@ function terimaStatusSony(s) {
   tulisStatusSony();
   // Kamera terputus di tengah rekaman pesan/quiz: hentikan sesi dengan pesan yang jelas
   if (dulu && !sonySt.tersambung && rec && rec.sony)
-    abortSession('Kamera Sony terputus saat merekam. Video yang sempat terekam tetap ada di kartu SD kamera.');
+    abortSession('The Sony camera disconnected while recording. What was recorded is still on the camera SD card.');
 }
 
 // Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
@@ -128,11 +128,11 @@ async function pasangKameraSony() {
     await terapkanKamera();
     isiKameraAdmin();
     await fillDevices();
-    const nama = { webcam: 'Webcam / HP', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulasi' }[cfg.kamera];
-    flash('camMsg', `Sumber kamera: ${nama}.`);
+    const nama = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[cfg.kamera];
+    flash('camMsg', `Camera source: ${nama}.`);
   };
   $('btnSonyUlang').onclick = async () => {
-    $('sonyStatus').textContent = 'Mencari kamera Sony…';
+    $('sonyStatus').textContent = 'Looking for the Sony camera…';
     terimaStatusSony(await api.sonySambungUlang());
   };
 }

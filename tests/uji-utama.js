@@ -15,8 +15,8 @@ const KASUS = {
     const { panggil } = nyalakanAplikasi();
     let d = await panggil('get-couples');
     cek(d.couples.length === 1 && d.couples[0].id === d.activeId, 'couple pertama dibuat dari config.json dan aktif');
-    cek((await panggil('save-couple', { name: '  ', questions: ['a'] })).error === 'Nama couple wajib diisi.', 'nama kosong ditolak');
-    cek(/Quick quiz aktif/.test((await panggil('save-couple', { name: 'X', questions: ['', ' '] })).error), 'quiz aktif tanpa pertanyaan ditolak');
+    cek((await panggil('save-couple', { name: '  ', questions: ['a'] })).error === 'Please enter the couple\'s name.', 'nama kosong ditolak');
+    cek(/Quick quiz is on/.test((await panggil('save-couple', { name: 'X', questions: ['', ' '] })).error), 'quiz aktif tanpa pertanyaan ditolak');
     let r = await panggil('save-couple', { name: 'Ayu & Budi', questions: Array.from({ length: 12 }, (_, i) => 'Q' + i) });
     cek(r.couple.questions.length === 10, 'pertanyaan dibatasi 10');
     cek(r.data.activeId !== r.couple.id, 'couple baru tidak otomatis aktif');
@@ -26,7 +26,7 @@ const KASUS = {
     cek(r.data.couples.length === 2 && r.couple.name === 'Ayu & Budi (edit)', 'edit tidak menambah couple baru');
     r = await panggil('delete-couple', r.data.activeId);
     cek(r.ok && r.data.couples.length === 1 && r.data.activeId === r.data.couples[0].id, 'hapus couple aktif memindahkan status aktif');
-    cek((await panggil('delete-couple', r.data.activeId)).error === 'Minimal harus ada 1 couple.', 'couple terakhir tidak bisa dihapus');
+    cek((await panggil('delete-couple', r.data.activeId)).error === 'There must be at least 1 couple.', 'couple terakhir tidak bisa dihapus');
   },
 
   async 'pengaturan & login'() {
@@ -41,8 +41,8 @@ const KASUS = {
     cek(s.quizSeconds === 300 && s.quizRounds === 1 && s.accent === '#7C9A7E', 'nilai tidak masuk akal dibatasi', s);
     const c = await panggil('get-config');
     cek(c.quizSeconds === 300 && c.colors.accent === '#7C9A7E' && c.login === undefined, 'get-config ikut berubah dan tidak membocorkan login');
-    cek((await panggil('change-login', '0000', 'bos', 'rahasia')).error === 'Password lama salah.', 'ganti login: password lama salah ditolak');
-    cek((await panggil('change-login', '1234', 'bos', '12')).error === 'Password baru minimal 4 karakter.', 'ganti login: password pendek ditolak');
+    cek((await panggil('change-login', '0000', 'bos', 'rahasia')).error === 'Current password is wrong.', 'ganti login: password lama salah ditolak');
+    cek((await panggil('change-login', '1234', 'bos', '12')).error === 'The new password needs at least 4 characters.', 'ganti login: password pendek ditolak');
     cek((await panggil('change-login', '1234', 'bos', 'rahasia')).ok, 'ganti login berhasil');
     cek(!(await panggil('login', 'leura', '1234')) && await panggil('login', 'BOS', 'rahasia'), 'login lama tidak berlaku, login baru berlaku');
     cek(!fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8').includes('rahasia'), 'password tidak tersimpan sebagai teks biasa');
@@ -134,7 +134,7 @@ const KASUS = {
     const files = fs.readdirSync(dir);
     cek(files.filter(f => f.endsWith('_hasil.jpg')).length === 2 && files.filter(f => /_foto-\d\.jpg$/.test(f)).length === 5, 'file foto & hasil ada di <couple>/Foto', files);
     cek(sesi().every(x => x.label === 'foto' && x.status === 'photo'), 'sesi foto tercatat');
-    cek((await panggil('save-photos', { originals: [], result: null })).error === 'Data foto kosong', 'data kosong ditolak');
+    cek((await panggil('save-photos', { originals: [], result: null })).error === 'No photo data', 'data kosong ditolak');
   },
 
   async 'nama tamu jadi nama file (video & foto)'() {
@@ -202,7 +202,7 @@ const KASUS = {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
     const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2]);
     cek((await panggil('list-templates', 'A')).length === 0, 'awalnya belum ada template');
-    cek((await panggil('save-template', { nama: 'X' })).error === 'Couple belum dipilih.', 'template tanpa couple ditolak');
+    cek((await panggil('save-template', { nama: 'X' })).error === 'No couple selected.', 'template tanpa couple ditolak');
     const slots = [{ x: 60, y: 60, w: 500, h: 600 }, { x: 99999, y: 0, w: 5, h: 99999 }, {}, {}, { x: 1, y: 1, w: 1, h: 1 }];
     let r = await panggil('save-template', { coupleId: 'A', nama: 'Rustic', ukuran: 'strip', latarWarna: '#F3EDE4', slots,
       texts: [{ text: '{couple}', x: 300, y: 1700, size: 50, color: '#3A2E25', font: 'script' }] }, { latar: jpg, bingkai: png });
@@ -211,8 +211,8 @@ const KASUS = {
     const s2 = r.template.slots[1];
     cek(s2.w >= 40 && s2.h <= 1800 && s2.x <= 600, 'posisi foto di luar batas dirapikan', s2);
     cek(/^data:image\/jpeg;base64,/.test(r.template.latarUrl) && /^data:image\/png;base64,/.test(r.template.bingkaiUrl), 'gambar latar & bingkai tersimpan');
-    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { bingkai: jpg })).error === 'Bingkai harus PNG supaya bagian fotonya bisa transparan.', 'bingkai JPG ditolak');
-    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { latar: new Uint8Array([1, 2, 3]) })).error === 'Gambar harus berformat PNG atau JPG.', 'file bukan gambar ditolak');
+    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { bingkai: jpg })).error === 'The frame must be a PNG so the photo areas can be transparent.', 'bingkai JPG ditolak');
+    cek((await panggil('save-template', { coupleId: 'A', nama: 'B' }, { latar: new Uint8Array([1, 2, 3]) })).error === 'The image must be a PNG or JPG.', 'file bukan gambar ditolak');
     const id = r.template.id;
     r = await panggil('save-template', { ...r.template, nama: 'Rustic 2' }, { latar: null });
     cek(r.ok && !r.template.latarUrl && r.template.bingkaiUrl && r.template.nama === 'Rustic 2', 'edit: latar dihapus, bingkai tetap');
@@ -235,10 +235,10 @@ const KASUS = {
     cek(r.ok && r.filter.nama === 'Hangat Sore' && r.filter.size === 3, 'file .cube valid ditambahkan (nama dari file, tanpa .cube)', r);
     const id = r.filter.id;
     cek(fs.existsSync(path.join(dataDir, 'filter', id + '.cube')), 'file .cube asli tersimpan di folder data/filter');
-    cek(/Ini bukan file LUT/.test((await panggil('filter-tambah', 'foto.cube', new TextEncoder().encode('halo'))).error), 'file yang bukan .cube ditolak');
-    cek(/LUT 1D/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_1D_SIZE 4\n0 0 0'))).error), 'LUT 1D ditolak dengan pesan jelas');
-    cek(/kurang/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_3D_SIZE 2\n0 0 0\n1 1 1'))).error), 'data warna yang tidak lengkap ditolak');
-    cek((await panggil('filter-tambah', 'x.cube', new Uint8Array(21 * 1024 * 1024))).error === 'File filter terlalu besar (maksimal 20 MB).', 'file lebih dari 20 MB ditolak');
+    cek(/not a \.cube LUT file/.test((await panggil('filter-tambah', 'foto.cube', new TextEncoder().encode('halo'))).error), 'file yang bukan .cube ditolak');
+    cek(/1D LUT/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_1D_SIZE 4\n0 0 0'))).error), 'LUT 1D ditolak dengan pesan jelas');
+    cek(/Missing color data/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_3D_SIZE 2\n0 0 0\n1 1 1'))).error), 'data warna yang tidak lengkap ditolak');
+    cek((await panggil('filter-tambah', 'x.cube', new Uint8Array(21 * 1024 * 1024))).error === 'The filter file is too large (max 20 MB).', 'file lebih dari 20 MB ditolak');
     const isi = await panggil('filter-isi', id);
     cek(isi && /LUT_3D_SIZE 3/.test(isi.teks) && isi.nama === 'Hangat Sore', 'isi filter bisa diambil untuk diterapkan ke foto');
     cek((await panggil('filter-isi', '../settings')) === null, 'nama filter aneh tidak bisa membaca file lain');
@@ -258,9 +258,9 @@ const KASUS = {
     let d = await panggil('get-couples');
     cek(d.couples[0].menu.pesan && !d.couples[0].menu.quiz && d.couples[0].menu.photo, 'couple lama mengikuti pengaturan menu lama', d.couples[0].menu);
     let r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: false, photo: false } });
-    cek(/Minimal satu menu/.test(r.error), 'semua menu mati ditolak', r.error);
+    cek(/At least one option/.test(r.error), 'semua menu mati ditolak', r.error);
     r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: true, photo: false } });
-    cek(/Quick quiz aktif/.test(r.error), 'quiz aktif tanpa pertanyaan ditolak', r.error);
+    cek(/Quick quiz is on/.test(r.error), 'quiz aktif tanpa pertanyaan ditolak', r.error);
     r = await panggil('save-couple', { name: 'A', questions: [], menu: { pesan: false, quiz: false, photo: true } });
     cek(r.ok && r.couple.menu.photo && !r.couple.menu.pesan && !r.couple.menu.quiz, 'couple hanya Photo booth tanpa pertanyaan boleh', r.couple && r.couple.menu);
     r = await panggil('save-couple', { name: 'B', questions: ['q'], menu: { pesan: 'ya' } });
@@ -280,7 +280,7 @@ const KASUS = {
     cek(r.ok && r.templateDihapus === 2, 'dua template couple ikut terhapus', r.templateDihapus);
     const sisa = fs.readdirSync(path.join(dataDir, 'templates'));
     cek(sisa.length === 1 && sisa[0] === punyaLain.id, 'template couple lain tetap ada', sisa);
-    cek(/Belum ada rekaman/.test(await panggil('open-couple-folder', lain.id)), 'folder couple yang belum punya hasil tidak dibuat kosong');
+    cek(/No recordings or photos/.test(await panggil('open-couple-folder', lain.id)), 'folder couple yang belum punya hasil tidak dibuat kosong');
   },
 
   async 'nama couple dengan karakter terlarang'() {
@@ -356,10 +356,10 @@ const KASUS = {
 
   async 'bahasa tamu'() {
     const { panggil } = nyalakanAplikasi();
-    cek((await panggil('get-settings')).bahasa === 'id', 'bawaan bahasa Indonesia');
-    cek((await panggil('save-settings', { bahasa: 'en' })).bahasa === 'en', 'bahasa tamu bisa diganti ke English');
-    cek((await panggil('save-settings', { bahasa: 'fr' })).bahasa === 'en', 'bahasa yang tidak dikenal diabaikan');
-    cek((await panggil('get-config')).bahasa === 'en', 'bahasa ikut terkirim ke layar saat aplikasi dibuka');
+    cek((await panggil('get-settings')).bahasa === 'en', 'bawaan bahasa English');
+    cek((await panggil('save-settings', { bahasa: 'id' })).bahasa === 'id', 'bahasa tamu bisa diganti ke Indonesia');
+    cek((await panggil('save-settings', { bahasa: 'fr' })).bahasa === 'id', 'bahasa yang tidak dikenal diabaikan');
+    cek((await panggil('get-config')).bahasa === 'id', 'bahasa ikut terkirim ke layar saat aplikasi dibuka');
   },
 
   async 'riwayat sesi: buka, Finder, coba lagi'() {
@@ -387,7 +387,7 @@ const KASUS = {
     cek(dibuat === 2, 'gambar kecil yang sudah ada tidak dibuat ulang');
     delete electron.nativeImage;
     cek((await panggil('session-open', 12345)).error, 'sesi tidak dikenal ditolak dengan pesan');
-    cek(/tidak perlu diulang/.test((await panggil('session-retry', foto.id)).error), 'sesi yang sudah beres tidak bisa diulang');
+    cek(/doesn't need a retry/.test((await panggil('session-retry', foto.id)).error), 'sesi yang sudah beres tidak bisa diulang');
     // Video Sony yang tertinggal di kartu: salin lagi
     await panggil('save-settings', { kamera: 'sony-sim' }); await tunggu(700);
     const r = await panggil('rec-start', 'pesan', { sony: true });
@@ -432,10 +432,10 @@ const KASUS = {
     electron.__siap(); await tunggu(200);
     const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
     cek((await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} })).link === null, 'QR mati: tidak ada link');
-    cek(/Isi alamat server/.test((await panggil('unggah-simpan', { aktif: true })).error), 'QR tidak bisa dinyalakan tanpa alamat & kunci');
+    cek(/Enter the server address/.test((await panggil('unggah-simpan', { aktif: true })).error), 'QR tidak bisa dinyalakan tanpa alamat & kunci');
     cek(/https:\/\//.test((await panggil('unggah-simpan', { url: 'http://contoh.com', kunci: 'x' })).error), 'alamat selain https ditolak');
     await panggil('unggah-simpan', { url: `http://127.0.0.1:${port}/`, kunci: 'kunci-salah' });
-    cek((await panggil('unggah-tes')).error === 'Kunci booth salah.', 'tes sambungan: kunci salah terdeteksi');
+    cek((await panggil('unggah-tes')).error === 'Wrong booth key.', 'tes sambungan: kunci salah terdeteksi');
     await panggil('unggah-simpan', { kunci: env.KUNCI_BOOTH, aktif: true });
     const tes = await panggil('unggah-tes');
     cek(tes.ok && tes.hari === 7, 'tes sambungan berhasil, server menyimpan 7 hari', tes);

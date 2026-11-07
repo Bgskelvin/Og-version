@@ -2,7 +2,7 @@
    lut.js — filter foto dari file LUT 3D (.cube)
    File .cube adalah "resep warna" yang bisa diekspor dari Lightroom/Photoshop
    (Export Color Lookup Tables), DaVinci Resolve, atau dibeli sebagai preset.
-   - bacaCube(teks)            → { size, data, judul, ... } atau Error (pesan bahasa Indonesia)
+   - bacaCube(teks)            → { size, data, judul, ... } atau Error (pesan bahasa Inggris)
    - terapkanLut(foto, lut, k) → kanvas baru berisi foto yang sudah difilter
                                   (k = kekuatan 0..1; foto besar diperkecil dulu)
    Dipakai di tampilan (photobooth, editor template) dan di proses utama
@@ -22,16 +22,16 @@ function bacaCube(teks) {
     const kata = b.split(/\s+/);
     const kunci = kata[0].toUpperCase();
     if (kunci === 'TITLE') { judul = b.slice(5).trim().replace(/^"|"$/g, '').slice(0, 60); continue; }
-    if (kunci === 'LUT_1D_SIZE') throw new Error('Filter ini LUT 1D. Ekspor ulang sebagai LUT 3D (.cube).');
+    if (kunci === 'LUT_1D_SIZE') throw new Error('This filter is a 1D LUT. Export it again as a 3D LUT (.cube).');
     if (kunci === 'LUT_3D_SIZE') {
       size = Number(kata[1]);
-      if (!Number.isInteger(size) || size < 2 || size > LUT_UKURAN_MAKS) throw new Error(`Ukuran LUT tidak didukung (${kata[1]}). Pakai ukuran 2–${LUT_UKURAN_MAKS}.`);
+      if (!Number.isInteger(size) || size < 2 || size > LUT_UKURAN_MAKS) throw new Error(`Unsupported LUT size (${kata[1]}). Use a size from 2 to ${LUT_UKURAN_MAKS}.`);
       data = new Float32Array(size * size * size * 3);
       continue;
     }
     if (kunci === 'DOMAIN_MIN' || kunci === 'DOMAIN_MAX') {
       const v = kata.slice(1, 4).map(Number);
-      if (v.length !== 3 || v.some(x => !Number.isFinite(x))) throw new Error(`Baris ${i + 1} tidak valid: ${kunci}.`);
+      if (v.length !== 3 || v.some(x => !Number.isFinite(x))) throw new Error(`Line ${i + 1} is not valid: ${kunci}.`);
       if (kunci === 'DOMAIN_MIN') min = v; else max = v;
       continue;
     }
@@ -41,18 +41,18 @@ function bacaCube(teks) {
       continue;
     }
     if (/^[A-Z_]+$/.test(kunci)) continue;                     // kata kunci lain yang tidak dipakai
-    if (!data) throw new Error('File .cube tidak punya baris LUT_3D_SIZE sebelum data warna.');
-    if (kata.length < 3) throw new Error(`Baris ${i + 1} tidak berisi 3 angka warna.`);
-    if (n >= data.length) throw new Error('Jumlah data warna lebih banyak dari ukuran LUT.');
+    if (!data) throw new Error('The .cube file has no LUT_3D_SIZE line before the color data.');
+    if (kata.length < 3) throw new Error(`Line ${i + 1} doesn\'t contain 3 color values.`);
+    if (n >= data.length) throw new Error('There is more color data than the LUT size allows.');
     for (let c = 0; c < 3; c++) {
       const v = Number(kata[c]);
-      if (!Number.isFinite(v)) throw new Error(`Baris ${i + 1} berisi angka yang tidak valid.`);
+      if (!Number.isFinite(v)) throw new Error(`Line ${i + 1} contains an invalid number.`);
       data[n++] = v;
     }
   }
-  if (!data) throw new Error('Ini bukan file LUT .cube (tidak ada LUT_3D_SIZE).');
-  if (n !== data.length) throw new Error(`Data warna kurang: ada ${n / 3}, seharusnya ${data.length / 3}.`);
-  for (let c = 0; c < 3; c++) if (!(max[c] > min[c])) throw new Error('DOMAIN_MIN harus lebih kecil dari DOMAIN_MAX.');
+  if (!data) throw new Error('This is not a .cube LUT file (no LUT_3D_SIZE).');
+  if (n !== data.length) throw new Error(`Missing color data: found ${n / 3}, expected ${data.length / 3}.`);
+  for (let c = 0; c < 3; c++) if (!(max[c] > min[c])) throw new Error('DOMAIN_MIN must be smaller than DOMAIN_MAX.');
   // Simpan sebagai 0..255 supaya penerapan per piksel cepat
   for (let i = 0; i < data.length; i++) data[i] = Math.min(255, Math.max(0, data[i] * 255));
   return { size, data, judul, min, max };

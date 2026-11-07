@@ -50,8 +50,8 @@ class Helper extends EventEmitter {
     });
     this.galat = '';
     p.stderr.on('data', d => { const t = String(d).trim(); if (t) { this.galat = t.split('\n').pop(); console.log('[sony-helper] ' + t); } });
-    p.on('error', err => this.selesai('Program kamera Sony tidak bisa dijalankan: ' + err.message));
-    p.on('exit', code => this.selesai('Program kamera Sony berhenti (kode ' + code + ')' + (this.galat ? ': ' + this.galat : '')));
+    p.on('error', err => this.selesai('The Sony camera helper could not start: ' + err.message));
+    p.on('exit', code => this.selesai('The Sony camera helper stopped (code ' + code + ')' + (this.galat ? ': ' + this.galat : '')));
     p.stdin.on('error', () => {});
   }
   selesai(pesan) {
@@ -62,10 +62,10 @@ class Helper extends EventEmitter {
     this.emit('mati', pesan);
   }
   kirim(cmd, args = [], ms = 10000) {
-    if (!this.proc) return Promise.resolve({ ok: false, error: 'Program kamera Sony tidak berjalan' });
+    if (!this.proc) return Promise.resolve({ ok: false, error: 'The Sony camera helper is not running' });
     const id = ++this.seq;
     return new Promise(resolve => {
-      const timer = setTimeout(() => { this.tunggu.delete(id); resolve({ ok: false, error: 'Kamera tidak menjawab (' + cmd + ')' }); }, ms);
+      const timer = setTimeout(() => { this.tunggu.delete(id); resolve({ ok: false, error: 'The camera did not respond (' + cmd + ')' }); }, ms);
       this.tunggu.set(id, { resolve, timer });
       this.proc.stdin.write([id, cmd, ...args].join('\t') + '\n');
     });
@@ -94,12 +94,12 @@ class Simulasi extends EventEmitter {
   berhenti() { this.nyala = false; }
   async kirim(cmd, args = []) {
     const tunda = ms => new Promise(r => setTimeout(r, ms));
-    if (!this.nyala) return { ok: false, error: 'Simulasi mati' };
+    if (!this.nyala) return { ok: false, error: 'Simulation is off' };
     switch (cmd) {
       case 'sambung': await tunda(300); this.tersambung = true; return { ok: true, model: 'ILCE-6700 (simulasi)' };
       case 'status': return { ok: true, tersambung: !!this.tersambung, model: 'ILCE-6700 (simulasi)', baterai: 100, kartu: 0,
         sisaDetik: 9000, sisaFoto: 2500, merekam: this.merekam, mengunduh: this.unduhan > 0 };
-      case 'lv': await tunda(30); return this.lv.length ? { ok: true, buf: this.lv[this.frame++ % this.lv.length] } : { ok: false, error: 'Tidak ada gambar simulasi' };
+      case 'lv': await tunda(30); return this.lv.length ? { ok: true, buf: this.lv[this.frame++ % this.lv.length] } : { ok: false, error: 'No simulation image' };
       case 'foto': {
         await tunda(450);
         const f = path.join(args[0], `DSC${String(++this.no).padStart(5, '0')}.JPG`);
@@ -131,7 +131,7 @@ class Simulasi extends EventEmitter {
         return { ok: true, job };
       }
       case 'keluar': return { ok: true };
-      default: return { ok: false, error: 'Perintah tidak dikenal: ' + cmd };
+      default: return { ok: false, error: 'Unknown command: ' + cmd };
     }
   }
 }
@@ -198,14 +198,14 @@ async function perbaruiStatus() {
 
 function olahKabar(m) {
   if (m.ev === 'terputus') {
-    Object.assign(st, { tersambung: false, pesan: 'Kamera Sony terputus. Cek kabel USB & daya kamera.', jenisMode: null });
+    Object.assign(st, { tersambung: false, pesan: 'Sony camera disconnected. Check the USB cable and camera power.', jenisMode: null });
     catatan.peringatan('Kamera Sony terputus' + (m.kode ? ' (' + m.kode + ')' : ''));
     // SDK mencoba menyambung ulang sendiri; kalau 8 detik belum berhasil, aplikasi mencari kamera lagi
     jadwalSambung(8000);
-    for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'Kamera terputus saat menyalin video' });
+    for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'The camera disconnected while copying the video' });
     unduhTunggu.clear();
   } else if (m.ev === 'menyambung-ulang') {
-    Object.assign(st, { tersambung: false, pesan: 'Menyambung ulang ke kamera…' });
+    Object.assign(st, { tersambung: false, pesan: 'Reconnecting to the camera…' });
   } else if (m.ev === 'tersambung') {
     Object.assign(st, { tersambung: true, pesan: '' });
     catatan.catat('Kamera Sony tersambung lagi');
@@ -213,7 +213,7 @@ function olahKabar(m) {
   } else if (m.ev === 'unduh-selesai' || m.ev === 'unduh-gagal') {
     const t = unduhTunggu.get(m.job);
     if (m.ev === 'unduh-gagal') catatan.error('Gagal menyalin video dari kartu kamera (' + m.kode + ')');
-    if (t) { unduhTunggu.delete(m.job); t.resolve(m.ev === 'unduh-selesai' ? { ok: true, file: m.file } : { ok: false, error: 'Gagal menyalin video (' + m.kode + ')' }); }
+    if (t) { unduhTunggu.delete(m.job); t.resolve(m.ev === 'unduh-selesai' ? { ok: true, file: m.file } : { ok: false, error: 'Could not copy the video (' + m.kode + ')' }); }
     return;
   } else return;
   kabarkan();
@@ -233,8 +233,8 @@ function setel(m) {
     const file = HELPER();
     if (!fs.existsSync(file)) {
       st.pesan = process.platform === 'darwin' || process.env.SONY_HELPER
-        ? 'Program kamera Sony belum dibuat. Jalankan di Terminal: npm run build:sony'
-        : 'Kamera Sony lewat USB hanya bisa dipakai di Mac.';
+        ? 'The Sony camera helper is not built yet. Run in Terminal: npm run build:sony'
+        : 'A Sony camera over USB only works on a Mac.';
       kabarkan();
       return status();
     }
@@ -260,7 +260,7 @@ function matikan() {
   clearTimeout(timerSambung); clearInterval(timerStatus);
   let selesai = Promise.resolve();
   if (hub) { const h = hub; hub = null; if (st.merekam) h.kirim('rekam-stop', [], 3000); selesai = h.berhenti(); }
-  for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'Kamera Sony dimatikan' });
+  for (const t of unduhTunggu.values()) t.resolve({ ok: false, error: 'Sony camera turned off' });
   unduhTunggu.clear();
   return selesai;
 }
@@ -294,7 +294,7 @@ function aturMode(jenis) {
       st.jenisMode = r.jenis;
       if (r.diubah) catatan.catat(`Mode kamera: ${r.jenis.toUpperCase()} (${r.mode}, ${r.coba || 1}x coba)`);
       kabarkan();
-    } else if (/Perintah tidak dikenal/.test(r.error || '')) {
+    } else if (/Perintah tidak dikenal|Unknown command/.test(r.error || '')) {
       modeTakDidukung = true;
       catatan.peringatan('Ganti mode foto/video belum tersedia: jalankan npm run build:sony');
     } else catatan.peringatan(`Mode kamera tidak bisa diganti ke ${jenis}: ${r.error}`);
@@ -314,7 +314,7 @@ async function foto() {
     const bytes = fs.readFileSync(r.file);
     fs.unlink(r.file, () => {});           // salinan asli tetap ada di kartu SD kamera
     return { ok: true, bytes, ms: r.ms };
-  } catch (err) { return { error: 'Foto masuk tapi tidak bisa dibaca: ' + err.message }; }
+  } catch (err) { return { error: 'The photo arrived but could not be read: ' + err.message }; }
 }
 async function rekamMulai() {
   if (!siap()) return { error: st.pesan || 'Kamera Sony belum tersambung' };
@@ -324,7 +324,7 @@ async function rekamMulai() {
   return r.ok ? { ok: true } : { error: r.error };
 }
 async function rekamStop() {
-  if (!hub) return { error: 'Kamera Sony tidak aktif' };
+  if (!hub) return { error: 'The Sony camera is not active' };
   const r = await hub.kirim('rekam-stop', [], 45000);
   st.merekam = false; kabarkan();
   return r.ok ? r : { error: r.error };
@@ -332,13 +332,13 @@ async function rekamStop() {
 // Salin video dari kartu ke `tujuan` (path lengkap .mp4). Antre satu per satu.
 function unduh(info, tujuan) {
   const kerja = antrianUnduh.then(async () => {
-    if (!siap()) return { error: 'Kamera Sony belum tersambung' };
+    if (!siap()) return { error: 'The Sony camera is not connected yet' };
     const dir = path.join(SEMENTARA, 'video-' + Date.now());
     fs.mkdirSync(dir, { recursive: true });
     const r = await hub.kirim('unduh', [info.slot, info.contentId, info.fileId, dir], 15000);
     if (!r.ok) return { error: r.error };
     const hasil = await new Promise(resolve => {
-      const batas = setTimeout(() => { unduhTunggu.delete(r.job); resolve({ ok: false, error: 'Menyalin video terlalu lama' }); }, 20 * 60000);
+      const batas = setTimeout(() => { unduhTunggu.delete(r.job); resolve({ ok: false, error: 'Copying the video took too long' }); }, 20 * 60000);
       unduhTunggu.set(r.job, { resolve: v => { clearTimeout(batas); resolve(v); } });
     });
     if (!hasil.ok) return { error: hasil.error };
@@ -347,7 +347,7 @@ function unduh(info, tujuan) {
       catch (e) { fs.copyFileSync(hasil.file, tujuan); fs.unlinkSync(hasil.file); }   // beda disk (SSD luar)
       fs.rm(dir, { recursive: true, force: true }, () => {});
       return { ok: true, file: tujuan };
-    } catch (err) { return { error: 'Video tersalin tapi gagal dipindah ke folder couple: ' + err.message }; }
+    } catch (err) { return { error: 'The video was copied but could not be moved to the couple folder: ' + err.message }; }
   });
   antrianUnduh = kerja.catch(() => {});
   return kerja;

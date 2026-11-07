@@ -15,12 +15,12 @@ function daftarkan() {
   ipcMain.handle('save-photos', async (e, payload) => {
     try {
       const { originals = [], result, satuan = [], meta = {}, tamu: tamuAsli } = payload || {};
-      if (!result || !originals.length) { catatan.error('Simpan foto ditolak: data foto kosong'); return { ok: false, error: 'Data foto kosong' }; }
+      if (!result || !originals.length) { catatan.error('Simpan foto ditolak: data foto kosong'); return { ok: false, error: 'No photo data' }; }
       const name = activeCoupleName();
       let base = getOutDir();
-      if (!usableDir(base)) { base = defaultDir; if (!usableDir(base)) return { ok: false, error: 'Folder penyimpanan tidak bisa ditulisi.' }; }
+      if (!usableDir(base)) { base = defaultDir; if (!usableDir(base)) return { ok: false, error: 'The storage folder is not writable.' }; }
       const dir = path.join(coupleDir(base, name), 'Foto');
-      if (!usableDir(dir)) return { ok: false, error: 'Folder foto tidak bisa dibuat.' };
+      if (!usableDir(dir)) return { ok: false, error: 'Could not create the photo folder.' };
       // Nama file: nama tamu, mis. "Budi_hasil.jpg" + "Budi_foto-1.jpg"…; tanpa nama tamu: "<couple>_<waktu>_hasil.jpg".
       // Nama yang sudah dipakai tidak ditimpa: "Budi_2_hasil.jpg".
       const tamu = namaTamu(tamuAsli);

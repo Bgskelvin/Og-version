@@ -26,10 +26,10 @@ function tulisStatusUnggah() {
   if (!$('qrStatus')) return;
   const s = unggahSt;
   let teks, warna;
-  if (!s.aktif) { teks = 'QR mati. Tamu tidak melihat QR.'; warna = ''; }
-  else if (s.sedang) { teks = `Mengirim foto… · ${s.menunggu} dalam antrean`; warna = 'kuning'; }
-  else if (s.menunggu) { teks = `${s.menunggu} foto menunggu dikirim${s.errorTerakhir ? ' · ' + s.errorTerakhir : ''}`; warna = s.errorTerakhir ? 'merah' : 'kuning'; }
-  else { teks = `Aktif · semua foto terkirim${s.terkirim ? ` (${s.terkirim} sejak aplikasi dibuka)` : ''}`; warna = 'hijau'; }
+  if (!s.aktif) { teks = 'QR is off. Guests don\'t see a QR code.'; warna = ''; }
+  else if (s.sedang) { teks = `Sending photos… · ${s.menunggu} in queue`; warna = 'kuning'; }
+  else if (s.menunggu) { teks = `${s.menunggu} photo(s) waiting to be sent${s.errorTerakhir ? ' · ' + s.errorTerakhir : ''}`; warna = s.errorTerakhir ? 'merah' : 'kuning'; }
+  else { teks = `On · all photos sent${s.terkirim ? ` (${s.terkirim} since the app opened)` : ''}${s.menungguSatuan ? ` · ${s.menungguSatuan} single shot(s) still uploading` : ''}`; warna = 'hijau'; }
   $('qrStatus').textContent = teks;
   $('qrDot').className = 'sony-dot ' + warna;
   $('btnQrUlang').style.display = s.menunggu && !s.sedang ? '' : 'none';
@@ -39,7 +39,7 @@ async function isiUnduhQR() {
   $('setQrAktif').checked = unggahSt.aktif;
   $('setQrUrl').value = unggahSt.url || '';
   $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = unggahSt.adaKunci ? '•••••••• (tersimpan)' : 'Dari hasil npm run cloud:pasang';
+  $('setQrKunci').placeholder = unggahSt.adaKunci ? '•••••••• (saved)' : 'From npm run cloud:pasang';
   $('btnQrPasang').style.display = unggahSt.adaHasilPasang ? '' : 'none';
   tulisStatusUnggah();
 }
@@ -48,7 +48,7 @@ async function simpanUnduhQR(patch, pesan) {
   unggahSt = r;
   if (r.error) { flash('qrMsg', r.error, true); $('setQrAktif').checked = r.aktif; return false; }
   $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = r.adaKunci ? '•••••••• (tersimpan)' : '';
+  $('setQrKunci').placeholder = r.adaKunci ? '•••••••• (saved)' : '';
   tulisStatusUnggah();
   if (pesan) flash('qrMsg', pesan);
   return true;
@@ -58,23 +58,23 @@ async function simpanUnduhQR(patch, pesan) {
 function pasangUnduhQR() {
   api.onUnggahStatus(s => { unggahSt = s; tulisStatusUnggah(); if (current === 'riwayat') segarkanRiwayat(); });
   $('setQrAktif').onchange = e => simpanUnduhQR({ aktif: e.target.checked },
-    e.target.checked ? 'QR aktif: tamu photobooth akan melihat QR di halaman Terima kasih.' : 'QR dimatikan.');
+    e.target.checked ? 'QR is on: photo booth guests will see a QR code on the Thank you page.' : 'QR turned off.');
   $('btnQrSimpan').onclick = () => {
     const patch = { url: $('setQrUrl').value };
     if ($('setQrKunci').value.trim()) patch.kunci = $('setQrKunci').value;
-    simpanUnduhQR(patch, 'Pengaturan server tersimpan.');
+    simpanUnduhQR(patch, 'Server settings saved.');
   };
   $('btnQrTes').onclick = async () => {
-    $('qrMsg').textContent = 'Mengecek…';
+    $('qrMsg').textContent = 'Checking…';
     const r = await api.unggahTes();
     if (r.error) flash('qrMsg', r.error, true);
-    else flash('qrMsg', `Tersambung ke server. Foto disimpan ${r.hari} hari.`);
+    else flash('qrMsg', `Connected to the server. Photos are kept for ${r.hari} days.`);
   };
   $('btnQrPasang').onclick = async () => {
     const h = await api.unggahHasilPasang();
     if (h.error) return flash('qrMsg', h.error, true);
     $('setQrUrl').value = h.url;
-    if (await simpanUnduhQR({ url: h.url, kunci: h.kunci }, 'Alamat & kunci diambil dari hasil pemasangan. Tekan "Tes sambungan" lalu nyalakan QR.')) $('setQrUrl').value = h.url;
+    if (await simpanUnduhQR({ url: h.url, kunci: h.kunci }, 'Address & key loaded from the setup. Press "Test connection", then turn the QR on.')) $('setQrUrl').value = h.url;
   };
   $('btnQrUlang').onclick = async () => { unggahSt = await api.unggahCobaSekarang(); tulisStatusUnggah(); };
 }

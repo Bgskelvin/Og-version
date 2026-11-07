@@ -11,19 +11,19 @@
 
 // status → [label, warna, perlu perhatian?, keterangan]
 const STATUS_SESI = {
-  done:          ['Siap', 'hijau', false, 'Video MP4 siap di folder couple.'],
-  photo:         ['Tersimpan', 'hijau', false, ''],
-  processing:    ['Memproses', 'biru', false, 'Sedang diubah ke MP4. Tunggu sebentar.'],
-  transfer:      ['Menyalin dari kamera', 'biru', false, 'Sedang disalin dari kartu SD kamera ke folder couple.'],
-  recording:     ['Merekam', 'biru', false, 'Rekaman sedang berjalan.'],
-  webm:          ['Belum MP4', 'oranye', true, 'Video tersimpan sebagai WebM karena FFmpeg belum terpasang. Bisa diputar dengan VLC atau Chrome.'],
-  'card-only':   ['Di kartu SD', 'oranye', true, 'Video aman di kartu SD kamera, tapi belum tersalin ke komputer.'],
-  failed:        ['Gagal jadi MP4', 'merah', true, 'Video gagal diubah ke MP4. File aslinya tetap tersimpan di folder "original".'],
-  'write-error': ['Gagal disimpan', 'merah', true, 'Rekaman gagal ditulis ke disk.'],
-  lost:          ['Hilang', 'merah', true, 'Rekaman kosong: aplikasi berhenti sebelum sempat merekam.'],
+  done:          ['Ready', 'hijau', false, 'MP4 video is ready in the couple folder.'],
+  photo:         ['Saved', 'hijau', false, ''],
+  processing:    ['Processing', 'biru', false, 'Converting to MP4. One moment.'],
+  transfer:      ['Copying from camera', 'biru', false, 'Copying from the camera SD card to the couple folder.'],
+  recording:     ['Recording', 'biru', false, 'Recording in progress.'],
+  webm:          ['Not MP4 yet', 'oranye', true, 'Saved as WebM because FFmpeg is not installed. It plays in VLC or Chrome.'],
+  'card-only':   ['On SD card', 'oranye', true, 'The video is safe on the camera SD card but has not been copied to the computer.'],
+  failed:        ['MP4 failed', 'merah', true, 'The video could not be converted to MP4. The original file is still in the "original" folder.'],
+  'write-error': ['Not saved', 'merah', true, 'The recording could not be written to disk.'],
+  lost:          ['Lost', 'merah', true, 'Empty recording: the app stopped before it could record.'],
 };
 const BISA_ULANG = ['failed', 'webm', 'card-only'];
-const JENIS_SESI = [['semua', 'Semua'], ['pesan', 'Pesan'], ['quiz', 'Quiz'], ['foto', 'Foto'], ['perhatian', 'Perlu perhatian']];
+const JENIS_SESI = [['semua', 'All'], ['pesan', 'Messages'], ['quiz', 'Quiz'], ['foto', 'Photos'], ['perhatian', 'Needs attention']];
 
 const PER_HALAMAN = 60;
 const rw = { couple: null, jenis: 'semua', buka: null, data: [], jejak: '', timer: null, thumb: new Map(), batas: PER_HALAMAN, amati: null };
@@ -60,8 +60,8 @@ function namaHari(d) {
   const hari = new Date(d); hari.setHours(0, 0, 0, 0);
   const ini = new Date(); ini.setHours(0, 0, 0, 0);
   const selisih = Math.round((ini - hari) / 86400000);
-  const tgl = hari.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return selisih === 0 ? 'Hari ini · ' + tgl : selisih === 1 ? 'Kemarin · ' + tgl : tgl;
+  const tgl = hari.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  return selisih === 0 ? 'Today · ' + tgl : selisih === 1 ? 'Yesterday · ' + tgl : tgl;
 }
 const jamSesi = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
@@ -79,7 +79,7 @@ async function loadSessions() {
   const list = await api.getSessions();
   const nama = activeCouple ? activeCouple.name : null;
   const r = ringkasSesi(list, nama);
-  $('riwayatRingkas').textContent = `${nama || 'Semua couple'}: ${r.hariIni} hari ini · ${r.total} total`;
+  $('riwayatRingkas').textContent = `${nama || 'All couples'}: ${r.hariIni} today · ${r.total} total`;
   $('riwayatBadge').textContent = r.perhatian ? `⚠️ ${r.perhatian}` : '';
   $('riwayatBadge').style.display = r.perhatian ? '' : 'none';
 }
@@ -110,7 +110,7 @@ function gambarRiwayat() {
   const nama = [...new Set([...(couplesData ? couplesData.couples.map(c => c.name) : []), ...semua.map(s => s.couple).filter(Boolean)])];
   const sel = $('rwCouple');
   sel.innerHTML = '';
-  for (const [v, t] of [['', 'Semua couple'], ...nama.map(n => [n, n])]) {
+  for (const [v, t] of [['', 'All couples'], ...nama.map(n => [n, n])]) {
     const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === rw.couple) o.selected = true; sel.appendChild(o);
   }
   const milik = rw.couple ? semua.filter(s => s.couple === rw.couple) : semua;
@@ -118,7 +118,7 @@ function gambarRiwayat() {
   // Ringkasan
   const hitung = j => milik.filter(s => jenisSesi(s) === j).length;
   const menit = Math.round(milik.filter(s => jenisSesi(s) !== 'foto').reduce((t, s) => t + (s.seconds || 0), 0) / 60);
-  $('rwRingkas').innerHTML = [['Pesan', hitung('pesan')], ['Quiz', hitung('quiz')], ['Foto', hitung('foto')], ['Menit video', menit]]
+  $('rwRingkas').innerHTML = [['Messages', hitung('pesan')], ['Quiz', hitung('quiz')], ['Photos', hitung('foto')], ['Video minutes', menit]]
     .map(([t, n]) => `<div><b>${n}</b><span>${t}</span></div>`).join('');
 
   // Peringatan
@@ -127,8 +127,8 @@ function gambarRiwayat() {
   banner.style.display = masalah || rw.jenis === 'perhatian' ? '' : 'none';
   banner.className = 'rw-banner' + (rw.jenis === 'perhatian' ? ' aktif' : '');
   banner.textContent = rw.jenis === 'perhatian'
-    ? (masalah ? `Menampilkan ${masalah} sesi yang perlu perhatian · Tampilkan semua` : 'Tidak ada sesi bermasalah · Tampilkan semua')
-    : `⚠️ ${masalah} sesi perlu perhatian · ketuk untuk melihat`;
+    ? (masalah ? `Showing ${masalah} session(s) that need attention · Show all` : 'No sessions with problems · Show all')
+    : `⚠️ ${masalah} session(s) need attention · tap to view`;
 
   // Pilihan jenis
   const chips = $('rwJenis'); chips.innerHTML = '';
@@ -145,7 +145,7 @@ function gambarRiwayat() {
     .sort((a, b) => new Date(b.time) - new Date(a.time));
   const box = $('rwList'); box.innerHTML = '';
   if (!tampil.length) {
-    const k = document.createElement('div'); k.className = 'group'; k.innerHTML = '<div class="item muted">Belum ada sesi di sini.</div>';
+    const k = document.createElement('div'); k.className = 'group'; k.innerHTML = '<div class="item muted">No sessions here yet.</div>';
     box.appendChild(k); return;
   }
   if (rw.amati) rw.amati.disconnect();
@@ -164,7 +164,7 @@ function gambarRiwayat() {
   if (tampil.length > rw.batas) {
     const lagi = document.createElement('button');
     lagi.className = 'btn sm tint rw-lagi'; lagi.id = 'rwLagi';
-    lagi.textContent = `Tampilkan lebih banyak (${tampil.length - rw.batas} sesi lagi)`;
+    lagi.textContent = `Show more (${tampil.length - rw.batas} more sessions)`;
     lagi.onclick = () => { rw.batas += PER_HALAMAN; gambarRiwayat(); };
     box.appendChild(lagi);
   }
@@ -176,8 +176,8 @@ function barisSesi(s) {
   b.className = 'item rw-row' + (rw.buka === s._id ? ' buka' : '');
   b.dataset.id = s._id;
   const ikon = { pesan: 'i-mic', quiz: 'i-spark', foto: 'i-camera' }[jenis];
-  const nama = { pesan: 'Pesan', quiz: 'Quiz', foto: 'Foto' }[jenis];
-  const sub = jenis === 'foto' ? `${s.photos || 4} foto${s.template ? ' · ' + s.template : ''}` : fmt(s.seconds || 0) + (s.kamera === 'sony' ? ' · kamera Sony' : '');
+  const nama = { pesan: 'Message', quiz: 'Quiz', foto: 'Photo' }[jenis];
+  const sub = jenis === 'foto' ? `${s.photos || 4} photos${s.template ? ' · ' + s.template : ''}` : fmt(s.seconds || 0) + (s.kamera === 'sony' ? ' · Sony camera' : '');
   b.innerHTML = `<span class="rw-ikon"></span><span class="rw-teks"><b></b><small></small></span><span class="rw-tag"></span><em class="rw-status ${warna}"></em>`;
   if (jenis === 'foto' && rw.thumb.get(s._id)) b.querySelector('.rw-ikon').innerHTML = `<img alt="" src="${rw.thumb.get(s._id)}">`;
   else {
@@ -189,7 +189,7 @@ function barisSesi(s) {
   }
   b.querySelector('b').textContent = `${jamSesi(s.time)} · ${nama}${s.tamu ? ' · ' + s.tamu : ''}`;
   b.querySelector('small').textContent = (rw.couple ? '' : (s.couple || '-') + ' · ') + sub;
-  b.querySelector('.rw-tag').textContent = terlaluPendek(s) ? 'Terlalu pendek' : s.recovered ? 'Dipulihkan' : '';
+  b.querySelector('.rw-tag').textContent = terlaluPendek(s) ? 'Too short' : s.recovered ? 'Recovered' : '';
   b.querySelector('.rw-status').textContent = label;
   b.onclick = () => {
     rw.buka = rw.buka === s._id ? null : s._id;
@@ -202,19 +202,19 @@ function barisSesi(s) {
 
 function detailSesi(s) {
   const d = document.createElement('div'); d.className = 'item rw-detail';
-  const ket = infoStatus(s)[3] || (s.label === 'foto' ? `${s.photos || 4} foto asli + 1 hasil template.` : '');
-  const p = document.createElement('p'); p.textContent = ket + (s.error ? ` (${s.error})` : '') + (s.kartu ? ` File di kartu: ${s.kartu}.` : '');
+  const ket = infoStatus(s)[3] || (s.label === 'foto' ? `${s.photos || 4} original photos + 1 template photo.` : '');
+  const p = document.createElement('p'); p.textContent = ket + (s.error ? ` (${s.error})` : '') + (s.kartu ? ` File on card: ${s.kartu}.` : '');
   d.appendChild(p);
   if (Array.isArray(s.questions) && s.questions.length) {
     const ol = document.createElement('ol');
     s.questions.forEach(q => { const li = document.createElement('li'); li.textContent = q; ol.appendChild(li); });
-    const t = document.createElement('div'); t.className = 'muted'; t.textContent = 'Pertanyaan:';
+    const t = document.createElement('div'); t.className = 'muted'; t.textContent = 'Questions:';
     d.append(t, ol);
   }
   const link = linkSesi(s);
   if (s.kode) {          // unduh lewat QR
     const q = document.createElement('div'); q.className = 'muted';
-    q.textContent = 'QR: ' + ({ terkirim: '✓ foto sudah bisa diunduh tamu', antre: 'menunggu dikirim ke server', menunggu: 'menunggu internet / server', hilang: 'file foto hilang, tidak bisa dikirim' }[s.unggah] || s.unggah || '-');
+    q.textContent = 'QR: ' + ({ terkirim: '✓ guests can download the photos', antre: 'waiting to be sent to the server', menunggu: 'waiting for internet / server', hilang: 'photo file missing, cannot be sent' }[s.unggah] || s.unggah || '-');
     d.appendChild(q);
     if (link) { const l = document.createElement('div'); l.className = 'rw-link'; l.textContent = link; d.appendChild(l); }
   }
@@ -223,17 +223,17 @@ function detailSesi(s) {
   const tombol = (teks, fn, kelas = 'btn sm tint') => { const b = document.createElement('button'); b.className = kelas; b.textContent = teks; b.onclick = fn; aksi.appendChild(b); };
   const hasil = r => { if (r && r.error) flash('rwMsg', r.error, true); };
   if (typeof s._id === 'number') {
-    if (['done', 'photo', 'webm'].includes(s.status)) tombol(s.label === 'foto' ? 'Lihat foto' : 'Putar video', async () => hasil(await api.sessionOpen(s._id)));
-    tombol('Tampilkan di Finder', async () => hasil(await api.sessionReveal(s._id)));
+    if (['done', 'photo', 'webm'].includes(s.status)) tombol(s.label === 'foto' ? 'View photo' : 'Play video', async () => hasil(await api.sessionOpen(s._id)));
+    tombol('Show in Finder', async () => hasil(await api.sessionReveal(s._id)));
     if (link) {
-      tombol('Tampilkan QR', () => tampilkanQRSesi(s, link));
-      tombol('Salin link', async () => { await api.salinTeks(link); flash('rwMsg', 'Link disalin. Tempel (⌘V) di WhatsApp atau pesan lain.'); });
-      tombol('Buka link', async () => hasil(await api.bukaLink(link)));
+      tombol('Show QR', () => tampilkanQRSesi(s, link));
+      tombol('Copy link', async () => { await api.salinTeks(link); flash('rwMsg', 'Link copied. Paste it (⌘V) into WhatsApp or another message.'); });
+      tombol('Open link', async () => hasil(await api.bukaLink(link)));
     }
-    if (BISA_ULANG.includes(s.status)) tombol(s.status === 'card-only' ? 'Coba salin lagi dari kamera' : 'Coba proses lagi', async () => {
+    if (BISA_ULANG.includes(s.status)) tombol(s.status === 'card-only' ? 'Copy from camera again' : 'Process again', async () => {
       const r = await api.sessionRetry(s._id);
       if (r && r.error) return flash('rwMsg', r.error, true);
-      flash('rwMsg', 'Sedang dicoba lagi…');
+      flash('rwMsg', 'Trying again…');
       segarkanRiwayat(true);
     }, 'btn sm primary');
   }
@@ -252,10 +252,10 @@ function linkSesi(s) {
 function tampilkanQRSesi(s, link) {
   const url = link + (bahasa === 'en' ? '?b=en' : '');
   const lapis = document.createElement('div'); lapis.className = 'rw-qr-lapis'; lapis.id = 'rwQR';
-  lapis.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Tutup</button></div>`;
-  lapis.querySelector('b').textContent = `Foto ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
+  lapis.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Close</button></div>`;
+  lapis.querySelector('b').textContent = `Photo ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
   lapis.querySelector('small').textContent = url.replace(/^https:\/\//, '');
-  try { gambarQR(lapis.querySelector('canvas'), url, 8); } catch (e) { return flash('rwMsg', 'QR gagal dibuat.', true); }
+  try { gambarQR(lapis.querySelector('canvas'), url, 8); } catch (e) { return flash('rwMsg', 'Could not create the QR code.', true); }
   const tutup = () => lapis.remove();
   lapis.onclick = e => { if (e.target === lapis) tutup(); };
   lapis.querySelector('button').onclick = tutup;

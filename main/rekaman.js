@@ -133,16 +133,16 @@ function daftarkan() {
   const lokasi = s => path.join(s.dir || defaultDir, s.file || '');
   ipcMain.handle('session-open', async (e, id) => {
     const s = cariSesi(id);
-    if (!s || !s.file || !fs.existsSync(lokasi(s))) return { error: 'File tidak ditemukan di folder.' };
+    if (!s || !s.file || !fs.existsSync(lokasi(s))) return { error: 'File not found in the folder.' };
     const err = await shell.openPath(lokasi(s));
     return err ? { error: err } : { ok: true };
   });
   ipcMain.handle('session-reveal', (e, id) => {
     const s = cariSesi(id);
-    if (!s) return { error: 'Sesi tidak ditemukan.' };
+    if (!s) return { error: 'Session not found.' };
     if (s.file && fs.existsSync(lokasi(s))) { shell.showItemInFolder(lokasi(s)); return { ok: true }; }
     if (fs.existsSync(s.dir || '')) { shell.openPath(s.dir); return { ok: true }; }
-    return { error: 'Folder tidak ditemukan.' };
+    return { error: 'Folder not found.' };
   });
   // Gambar kecil hasil photobooth untuk daftar sesi.
   // - Dibuat SATU PER SATU (antrean), tidak sekaligus, supaya aplikasi tidak tersendat.
@@ -176,23 +176,23 @@ function daftarkan() {
   // Coba lagi: ubah ke MP4 lagi, atau salin lagi video dari kartu SD kamera Sony
   ipcMain.handle('session-retry', (e, id) => {
     const s = cariSesi(id);
-    if (!s) return { error: 'Sesi tidak ditemukan.' };
+    if (!s) return { error: 'Session not found.' };
     if (s.status === 'failed' || s.status === 'webm') {
-      if (!ffmpegPath) return { error: 'FFmpeg belum terpasang, video tidak bisa diubah ke MP4.' };
+      if (!ffmpegPath) return { error: 'FFmpeg is not installed, the video can\'t be converted to MP4.' };
       const webm = path.join(s.dir || defaultDir, String(s.file).replace(/\.mp4$/i, '.webm'));
-      if (!fs.existsSync(webm)) return { error: 'File rekaman aslinya tidak ditemukan.' };
+      if (!fs.existsSync(webm)) return { error: 'The original recording file was not found.' };
       updateSession(id, { status: 'processing' });
       convert(id, webm);
       return { ok: true };
     }
     if (s.status === 'card-only') {
-      if (!s.kartuInfo) return { error: `Video hanya ada di kartu SD kamera${s.kartu ? ' (' + s.kartu + ')' : ''}. Salin manual dari kartunya.` };
-      if (!sony.siap()) return { error: 'Sambungkan kamera Sony dulu, lalu coba lagi.' };
+      if (!s.kartuInfo) return { error: `The video is only on the camera SD card${s.kartu ? ' (' + s.kartu + ')' : ''}. Copy it from the card manually.` };
+      if (!sony.siap()) return { error: 'Connect the Sony camera first, then try again.' };
       updateSession(id, { status: 'transfer', error: undefined });
       salinVideoSony(id, s.kartuInfo, lokasi(s));
       return { ok: true };
     }
-    return { error: 'Sesi ini tidak perlu diulang.' };
+    return { error: 'This session doesn\'t need a retry.' };
   });
   ipcMain.handle('get-startup-info', () => { const r = { recovered: recoveredCount }; recoveredCount = 0; return r; });
 
@@ -203,7 +203,7 @@ function daftarkan() {
     if (!usableDir(base)) {
       base = defaultDir; fallback = true;
       console.log('Folder pilihan tidak tersedia, memakai folder default');
-      if (!usableDir(base)) return { error: 'Folder penyimpanan tidak bisa ditulisi.' };
+      if (!usableDir(base)) return { error: 'The storage folder is not writable.' };
     }
     let dir = coupleDir(base, name);
     if (!usableDir(dir)) dir = base;

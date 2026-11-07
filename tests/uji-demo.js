@@ -71,9 +71,9 @@ async function main() {
   await pg.click('#peDone'); await tungguLayar('thanks');
   cek(await pg.isVisible('#thanksPhoto') && await pg.isVisible('#thanksQR'), 'hasil foto + QR contoh tampil');
   const linkQR = await pg.textContent('#qrLink');
-  cek(/\/f\/[A-Za-z0-9]{12}$/.test(linkQR), 'QR berisi link unduh demo', linkQR);
+  cek(/\/f\/[A-Za-z0-9]{12}\?b=en$/.test(linkQR), 'QR berisi link unduh demo (layar tamu English → halaman unduh English)', linkQR);
   await tunggu(1500);
-  const kodeQR = linkQR.split('/f/')[1];
+  const kodeQR = linkQR.split('/f/')[1].split('?')[0];
   cek(R2.has('demo/' + kodeQR + '.jpg') && R2.get('demo/' + kodeQR + '.jpg').data[0] === 0xFF, 'foto hasil terkirim ke server demo (folder demo/)');
   const halUnduh = await (await fetch(URL_DEMO + 'f/' + kodeQR)).text();
   cek(halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('LEURA'), 'halaman unduh asli Leura menampilkan foto itu');
@@ -98,8 +98,8 @@ async function main() {
   await pg.fill('#uid', 'leura'); await pg.fill('#pw', '1234'); await pg.click('#btnLogin'); await tunggu(500);
   await pg.click('#btnRiwayat'); await tungguLayar('riwayat'); await tunggu(800);
   cek(await pg.locator('#rwList .rw-row').count() === 2, 'Riwayat sesi berisi 2 sesi');
-  await pg.locator('#rwList .rw-row', { hasText: 'Pesan' }).click(); await tunggu(300);
-  await pg.locator('#rwList button', { hasText: 'Putar video' }).click(); await tunggu(800);
+  await pg.locator('#rwList .rw-row', { hasText: 'Message' }).click(); await tunggu(300);
+  await pg.locator('#rwList button', { hasText: 'Play video' }).click(); await tunggu(800);
   cek(await pg.evaluate(() => { const v = document.querySelector('.demo-putar video'); return !!v && v.src.startsWith('blob:'); }), 'video pesan bisa diputar dari Riwayat');
   await pg.click('.demo-putar .btn');
 

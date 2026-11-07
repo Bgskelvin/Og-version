@@ -13,9 +13,9 @@ async function openStream() {
   for (const c of [{ video, audio }, { video: true, audio: true }, { video: false, audio: true }]) {
     try { s = await navigator.mediaDevices.getUserMedia(c); break; } catch (e) { console.log('Gagal buka perangkat: ' + e.name); }
   }
-  if (!s) { setNotice('Tidak ada kamera/mic yang bisa dipakai'); return; }
+  if (!s) { setNotice('No usable camera/microphone'); return; }
   noCam = s.getVideoTracks().length === 0;
-  setNotice(noCam ? 'MODE TES: tanpa kamera (hanya suara)' : '');
+  setNotice(noCam ? 'TEST MODE: no camera (audio only)' : '');
   mediaStream = s;
   $('cam').srcObject = s;
   $('camPrev').srcObject = s;
@@ -48,6 +48,6 @@ async function fillDevices() {
       sel.appendChild(o);
     });
   };
-  fill($('camSel'), 'videoinput', 'Kamera', 'Tidak ada kamera terdeteksi');
-  fill($('micSel'), 'audioinput', 'Mikrofon', 'Tidak ada mikrofon terdeteksi');
+  fill($('camSel'), 'videoinput', 'Camera', 'No camera detected');
+  fill($('micSel'), 'audioinput', 'Microphone', 'No microphone detected');
 }

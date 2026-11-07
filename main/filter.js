@@ -28,13 +28,13 @@ const namaBersih = (nama, cadangan) => String(nama || '').replace(/\.cube$/i, ''
 
 function tambah(nama, bytes) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
-  if (!b.length) return { error: 'File filter kosong.' };
-  if (b.length > MAKS_BYTE) return { error: 'File filter terlalu besar (maksimal 20 MB).' };
+  if (!b.length) return { error: 'The filter file is empty.' };
+  if (b.length > MAKS_BYTE) return { error: 'The filter file is too large (max 20 MB).' };
   const d = daftar();
-  if (d.length >= MAKS_FILTER) return { error: `Sudah ada ${MAKS_FILTER} filter. Hapus yang tidak dipakai dulu.` };
+  if (d.length >= MAKS_FILTER) return { error: `You already have ${MAKS_FILTER} filters. Delete unused ones first.` };
   const teks = Buffer.from(b).toString('utf8');
   let lut;
-  try { lut = bacaCube(teks); } catch (e) { return { error: 'File tidak bisa dipakai: ' + e.message }; }
+  try { lut = bacaCube(teks); } catch (e) { return { error: 'This file can\'t be used: ' + e.message }; }
   const id = 'lut' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const item = { id, nama: namaBersih(nama, lut.judul || 'Filter ' + (d.length + 1)), size: lut.size, dibuat: Date.now() };
   fs.mkdirSync(folderFilter, { recursive: true });
@@ -57,14 +57,14 @@ function daftarkan() {
   });
   ipcMain.handle('filter-ganti-nama', (e, id, nama) => {
     const d = daftar(), item = d.find(x => x.id === idAman(id));
-    if (!item) return { error: 'Filter tidak ditemukan.' };
+    if (!item) return { error: 'Filter not found.' };
     item.nama = namaBersih(nama, item.nama); simpanDaftar(d);
     return { ok: true, daftar: d };
   });
   // Hapus dari koleksi. Template yang memakainya otomatis kembali tanpa filter.
   ipcMain.handle('filter-hapus', (e, id) => {
     const bersih = idAman(id), d = daftar(), item = d.find(x => x.id === bersih);
-    if (!item) return { error: 'Filter tidak ditemukan.' };
+    if (!item) return { error: 'Filter not found.' };
     try { fs.unlinkSync(path.join(folderFilter, bersih + '.cube')); } catch (err) {}
     const sisa = d.filter(x => x.id !== bersih); simpanDaftar(sisa);
     catatan.catat(`Filter dihapus: "${item.nama}"`);
