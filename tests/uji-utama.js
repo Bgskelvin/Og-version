@@ -225,6 +225,33 @@ const KASUS = {
     cek(fs.existsSync(path.join(dataDir, 'jangan-dihapus')), 'folder di luar folder template tetap ada');
   },
 
+  async 'filter foto (LUT .cube) untuk template'() {
+    const { panggil, dataDir } = nyalakanAplikasi();
+    const kubus = (fn, n = 2) => { let t = 'TITLE "Hangat"\nLUT_3D_SIZE ' + n + '\n';
+      for (let b = 0; b < n; b++) for (let g = 0; g < n; g++) for (let r = 0; r < n; r++) t += fn(r / (n - 1), g / (n - 1), b / (n - 1)).join(' ') + '\n';
+      return new TextEncoder().encode(t); };
+    cek((await panggil('filter-daftar')).length === 0, 'awalnya belum ada filter');
+    let r = await panggil('filter-tambah', 'Hangat Sore.cube', kubus((r, g, b) => [Math.min(1, r * 1.1), g, b * 0.9], 3));
+    cek(r.ok && r.filter.nama === 'Hangat Sore' && r.filter.size === 3, 'file .cube valid ditambahkan (nama dari file, tanpa .cube)', r);
+    const id = r.filter.id;
+    cek(fs.existsSync(path.join(dataDir, 'filter', id + '.cube')), 'file .cube asli tersimpan di folder data/filter');
+    cek(/Ini bukan file LUT/.test((await panggil('filter-tambah', 'foto.cube', new TextEncoder().encode('halo'))).error), 'file yang bukan .cube ditolak');
+    cek(/LUT 1D/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_1D_SIZE 4\n0 0 0'))).error), 'LUT 1D ditolak dengan pesan jelas');
+    cek(/kurang/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_3D_SIZE 2\n0 0 0\n1 1 1'))).error), 'data warna yang tidak lengkap ditolak');
+    cek((await panggil('filter-tambah', 'x.cube', new Uint8Array(21 * 1024 * 1024))).error === 'File filter terlalu besar (maksimal 20 MB).', 'file lebih dari 20 MB ditolak');
+    const isi = await panggil('filter-isi', id);
+    cek(isi && /LUT_3D_SIZE 3/.test(isi.teks) && isi.nama === 'Hangat Sore', 'isi filter bisa diambil untuk diterapkan ke foto');
+    cek((await panggil('filter-isi', '../settings')) === null, 'nama filter aneh tidak bisa membaca file lain');
+    cek((await panggil('filter-ganti-nama', id, 'Sore Emas')).ok && (await panggil('filter-daftar'))[0].nama === 'Sore Emas', 'nama filter bisa diganti');
+    // Template menyimpan filter pilihan
+    let t = await panggil('save-template', { coupleId: 'A', nama: 'Hangat', filter: id, filterKekuatan: 250, filterTamu: false });
+    cek(t.ok && t.template.filter === id && t.template.filterKekuatan === 100 && t.template.filterTamu === false, 'template menyimpan filter, kekuatan dibatasi 0–100%, kunci filter tamu', t.template);
+    t = await panggil('save-template', { coupleId: 'A', nama: 'Polos', filter: '../../x' });
+    cek(t.template.filter === 'x' && t.template.filterTamu === true && t.template.filterKekuatan === 100, 'id filter dibersihkan; bawaan: kekuatan 100%, tamu boleh memilih');
+    cek((await panggil('filter-hapus', id)).ok && !fs.existsSync(path.join(dataDir, 'filter', id + '.cube')) && (await panggil('filter-daftar')).length === 0, 'filter bisa dihapus dari koleksi');
+    cek((await panggil('filter-isi', id)) === null, 'filter yang sudah dihapus tidak bisa diambil (template kembali tanpa filter)');
+  },
+
   async 'menu per couple'() {
     const { panggil } = nyalakanAplikasi();
     await panggil('save-settings', { enableQuiz: false });          // pengaturan menu lama

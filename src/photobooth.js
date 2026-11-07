@@ -287,8 +287,12 @@
     tplLays = {};
     if (!activeCouple || !api.listTemplates) return;
     try {
-      for (const t of await api.listTemplates(activeCouple.id))
-        tplLays['tpl:' + t.id] = { name: t.nama, W: t.W, H: t.H, tpl: true, siap: await siapkanTemplate(t) };
+      for (const t of await api.listTemplates(activeCouple.id)) {
+        // Filter LUT pilihan admin untuk template ini (kalau filternya sudah dihapus: tanpa filter)
+        const item = t.filter ? await muatLut(t.filter) : null;
+        const lut = item ? { id: item.id, nama: item.nama, data: item.lut, k: (t.filterKekuatan ?? 100) / 100, tamu: t.filterTamu !== false } : null;
+        tplLays['tpl:' + t.id] = { name: t.nama, W: t.W, H: t.H, tpl: true, lut, siap: await siapkanTemplate(t) };
+      }
     } catch (err) { console.log('Gagal memuat template: ' + err.message); }
   }
 
@@ -300,13 +304,43 @@
   }
   const dateText = () => tanggalHariIni();
 
+  /* Filter yang bisa dipilih untuk layout ini.
+     Template dengan filter dari admin: filter template ('tpl') dulu, lalu filter bawaan
+     kalau admin mengizinkan tamu memilih. */
+  const cssFilter = key => (FILTERS.find(x => x[0] === key) || FILTERS[0])[2];
+  function pilihanFilter(lay = L()) {
+    if (!lay.lut) return FILTERS;
+    const tpl = ['tpl', lay.lut.nama, 'none'];
+    return lay.lut.tamu ? [tpl, ...FILTERS] : [tpl];
+  }
+  // Pastikan filter terpilih ada di layout ini; template berfilter mulai dengan filternya
+  function sesuaikanFilter(layoutBaru) {
+    const lay = L(), ada = pilihanFilter(lay).some(x => x[0] === ed.filter);
+    if (lay.lut && (layoutBaru || !ada)) ed.filter = 'tpl';
+    else if (!ada) ed.filter = 'none';
+  }
+  // Foto 1-4 dengan filter LUT template (dibuat sekali per foto, lalu disimpan sementara)
+  const fotoLutCache = new WeakMap();
+  function fotoDenganLut(lay) {
+    return photos.map(p => {
+      if (!p) return p;
+      let m = fotoLutCache.get(p); if (!m) fotoLutCache.set(p, m = new Map());
+      const kunci = lay.lut.id + ':' + lay.lut.k;
+      if (!m.has(kunci)) m.set(kunci, terapkanLut(p, lay.lut.data, lay.lut.k, Math.max(lay.W, lay.H)));
+      return m.get(kunci);
+    });
+  }
+
   // Lapisan dasar: bingkai, foto dengan filter, nama & tanggal
   function renderBase(ctx, lay, scale = 1, filterKey = ed.filter) {
-    if (lay.tpl) return gambarTemplate(ctx, lay.siap, { scale, photos, filter: FILTERS.find(x => x[0] === filterKey)[2] });
+    if (lay.tpl) {
+      const lut = filterKey === 'tpl' && lay.lut;
+      return gambarTemplate(ctx, lay.siap, { scale, photos: lut ? fotoDenganLut(lay) : photos, filter: lut ? 'none' : cssFilter(filterKey) });
+    }
     const [bg, , fg] = FRAMES()[ed.frame];
     ctx.save(); ctx.scale(scale, scale);
     ctx.fillStyle = bg; ctx.fillRect(0, 0, lay.W, lay.H);
-    const f = FILTERS.find(x => x[0] === filterKey)[2];
+    const f = cssFilter(filterKey);
     lay.slots().forEach((s, i) => {
       if (!photos[i]) return;
       ctx.save();
@@ -394,16 +428,23 @@
   function buildPanel() {
     const lays = $('peLayouts'); lays.innerHTML = '';
     for (const [key, lay] of Object.entries(pilihanLayout()))
-      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; fitStage(); buildPanel(); });
+      option(lays, ed.layout === key, mini(lay), lay.name, () => { ed.layout = key; sesuaikanFilter(true); fitStage(); buildPanel(); });
     const pakaiTpl = !!L().tpl;
     $('peFrameNormal').style.display = pakaiTpl ? 'none' : '';
     $('peFrameHint').style.display = pakaiTpl ? 'block' : 'none';
 
     const fil = $('peFilters'); fil.innerHTML = '';
-    for (const [key, , f] of FILTERS) {
-      const name = t('filter.' + key);
+    const layNow = L(), daftarFilter = pilihanFilter(layNow);
+    // Tab Filter disembunyikan kalau template mengunci filternya (hanya satu pilihan)
+    const tabFilter = document.querySelector('#peTabs .pe-tab[data-tab="filter"]');
+    if (tabFilter) tabFilter.style.display = daftarFilter.length > 1 ? '' : 'none';
+    if (daftarFilter.length < 2 && ed.tab === 'filter') setTab(Object.keys(pilihanLayout()).length > 1 ? 'layout' : 'sticker');
+    for (const [key, nama, f] of daftarFilter) {
+      const name = key === 'tpl' ? nama : t('filter.' + key);
       const c = document.createElement('canvas'); c.width = 150; c.height = 150;
-      const cx = c.getContext('2d'); cx.filter = f; drawCover(cx, photos[0], 0, 0, 150, 150);
+      const cx = c.getContext('2d');
+      if (key === 'tpl') drawCover(cx, fotoDenganLut(layNow)[0], 0, 0, 150, 150);
+      else { cx.filter = f; drawCover(cx, photos[0], 0, 0, 150, 150); }
       option(fil, ed.filter === key, c, name, () => { ed.filter = key; redraw(); buildPanel(); });
     }
 
@@ -435,8 +476,8 @@
   }
   function setTab(tab) {
     ed.tab = tab;
-    document.querySelectorAll('.pe-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
-    document.querySelectorAll('.pe-pane').forEach(p => p.classList.toggle('on', p.dataset.pane === tab));
+    document.querySelectorAll('#peTabs .pe-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
+    document.querySelectorAll('#editphoto .pe-pane').forEach(p => p.classList.toggle('on', p.dataset.pane === tab));
     $('peBox').classList.toggle('drawing', tab === 'draw');
     if (tab === 'draw') select(null);
   }
@@ -518,10 +559,12 @@
   async function openEdit() {
     await muatTemplateCouple();
     if (!pilihanLayout()[ed.layout]) ed.layout = Object.keys(pilihanLayout())[0];
+    sesuaikanFilter(true);
     // Tab Layout hanya tampil kalau ada lebih dari satu pilihan; tab Bingkai hanya untuk layout bawaan
-    const tampil = { layout: Object.keys(pilihanLayout()).length > 1, frame: !adaTemplate() };
+    // Tab Filter hilang kalau template mengunci filternya
+    const tampil = { layout: Object.keys(pilihanLayout()).length > 1, frame: !adaTemplate(), filter: pilihanFilter().length > 1 };
     document.querySelectorAll('#peTabs .pe-tab').forEach(t => { t.style.display = tampil[t.dataset.tab] === false ? 'none' : ''; });
-    if (tampil[ed.tab] === false) ed.tab = tampil.layout ? 'layout' : 'filter';
+    if (!ed.tab || tampil[ed.tab] === false) ed.tab = ['layout', 'filter', 'sticker'].find(x => tampil[x] !== false);
     show('editphoto');
     buildPanel(); setTab(ed.tab || 'layout');
     requestAnimationFrame(fitStage);
@@ -550,7 +593,7 @@
       for (const p of photos) originals.push(p._asli || await toBytes(p, 0.95));   // Sony: file asli kamera
       const result = await toBytes(out, 0.93);
       const r = await api.savePhotos({ originals, result, tamu: namaTamu,
-        meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
+        meta: { layout: lay.tpl ? 'template' : ed.layout, template: lay.tpl ? lay.name : undefined, filter: ed.filter === 'tpl' ? 'template: ' + (lay.lut ? lay.lut.nama : '-') : ed.filter, frame: lay.tpl ? undefined : FRAMES()[ed.frame][1], stickers: ed.stickers.length, drawings: ed.strokes.length } });
       ok = !!(r && r.ok); err = r && r.error; link = r && r.link;
     })().catch(e => { err = e.message; });
     await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);

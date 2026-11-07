@@ -14,7 +14,9 @@ const SUSUNAN = [['kisi', 'Kisi 2×2'], ['kolom', 'Kolom'], ['baris', 'Baris'], 
 const WARNA_LATAR = ['#FFFFFF', '#F3EDE4', '#F6E1E3', '#E3EBE1', '#E6ECF5', '#1D1D1F'];
 const WARNA_TEKS = ['#1D1D1F', '#FFFFFF', '#6E6E73', '#8C6A4F', '#5B3A40', '#2F4030'];
 
-const te = { tpl: null, gambar: {}, latar: null, bingkai: null, sel: { jenis: 'slot', i: 0 }, berubah: false, batalArmed: null };
+const te = { tpl: null, gambar: {}, latar: null, bingkai: null, sel: { jenis: 'slot', i: 0 }, berubah: false, batalArmed: null,
+             tab: 'desain', contohFoto: null, filterDaftar: [] };
+let hapusFilterArmed = null;
 let hapusTplArmed = null;
 let coupleTemplate = null;          // couple yang templatenya sedang diatur (bukan selalu couple aktif)
 
@@ -38,7 +40,7 @@ async function daftarTemplateCouple(couple = coupleTemplate) {
     const info = document.createElement('div'); info.className = 'tpl-info';
     info.innerHTML = `<b></b><span class="muted"></span>`;
     info.querySelector('b').textContent = t.nama;
-    info.querySelector('span').textContent = (UKURAN_TEMPLATE[t.ukuran] || {}).nama || t.ukuran;
+    info.querySelector('span').textContent = ((UKURAN_TEMPLATE[t.ukuran] || {}).nama || t.ukuran) + (t.filter ? ' · dengan filter' : '');
     const edit = document.createElement('button'); edit.className = 'btn sm tint'; edit.textContent = 'Edit';
     edit.onclick = () => bukaEditorTemplate(t);
     const hapus = document.createElement('button'); hapus.className = 'btn sm tint danger'; hapus.textContent = 'Hapus';
@@ -62,7 +64,8 @@ async function daftarTemplateCouple(couple = coupleTemplate) {
 function templateBaru() {
   const { W, H } = UKURAN_TEMPLATE['4r-tegak'];
   return { id: 'tpl' + Date.now(), coupleId: coupleTemplate.id, nama: '', ukuran: '4r-tegak', W, H,
-           latarWarna: '#FFFFFF', rasio: '3:2', slots: susunanFoto('kisi', W, H, 3 / 2), texts: teksBawaan(W, H) };
+           latarWarna: '#FFFFFF', rasio: '3:2', filter: null, filterKekuatan: 100, filterTamu: true,
+           slots: susunanFoto('kisi', W, H, 3 / 2), texts: teksBawaan(W, H) };
 }
 async function bukaEditorTemplate(tpl) {
   if (!coupleTemplate) return flash('tplMsg', 'Simpan couple ini dulu.', true);
@@ -70,7 +73,9 @@ async function bukaEditorTemplate(tpl) {
   te.gambar = {};
   te.latar = tpl ? await muatGambar(tpl.latarUrl) : null;
   te.bingkai = tpl ? await muatGambar(tpl.bingkaiUrl) : null;
-  te.sel = { jenis: 'slot', i: 0 }; te.berubah = false; batalTidakJadi();
+  te.sel = { jenis: 'slot', i: 0 }; te.berubah = false; te.contohFoto = null; batalTidakJadi();
+  if (te.tpl.filterKekuatan == null) te.tpl.filterKekuatan = 100;
+  if (te.tpl.filterTamu == null) te.tpl.filterTamu = true;
   $('teTitle').textContent = (tpl ? 'Edit template' : 'Template baru') + ' · ' + coupleTemplate.name;
   $('teNama').value = te.tpl.nama;
   $('teLatarStatus').textContent = te.latar ? 'Ada gambar' : 'Belum ada';
@@ -78,6 +83,7 @@ async function bukaEditorTemplate(tpl) {
   show('tpleditor');
   setTabEditor('desain');
   isiPanelEditor();
+  isiPanelFilter();
   requestAnimationFrame(pasCanvasEditor);
 }
 
@@ -96,7 +102,9 @@ function pasCanvasEditor() {
 function gambarEditor() {
   const c = $('teCanvas'), ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
-  gambarTemplate(ctx, { tpl: te.tpl, latar: te.latar, bingkai: te.bingkai }, { scale: c.width / te.tpl.W, placeholder: true });
+  // Di tab Filter, kotak foto diisi foto contoh yang sudah difilter supaya hasilnya terlihat
+  const photos = te.tab === 'filter' ? Array(4).fill(te.contohFoto || fotoContohFilter()) : [];
+  gambarTemplate(ctx, { tpl: te.tpl, latar: te.latar, bingkai: te.bingkai }, { scale: c.width / te.tpl.W, placeholder: true, photos });
   pasangPegangan();
 }
 /* Kotak pegangan di atas gambar. Kotak yang sudah ada hanya dipindah (tidak
@@ -182,8 +190,87 @@ function geserDenganJari(el, jenis, i) {
 
 /* ---------------- Panel kanan ---------------- */
 function setTabEditor(tab) {
+  const tadi = te.tab; te.tab = tab;
   document.querySelectorAll('.te-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
   document.querySelectorAll('.te-pane').forEach(p => p.classList.toggle('on', p.dataset.pane === tab));
+  if (te.tpl && (tab === 'filter' || tadi === 'filter')) gambarEditor();
+}
+
+/* ---------------- Filter foto (LUT .cube) ---------------- */
+const namaFilterTpl = () => { const f = te.filterDaftar.find(x => x.id === te.tpl.filter); return f ? f.nama : ''; };
+// Pratinjau: foto contoh dengan filter terpilih (dipakai di kotak foto editor)
+async function perbaruiContohFilter() {
+  const t = te.tpl; if (!t) return;
+  const item = t.filter ? await muatLut(t.filter) : null;
+  if (te.tpl !== t) return;
+  te.contohFoto = item ? terapkanLut(fotoContohFilter(), item.lut, (t.filterKekuatan ?? 100) / 100, 600) : null;
+  if (te.tab === 'filter') gambarEditor();
+}
+let giliranFilter = 0;
+async function isiPanelFilter() {
+  const t = te.tpl; if (!t) return;
+  const giliran = ++giliranFilter;                        // panggilan yang lebih baru menang
+  const masihBerlaku = () => te.tpl === t && giliran === giliranFilter;
+  let daftar = [];
+  try { daftar = (api.filterDaftar && await api.filterDaftar()) || []; } catch (e) {}
+  if (!masihBerlaku()) return;
+  te.filterDaftar = daftar;
+  if (t.filter && !daftar.some(f => f.id === t.filter)) t.filter = null;   // filternya sudah dihapus
+  const siap = await Promise.all(daftar.map(f => muatLut(f.id)));
+  if (!masihBerlaku()) return;
+  const box = $('teFilter'); box.innerHTML = '';
+  const contoh = fotoContohFilter();
+  const kotak = (lut, nama, aktif, pilih) => {
+    const b = tombolPilihan(box, terapkanLut(contoh, lut, lut ? (t.filterKekuatan ?? 100) / 100 : 0, 150), aktif, pilih);
+    b.insertAdjacentText('beforeend', nama);
+    return b;
+  };
+  kotak(null, 'Tanpa filter', !t.filter, () => pilihFilterTemplate(null));
+  for (const [i, f] of daftar.entries()) {
+    const item = siap[i];
+    if (!item) continue;
+    kotak(item.lut, f.nama, t.filter === f.id, () => pilihFilterTemplate(f.id)).dataset.filter = f.id;
+  }
+  const ada = !!t.filter, k = t.filterKekuatan ?? 100;
+  $('teFilterAtur').style.display = ada ? '' : 'none';
+  $('teFilterHapus').style.display = ada ? '' : 'none';
+  $('teFilterKekuatan').value = k;
+  $('teFilterKekuatanNilai').textContent = k + '%';
+  $('teFilterTamu').checked = t.filterTamu !== false;
+  $('teFilterInfo').textContent = !ada
+    ? (te.filterDaftar.length ? 'Template ini belum memakai filter. Pilih salah satu di atas.' : 'Belum ada filter. Tekan "Tambah filter (.cube)" untuk mengunggah file filter.')
+    : `Semua foto tamu memakai filter "${namaFilterTpl()}" (${k}%). ` + (t.filterTamu !== false ? 'Tamu masih bisa memilih filter lain saat mengedit foto.' : 'Tamu tidak bisa menggantinya.');
+  hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Hapus filter ini';
+  perbaruiContohFilter();
+}
+function pilihFilterTemplate(id) {
+  te.tpl.filter = id; te.berubah = true;
+  isiPanelFilter();
+}
+async function tambahFilter(file) {
+  if (!file) return;
+  if (!/\.cube$/i.test(file.name)) return flash('teMsg', 'Pilih file filter berakhiran .cube (LUT 3D).', true);
+  if (file.size > 20 * 1024 * 1024) return flash('teMsg', 'File filter terlalu besar (maksimal 20 MB).', true);
+  const r = await api.filterTambah(file.name, new Uint8Array(await file.arrayBuffer()));
+  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Filter gagal ditambahkan.', true);
+  flash('teMsg', `Filter "${r.filter.nama}" ditambahkan dan dipakai di template ini.`);
+  te.tpl.filter = r.filter.id; te.berubah = true;
+  isiPanelFilter();
+}
+async function hapusFilterTerpilih() {
+  const id = te.tpl.filter; if (!id) return;
+  if (hapusFilterArmed !== id) {                       // tekan dua kali: filter hilang dari SEMUA template
+    hapusFilterArmed = id; $('teFilterHapus').lastChild.textContent = 'Yakin? Hilang dari semua template';
+    setTimeout(() => { if (hapusFilterArmed === id) { hapusFilterArmed = null; $('teFilterHapus').lastChild.textContent = 'Hapus filter ini'; } }, 3000);
+    return;
+  }
+  const nama = namaFilterTpl();
+  const r = await api.filterHapus(id);
+  if (!r || r.error) return flash('teMsg', (r && r.error) || 'Filter gagal dihapus.', true);
+  lupakanLut(id);
+  te.tpl.filter = null; te.berubah = true;
+  flash('teMsg', `Filter "${nama}" dihapus dari koleksi.`);
+  isiPanelFilter();
 }
 function tombolPilihan(box, isi, aktif, onClick, kelas = 'pe-opt') {
   const b = document.createElement('button'); b.className = kelas + (aktif ? ' on' : '');
@@ -381,5 +468,16 @@ function pasangTemplateEditor() {
     te.sel = { jenis: 'slot', i: 0 };
     tandaiBerubah();
   };
+  $('teFilterTambah').onclick = () => $('teFilterFile').click();
+  $('teFilterFile').onchange = e => { tambahFilter(e.target.files[0]); e.target.value = ''; };
+  $('teFilterHapus').onclick = hapusFilterTerpilih;
+  let tungguKekuatan = null;
+  $('teFilterKekuatan').oninput = e => {
+    te.tpl.filterKekuatan = Number(e.target.value); te.berubah = true;
+    $('teFilterKekuatanNilai').textContent = te.tpl.filterKekuatan + '%';
+    cancelAnimationFrame(tungguKekuatan); tungguKekuatan = requestAnimationFrame(perbaruiContohFilter);
+  };
+  $('teFilterKekuatan').onchange = () => isiPanelFilter();
+  $('teFilterTamu').onchange = e => { te.tpl.filterTamu = e.target.checked; te.berubah = true; isiPanelFilter(); };
   window.addEventListener('resize', () => { if ($('tpleditor').classList.contains('on')) pasCanvasEditor(); });
 }

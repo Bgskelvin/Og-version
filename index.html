@@ -414,6 +414,7 @@
         <button class="pe-tab te-tab on" data-tab="desain"><svg class="i"><use href="#i-frame"/></svg>Desain</button>
         <button class="pe-tab te-tab" data-tab="foto"><svg class="i"><use href="#i-layout"/></svg>Posisi foto</button>
         <button class="pe-tab te-tab" data-tab="teks"><svg class="i"><use href="#i-pen"/></svg>Teks</button>
+        <button class="pe-tab te-tab" data-tab="filter"><svg class="i"><use href="#i-drop"/></svg>Filter</button>
       </div>
       <div class="sheet-body">
         <div class="pe-pane te-pane on" data-pane="desain">
@@ -474,6 +475,24 @@
               <button class="btn sm tint danger" id="teTeksHapus"><svg class="i"><use href="#i-trash"/></svg>Hapus teks</button>
             </div>
           </div>
+        </div>
+        <div class="pe-pane te-pane" data-pane="filter">
+          <div class="pe-sec">Filter foto untuk template ini</div>
+          <div class="pe-grid" id="teFilter" style="grid-template-columns:repeat(3,1fr)"></div>
+          <div class="pe-row" style="margin-top:10px">
+            <button class="btn sm tint" id="teFilterTambah"><svg class="i"><use href="#i-plus"/></svg>Tambah filter (.cube)</button>
+            <button class="btn sm tint danger" id="teFilterHapus"><svg class="i"><use href="#i-trash"/></svg>Hapus filter ini</button>
+          </div>
+          <div id="teFilterAtur">
+            <div class="pe-sec">Kekuatan <span class="muted" id="teFilterKekuatanNilai"></span></div>
+            <input type="range" id="teFilterKekuatan" min="0" max="100" step="5" style="width:100%">
+            <div class="group" style="margin-top:12px"><div class="item split" style="justify-content:space-between">
+              <span style="width:auto">Tamu boleh memilih filter lain</span>
+              <label class="switch"><input type="checkbox" id="teFilterTamu"><i></i></label></div></div>
+          </div>
+          <p class="pe-hint" id="teFilterInfo" style="margin-top:10px"></p>
+          <p class="pe-hint">File <b>.cube</b> (LUT 3D) bisa diekspor dari Lightroom/Photoshop (<i>Export → Color Lookup Tables</i>), DaVinci Resolve, atau dari paket preset. Filter yang sudah ditambahkan bisa dipakai di semua template. Pratinjau di kiri memakai foto contoh.</p>
+          <input type="file" id="teFilterFile" accept=".cube" hidden>
         </div>
         <div class="note ok" id="teMsg"></div>
       </div>
@@ -576,6 +595,7 @@
 <script src="src/admin.js"></script>
 <script src="src/riwayat.js"></script>
 <script src="src/unduh-qr.js"></script>
+<script src="src/lut.js"></script>
 <script src="src/template-gambar.js"></script>
 <script src="src/template-editor.js"></script>
 <script src="src/photobooth.js"></script>

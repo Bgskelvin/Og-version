@@ -49,6 +49,10 @@ function bersihkan(t) {
     ukuran, W, H,
     latarWarna: warna(t.latarWarna, '#FFFFFF'),
     rasio: RASIO.includes(t.rasio) ? t.rasio : null,
+    // Filter foto (LUT .cube dari main/filter.js). Kosong = tanpa filter.
+    filter: String(t.filter || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || null,
+    filterKekuatan: Math.round(angka(t.filterKekuatan, 0, 100, 100)),
+    filterTamu: t.filterTamu !== false,          // tamu masih boleh memilih filter lain
     slots, texts,
   };
 }

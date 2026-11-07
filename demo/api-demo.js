@@ -114,7 +114,9 @@
     return {
       id: String(t.id || 'tpl' + Date.now()).replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || 'tpl' + Date.now(),
       coupleId: String(t.coupleId || ''), nama: String(t.nama || '').trim().slice(0, 60) || 'Template tanpa nama',
-      ukuran, W, H, latarWarna: warna(t.latarWarna, '#FFFFFF'), rasio: RASIO.includes(t.rasio) ? t.rasio : null, slots, texts,
+      ukuran, W, H, latarWarna: warna(t.latarWarna, '#FFFFFF'), rasio: RASIO.includes(t.rasio) ? t.rasio : null,
+      filter: String(t.filter || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 40) || null,
+      filterKekuatan: Math.round(angka(t.filterKekuatan, 0, 100, 100)), filterTamu: t.filterTamu !== false, slots, texts,
     };
   }
   const keDataUrl = bytes => new Promise(ok => {
@@ -282,6 +284,36 @@
       return { ok: true, template: { ...baru } };
     },
     deleteTemplate: async id => { await siap; TPL = TPL.filter(t => t.id !== id); await simpan('templates', TPL); return { ok: true }; },
+
+    // Filter foto (LUT .cube) — disimpan di HP ini
+    filterDaftar: async () => ambil('filters', []),
+    filterTambah: async (nama, bytes) => {
+      const daftar = await ambil('filters', []);
+      if (!bytes || !bytes.length) return { error: 'File filter kosong.' };
+      if (bytes.length > 20 * 1024 * 1024) return { error: 'File filter terlalu besar (maksimal 20 MB).' };
+      if (daftar.length >= 20) return { error: 'Di demo maksimal 20 filter.' };
+      const teks = new TextDecoder().decode(bytes);
+      let lut; try { lut = bacaCube(teks); } catch (e) { return { error: 'File tidak bisa dipakai: ' + e.message }; }
+      const item = { id: idBaru('lut'), nama: String(nama || '').replace(/\.cube$/i, '').trim().slice(0, 40) || lut.judul || 'Filter', size: lut.size, dibuat: Date.now() };
+      daftar.push(item); await simpan('filter:' + item.id, teks); await simpan('filters', daftar);
+      return { ok: true, filter: item, daftar };
+    },
+    filterIsi: async id => {
+      const item = (await ambil('filters', [])).find(x => x.id === id);
+      const teks = item && await ambil('filter:' + id, null);
+      return teks ? { ...item, teks } : null;
+    },
+    filterGantiNama: async (id, nama) => {
+      const d = await ambil('filters', []), item = d.find(x => x.id === id);
+      if (!item) return { error: 'Filter tidak ditemukan.' };
+      item.nama = String(nama || '').trim().slice(0, 40) || item.nama; await simpan('filters', d); return { ok: true, daftar: d };
+    },
+    filterHapus: async id => {
+      const d = await ambil('filters', []);
+      if (!d.some(x => x.id === id)) return { error: 'Filter tidak ditemukan.' };
+      const sisa = d.filter(x => x.id !== id); await simpan('filter:' + id, undefined); await simpan('filters', sisa);
+      return { ok: true, daftar: sisa };
+    },
 
     getOutDir: async () => ({ dir: 'Memori HP ini (demo, maksimal ' + MAKS_SESI + ' sesi terakhir)', isDefault: true, ok: true }),
     chooseOutDir: async () => ({ error: DEMO }),

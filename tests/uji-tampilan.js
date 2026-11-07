@@ -101,6 +101,16 @@ window.api = {
     const i = TPL.findIndex(x => x.id === t.id); if (i < 0) TPL.push(baru); else TPL[i] = baru;
     return { ok: true, template: baru }; },
   deleteTemplate: async id => { TPL.splice(TPL.findIndex(x => x.id === id), 1); return { ok: true }; },
+  filterDaftar: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
+  filterTambah: async (nama, bytes) => {
+    const teks = new TextDecoder().decode(bytes);
+    let lut; try { lut = bacaCube(teks); } catch (e) { return { error: 'File tidak bisa dipakai: ' + e.message }; }
+    const f = { id: 'lut' + ((window.FLT || []).length + 1), nama: nama.replace(/\\.cube$/i, ''), size: lut.size, teks };
+    (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, nama: f.nama, size: f.size } };
+  },
+  filterIsi: async id => { const f = (window.FLT || []).find(x => x.id === id); return f ? { ...f } : null; },
+  filterGantiNama: async () => ({ ok: true }),
+  filterHapus: async id => { window.FLT = (window.FLT || []).filter(x => x.id !== id); return { ok: true }; },
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
@@ -340,10 +350,10 @@ async function main() {
   cek(await pg.evaluate(() => document.querySelector('#peLayouts .pe-opt.on') === document.querySelector('#peLayouts .pe-opt'))
       && /Rustic emas/.test(await pg.textContent('#peLayouts .pe-opt')), 'template admin tampil pertama & langsung terpilih');
   cek(await pg.locator('#peLayouts .pe-opt').count() === 1, 'tamu tidak bisa memilih layout bawaan, hanya layout dari admin');
-  cek(!(await pg.isVisible('[data-tab="layout"]')) && !(await pg.isVisible('[data-tab="frame"]')) && await pg.isVisible('#peFilters'),
+  cek(!(await pg.isVisible('#peTabs [data-tab="layout"]')) && !(await pg.isVisible('#peTabs [data-tab="frame"]')) && await pg.isVisible('#peFilters'),
       'hanya satu template: tab Layout & Bingkai disembunyikan, tamu langsung di tab Filter');
-  await pg.click('[data-tab="filter"]'); await pg.locator('#peFilters .pe-opt').nth(1).click();
-  await pg.click('[data-tab="sticker"]'); await pg.locator('#peStickerList .pe-stk').first().click();
+  await pg.click('#peTabs [data-tab="filter"]'); await pg.locator('#peFilters .pe-opt').nth(1).click();
+  await pg.click('#peTabs [data-tab="sticker"]'); await pg.locator('#peStickerList .pe-stk').first().click();
   cek(await pg.locator('.pe-sticker').count() === 1, 'stiker bisa ditambahkan');
   await pg.click('#peDone'); await tungguLayar('thanks');
   const foto = await pg.evaluate(() => window.FOTO);
@@ -352,6 +362,48 @@ async function main() {
   await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
   await pg.click('#btnFinish'); await tungguLayar('thanks');
   cek(!(await pg.isVisible('#thanksPhoto')), 'setelah sesi video, pratinjau foto tidak ikut tampil');
+
+  console.log('\n▶ Filter foto (LUT) per template');
+  await pg.evaluate(() => { show('admin'); }); await pg.locator('#coupleList .cp-row').first().click(); await tunggu(300);
+  await pg.locator('#tplList .tpl-row button', { hasText: 'Edit' }).click(); await tunggu(400);
+  await pg.click('.te-tab[data-tab="filter"]'); await tunggu(300);
+  cek(await pg.locator('#teFilter .pe-opt').count() === 1 && /Belum ada filter/.test(await pg.textContent('#teFilterInfo')) && !(await pg.isVisible('#teFilterAtur')),
+      'tab Filter: awalnya hanya "Tanpa filter" + ajakan menambah filter');
+  let kubus = 'TITLE "Kebalikan"\nLUT_3D_SIZE 2\n';
+  for (let b = 0; b < 2; b++) for (let g = 0; g < 2; g++) for (let r = 0; r < 2; r++) kubus += `${1 - r} ${1 - g} ${1 - b}\n`;
+  await pg.setInputFiles('#teFilterFile', { name: 'foto.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('x') }); await tunggu(200);
+  cek(/berakhiran \.cube/.test(await pg.textContent('#teMsg')), 'file selain .cube ditolak di editor');
+  await pg.setInputFiles('#teFilterFile', { name: 'Rusak.cube', mimeType: 'text/plain', buffer: Buffer.from('LUT_3D_SIZE 2\n0 0 0') }); await tunggu(200);
+  cek(/Data warna kurang/.test(await pg.textContent('#teMsg')), 'file .cube rusak ditolak dengan pesan jelas', await pg.textContent('#teMsg'));
+  await pg.setInputFiles('#teFilterFile', { name: 'Kebalikan.cube', mimeType: 'text/plain', buffer: Buffer.from(kubus) }); await tunggu(700);
+  cek(await pg.locator('#teFilter .pe-opt').count() === 2 && /Kebalikan/.test(await pg.textContent('#teFilter .pe-opt.on'))
+      && /Semua foto tamu memakai filter "Kebalikan" \(100%\)/.test(await pg.textContent('#teFilterInfo')) && await pg.isVisible('#teFilterAtur'),
+      'filter .cube ditambahkan, langsung terpilih untuk template ini');
+  const pratinjau = await pg.evaluate(() => {             // foto contoh di kotak foto editor ikut difilter (warna terbalik)
+    const asli = fotoContohFilter().getContext('2d').getImageData(10, 10, 1, 1).data, f = te.contohFoto.getContext('2d').getImageData(10, 10, 1, 1).data;
+    return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])]; });
+  cek(pratinjau[0] <= 2 && pratinjau[1] <= 2, 'pratinjau editor: foto contoh di kotak foto memakai filter', pratinjau);
+  await pg.fill('#teFilterKekuatan', '60'); await pg.dispatchEvent('#teFilterKekuatan', 'change'); await tunggu(300);
+  cek(/\(60%\)/.test(await pg.textContent('#teFilterInfo')), 'kekuatan filter bisa diatur');
+  await pg.click('label.switch:has(#teFilterTamu)'); await tunggu(200);
+  cek(/Tamu tidak bisa menggantinya/.test(await pg.textContent('#teFilterInfo')), 'admin bisa mengunci filter (tamu tidak bisa menggantinya)');
+  await pg.click('#teSimpan'); await tunggu(400);
+  const tplF = await pg.evaluate(() => TPL[0]);
+  cek(tplF.filter === 'lut1' && tplF.filterKekuatan === 60 && tplF.filterTamu === false, 'filter, kekuatan & kunci tersimpan di template', [tplF.filter, tplF.filterKekuatan, tplF.filterTamu]);
+  cek(/dengan filter/.test(await pg.textContent('#tplList')), 'daftar template menandai template berfilter');
+  await pg.evaluate(() => { applySettings({ ...cfg, photoCountdown: 2, photoPreview: 0, photoFlash: false }); show('utama'); });
+  await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 30000 }); await pg.click('#pbFinish'); await tunggu(800);
+  cek(await layar() === 'editphoto' && !(await pg.isVisible('#peTabs [data-tab="filter"]')), 'filter dikunci: tab Filter tidak tampil untuk tamu');
+  await pg.click('#peDone'); await tungguLayar('thanks');
+  cek(await pg.evaluate(() => window.FOTO.meta.filter) === 'template: Kebalikan', 'foto tamu memakai filter template', await pg.evaluate(() => window.FOTO.meta.filter));
+  await pg.evaluate(() => { TPL[0].filterTamu = true; });
+  await pg.click('#btnCobaLagi'); await pg.click('#btnToPhoto'); await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 30000 }); await pg.click('#pbFinish'); await tunggu(800);
+  const opsiF = await pg.evaluate(() => [...document.querySelectorAll('#peFilters .pe-opt')].map(b => b.textContent.trim()));
+  cek(await pg.isVisible('#peTabs [data-tab="filter"]') && opsiF[0] === 'Kebalikan' && opsiF.length === 7 && /Kebalikan/.test(await pg.textContent('#peFilters .pe-opt.on')),
+      'filter tidak dikunci: filter template tampil pertama & terpilih, tamu bisa memilih filter lain', opsiF);
+  await pg.click('#peDone'); await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
 
   console.log('\n▶ Hapus template');
   await pg.evaluate(() => { show('admin'); }); await pg.locator('#coupleList .cp-row').first().click(); await tunggu(300);
@@ -363,7 +415,7 @@ async function main() {
   await pg.evaluate(() => { applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0 }); show('utama'); });
   await pg.click('#btnToPhoto'); await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 }); await pg.click('#pbFinish'); await tunggu(500);
-  cek(await pg.locator('#peLayouts .pe-opt').count() === 3 && await pg.isVisible('[data-tab="layout"]') && await pg.isVisible('[data-tab="frame"]'),
+  cek(await pg.locator('#peLayouts .pe-opt').count() === 3 && await pg.isVisible('#peTabs [data-tab="layout"]') && await pg.isVisible('#peTabs [data-tab="frame"]'),
       'tanpa template: tamu memakai layout bawaan');
   await pg.click('#peDone'); await tungguLayar('thanks'); await pg.click('#btnCobaLagi');
 
@@ -513,7 +565,7 @@ async function main() {
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   cek(/Retake/.test(await pg.textContent('[data-redo="0"]')) && /Finish & edit/.test(await pg.textContent('#pbFinish')), 'tombol Retake & Finish & edit');
   await pg.click('#pbFinish'); await tunggu(500);
-  cek(/Edit photo/.test(await pg.textContent('#editphoto h2')) && /Stickers/.test(await pg.textContent('[data-tab="sticker"]')), 'halaman Edit foto berbahasa Inggris');
+  cek(/Edit photo/.test(await pg.textContent('#editphoto h2')) && /Stickers/.test(await pg.textContent('#peTabs [data-tab="sticker"]')), 'halaman Edit foto berbahasa Inggris');
   cek(await pg.evaluate(() => isiTeksTemplate('{tanggal}') === new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })),
       'tanggal di template foto ditulis dalam bahasa Inggris');
   await pg.click('#peDone'); await tungguLayar('thanks');

@@ -32,6 +32,7 @@ require('./main/pengaturan').daftarkan();
 require('./main/couple').daftarkan();
 require('./main/foto').daftarkan();
 require('./main/template').daftarkan();
+require('./main/filter').daftarkan();
 const kameraSony = require('./main/kamera-sony');
 kameraSony.daftarkan();
 const unggah = require('./main/unggah');
