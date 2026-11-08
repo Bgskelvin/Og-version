@@ -377,6 +377,7 @@
       return { ok: true, link };
     },
 
+    appInfo: async () => ({ demo: true, versi: 'demo', terpasang: true, lisensi: false }),
     unggahStatus: async () => ({ aktif: false, url: '', adaKunci: false, video: false, videoKualitas: '720', menunggu: 0, menungguVideo: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: false }),
     unggahSimpan: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', error: 'QR download is set up in the Mac app. In the demo, QR is always on (photos kept for 1 day).' }),
     unggahTes: async () => ({ error: DEMO }),

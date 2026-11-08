@@ -736,6 +736,58 @@ const KASUS = {
     await matikan();
   },
 
+  async 'installer Mac (Leura.app): isi paket, program Sony di Resources, versi & lisensi'() {
+    const akar = path.join(__dirname, '..');
+    const pkg = JSON.parse(fs.readFileSync(path.join(akar, 'package.json'), 'utf8'));
+    const b = pkg.build || {};
+    cek(pkg.productName === 'Leura' && b.productName === 'Leura' && b.appId === 'com.leura.booth', 'nama aplikasi "Leura"');
+    cek(pkg.scripts['build:mac'] === 'bash installer/build-mac.sh' && fs.existsSync(path.join(akar, 'installer', 'build-mac.sh')), 'npm run build:mac tersedia');
+    cek(pkg.dependencies['ffmpeg-static'] && !pkg.dependencies.electron && pkg.devDependencies.electron && pkg.devDependencies['electron-builder'],
+        'FFmpeg ikut ke aplikasi; Electron & electron-builder hanya untuk membangun');
+    cek((b.asarUnpack || []).some(x => x.includes('ffmpeg-static')), 'FFmpeg di luar app.asar (bisa dijalankan)');
+    const er = b.extraResources || [];
+    cek(er.some(x => x.from === 'kamera-sony/bin' && x.to === 'kamera-sony/bin') && er.some(x => x.from === 'THIRD-PARTY-NOTICES.txt'),
+        'program & pustaka kamera Sony + lisensi ikut ke Contents/Resources');
+    cek(fs.existsSync(path.join(akar, 'THIRD-PARTY-NOTICES.txt')) && /libusb[\s\S]*Lesser General Public/.test(fs.readFileSync(path.join(akar, 'THIRD-PARTY-NOTICES.txt'), 'utf8')), 'daftar lisensi pihak ketiga (termasuk libusb LGPL)');
+    cek(b.mac && b.mac.identity === null && b.mac.extendInfo && /camera/i.test(b.mac.extendInfo.NSCameraUsageDescription) && /microphone/i.test(b.mac.extendInfo.NSMicrophoneUsageDescription),
+        'izin kamera & mikrofon tertulis; ditandatangani ad-hoc oleh skrip build');
+    cek(fs.existsSync(path.join(akar, b.mac.icon)), 'ikon aplikasi ada');
+    // Semua file yang dimuat aplikasi ikut dalam paket
+    const pola = (b.files || []).map(f => f.replace('/**/*', '/'));
+    const masuk = f => pola.some(p => (p.endsWith('/') ? f.startsWith(p) : f === p));
+    const html = fs.readFileSync(path.join(akar, 'index.html'), 'utf8');
+    const dimuat = [...html.matchAll(/(?:src|href)="([^"#:]+)"/g)].map(m => m[1]);
+    const mainJs = fs.readdirSync(path.join(akar, 'main')).map(f => 'main/' + f);
+    const kurang = [...dimuat, ...mainJs, 'main.js', 'preload.js', 'config.json', 'package.json'].filter(f => !masuk(f));
+    cek(dimuat.length > 20 && !kurang.length, 'semua file tampilan & proses utama ikut ke Leura.app', kurang);
+    cek(!(b.files || []).some(f => /^(tests|sdk|cloud|demo|kamera-sony)\b/.test(f)), 'SDK, uji, server & demo tidak ikut ke dalam app.asar');
+    cek(!fs.existsSync(path.join(akar, 'siapkan-build.js')), 'skrip lama siapkan-build.js (mengganti nama app) sudah dihapus');
+
+    // Leura.app tiruan: program Sony dicari di Contents/Resources/kamera-sony/bin
+    const os = require('os');
+    const res = fs.mkdtempSync(path.join(os.tmpdir(), 'leura-resources-'));
+    fs.writeFileSync(path.join(res, 'THIRD-PARTY-NOTICES.txt'), 'notices');
+    process.resourcesPath = res;
+    delete process.env.SONY_HELPER;
+    const { panggil, electron, dataDir } = nyalakanAplikasi({ terpasang: true, platform: 'darwin' });
+    electron.__siap(); await tunggu(100);
+    cek(fs.existsSync(path.join(dataDir, 'config.json')), 'Leura.app: config.json bawaan disalin ke folder data');
+    const st = await panggil('save-settings', { kamera: 'sony' }) && await panggil('sony-status');
+    cek(!st.tersambung && /missing from this Leura\.app/.test(st.pesan) && /npm run build:mac/.test(st.pesan), 'Leura.app tanpa program Sony: pesan jelas (bangun ulang installer)', st.pesan);
+    const info = await panggil('app-info');
+    cek(info.versi === '1.0.0' && info.terpasang === true && info.branch === '' && info.lisensi === true, 'Admin → About: versi & aplikasi terpasang', info);
+    cek((await panggil('buka-lisensi')).ok && electron.__dibuka === path.join(res, 'THIRD-PARTY-NOTICES.txt'), 'tombol lisensi membuka THIRD-PARTY-NOTICES.txt dari Resources');
+  },
+
+  async 'npm start (folder kode): versi development & branch Git di Admin'() {
+    const { panggil, electron } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(50);
+    const info = await panggil('app-info');
+    const head = (() => { try { return fs.readFileSync(path.join(__dirname, '..', '.git', 'HEAD'), 'utf8').trim(); } catch (e) { return ''; } })();
+    const branch = (head.match(/^ref: refs\/heads\/(.+)$/) || [])[1] || (head ? head.slice(0, 7) : '');
+    cek(info.terpasang === false && info.versi === '1.0.0' && info.branch === branch, 'Admin → About: "development" + nama branch dari folder kode', info);
+  },
+
   async 'kamera sony: program penghubung belum dibuat'() {
     process.env.SONY_HELPER = path.join(require('os').tmpdir(), 'tidak-ada', 'sony-helper');
     const { panggil, electron, dataDir } = nyalakanAplikasi();

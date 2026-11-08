@@ -12,8 +12,16 @@
      jendela.js      jendela, menu, pengaman navigasi
      catatan.js      catatan harian (log) untuk melacak masalah
      keluar.js       tutup aplikasi dengan konfirmasi (Admin, tombol ✕, ⌘Q)
+     tentang.js      versi aplikasi & lisensi pihak ketiga (Admin → App)
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
+const path = require('path');
+
+// ---------- Folder data selalu sama ----------
+// ~/Library/Application Support/leura — dipakai bersama oleh "npm start" (folder kode)
+// dan Leura.app (installer), jadi couple, rekaman, pengaturan & antrean QR tidak pindah.
+// Harus dipasang paling awal: kunci "satu jendela" & semua modul memakai folder ini.
+if (app.setPath) app.setPath('userData', path.join(app.getPath('appData'), 'leura'));
 
 // ---------- Hanya satu jendela aplikasi ----------
 // Kalau ikon diklik lagi saat aplikasi sudah jalan, jendela yang ada dimunculkan,
@@ -38,6 +46,7 @@ kameraSony.daftarkan();
 const unggah = require('./main/unggah');
 unggah.daftarkan();
 require('./main/keluar').daftarkan();
+require('./main/tentang').daftarkan();
 rekaman.daftarkan();
 
 app.whenReady().then(async () => {

@@ -51,6 +51,14 @@ function pasangAdmin() {
   // Tombol ✕ jendela / ⌘Q: dialog yang sama (sekali saja walau ditekan berulang)
   api.onMintaTutup(() => konfirmasiTutup());
   $('btnLihatCatatan').onclick = lihatCatatan;
+  // About: versi (Leura.app) atau "development" + branch Git (npm start dari folder kode)
+  if (api.appInfo) api.appInfo().then(i => {
+    if (!i) return;
+    $('infoVersi').textContent = i.demo ? 'Leura Demo for phones (photos stay on this phone)'
+      : `Version ${i.versi}` + (i.terpasang ? ' · installed app' : ` · development (npm start${i.branch ? ', branch ' + i.branch : ''})`);
+    $('btnLisensi').style.display = i.lisensi ? '' : 'none';
+  }).catch(() => {});
+  $('btnLisensi').onclick = async () => { const r = await api.bukaLisensi(); if (r && r.error) $('infoVersi').textContent = r.error; };
   $('btnSimpanCatatan').onclick = simpanCatatan;
   // Kunci Admin lagi (mis. booth ditinggal tanpa operator): berikutnya harus login
   $('btnKunciAdmin').onclick = () => { adminMasuk = false; show('utama'); };

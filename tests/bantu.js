@@ -18,7 +18,7 @@ const hasil = () => ({ lulus, gagal });
 const tunggu = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- Electron palsu ----------
-function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [] }) {
+function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [], terpasang = false }) {
   const handlers = {}, listeners = {}, appEvents = {}, wcEvents = {};
   let readyResolve;
   const wc = {
@@ -28,7 +28,7 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
   };
   const electron = {
     app: {
-      isPackaged: false,
+      isPackaged: !!terpasang,          // true = berjalan sebagai Leura.app (installer)
       getPath: k => (k === 'userData' ? dataDir : docsDir),
       whenReady: () => new Promise(r => { readyResolve = r; }),
       on: (n, f) => { appEvents[n] = f; },
