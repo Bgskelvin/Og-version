@@ -1,0 +1,37 @@
+Leura — third-party software notices
+=====================================
+
+Leura is built with the following third-party software. Each component keeps
+its own copyright and license. Full license texts are included where noted.
+
+-------------------------------------------------------------------------------
+Electron and Chromium
+  Copyright (c) Electron contributors, GitHub Inc.; The Chromium Authors
+  License: MIT (Electron); BSD-style and others (Chromium)
+  Full texts: LICENSE.electron.txt and LICENSES.chromium.html in this app's
+  Contents/Resources folder (added by the installer). https://www.electronjs.org
+
+-------------------------------------------------------------------------------
+FFmpeg (via the ffmpeg-static package)
+  Used to convert recordings to MP4, add quiz questions to videos and make the
+  phone versions for QR download. Runs as a separate program.
+  Copyright (c) the FFmpeg developers. License: GNU GPL v3 or later (this build).
+  Source code and licenses: https://ffmpeg.org  ·  https://github.com/eugeneware/ffmpeg-static
+
+-------------------------------------------------------------------------------
+Sony Camera Remote SDK v2.02 (libCr_Core, libmonitor_protocol, CrAdapter)
+  Used to control Sony cameras over USB. Proprietary software of Sony Group
+  Corporation, redistributed with this app as allowed by the SDK readme.
+  License agreement: https://www.sony.net/CameraRemoteSDK/
+  Sony is a trademark or registered trademark of Sony Group Corporation.
+
+  The SDK includes these open-source libraries (full license texts in
+  Contents/Resources/kamera-sony/bin/licenses/):
+    - libusb 1.0   — GNU Lesser General Public License v2.1 (licenses/libusb-COPYING.txt)
+                      Source code: https://libusb.info · also included in the Sony SDK download
+    - libssh2      — BSD 3-Clause License (licenses/libssh2-COPYING.txt)
+    - OpenSSL      — Apache License 2.0 (licenses/openssl-LICENSE.txt)
+
+-------------------------------------------------------------------------------
+QR code generator (src/qr.js) — written for Leura, follows ISO/IEC 18004.
+"QR Code" is a registered trademark of DENSO WAVE INCORPORATED.

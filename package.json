@@ -1,7 +1,8 @@
 {
   "name": "leura",
+  "productName": "Leura",
   "version": "1.0.0",
-  "description": "",
+  "description": "Leura — wedding videobooth & photobooth",
   "main": "main.js",
   "scripts": {
     "start": "electron main.js",
@@ -9,6 +10,7 @@
     "test:utama": "node tests/uji-utama.js",
     "test:tampilan": "node tests/uji-tampilan.js",
     "build:sony": "bash kamera-sony/build.sh",
+    "build:mac": "bash installer/build-mac.sh",
     "uji:sony": "node tests/uji-kamera-sony.js",
     "uji:sony-tidur": "node tests/uji-sony-tidur.js",
     "uji:sony-mode": "node tests/uji-sony-mode.js",
@@ -19,16 +21,73 @@
     "uji:demo": "node tests/uji-demo.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Leura",
+  "license": "UNLICENSED",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^45.2.1"
+    "electron": "^45.2.1",
+    "electron-builder": "^26.0.12"
   },
   "dependencies": {
     "ffmpeg-static": "^5.3.0"
   },
   "allowScripts": {
     "ffmpeg-static@5.3.0": true
+  },
+  "private": true,
+  "build": {
+    "appId": "com.leura.booth",
+    "productName": "Leura",
+    "copyright": "© 2026 Leura",
+    "artifactName": "Leura-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "installer"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "config.json",
+      "package.json",
+      "main/**/*",
+      "src/**/*",
+      "styles/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "kamera-sony/bin",
+        "to": "kamera-sony/bin",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "THIRD-PARTY-NOTICES.txt",
+        "to": "THIRD-PARTY-NOTICES.txt"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**/*"
+    ],
+    "npmRebuild": false,
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.photography",
+      "icon": "installer/icon.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "minimumSystemVersion": "12.1",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Leura uses the camera to record guests and take photos.",
+        "NSMicrophoneUsageDescription": "Leura uses the microphone to record guest messages."
+      }
+    },
+    "dmg": {
+      "title": "Leura ${version}"
+    }
   }
 }

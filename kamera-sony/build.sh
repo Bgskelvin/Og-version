@@ -43,6 +43,14 @@ say "Menyalin pustaka SDK"
 cp "$SDK"/external/crsdk/*.dylib "$BIN/"
 mkdir -p "$BIN/Contents/Frameworks/CrAdapter"
 cp "$SDK"/external/crsdk/CrAdapter/*.dylib "$BIN/Contents/Frameworks/CrAdapter/"
+# Lisensi pustaka open source di dalam SDK (libusb LGPL, libssh2, OpenSSL) — ikut ke Leura.app
+OSS="$PROYEK/sdk/sony/SourceCodeOfOpenSourceSoftware"
+mkdir -p "$BIN/licenses"
+ambilLisensi() { [ -f "$OSS/$1" ] && unzip -p "$OSS/$1" "$2" > "$BIN/licenses/$3" 2>/dev/null || rm -f "$BIN/licenses/$3"; }
+ambilLisensi libusb.zip  libusb/COPYING      libusb-COPYING.txt
+ambilLisensi libssh2.zip libssh2/COPYING     libssh2-COPYING.txt
+ambilLisensi openssl.zip openssl/LICENSE.txt openssl-LICENSE.txt
+[ -s "$BIN/licenses/libusb-COPYING.txt" ] || printf '  ⚠ Lisensi libusb tidak ditemukan di SDK (sdk/sony/SourceCodeOfOpenSourceSoftware)\n'
 # File dari zip unduhan ditandai "karantina" oleh macOS dan bisa diblokir saat dimuat
 xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
 

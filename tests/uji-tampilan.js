@@ -70,6 +70,8 @@ window.api = {
     Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Current password is wrong.' },
   getStartupInfo: async () => ({ recovered: 0 }),
+  appInfo: async () => ({ versi: '1.0.0', terpasang: false, branch: 'chore/mac-installer', lisensi: true }),
+  bukaLisensi: async () => { LOG.push('lisensi'); return { ok: true }; },
   recStart: async (label, o) => { window.TAMU_REC = o && o.tamu; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
@@ -215,6 +217,10 @@ async function main() {
   await pg.click('#btnCobaLagi'); await pg.click('#btnAdminOpen'); await pg.fill('#uid', 'leura'); await pg.fill('#pw', '1234'); await pg.click('#btnLogin');
   await pg.waitForSelector('#adminPanel', { state: 'visible', timeout: 5000 }).catch(() => {}); await tunggu(300);
   cek(await pg.isVisible('#adminPanel'), 'login Admin berhasil');
+  cek(await pg.textContent('#infoVersi') === 'Version 1.0.0 · development (npm start, branch chore/mac-installer)', 'Admin → About: versi & branch', await pg.textContent('#infoVersi'));
+  await bersihkan(); await pg.locator('#btnLisensi').scrollIntoViewIfNeeded(); await pg.click('#btnLisensi'); await tunggu(100);
+  cek((await log()).includes('lisensi'), 'tombol "Open-source licenses"');
+  await pg.locator('#adminPanel').evaluate(e => { e.scrollTop = 0; });
   await pg.click('#btnAdminBack'); await pg.click('#btnAdminOpen'); await tunggu(300);
   cek(await pg.isVisible('#adminPanel') && !(await pg.isVisible('#adminLogin')), 'Admin dibuka lagi: tidak perlu login lagi');
   const body = pg.locator('#adminPanel .sheet-body'); const bb = await body.boundingBox();

@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld('api', {
   bukaLink: url => ipcRenderer.invoke('buka-link', url),
   salinTeks: teks => ipcRenderer.invoke('salin-teks', teks),
   catatanBaca: () => ipcRenderer.invoke('catatan-baca'),
+  appInfo: () => ipcRenderer.invoke('app-info'),
+  bukaLisensi: () => ipcRenderer.invoke('buka-lisensi'),
   catatanSimpan: () => ipcRenderer.invoke('catatan-simpan'),
   catat: (pesan, tingkat) => ipcRenderer.send('catat', String(pesan), tingkat),
   onMintaTutup: cb => ipcRenderer.on('minta-tutup', () => cb()),

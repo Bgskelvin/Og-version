@@ -18,7 +18,11 @@ const { userData, readSettings } = require('./penyimpanan');
 const { getWin } = require('./jendela-aktif');
 
 const AKAR = path.join(__dirname, '..');
-const HELPER = () => process.env.SONY_HELPER || path.join(AKAR, 'kamera-sony', 'bin', 'sony-helper');
+// Program penghubung + pustaka SDK Sony: di Leura.app ada di Contents/Resources/kamera-sony/bin
+// (disalin oleh installer, di luar app.asar supaya bisa dijalankan), saat npm start di folder kode.
+const { app } = require('electron');
+const FOLDER_BIN = () => (app && app.isPackaged ? path.join(process.resourcesPath, 'kamera-sony', 'bin') : path.join(AKAR, 'kamera-sony', 'bin'));
+const HELPER = () => process.env.SONY_HELPER || path.join(FOLDER_BIN(), 'sony-helper');
 const SIMULASI = path.join(AKAR, 'kamera-sony', 'simulasi');
 const SEMENTARA = path.join(userData, 'sony-sementara');
 const MODE = ['webcam', 'sony', 'sony-sim'];
@@ -232,9 +236,9 @@ function setel(m) {
   if (m === 'sony') {
     const file = HELPER();
     if (!fs.existsSync(file)) {
-      st.pesan = process.platform === 'darwin' || process.env.SONY_HELPER
-        ? 'The Sony camera helper is not built yet. Run in Terminal: npm run build:sony'
-        : 'A Sony camera over USB only works on a Mac.';
+      st.pesan = process.platform !== 'darwin' && !process.env.SONY_HELPER ? 'A Sony camera over USB only works on a Mac.'
+        : app && app.isPackaged ? 'The Sony camera helper is missing from this Leura.app. Build the installer again with: npm run build:mac'
+        : 'The Sony camera helper is not built yet. Run in Terminal: npm run build:sony';
       kabarkan();
       return status();
     }
