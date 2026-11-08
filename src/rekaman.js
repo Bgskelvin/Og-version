@@ -33,9 +33,12 @@ async function startRecording(label) {
   rec = cur;
   recT0 = cur.t0;
 }
+// Link unduh video lewat QR untuk rekaman terakhir (diisi saat rekaman selesai disimpan)
+let qrVideoTerakhir = null;
 function stopRecording(meta) {
   const cur = rec;
   rec = null;
+  qrVideoTerakhir = null;
   if (!cur) return Promise.resolve(false);
   const seconds = Math.round((Date.now() - cur.t0) / 1000);
   const info = { couple: activeCouple ? activeCouple.name : '', ...(meta || {}) };
@@ -46,6 +49,7 @@ function stopRecording(meta) {
         await cur.pending;
         const res = await api.recEnd(cur.id, seconds, info);
         ok = !!(res && res.ok);
+        if (ok && res.link && !info.aborted) qrVideoTerakhir = res.link;
         if (res && !res.ok) setNotice('Rekaman terakhir gagal disimpan: ' + res.error, 15000);
       } catch (err) { setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000); }
       resolve(ok);
@@ -95,6 +99,7 @@ async function finishSession(meta) {
   finishing = false;
   busy = false;
   setThanks(result);
+  if (result === true && qrVideoTerakhir) tampilkanQR(qrVideoTerakhir, 'video');
   show('thanks');
 }
 // Dipanggil kalau sesuatu gagal: simpan yang sempat terekam, lalu kembali ke Halaman Utama.

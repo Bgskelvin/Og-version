@@ -11,6 +11,17 @@
    GET  /d/<kode>[/<n>] unduh file foto
    GET  /ping           cek sambungan dari Admin (wajib kunci booth)
 
+   Video (pesan & quiz) — diunggah per bagian (R2 multipart), wajib kunci booth:
+   PUT  /uv/<kode>/poster        gambar sampul (JPEG)
+   POST /uv/<kode>/mulai         mulai unggah → { uploadId }   (header x-leura-couple, x-leura-jenis, x-leura-ukuran)
+   PUT  /uv/<kode>/<n>?u=<id>    bagian ke-n (1..) → { etag }
+   POST /uv/<kode>/selesai?u=<id> { bagian: [{ partNumber, etag }] }
+   GET  /v/<kode>       halaman video untuk tamu (pemutar + Simpan video)
+   GET  /vs/<kode>      status JSON video
+   GET  /vf/<kode>      file video (mendukung Range, untuk diputar di HP)
+   GET  /vd/<kode>      unduh file video
+   GET  /vp/<kode>      gambar sampul
+
    Foto disimpan di R2 (binding FOTO) dan dianggap hilang setelah
    HARI_SIMPAN hari; aturan R2 menghapus file aslinya otomatis.
    ===================================================================== */
@@ -18,6 +29,9 @@
 const KODE = /^[A-Za-z0-9]{8,16}$/;
 const MAKS_BYTE = 15 * 1024 * 1024;
 const MAKS_SATUAN = 4;
+const MAKS_BAGIAN_BYTE = 9 * 1024 * 1024;       // booth mengirim bagian 8 MB
+const MAKS_BAGIAN = 250;                        // ±2 GB per video
+const MAKS_POSTER = 3 * 1024 * 1024;
 
 const TEKS = {
   id: {
@@ -32,6 +46,12 @@ const TEKS = {
     tunggu: 'Fotomu sedang dikirim…', tungguInfo: 'Halaman ini akan memuat ulang sendiri. Biasanya hanya beberapa detik.',
     hilang: 'Foto tidak ditemukan', hilangInfo: 'Foto disimpan selama {h} hari setelah diambil. Kalau kamu baru saja berfoto, tunggu sebentar dan buka lagi link ini.',
     simpanHari: 'Foto tersedia {h} hari.', foto: 'Foto',
+    vJudul: 'Video Leura', vSiap: 'Videomu sudah siap', vPesan: 'Pesan video', vQuiz: 'Quick quiz',
+    vSimpan: 'Simpan video', vMemuat: 'Menyiapkan video… {p}%', vTipsIos: 'Tekan "Simpan video", lalu pilih "Simpan Video" supaya masuk ke galeri.',
+    vTipsLain: 'Video tersimpan di folder Unduhan.', vTersimpan: 'Video tersimpan',
+    vTunggu: 'Videomu sedang disiapkan…', vTungguInfo: 'Video diproses dan dikirim dari booth, biasanya 1 sampai 3 menit. Halaman ini akan terbuka sendiri saat videonya siap.',
+    vLama: 'Videonya belum sampai. Booth mungkin sedang tidak tersambung internet — coba buka lagi link ini nanti.',
+    vHilang: 'Video tidak ditemukan', vHilangInfo: 'Video disimpan selama {h} hari setelah direkam.', vPutar: 'Putar video',
   },
   en: {
     lang: 'en', judul: 'Photo Booth photos', siap: 'Your photos are ready',
@@ -45,6 +65,12 @@ const TEKS = {
     tunggu: 'Your photo is on its way…', tungguInfo: 'This page will refresh by itself. It usually takes just a few seconds.',
     hilang: 'Photo not found', hilangInfo: 'Photos are kept for {h} days after they are taken. If you just took your photo, please wait a moment and open this link again.',
     simpanHari: 'Available for {h} days.', foto: 'Photo',
+    vJudul: 'Leura video', vSiap: 'Your video is ready', vPesan: 'Video message', vQuiz: 'Quick quiz',
+    vSimpan: 'Save video', vMemuat: 'Preparing video… {p}%', vTipsIos: 'Tap "Save video", then choose "Save Video" to put it in your gallery.',
+    vTipsLain: 'The video is saved to your Downloads folder.', vTersimpan: 'Video saved',
+    vTunggu: 'Your video is being prepared…', vTungguInfo: 'The booth processes and sends the video, usually within 1 to 3 minutes. This page opens by itself when it is ready.',
+    vLama: "The video hasn't arrived yet. The booth may be offline — please open this link again later.",
+    vHilang: 'Video not found', vHilangInfo: 'Videos are kept for {h} days after they are recorded.', vPutar: 'Play video',
   },
 };
 
@@ -66,6 +92,28 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), { status
 const namaCouple = v => { try { return decodeURIComponent(String(v || '')).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 80); } catch (e) { return ''; } };
 // Nama file unduhan: "Rina-Dimas_foto-1.jpg" (huruf aman saja)
 const namaFile = (couple, kode, n) => `${(couple || 'Leura').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'Leura'}_${n ? 'foto-' + n : 'template'}_${kode.slice(0, 4)}.jpg`;
+
+const kunciVideo = kode => `video/${kode}.mp4`;
+const kunciPoster = kode => `video/${kode}.jpg`;
+const namaFileVideo = (couple, kode, jenis) => `${(couple || 'Leura').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'Leura'}_${jenis === 'quiz' ? 'quiz' : 'pesan'}_${kode.slice(0, 4)}.mp4`;
+async function infoVideo(env, kode) {
+  if (!KODE.test(kode)) return null;
+  const obj = await env.FOTO.head(kunciVideo(kode));
+  if (!obj || kedaluwarsa(obj, env)) return null;
+  const m = obj.customMetadata || {};
+  return { obj, couple: m.couple || '', jenis: m.jenis === 'quiz' ? 'quiz' : 'pesan', ukuran: obj.size, poster: !!(await env.FOTO.head(kunciPoster(kode))),
+           sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000 };
+}
+// "bytes=a-b" / "bytes=a-" / "bytes=-n" → { offset, length } (null kalau tidak ada/tidak valid)
+function bacaRange(h, ukuran) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(h || '').trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  let a, b;
+  if (m[1] === '') { const n = Number(m[2]); a = Math.max(0, ukuran - n); b = ukuran - 1; }
+  else { a = Number(m[1]); b = m[2] === '' ? ukuran - 1 : Math.min(Number(m[2]), ukuran - 1); }
+  if (a >= ukuran || b < a) return { salah: true };
+  return { offset: a, length: b - a + 1 };
+}
 
 async function ambil(env, kode, n) {
   if (!KODE.test(kode)) return null;
@@ -155,6 +203,9 @@ h2 small{font-weight:400;color:var(--abu);font-size:13px}
 .kilap i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;opacity:.9;animation:jatuh 2.4s ease-in forwards}
 @keyframes jatuh{to{transform:translate(var(--x),105vh) rotate(var(--r));opacity:0}}
 @media (prefers-reduced-motion:reduce){.muncul,.kilap i,.tunggu{animation:none}.lb-jalur{transition:none}}
+.vbox{position:relative;border-radius:14px;overflow:hidden;background:#000}
+.vbox video{display:block;width:100%;max-height:72vh;background:#000}
+.vbox .label{pointer-events:none}
 .putar{width:40px;height:40px;margin:30px auto;border-radius:50%;border:4px solid var(--aksen);border-right-color:transparent;animation:p 1s linear infinite}
 @keyframes p{to{transform:rotate(360deg)}}
 p{margin:8px 0}
@@ -206,6 +257,56 @@ ${satuan}
   const skrip = `<script>const D=${JSON.stringify(data).replace(/</g, '\\u003c')};${SKRIP_UNDUH}</script>`;
   return halaman(t, isi, skrip);
 }
+
+// Halaman video: pemutar, Simpan video (ke galeri lewat menu bagikan), Bagikan link
+function halamanVideo(t, kode, v, bahasa) {
+  const tgl = new Date(v.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
+  const label = v.jenis === 'quiz' ? t.vQuiz : t.vPesan;
+  const data = { kode, couple: v.couple, nama: namaFileVideo(v.couple, kode, v.jenis), ukuran: v.ukuran, t };
+  const isi = `<h1 class="muncul">${esc(v.couple || t.vSiap)}</h1>
+<p class="sub muncul" style="animation-delay:60ms">${esc(v.couple ? t.vSiap : t.vJudul)} ✨</p>
+<div class="kartu muncul" style="animation-delay:120ms"><div class="vbox"><video id="vid" controls playsinline preload="metadata" ${v.poster ? `poster="/vp/${kode}"` : ''} src="/vf/${kode}"></video><span class="label">${esc(label)}</span></div></div>
+<div class="aksi muncul" style="animation-delay:180ms">
+  <button class="btn utama" id="simpan">${IKON.unduh}<span>${esc(t.vSimpan)}</span></button>
+</div>
+<p class="info" id="tips"></p>
+<p class="info">${esc(t.tersedia.replace('{t}', tgl))} · ${(v.ukuran / 1048576).toFixed(v.ukuran < 10485760 ? 1 : 0)} MB</p>
+<div class="kaki"><button class="chip" id="bagikan">${IKON.bagikan}${esc(t.bagikan)}</button></div>
+<div class="toast" id="toast" role="status"></div><div class="kilap" id="kilap" aria-hidden="true"></div>`;
+  return halaman({ ...t, judul: t.vJudul }, isi, `<script>const D=${JSON.stringify(data).replace(/</g, '\\u003c')};${SKRIP_VIDEO}</script>`);
+}
+const SKRIP_VIDEO = `
+(function(){
+var $=function(id){return document.getElementById(id)},T=D.t;
+var ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),hp=ios||/Android/.test(navigator.userAgent);
+var bisaBagi=!!(navigator.canShare&&hp&&D.ukuran<300*1048576);
+var toastT;function toast(m){var e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(function(){e.classList.remove('on')},2400)}
+$('tips').textContent=bisaBagi&&ios?T.vTipsIos:'';
+(function(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;var k=$('kilap'),w=['#B08D57','#E7C9A0','#F2B8C6','#FFFFFF','#D9B26F'];
+for(var i=0;i<22;i++){var e=document.createElement('i');e.style.left=Math.random()*100+'%';e.style.background=w[i%w.length];
+e.style.setProperty('--x',(Math.random()*80-40)+'px');e.style.setProperty('--r',(Math.random()*540-270)+'deg');e.style.animationDelay=(Math.random()*.6)+'s';e.style.animationDuration=(1.8+Math.random()*1.4)+'s';k.appendChild(e)}
+setTimeout(function(){k.remove()},4200)})();
+function unduhBiasa(){var a=document.createElement('a');a.href='/vd/'+D.kode;a.download=D.nama;document.body.appendChild(a);a.click();a.remove()}
+// Ambil file sambil menampilkan persen (video bisa puluhan MB)
+function ambil(lbl){return fetch('/vf/'+D.kode).then(function(r){if(!r.ok)throw new Error(r.status);
+ var total=+r.headers.get('content-length')||D.ukuran;if(!r.body||!r.body.getReader)return r.blob();
+ var rd=r.body.getReader(),bag=[],dapat=0;
+ return (function baca(){return rd.read().then(function(x){if(x.done)return new Blob(bag,{type:'video/mp4'});bag.push(x.value);dapat+=x.value.length;
+  lbl.textContent=T.vMemuat.replace('{p}',Math.min(99,Math.round(dapat/total*100)));return baca()})})()})}
+var sibuk=false;
+$('simpan').onclick=function(){if(sibuk)return;var b=$('simpan'),lbl=b.querySelector('span'),lama=lbl.textContent;
+ if(!bisaBagi){unduhBiasa();toast('✓ '+T.vTipsLain);return}
+ sibuk=true;b.disabled=true;lbl.textContent=T.vMemuat.replace('{p}',0);
+ var beres=function(){sibuk=false;b.disabled=false;lbl.textContent=lama};
+ ambil(lbl).then(function(blob){var f=new File([blob],D.nama,{type:'video/mp4'});
+  if(!navigator.canShare({files:[f]}))throw new Error('tidak bisa');
+  lbl.textContent=lama;b.disabled=false;
+  return navigator.share({files:[f]}).then(function(){beres();toast('✓ '+T.vTersimpan)},function(e){beres();if(e&&e.name!=='AbortError')toast(T.gagal)})
+ }).catch(function(){beres();unduhBiasa();toast('✓ '+T.vTipsLain)})};
+$('bagikan').onclick=function(){var u=location.origin+location.pathname+location.search;
+ if(navigator.share)navigator.share({url:u,title:D.couple||T.vJudul}).catch(function(){});
+ else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('✓ '+T.disalin)});};
+})();`;
 
 // Skrip halaman unduh (dijalankan di HP tamu)
 const SKRIP_UNDUH = `
@@ -295,7 +396,50 @@ export default {
 
     if (jalur === 'ping') {
       if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
-      return json({ ok: true, hari: h, satuan: true });
+      return json({ ok: true, hari: h, satuan: true, video: true });
+    }
+
+    /* ---------- Unggah video dari booth (per bagian) ---------- */
+    if (jalur === 'uv') {
+      if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
+      if (!KODE.test(kode)) return json({ ok: false, error: 'Kode tidak valid' }, 400);
+      const kunci = kunciVideo(kode), uploadId = url.searchParams.get('u') || '';
+      if (nTeks === 'poster' && req.method === 'PUT') {
+        const data = await req.arrayBuffer();
+        if (!data.byteLength || data.byteLength > MAKS_POSTER) return json({ ok: false, error: 'Ukuran gambar tidak valid' }, 413);
+        const b = new Uint8Array(data, 0, 3);
+        if (!(b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF)) return json({ ok: false, error: 'Bukan gambar JPEG' }, 415);
+        await env.FOTO.put(kunciPoster(kode), data, { httpMetadata: { contentType: 'image/jpeg' }, customMetadata: { diunggah: String(Date.now()) } });
+        return json({ ok: true });
+      }
+      if (nTeks === 'mulai' && req.method === 'POST') {
+        if (await env.FOTO.head(kunci)) return json({ ok: true, ada: true });
+        const meta = { diunggah: String(Date.now()), jenis: req.headers.get('x-leura-jenis') === 'quiz' ? 'quiz' : 'pesan' };
+        const couple = namaCouple(req.headers.get('x-leura-couple'));
+        if (couple) meta.couple = couple;
+        const mpu = await env.FOTO.createMultipartUpload(kunci, { httpMetadata: { contentType: 'video/mp4' }, customMetadata: meta });
+        return json({ ok: true, uploadId: mpu.uploadId });
+      }
+      if (/^\d{1,3}$/.test(nTeks) && req.method === 'PUT') {
+        const n = Number(nTeks);
+        if (n < 1 || n > MAKS_BAGIAN || !uploadId) return json({ ok: false, error: 'Bagian tidak valid' }, 400);
+        const data = await req.arrayBuffer();
+        if (!data.byteLength || data.byteLength > MAKS_BAGIAN_BYTE) return json({ ok: false, error: 'Ukuran bagian tidak valid' }, 413);
+        try {
+          const bagian = await env.FOTO.resumeMultipartUpload(kunci, uploadId).uploadPart(n, data);
+          return json({ ok: true, etag: bagian.etag });
+        } catch (e) { return json({ ok: false, error: 'upload-hilang' }, 404); }
+      }
+      if (nTeks === 'selesai' && req.method === 'POST') {
+        let isi = {};
+        try { isi = await req.json(); } catch (e) {}
+        const bagian = Array.isArray(isi.bagian) ? isi.bagian.filter(x => x && Number.isInteger(x.partNumber) && typeof x.etag === 'string').slice(0, MAKS_BAGIAN) : [];
+        if (!bagian.length || !uploadId) return json({ ok: false, error: 'Daftar bagian kosong' }, 400);
+        try { await env.FOTO.resumeMultipartUpload(kunci, uploadId).complete(bagian); }
+        catch (e) { return json({ ok: false, error: 'upload-hilang' }, 404); }
+        return json({ ok: true });
+      }
+      return json({ ok: false, error: 'Metode tidak didukung' }, 405);
     }
 
     if (jalur === 'u' && req.method === 'PUT') {
@@ -317,6 +461,45 @@ export default {
     }
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return json({ ok: false, error: 'Metode tidak didukung' }, 405);
+
+    /* ---------- Video untuk tamu ---------- */
+    if (jalur === 'vf' || jalur === 'vd') {
+      const v = await infoVideo(env, kode);
+      if (!v) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
+      const headers = { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'cache-control': 'private, max-age=3600', ...HEADER_AMAN };
+      if (jalur === 'vd') headers['content-disposition'] = `attachment; filename="${namaFileVideo(v.couple, kode, v.jenis)}"`;
+      const rg = bacaRange(req.headers.get('range'), v.ukuran);
+      if (rg && rg.salah) return new Response('', { status: 416, headers: { ...headers, 'content-range': `bytes */${v.ukuran}` } });
+      if (req.method === 'HEAD') return new Response(null, { headers: { ...headers, 'content-length': String(v.ukuran) } });
+      if (rg) {
+        const obj = await env.FOTO.get(kunciVideo(kode), { range: { offset: rg.offset, length: rg.length } });
+        if (!obj) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
+        return new Response(obj.body, { status: 206, headers: { ...headers, 'content-length': String(rg.length),
+          'content-range': `bytes ${rg.offset}-${rg.offset + rg.length - 1}/${v.ukuran}` } });
+      }
+      const obj = await env.FOTO.get(kunciVideo(kode));
+      if (!obj) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
+      return new Response(obj.body, { headers: { ...headers, 'content-length': String(v.ukuran) } });
+    }
+    if (jalur === 'vp') {
+      const obj = KODE.test(kode) ? await env.FOTO.get(kunciPoster(kode)) : null;
+      if (!obj || kedaluwarsa(obj, env)) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
+      return new Response(obj.body, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=3600', ...HEADER_AMAN } });
+    }
+    if (jalur === 'vs') {
+      const v = await infoVideo(env, kode);
+      return v ? json({ ok: true, ada: true, couple: v.couple, jenis: v.jenis, ukuran: v.ukuran, sampai: v.sampai }) : json({ ok: false, ada: false }, 404);
+    }
+    if (jalur === 'v') {
+      const v = await infoVideo(env, kode);
+      if (v) return halamanVideo(t, kode, v, bahasa);
+      if (!KODE.test(kode)) return halaman(t, `<h1>${esc(t.vHilang)}</h1><p class="sub">${esc(t.vHilangInfo.replace('{h}', h))}</p>`);
+      // Belum sampai: tanya status setiap 5 detik (video perlu diproses & diunggah, bisa beberapa menit)
+      return halaman({ ...t, judul: t.vJudul }, `<div class="putar"></div><h1>${esc(t.vTunggu)}</h1><p class="sub" id="info">${esc(t.vTungguInfo)}</p>`,
+        `<script>(function(){var ke=0,info=${JSON.stringify(t.vLama).replace(/</g, '\\u003c')};(function tanya(){if(ke++>1440){document.getElementById('info').textContent=info;return}
+setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){if(r.ok)location.reload();else tanya()}).catch(tanya)},5000)})()})()</script>`);
+    }
+
     if (n < 0) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
 
     if (jalur === 'i' || jalur === 'd') {

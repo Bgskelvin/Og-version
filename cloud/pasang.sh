@@ -28,6 +28,8 @@ $W r2 bucket list 2>/dev/null | grep -q "$BUCKET" || gagal "Bucket R2 belum ada.
 
 say "Mengatur hapus otomatis setelah 7 hari"
 $W r2 bucket lifecycle add "$BUCKET" hapus-7-hari --expire-days 7 --force 2>&1 | tail -2 || true
+# Unggahan video yang terputus & tidak pernah diselesaikan: dibuang setelah 1 hari
+$W r2 bucket lifecycle add "$BUCKET" buang-unggah-video-terputus --abort-multipart-days 1 --force 2>&1 | tail -2 || true
 
 say "Mengirim program ke Cloudflare"
 OUT=$($W deploy 2>&1) || {

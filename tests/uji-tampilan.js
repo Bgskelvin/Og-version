@@ -19,7 +19,7 @@ const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
 window.LOG = []; window.TPL = [];
-window.UNG = { st: { aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: true }, cb: null };
+window.UNG = { st: { aktif: false, url: '', adaKunci: false, video: true, videoKualitas: '720', menunggu: 0, menungguVideo: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: true }, cb: null };
 // Kamera Sony tiruan (proses utama aslinya diuji di uji-utama.js)
 window.SONY = { st: { mode: 'webcam', tersambung: false, pesan: '' }, cb: null, foto: 0, besar: 0 };
 window.buatJpeg = async (w, h, warna) => { const c = new OffscreenCanvas(w, h); const g = c.getContext('2d');
@@ -72,14 +72,14 @@ window.api = {
   getStartupInfo: async () => ({ recovered: 0 }),
   recStart: async (label, o) => { window.TAMU_REC = o && o.tamu; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
-  recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : ''));
-    return MODE.endOk ? { ok: true } : { ok: false, error: 'ENOSPC' }; },
+  recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
+    return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://leura-foto.uji.workers.dev/v/Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
   savePhotos: async p => { window.FOTO = { tamu: p.tamu, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
     return { ok: true, link: UNG.st.aktif ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
   unggahStatus: async () => ({ ...UNG.st }),
-  unggahSimpan: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}); return { ...UNG.st }; },
+  unggahSimpan: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}, p.video != null ? { video: p.video } : {}, p.videoKualitas ? { videoKualitas: p.videoKualitas } : {}); return { ...UNG.st }; },
   unggahTes: async () => ({ ok: true, hari: 7 }),
   unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
   unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
@@ -186,6 +186,24 @@ async function main() {
   await tungguLayar('thanks', 30000);
   const L = await log();
   cek(L.indexOf('end 4') < L.indexOf('start quiz') && L.includes('end 5'), 'rekaman lama tersimpan sebelum rekaman baru dimulai', L);
+
+  console.log('\n▶ Quiz: hitung mundur, teks pertanyaan & QR video');
+  await atur({ qrVideo: true }); await bersihkan();
+  await pg.click('#btnCobaLagi'); await pg.click('#btnToQuiz'); await pg.click('#btnQuizMulai'); await tunggu(500);
+  cek(await pg.isVisible('#countOverlay') && (await log()).includes('start quiz') && !(await pg.isVisible('#quizRun')),
+      'quiz: hitung mundur dulu, dan kamera sudah merekam sejak awal hitung mundur', await log());
+  await tungguLayar('thanks', 30000);
+  const mq = await pg.evaluate(() => ({ k: META_REC.kapsi, q: META_REC.questions, g: (META_REC.kapsiGambar || []).map(x => [x.length, x[0], x[1]]) }));
+  cek(mq.k && mq.k.length === 2 && mq.k[0].a >= 2.8 && mq.k[0].b > mq.k[0].a && mq.k[1].a >= mq.k[0].b && mq.k.every((k, i) => k.judul === mq.q[i]),
+      'waktu tampil tiap pertanyaan dicatat (setelah hitung mundur 3 detik)', mq.k);
+  cek(mq.g.length === 2 && mq.g.every(x => x[0] > 1000 && x[1] === 137 && x[2] === 80), 'teks tiap pertanyaan digambar sebagai PNG untuk ditempel di video', mq.g);
+  require('fs').writeFileSync(require('path').join(require('os').tmpdir(), 'uji-kapsi.png'), Buffer.from(await pg.evaluate(async () => { const b = new Uint8Array(META_REC.kapsiGambar[0]); let s = ''; for (const x of b) s += String.fromCharCode(x); return btoa(s); }), 'base64'));
+  cek(await pg.isVisible('#thanksQR') && /mengunduh videomu/.test(await pg.textContent('#thanksQR')) && /Siap dalam beberapa menit/.test(await pg.textContent('#thanksQR'))
+      && /\/v\/Vid3oKode1/.test(await pg.textContent('#qrLink')), 'Terima kasih: QR untuk mengunduh video tampil');
+  await atur({ qrVideo: false });
+  await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai'); await tunggu(4300);
+  await pg.click('#btnFinish'); await tungguLayar('thanks');
+  cek(!(await pg.isVisible('#thanksQR')) && !(await pg.evaluate(() => META_REC.kapsi)), 'pesan video tanpa QR (QR video mati): tidak ada QR, tidak ada teks pertanyaan');
 
   console.log('\n▶ Halaman Terima kasih mengikuti hasil penyimpanan');
   await atur({ endOk: false }); await pg.click('#btnCobaLagi'); await pg.click('#btnToPesan'); await pg.click('#btnPesanMulai');
@@ -586,6 +604,19 @@ async function main() {
   cek(/Connected to the server. Photos are kept for 7 days/.test(await pg.textContent('#qrMsg')), 'Tes sambungan menampilkan hasil');
   await pg.click('#setQrAktif'); await tunggu(200);
   cek(await pg.evaluate(() => UNG.st.aktif) && /all photos sent/.test(await pg.textContent('#qrStatus')), 'QR dinyalakan dari Admin');
+  cek(await pg.isChecked('#setQrVideo') && await pg.inputValue('#setQrKualitas') === '720' && !(await pg.isDisabled('#setQrVideo')), 'QR video menyala & kualitas 720p secara bawaan');
+  await bersihkan(); await pg.selectOption('#setQrKualitas', '1080'); await tunggu(150);
+  cek((await log()).includes('unggah {"videoKualitas":"1080"}') && /1080p/.test(await pg.textContent('#qrMsg')), 'kualitas video untuk HP bisa diganti ke 1080p', await log());
+  await pg.click('#setQrVideo'); await tunggu(150);
+  cek((await log()).includes('unggah {"video":false}') && await pg.isDisabled('#setQrKualitas') && /Video QR is off/.test(await pg.textContent('#qrStatus')), 'QR video bisa dimatikan');
+  await pg.click('#setQrVideo'); await tunggu(150);
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 2, videoDiolah: 0, sedang: 'Vid3oKode1', progres: { kode: 'Vid3oKode1', n: 2, total: 5 } })); await tunggu(100);
+  cek(/Sending video… part 2 of 5 · 2 video\(s\) in queue/.test(await pg.textContent('#qrStatus')), 'status: video dikirim per bagian', await pg.textContent('#qrStatus'));
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 1, videoDiolah: 1, sedang: null, progres: null })); await tunggu(100);
+  cek(/1 video\(s\) being prepared/.test(await pg.textContent('#qrStatus')), 'status: video sedang disiapkan');
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 0, videoDiolah: 0 }));
+  cek(await pg.evaluate(() => { const u = unggahSt.url; unggahSt.url = 'https://x.workers.dev'; const r = [linkSesi({ label: 'pesan', kode: 'K1' }), linkSesi({ label: 'foto', kode: 'K2' })]; unggahSt.url = u; return r.join(); })
+      === 'https://x.workers.dev/v/K1,https://x.workers.dev/f/K2', 'Riwayat: link sesi video memakai /v/, foto /f/');
   await pg.evaluate(() => UNG.cb({ ...UNG.st, menunggu: 2, errorTerakhir: 'No internet / server unreachable' })); await tunggu(100);
   cek(/2 photo\(s\) waiting to be sent · No internet/.test(await pg.textContent('#qrStatus')) && await pg.isVisible('#btnQrUlang'), 'status antrean tampil langsung, ada tombol "Coba kirim sekarang"');
   await bersihkan(); await pg.click('#btnQrUlang');

@@ -14,6 +14,7 @@ const STATUS_SESI = {
   done:          ['Ready', 'hijau', false, 'MP4 video is ready in the couple folder.'],
   photo:         ['Saved', 'hijau', false, ''],
   processing:    ['Processing', 'biru', false, 'Converting to MP4. One moment.'],
+  teks:          ['Adding questions', 'biru', false, 'Adding the question text to the quiz video. One moment.'],
   transfer:      ['Copying from camera', 'biru', false, 'Copying from the camera SD card to the couple folder.'],
   recording:     ['Recording', 'biru', false, 'Recording in progress.'],
   webm:          ['Not MP4 yet', 'oranye', true, 'Saved as WebM because FFmpeg is not installed. It plays in VLC or Chrome.'],
@@ -53,7 +54,9 @@ function muatThumb(id) {
 
 const jenisSesi = s => (s.label === 'foto' ? 'foto' : /^quiz/.test(s.label) ? 'quiz' : 'pesan');
 const infoStatus = s => STATUS_SESI[s.status] || ['—', 'abu', false, ''];
-const perluPerhatian = s => infoStatus(s)[2];
+// Teks pertanyaan / versi HP untuk QR gagal: video tetap aman, tapi perlu "Process again"
+const gagalOlah = s => s.status === 'done' && (s.teks === 'gagal' || s.unggah === 'gagal');
+const perluPerhatian = s => infoStatus(s)[2] || gagalOlah(s);
 const terlaluPendek = s => jenisSesi(s) !== 'foto' && (s.seconds || 0) < 3 && ['done', 'webm', 'failed'].includes(s.status);
 const idSesi = (s, i) => (s.id != null ? s.id : 'i' + i);
 function namaHari(d) {
@@ -202,7 +205,9 @@ function barisSesi(s) {
 
 function detailSesi(s) {
   const d = document.createElement('div'); d.className = 'item rw-detail';
-  const ket = infoStatus(s)[3] || (s.label === 'foto' ? `${s.photos || 4} original photos + 1 template photo.` : '');
+  let ket = infoStatus(s)[3] || (s.label === 'foto' ? `${s.photos || 4} original photos + 1 template photo.` : '');
+  if (s.teks === 'selesai') ket += ' The questions are shown at the bottom of the video; the version without text is in the "original" folder.';
+  if (s.teks === 'gagal') ket += ' The question text could not be added (the video itself is fine). Press "Process again".';
   const p = document.createElement('p'); p.textContent = ket + (s.error ? ` (${s.error})` : '') + (s.kartu ? ` File on card: ${s.kartu}.` : '');
   d.appendChild(p);
   if (Array.isArray(s.questions) && s.questions.length) {
@@ -214,7 +219,11 @@ function detailSesi(s) {
   const link = linkSesi(s);
   if (s.kode) {          // unduh lewat QR
     const q = document.createElement('div'); q.className = 'muted';
-    q.textContent = 'QR: ' + ({ terkirim: '✓ guests can download the photos', antre: 'waiting to be sent to the server', menunggu: 'waiting for internet / server', hilang: 'photo file missing, cannot be sent' }[s.unggah] || s.unggah || '-');
+    const video = s.label !== 'foto';
+    q.textContent = 'QR: ' + ({ terkirim: video ? '✓ guests can download the video' : '✓ guests can download the photos', antre: 'waiting to be sent to the server',
+      menunggu: 'waiting for internet / server', hilang: `${video ? 'video' : 'photo'} file missing, cannot be sent`,
+      olah: s.status === 'transfer' ? 'waiting for the video to be copied from the camera' : 'preparing the phone version of the video',
+      gagal: 'the phone version could not be made. Press "Process again".', 'server-lama': 'the server is too old for videos. Run npm run cloud:pasang.' }[s.unggah] || s.unggah || '-');
     d.appendChild(q);
     if (link) { const l = document.createElement('div'); l.className = 'rw-link'; l.textContent = link; d.appendChild(l); }
   }
@@ -230,7 +239,7 @@ function detailSesi(s) {
       tombol('Copy link', async () => { await api.salinTeks(link); flash('rwMsg', 'Link copied. Paste it (⌘V) into WhatsApp or another message.'); });
       tombol('Open link', async () => hasil(await api.bukaLink(link)));
     }
-    if (BISA_ULANG.includes(s.status)) tombol(s.status === 'card-only' ? 'Copy from camera again' : 'Process again', async () => {
+    if (BISA_ULANG.includes(s.status) || gagalOlah(s)) tombol(s.status === 'card-only' ? 'Copy from camera again' : 'Process again', async () => {
       const r = await api.sessionRetry(s._id);
       if (r && r.error) return flash('rwMsg', r.error, true);
       flash('rwMsg', 'Trying again…');
@@ -246,14 +255,14 @@ function linkSesi(s) {
   if (!s.kode) return '';
   if (s.link) return s.link;
   const url = String((typeof unggahSt !== 'undefined' && unggahSt.url) || '').replace(/\/+$/, '');
-  return url ? `${url}/f/${s.kode}` : '';
+  return url ? `${url}/${s.label === 'foto' ? 'f' : 'v'}/${s.kode}` : '';
 }
 // QR besar untuk sesi lama (misalnya tamu tadi lupa memindai)
 function tampilkanQRSesi(s, link) {
   const url = link + (bahasa === 'en' ? '?b=en' : '');
   const lapis = document.createElement('div'); lapis.className = 'rw-qr-lapis'; lapis.id = 'rwQR';
   lapis.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Close</button></div>`;
-  lapis.querySelector('b').textContent = `Photo ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
+  lapis.querySelector('b').textContent = `${s.label === 'foto' ? 'Photo' : s.label === 'quiz' ? 'Quiz video' : 'Video message'} ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
   lapis.querySelector('small').textContent = url.replace(/^https:\/\//, '');
   try { gambarQR(lapis.querySelector('canvas'), url, 8); } catch (e) { return flash('rwMsg', 'Could not create the QR code.', true); }
   const tutup = () => lapis.remove();

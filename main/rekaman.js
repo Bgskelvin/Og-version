@@ -3,6 +3,8 @@
    pencatatan sesi, dan pemulihan rekaman yang terputus.
    Dengan kamera Sony: kamera merekam ke kartu SD, lalu file MP4-nya
    disalin ke folder couple di belakang layar (lihat kamera-sony.js).
+   Setelah MP4 siap: teks pertanyaan quiz ditempel & versi HP untuk QR
+   dibuat di olah-video.js.
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
 const { spawn } = require('child_process');
@@ -13,20 +15,16 @@ const { activeCoupleName } = require('./couple');
 const { getWin } = require('./jendela-aktif');
 const sony = require('./kamera-sony');
 const catatan = require('./catatan');
+const olah = require('./olah-video');
+const unggah = require('./unggah');
+olah.pakaiUnggah(unggah);
 
 /* ---------- FFmpeg: .webm -> .mp4 ---------- */
-let ffmpegPath = null;
-try {
-  ffmpegPath = require('ffmpeg-static');
-  if (ffmpegPath) ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
-} catch (e) {
-  console.log('ffmpeg-static belum terpasang: rekaman tetap disimpan sebagai .webm');
-}
+const ffmpegPath = olah.path();
 
-let convChain = Promise.resolve();
 function convert(id, webmPath) {
   if (!ffmpegPath) { updateSession(id, { status: 'webm' }); return; }
-  convChain = convChain.then(() => new Promise(resolve => {
+  olah.antre(() => new Promise(resolve => {
     const mp4 = webmPath.replace(/\.webm$/i, '.mp4');
     const p = spawn(ffmpegPath, [
       '-y', '-fflags', '+genpts', '-i', webmPath,
@@ -42,11 +40,17 @@ function convert(id, webmPath) {
           fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
           updateSession(id, { file: path.basename(mp4), status: 'done' });
           catatan.catat('MP4 selesai: ' + path.basename(mp4));
+          olah.lanjutkanNanti(id);                 // teks pertanyaan quiz & versi HP untuk QR
         } else { catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}), kode FFmpeg ${code}`); updateSession(id, { status: 'failed' }); }
       } catch (e) { catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}): ${e.message}`); updateSession(id, { status: 'failed' }); }
       resolve();
     });
   }));
+}
+// Unduh video lewat QR: kode & link langsung ada, video menyusul setelah diolah & diunggah
+function pesanQR(sid, label, couple) {
+  if (!olah.ada() || !unggah.siapVideo()) return null;
+  return unggah.daftarkanVideo(sid, { couple, label });
 }
 
 const recs = new Map();  // setiap rekaman punya ID sendiri, jadi dua rekaman tidak bisa tercampur
@@ -111,6 +115,7 @@ function mulai() {
     const p = path.join(s.dir || defaultDir, s.file);
     if (fs.existsSync(p)) convert(s.id, p);
   });
+  olah.mulai();             // teks quiz / versi HP yang belum selesai
 }
 // Saat tampilan aplikasi crash: selamatkan rekaman yang sedang berjalan
 async function selamatkan() { recoveredCount = await rescueOpenRecordings(); }
@@ -120,7 +125,7 @@ function tutupSemua() { for (const rec of recs.values()) { try { if (rec.stream)
 // Salin video Sony dari kartu ke folder couple, lalu perbarui catatan sesi
 function salinVideoSony(sid, info, file) {
   sony.unduh(info, file).then(h => {
-    if (h.ok) { updateSession(sid, { status: 'done', file: path.basename(file) }); catatan.catat('Video Sony tersalin: ' + path.basename(file)); }
+    if (h.ok) { updateSession(sid, { status: 'done', file: path.basename(file) }); catatan.catat('Video Sony tersalin: ' + path.basename(file)); olah.lanjutkanNanti(sid); }
     else { updateSession(sid, { status: 'card-only', error: h.error }); catatan.error(`Video Sony belum tersalin (${path.basename(file)}): ${h.error} — masih aman di kartu`); }
   });
 }
@@ -192,6 +197,19 @@ function daftarkan() {
       salinVideoSony(id, s.kartuInfo, lokasi(s));
       return { ok: true };
     }
+    // Teks pertanyaan / versi HP untuk QR yang gagal: buat ulang
+    if (s.status === 'done' && (s.teks === 'gagal' || s.unggah === 'gagal')) {
+      if (!ffmpegPath) return { error: 'FFmpeg is not installed, the video can\'t be processed.' };
+      const patch = {};
+      if (s.teks === 'gagal') patch.teks = undefined;
+      if (s.unggah === 'gagal') {
+        if (!unggah.siapVideo()) return { error: 'Turn on "QR for video" in Admin first.' };
+        patch.unggah = 'olah'; unggah.daftarkanVideoLagi(s);
+      }
+      updateSession(id, patch);
+      olah.lanjutkanNanti(id);
+      return { ok: true };
+    }
     return { error: 'This session doesn\'t need a retry.' };
   });
   ipcMain.handle('get-startup-info', () => { const r = { recovered: recoveredCount }; recoveredCount = 0; return r; });
@@ -253,26 +271,32 @@ function daftarkan() {
   });
 
 
-  ipcMain.handle('rec-end', async (e, id, seconds, meta) => {
+  ipcMain.handle('rec-end', async (e, id, seconds, metaMasuk) => {
     const rec = recs.get(id);
     if (!rec) return null;
     recs.delete(id);
     const sid = rec.sid;
+    // Quiz: waktu & gambar teks tiap pertanyaan (gambarnya disimpan sebagai file, bukan di sessions.json)
+    const { kapsi, kapsiGambar, ...meta } = metaMasuk || {};
+    const kapsiBersih = !meta.aborted ? olah.simpanKapsi(sid, kapsi, kapsiGambar) : null;
+    if (kapsiBersih) meta.kapsi = kapsiBersih;
     if (rec.sony) {
       // Hentikan rekaman di kamera. Tamu tidak perlu menunggu video disalin.
       const r = await sony.rekamStop();
-      const patch = { seconds, ...(meta || {}), ...(r.error ? { status: 'card-only', error: r.error }
+      const qr = !r.error && !meta.aborted ? pesanQR(sid, rec.label, meta.couple) : null;
+      const patch = { seconds, ...meta, ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'olah' } : {}), ...(r.error ? { status: 'card-only', error: r.error }
         : { status: 'transfer', kartu: r.nama, kartuInfo: { slot: r.slot, contentId: r.contentId, fileId: r.fileId } }) };
       updateSession(sid, patch);
       if (r.error) catatan.error(`Rekam Sony berhenti dengan error (${path.basename(rec.file)}): ${r.error}`);
-      else catatan.catat(`Rekam selesai (Sony, ${seconds} dtk): ${path.basename(rec.file)}, menyalin dari kartu ${r.nama}`);
+      else catatan.catat(`Rekam selesai (Sony, ${seconds} dtk): ${path.basename(rec.file)}, menyalin dari kartu ${r.nama}${qr ? ', QR ' + qr.kode : ''}`);
       if (!r.error) salinVideoSony(sid, r, rec.file);
-      return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file };
+      return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file, link: qr ? qr.link : null };
     }
     await closeStream(rec);
     const ok = !rec.error;
+    const qr = ok && ffmpegPath && !meta.aborted ? pesanQR(sid, rec.label, meta.couple) : null;
     const patch = { seconds, status: !ok ? 'write-error' : (ffmpegPath ? 'processing' : 'webm'),
-      ...(rec.error ? { error: rec.error } : {}), ...(meta || {}) };
+      ...(rec.error ? { error: rec.error } : {}), ...meta, ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'olah' } : {}) };
     try {
       const list = readSessions();
       const s = list.find(x => x.id === sid);
@@ -280,10 +304,10 @@ function daftarkan() {
       else list.push({ id: sid, time: new Date(rec.t0).toISOString(), label: rec.label, file: path.basename(rec.file), dir: rec.dir, ...patch });
       writeSessions(list);
     } catch (err) { console.log('Gagal mencatat sesi: ' + err.message); }
-    if (ok) catatan.catat(`Rekam selesai (${seconds} dtk): ${path.basename(rec.file)}`);
+    if (ok) catatan.catat(`Rekam selesai (${seconds} dtk): ${path.basename(rec.file)}${qr ? ', QR ' + qr.kode : ''}`);
     else catatan.error(`Rekam gagal disimpan (${path.basename(rec.file)}): ${rec.error}`);
     if (ok) convert(sid, rec.file);
-    return { ok, file: rec.file, error: rec.error };
+    return { ok, file: rec.file, error: rec.error, link: qr ? qr.link : null };
   });
 
   // Batalkan rekaman yang gagal dimulai: tutup dan hapus file yang belum berisi

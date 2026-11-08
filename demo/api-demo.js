@@ -339,7 +339,8 @@
       return { id };
     },
     recChunk: (id, buf) => { const r = rekam.get(id); if (r) r.potongan.push(buf); },
-    recEnd: async (id, detik, meta = {}) => {
+    recEnd: async (id, detik, metaMasuk = {}) => {
+      const { kapsi, kapsiGambar, ...meta } = metaMasuk || {};   // teks quiz di video hanya di aplikasi Mac (FFmpeg)
       const r = rekam.get(id); rekam.delete(id);
       if (!r) return { ok: false, error: 'Recording not found.' };
       if (meta.aborted || !r.potongan.length) return { ok: true };
@@ -376,7 +377,7 @@
       return { ok: true, link };
     },
 
-    unggahStatus: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: false }),
+    unggahStatus: async () => ({ aktif: false, url: '', adaKunci: false, video: false, videoKualitas: '720', menunggu: 0, menungguVideo: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: false }),
     unggahSimpan: async () => ({ aktif: false, url: '', adaKunci: false, menunggu: 0, terkirim: 0, errorTerakhir: '', error: 'QR download is set up in the Mac app. In the demo, QR is always on (photos kept for 1 day).' }),
     unggahTes: async () => ({ error: DEMO }),
     unggahHasilPasang: async () => null,

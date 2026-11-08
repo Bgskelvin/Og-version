@@ -404,6 +404,224 @@ const KASUS = {
     await panggil('save-settings', { kamera: 'webcam' });
   },
 
+  async 'video lewat QR: teks quiz ditempel, versi HP, unggah per bagian, halaman video (FFmpeg sungguhan)'() {
+    // FFmpeg sungguhan: dari ffmpeg-static (Mac) atau FFmpeg di komputer uji
+    let ff = null;
+    try { ff = require('ffmpeg-static'); } catch (e) {}
+    if (!ff) { const w = spawnSync('sh', ['-c', 'command -v ffmpeg'], { encoding: 'utf8' }); ff = (w.stdout || '').trim() || null; }
+    if (!ff) { cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati'); return; }
+    process.env.LEURA_UJI_FFMPEG = ff;
+    process.env.LEURA_UJI_BAGIAN = String(96 * 1024);          // bagian kecil supaya video kecil pun terkirim dalam beberapa bagian
+    const os = require('os'), http = require('http');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uji-video-'));
+    const ffmpeg = (...a) => spawnSync(ff, ['-hide_banner', '-y', ...a], { encoding: 'utf8' });
+    const infoFF = f => ffmpeg('-i', f).stderr || '';
+    // Bahan uji: rekaman webm 6 detik (gambar uji + nada), dan 2 gambar teks (PNG)
+    const webm = path.join(tmp, 'rekaman.webm');
+    ffmpeg('-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=30', '-f', 'lavfi', '-i', 'sine=frequency=440', '-t', '6', '-c:v', 'libvpx', '-b:v', '800k', '-c:a', 'libopus', webm);
+    const png = w => { const f = path.join(tmp, w + '.png'); ffmpeg('-f', 'lavfi', '-i', `color=c=${w}:s=1920x380`, '-frames:v', '1', f); return new Uint8Array(fs.readFileSync(f)); };
+    const merah = png('red'), biru = png('blue');
+    cek(fs.statSync(webm).size > 1000 && merah[0] === 0x89, 'bahan uji dibuat (webm 6 detik + 2 gambar teks)');
+
+    // Server: Worker asli + R2 tiruan yang mendukung unggah per bagian & Range
+    const worker = (await import(require('url').pathToFileURL(path.join(__dirname, '..', 'cloud', 'worker.mjs')).href)).default;
+    const toko = new Map(), unggahan = new Map();
+    let nUpload = 0;
+    const objek = x => ({ customMetadata: x.meta, size: x.data.length, uploaded: new Date() });
+    const env = { KUNCI_BOOTH: 'kunci-booth-rahasia-123', HARI_SIMPAN: '7', FOTO: {
+      async put(k, data, o) { toko.set(k, { data: Buffer.from(data), meta: o.customMetadata }); },
+      async get(k, o) {
+        const x = toko.get(k); if (!x) return null;
+        const r = o && o.range, data = r ? x.data.subarray(r.offset, r.offset + r.length) : x.data;
+        return { body: data, ...objek(x) };
+      },
+      async head(k) { const x = toko.get(k); return x ? objek(x) : null; },
+      async createMultipartUpload(k, o) { const id = 'up' + (++nUpload); unggahan.set(id, { k, meta: o.customMetadata, bagian: new Map() }); return { uploadId: id }; },
+      resumeMultipartUpload(k, id) {
+        return {
+          async uploadPart(n, data) { const u = unggahan.get(id); if (!u || u.k !== k) throw new Error('NoSuchUpload'); u.bagian.set(n, Buffer.from(data)); return { partNumber: n, etag: 'e' + n }; },
+          async complete(parts) {
+            const u = unggahan.get(id); if (!u) throw new Error('NoSuchUpload');
+            const data = Buffer.concat(parts.slice().sort((a, b) => a.partNumber - b.partNumber).map(p => { if (p.etag !== 'e' + p.partNumber) throw new Error('etag'); return u.bagian.get(p.partNumber); }));
+            toko.set(k, { data, meta: u.meta }); unggahan.delete(id); return {};
+          },
+        };
+      },
+    } };
+    let server = null, port = 0, permintaanBagian = 0;
+    const nyalakan = () => new Promise(r => {
+      server = http.createServer(async (req, res) => {
+        const isi = []; for await (const c of req) isi.push(c);
+        if (/^\/uv\/[^/]+\/\d+/.test(req.url)) permintaanBagian++;
+        const jawab = await worker.fetch(new Request(`http://127.0.0.1:${port}${req.url}`, { method: req.method, headers: req.headers,
+          body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(isi) }), env);
+        res.writeHead(jawab.status, Object.fromEntries(jawab.headers)); res.end(Buffer.from(await jawab.arrayBuffer()));
+      }).listen(port, '127.0.0.1', () => { port = server.address().port; r(); });
+    });
+    const matikan = () => new Promise(r => { server.closeAllConnections && server.closeAllConnections(); server.close(r); });
+    const ambil = (jalur, o) => fetch(`http://127.0.0.1:${port}${jalur}`, o);
+    await nyalakan();
+
+    const { panggil, kirim, electron, sesi, dataDir } = nyalakanAplikasi();
+    electron.__siap(); await tunggu(200);
+    const st0 = await panggil('unggah-simpan', { url: `http://127.0.0.1:${port}`, kunci: env.KUNCI_BOOTH, aktif: true });
+    cek(st0.video === true && st0.videoKualitas === '720', 'QR video menyala secara bawaan, kualitas bawaan 720p', st0);
+    const ping = await (await ambil('/ping', { headers: { authorization: 'Bearer ' + env.KUNCI_BOOTH } })).json();
+    cek(ping.video === true, 'server baru memberi tahu bahwa ia mendukung video');
+
+    const rekam = async (label, tamu, meta) => {
+      const r = await panggil('rec-start', label, { tamu });
+      kirim('rec-chunk', r.id, new Uint8Array(fs.readFileSync(webm)));
+      return panggil('rec-end', r.id, 6, { couple: 'Rina & Dimas', ...meta });
+    };
+    const tungguSesi = async (cari, syarat, ms = 90000) => { const t0 = Date.now(); let s; while (Date.now() - t0 < ms) { s = sesi().find(cari); if (s && syarat(s)) return s; await tunggu(250); } return s; };
+
+    // ---- Quiz: teks pertanyaan ditempel, asli disimpan, versi HP diunggah per bagian ----
+    const q = await rekam('quiz', 'Sari', { questions: ['Di mana kalian bertemu?', 'Doa untuk mereka?'],
+      kapsi: [{ a: 0.5, b: 2.5, judul: 'Di mana kalian bertemu?' }, { a: 3.5, b: 5.8, judul: 'Doa untuk mereka?' }], kapsiGambar: [merah, biru] });
+    const kodeQ = (q.link || '').split('/v/')[1];
+    cek(q.ok && /^[A-Za-z0-9]{10}$/.test(kodeQ) && q.link === `http://127.0.0.1:${port}/v/${kodeQ}`, 'rekaman quiz selesai: link QR video langsung ada', q);
+    const sAwal = sesi().find(x => x.kode === kodeQ);
+    cek(sAwal && sAwal.unggah === 'olah' && sAwal.kapsi.length === 2 && !JSON.stringify(sAwal).includes('kapsiGambar'),
+        'sesi mencatat kode QR & waktu pertanyaan (gambar teks tidak masuk sessions.json)', sAwal);
+    const sQ = await tungguSesi(x => x.kode === kodeQ, x => x.unggah === 'terkirim' || x.unggah === 'gagal');
+    cek(sQ && sQ.status === 'done' && sQ.teks === 'selesai' && sQ.unggah === 'terkirim', 'video quiz: MP4 → teks ditempel → versi HP → terkirim', sQ);
+    const utama = path.join(sQ.dir, sQ.file), asli = path.join(sQ.dir, 'original', 'Sari_quiz_original.mp4');
+    cek(sQ.file === 'Sari_quiz.mp4' && fs.existsSync(utama) && fs.existsSync(asli) && fs.existsSync(path.join(sQ.dir, 'original', 'Sari_quiz.webm')),
+        'folder couple: Sari_quiz.mp4 (dengan teks), original/Sari_quiz_original.mp4 (tanpa teks) & rekaman webm asli');
+    // Warna rata-rata pita bawah video di detik tertentu (teks uji = kotak merah / biru)
+    const warna = (f, t) => { const r = spawnSync(ff, ['-hide_banner', '-ss', String(t), '-i', f, '-frames:v', '1', '-vf', 'crop=iw:ih/8:0:ih*7/8,scale=1:1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']); return [...r.stdout.subarray(0, 3)]; };
+    const [m1, a1, m2, a2, m3] = [warna(utama, 1.5), warna(asli, 1.5), warna(utama, 4.5), warna(asli, 4.5), warna(utama, 3.0)];
+    cek(m1[0] > 200 && m1[2] < 80 && m2[2] > 200 && m2[0] < 80, 'teks pertanyaan 1 tampil di detik 1,5 dan pertanyaan 2 di detik 4,5 (bagian bawah video)', { m1, m2 });
+    cek(Math.abs(m3[0] - warna(asli, 3.0)[0]) < 40 && Math.abs(m3[2] - warna(asli, 3.0)[2]) < 40, 'di antara pertanyaan (detik 3) tidak ada teks', m3);
+    cek(!(a1[0] > 200 && a1[2] < 80) && !(a2[2] > 200 && a2[0] < 80), 'video asli di folder original tetap tanpa teks', { a1, a2 });
+    const ketUtama = infoFF(utama);
+    cek(/Chapter #0:0/.test(ketUtama) && /Chapter #0:1/.test(ketUtama) && /Di mana kalian bertemu/.test(ketUtama), 'video diberi bab per pertanyaan (QuickTime/VLC bisa lompat)');
+    cek(/Audio: aac/.test(ketUtama) && /Duration: 00:00:0[5-6]/.test(ketUtama), 'suara tetap ada & durasi sama');
+    cek(!fs.existsSync(path.join(dataDir, 'kapsi')) || fs.readdirSync(path.join(dataDir, 'kapsi')).length === 0, 'gambar teks sementara dihapus setelah ditempel');
+    cek(!fs.existsSync(path.join(dataDir, 'qr-video')) || fs.readdirSync(path.join(dataDir, 'qr-video')).length === 0, 'versi HP sementara dihapus setelah terkirim');
+    cek(permintaanBagian >= 2 && toko.has(`video/${kodeQ}.mp4`) && toko.has(`video/${kodeQ}.jpg`), 'video dikirim dalam beberapa bagian + gambar sampul', permintaanBagian);
+    const meta = toko.get(`video/${kodeQ}.mp4`).meta;
+    cek(meta.couple === 'Rina & Dimas' && meta.jenis === 'quiz', 'server mencatat nama couple & jenis video', meta);
+
+    // ---- Halaman video untuk tamu ----
+    const hal = await (await ambil(`/v/${kodeQ}`)).text();
+    cek(hal.includes(`src="/vf/${kodeQ}"`) && hal.includes(`poster="/vp/${kodeQ}"`) && hal.includes('playsinline') && hal.includes('Simpan video') && hal.includes('Rina &amp; Dimas') && hal.includes('Quick quiz'),
+        'halaman video: pemutar (playsinline + sampul), tombol Simpan video, nama couple, label Quiz');
+    cek((await (await ambil(`/v/${kodeQ}?b=en`)).text()).includes('Your video is ready'), 'halaman video bahasa Inggris (?b=en)');
+    const vs = await (await ambil(`/vs/${kodeQ}`)).json();
+    cek(vs.ok && vs.ada && vs.jenis === 'quiz' && vs.ukuran > 1000, 'status JSON video', vs);
+    const rg = await ambil(`/vf/${kodeQ}`, { headers: { range: 'bytes=0-99' } });
+    cek(rg.status === 206 && rg.headers.get('content-range') === `bytes 0-99/${vs.ukuran}` && (await rg.arrayBuffer()).byteLength === 100 && rg.headers.get('accept-ranges') === 'bytes',
+        'video bisa diputar & digeser di HP (Range → 206)');
+    cek((await ambil(`/vf/${kodeQ}`, { headers: { range: `bytes=${vs.ukuran + 5}-` } })).status === 416, 'Range di luar ukuran video ditolak (416)');
+    const dv = await ambil(`/vd/${kodeQ}`);
+    cek(/attachment; filename="Rina-Dimas_quiz_/.test(dv.headers.get('content-disposition')), 'unduh video: nama file rapi', dv.headers.get('content-disposition'));
+    const fileHp = path.join(tmp, 'hp.mp4'); fs.writeFileSync(fileHp, Buffer.from(await dv.arrayBuffer()));
+    const ketHp = infoFF(fileHp);
+    cek(/Video: h264/.test(ketHp) && / 640x360[ ,\[]/.test(ketHp) && /Audio: aac/.test(ketHp) && /Duration: 00:00:0[5-6]/.test(ketHp),
+        'video yang diunduh tamu utuh (H.264 + AAC, 6 detik; video kecil tidak diperbesar)', (ketHp.match(/Stream.*Video.*/) || [''])[0]);
+    cek((await ambil(`/vp/${kodeQ}`)).headers.get('content-type') === 'image/jpeg', 'gambar sampul video');
+    cek((await (await ambil('/v/BelumAda123')).text()).includes('sedang disiapkan'), 'video yang belum sampai: halaman "sedang disiapkan" (memeriksa sendiri)');
+    cek((await ambil('/uv/AbcdEfgh12/mulai', { method: 'POST' })).status === 401, 'unggah video tanpa kunci booth ditolak');
+    const kunci = { authorization: 'Bearer ' + env.KUNCI_BOOTH };
+    cek((await ambil('/uv/AbcdEfgh12/1?u=palsu', { method: 'PUT', body: 'x', headers: kunci })).status === 404, 'bagian dengan nomor unggah palsu ditolak');
+
+    // ---- Pesan video: tanpa teks; internet putus di tengah → lanjut sendiri ----
+    await matikan();
+    const p = await rekam('pesan', 'Budi', {});
+    const kodeP = p.link.split('/v/')[1];
+    const sP1 = await tungguSesi(x => x.kode === kodeP, x => x.unggah === 'menunggu');
+    const stP = await panggil('unggah-status');
+    cek(sP1 && sP1.unggah === 'menunggu' && stP.menungguVideo === 1 && /internet/.test(stP.errorTerakhir), 'internet putus: QR video tetap ada, video menunggu', stP);
+    cek(!fs.existsSync(path.join(sP1.dir, 'original', 'Budi_pesan_original.mp4')), 'pesan video tanpa pertanyaan: tidak dibuat versi tanpa teks');
+    await nyalakan();
+    await panggil('unggah-coba-sekarang');
+    const sP = await tungguSesi(x => x.kode === kodeP, x => x.unggah === 'terkirim', 30000);
+    cek(sP && sP.unggah === 'terkirim' && toko.get(`video/${kodeP}.mp4`).meta.jenis === 'pesan', 'internet kembali: video pesan terkirim', sP && sP.unggah);
+    cek((await (await ambil(`/v/${kodeP}`)).text()).includes('Pesan video'), 'halaman video pesan: label "Pesan video"');
+
+    // ---- Foto didahulukan: foto yang masuk saat video sedang dikirim tetap terkirim lebih dulu ----
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
+    await matikan();
+    const v2 = (await rekam('pesan', 'Cici', {})).link.split('/v/')[1];
+    await tungguSesi(x => x.kode === v2, x => x.unggah === 'menunggu');
+    const f2 = (await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} })).link.split('/f/')[1];
+    toko.clear(); await nyalakan(); await panggil('unggah-coba-sekarang');
+    await tungguSesi(x => x.kode === v2, x => x.unggah === 'terkirim', 30000);
+    cek([...toko.keys()][0] === `foto/${f2}.jpg` && toko.has(`video/${v2}.mp4`), 'foto dikirim dulu, baru video', [...toko.keys()]);
+
+    // ---- QR video dimatikan / kualitas 1080p ----
+    const st1 = await panggil('unggah-simpan', { videoKualitas: '1080' });
+    cek(st1.videoKualitas === '1080' && st1.video === true && st1.aktif === true, 'kualitas bisa diganti ke 1080p tanpa mengubah pengaturan lain');
+    const st2 = await panggil('unggah-simpan', { video: false });
+    cek(st2.video === false && st2.videoKualitas === '1080', 'QR video bisa dimatikan');
+    const tanpa = await rekam('pesan', 'Dodi', {});
+    cek(tanpa.ok && !tanpa.link, 'QR video mati: rekaman tidak mendapat link QR');
+    await tungguSesi(x => x.tamu === 'Dodi', x => x.status === 'done');
+    cek(!sesi().find(x => x.tamu === 'Dodi').kode, 'sesi tanpa kode QR');
+    await matikan();
+  },
+
+  async 'video lewat QR: dilanjutkan setelah aplikasi ditutup, dan "Process again" (FFmpeg sungguhan)'() {
+    let ff = null;
+    try { ff = require('ffmpeg-static'); } catch (e) {}
+    if (!ff) { const w = spawnSync('sh', ['-c', 'command -v ffmpeg'], { encoding: 'utf8' }); ff = (w.stdout || '').trim() || null; }
+    if (!ff) { cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati'); return; }
+    process.env.LEURA_UJI_FFMPEG = ff;
+    const os = require('os'), http = require('http');
+    const akar = fs.mkdtempSync(path.join(os.tmpdir(), 'videobooth-uji-'));
+    const data = path.join(akar, 'data'), folder = path.join(akar, 'docs', 'Leura', 'Rina & Dimas');
+    fs.mkdirSync(path.join(data, 'kapsi'), { recursive: true }); fs.mkdirSync(folder, { recursive: true });
+    const ffmpeg = (...a) => spawnSync(ff, ['-hide_banner', '-y', ...a], { encoding: 'utf8' });
+    ffmpeg('-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=30', '-f', 'lavfi', '-i', 'sine', '-t', '4', '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', path.join(folder, 'Ana_quiz.mp4'));
+    fs.copyFileSync(path.join(folder, 'Ana_quiz.mp4'), path.join(folder, 'Edo_quiz.mp4'));
+    ffmpeg('-f', 'lavfi', '-i', 'color=c=red:s=1920x380', '-frames:v', '1', path.join(data, 'kapsi', '111-1.png'));
+    // Server QR (Worker asli, R2 tiruan sederhana: video dikirim dalam 1 bagian)
+    const worker = (await import(require('url').pathToFileURL(path.join(__dirname, '..', 'cloud', 'worker.mjs')).href)).default;
+    const toko = new Map(), up = new Map();
+    const env = { KUNCI_BOOTH: 'kunci-booth-rahasia-123', HARI_SIMPAN: '7', FOTO: {
+      async put(k, d, o) { toko.set(k, { data: Buffer.from(d), meta: o.customMetadata }); },
+      async get(k) { const x = toko.get(k); return x ? { body: x.data, customMetadata: x.meta, size: x.data.length } : null; },
+      async head(k) { const x = toko.get(k); return x ? { customMetadata: x.meta, size: x.data.length } : null; },
+      async createMultipartUpload(k, o) { up.set('u1', { k, meta: o.customMetadata, b: [] }); return { uploadId: 'u1' }; },
+      resumeMultipartUpload(k, id) { const u = up.get(id); return {
+        async uploadPart(n, d) { if (!u) throw new Error('x'); u.b[n] = Buffer.from(d); return { etag: 'e' + n }; },
+        async complete() { if (!u) throw new Error('x'); toko.set(u.k, { data: Buffer.concat(u.b.filter(Boolean)), meta: u.meta }); up.delete(id); } }; },
+    } };
+    let port = 0;
+    const server = await new Promise(r => { const s = http.createServer(async (req, res) => {
+      const isi = []; for await (const c of req) isi.push(c);
+      const j = await worker.fetch(new Request(`http://127.0.0.1:${port}${req.url}`, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(isi) }), env);
+      res.writeHead(j.status, Object.fromEntries(j.headers)); res.end(Buffer.from(await j.arrayBuffer()));
+    }).listen(0, '127.0.0.1', () => { port = s.address().port; r(s); }); });
+    // Keadaan saat aplikasi ditutup: Ana sedang ditempeli teks (QR menunggu versi HP), Edo gambar teksnya hilang
+    fs.writeFileSync(path.join(data, 'settings.json'), JSON.stringify({ unggah: { aktif: true, url: `http://127.0.0.1:${port}`, kunci: env.KUNCI_BOOTH } }));
+    const waktu = new Date().toISOString();
+    fs.writeFileSync(path.join(data, 'sessions.json'), JSON.stringify([
+      { id: 111, time: waktu, label: 'quiz', file: 'Ana_quiz.mp4', dir: folder, couple: 'Rina & Dimas', tamu: 'Ana', seconds: 4, status: 'teks', teks: 'proses',
+        kapsi: [{ a: 0.5, b: 3.5, judul: 'Q1' }], questions: ['Q1'], kode: 'AnaKode123', link: `http://127.0.0.1:${port}/v/AnaKode123`, unggah: 'olah' },
+      { id: 222, time: waktu, label: 'quiz', file: 'Edo_quiz.mp4', dir: folder, couple: 'Rina & Dimas', tamu: 'Edo', seconds: 4, status: 'done',
+        kapsi: [{ a: 0.5, b: 3.5, judul: 'Q1' }], questions: ['Q1'] },
+    ]));
+    fs.writeFileSync(path.join(data, 'antrean-unggah.json'), JSON.stringify([{ jenis: 'video', kode: 'AnaKode123', sid: 111, label: 'quiz', couple: 'Rina & Dimas', file: null, bagian: [] }]));
+
+    const { panggil, electron, sesi } = nyalakanAplikasi({ akar });
+    electron.__siap();
+    const tungguSesi = async (id, syarat, ms = 60000) => { const t0 = Date.now(); let s; while (Date.now() - t0 < ms) { s = sesi().find(x => x.id === id); if (s && syarat(s)) return s; await tunggu(250); } return s; };
+    const ana = await tungguSesi(111, s => s.unggah === 'terkirim');
+    cek(ana.status === 'done' && ana.teks === 'selesai' && ana.unggah === 'terkirim' && fs.existsSync(path.join(folder, 'original', 'Ana_quiz_original.mp4')) && toko.has('video/AnaKode123.mp4'),
+        'aplikasi dibuka lagi: teks pertanyaan & unggah video yang terputus dilanjutkan sendiri', ana);
+    const edo = await tungguSesi(222, s => s.teks === 'gagal');
+    cek(edo.teks === 'gagal' && edo.status === 'done' && fs.existsSync(path.join(folder, 'Edo_quiz.mp4')), 'gambar teks hilang: ditandai gagal, video tetap aman', edo);
+    ffmpeg('-f', 'lavfi', '-i', 'color=c=red:s=1920x380', '-frames:v', '1', path.join(data, 'kapsi', '222-1.png'));
+    cek((await panggil('session-retry', 222)).ok, 'Riwayat: "Process again" bisa ditekan');
+    const edo2 = await tungguSesi(222, s => s.teks === 'selesai');
+    cek(edo2.teks === 'selesai' && fs.existsSync(path.join(folder, 'original', 'Edo_quiz_original.mp4')), 'Process again: teks pertanyaan berhasil ditempel', edo2);
+    cek((await panggil('session-retry', 222)).error === 'This session doesn\'t need a retry.', 'sesi yang sudah beres tidak perlu diulang');
+    await new Promise(r => { server.closeAllConnections && server.closeAllConnections(); server.close(r); });
+  },
+
   async 'unduh foto lewat QR: antrean unggah + server Cloudflare (Worker asli, R2 tiruan)'() {
     const http = require('http');
     const worker = (await import(require('url').pathToFileURL(path.join(__dirname, '..', 'cloud', 'worker.mjs')).href)).default;

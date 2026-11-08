@@ -376,10 +376,14 @@
       <p class="pe-hint" style="margin:8px 6px 0">The flash adds extra light from the screen. Turn it off if your booth lights are bright enough.</p>
       <div class="note ok" id="setPhotoMsg"></div>
 
-      <div class="group-title">Photo download via QR</div>
+      <div class="group-title">Download via QR (photos &amp; videos)</div>
       <div class="group">
         <div class="item split" style="justify-content:space-between"><span style="width:auto">Show a QR code on the Thank you page</span>
           <label class="switch"><input type="checkbox" id="setQrAktif"><i></i></label></div>
+        <div class="item split" style="justify-content:space-between"><span style="width:auto">QR for video messages &amp; quiz</span>
+          <label class="switch"><input type="checkbox" id="setQrVideo"><i></i></label></div>
+        <div class="item split"><span>Video quality for phones</span><select id="setQrKualitas" class="field" aria-label="Video quality for phones">
+          <option value="720">720p · lighter, uploads faster (recommended)</option><option value="1080">1080p · sharper, about 2× larger</option></select></div>
         <div class="item split"><span>Server address</span><input id="setQrUrl" class="field" placeholder="https://leura-foto.xxx.workers.dev" autocomplete="off"></div>
         <div class="item split"><span>Booth key</span><input id="setQrKunci" class="field" type="password" autocomplete="off"></div>
         <div class="item actions">
@@ -391,6 +395,7 @@
           <button id="btnQrUlang" class="btn sm tint" style="display:none">Send now</button></div>
       </div>
       <p class="pe-hint" style="margin:8px 6px 0">The template photo and the 4 single shots are uploaded to your Cloudflare server, and guests can download them via QR for 7 days. The QR still appears when the internet is down; photos are sent as soon as it's back. Set up the server once with <b>npm run cloud:pasang</b>.</p>
+      <p class="pe-hint" style="margin:6px 6px 0">Video messages and quiz videos get a QR too. A light phone version is made on this Mac and uploaded in the background (the original stays in the couple folder); guests can watch and save it a few minutes later. Photos are always sent first. Turn this off for couples who want the messages to stay private.</p>
       <div class="note ok" id="qrMsg"></div>
 
       <p class="pe-hint" style="margin:14px 6px 0">Photo templates are set per couple: Admin → tap the couple → Photo templates.</p>

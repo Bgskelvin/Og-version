@@ -199,6 +199,13 @@ body.camOn .pb-safe.on { display:block; }
 #thanks.tk-foto p { font-size:clamp(16px, 1.5vw, 19px); }
 #thanks.tk-foto.tk-ada-qr p { display:none; }          /* "Fotomu sudah tersimpan" — QR sudah menjelaskannya */
 
+/* Pesan / quiz dengan QR video: tanpa foto, semuanya harus muat satu layar */
+#thanks.tk-ada-qr:not(.tk-foto) .tk-sisi { gap:1.6vh; padding:3vh 3vw; }
+#thanks.tk-ada-qr:not(.tk-foto) .badge { width:64px; height:64px; margin:0 auto; }
+#thanks.tk-ada-qr:not(.tk-foto) .badge svg.i { width:36px; height:36px; }
+#thanks.tk-ada-qr:not(.tk-foto) #thanksMsg { display:none; }
+#thanks.tk-ada-qr:not(.tk-foto) .tk-qr canvas { width:min(34vh, 100%, 330px); }
+
 /* QR: kartu putih, besar, kontras penuh */
 .tk-qr { display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; padding:16px 16px 18px;
   background:#fff; border-radius:24px; color:#1D1D1F; box-shadow:0 2px 6px rgba(20,20,40,.06), 0 18px 44px rgba(20,20,40,.14); }
