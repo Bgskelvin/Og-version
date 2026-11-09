@@ -18,11 +18,13 @@ function buatJendela(DEV) {
   Menu.setApplicationMenu(template.length ? Menu.buildFromTemplate(template) : null);
 
   const win = new BrowserWindow({
-    width: 1280, height: 800,
-    fullscreen: effective().kiosk, kiosk: effective().kiosk,
+    width: 1280,
+    height: 800,
+    fullscreen: effective().kiosk,
+    kiosk: effective().kiosk,
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(__dirname, '..', 'preload.js') }
+    webPreferences: { preload: path.join(__dirname, '..', 'preload.js') },
   });
   const wc = win.webContents;
   // Pesan dari tampilan masuk catatan; error (merah di DevTools) ditandai ✗
@@ -31,24 +33,39 @@ function buatJendela(DEV) {
   wc.on('console-message', (e, ...lama) => {
     const [lv, teks, line, src] = e && e.message != null ? [e.level, e.message, e.lineNumber, e.sourceId] : lama;
     const err = lv === 3 || lv === 'error';
-    catatan.catat('[tampilan] ' + teks + (err && src ? ` (${String(src).split('/').pop()}:${line})` : ''), err ? 'error' : lv === 2 || lv === 'warning' ? 'peringatan' : 'info');
+    catatan.catat(
+      '[tampilan] ' + teks + (err && src ? ` (${String(src).split('/').pop()}:${line})` : ''),
+      err ? 'error' : lv === 2 || lv === 'warning' ? 'peringatan' : 'info',
+    );
   });
 
   // Jangan pernah pindah halaman (mis. file atau link terseret ke jendela) dan jangan buka jendela baru
   const appUrl = require('url').pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
-  wc.on('will-navigate', (e, url) => { if (url !== appUrl) e.preventDefault(); });
+  wc.on('will-navigate', (e, url) => {
+    if (url !== appUrl) e.preventDefault();
+  });
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
   // Kunci zoom (pinch di trackpad / layar sentuh, Ctrl+scroll).
   // Dipasang setelah halaman selesai dimuat: kalau dipanggil terlalu awal Electron menolak
   // ("Render frame was disposed before WebFrameMain could be accessed").
-  wc.on('did-finish-load', () => { Promise.resolve(wc.setVisualZoomLevelLimits(1, 1)).catch(() => {}); });
+  wc.on('did-finish-load', () => {
+    Promise.resolve(wc.setVisualZoomLevelLimits(1, 1)).catch(() => {});
+  });
   wc.on('zoom-changed', () => wc.setZoomFactor(1));
   // Kalau tampilan aplikasi crash, muat ulang otomatis supaya layar tidak tertinggal kosong
   wc.on('render-process-gone', async (e, d) => {
     if (d.reason === 'clean-exit') return;
-    catatan.error('Tampilan aplikasi berhenti (' + d.reason + ', kode ' + d.exitCode + '), menyelamatkan rekaman lalu memuat ulang');
-    try { await rekaman.selamatkan(); } catch (err) { console.log(err.message); }
-    setTimeout(() => { if (!win.isDestroyed()) wc.reload(); }, 1000);
+    catatan.error(
+      'Tampilan aplikasi berhenti (' + d.reason + ', kode ' + d.exitCode + '), menyelamatkan rekaman lalu memuat ulang',
+    );
+    try {
+      await rekaman.selamatkan();
+    } catch (err) {
+      console.log(err.message);
+    }
+    setTimeout(() => {
+      if (!win.isDestroyed()) wc.reload();
+    }, 1000);
   });
 
   // Tombol ✕ merah: tanya dulu (dialog yang sama dengan Admin → Tutup aplikasi)
@@ -68,7 +85,8 @@ function munculkan() {
   const win = getWin();
   if (!win) return;
   if (win.isMinimized()) win.restore();
-  win.show(); win.focus();
+  win.show();
+  win.focus();
 }
 
 module.exports = { buatJendela, munculkan };

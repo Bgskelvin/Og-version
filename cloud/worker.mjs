@@ -29,88 +29,199 @@
 const KODE = /^[A-Za-z0-9]{8,16}$/;
 const MAKS_BYTE = 15 * 1024 * 1024;
 const MAKS_SATUAN = 4;
-const MAKS_BAGIAN_BYTE = 9 * 1024 * 1024;       // booth mengirim bagian 8 MB
-const MAKS_BAGIAN = 250;                        // ±2 GB per video
+const MAKS_BAGIAN_BYTE = 9 * 1024 * 1024; // booth mengirim bagian 8 MB
+const MAKS_BAGIAN = 250; // ±2 GB per video
 const MAKS_POSTER = 3 * 1024 * 1024;
 
 const TEKS = {
   id: {
-    lang: 'id', judul: 'Foto Photo Booth', siap: 'Fotomu sudah siap',
-    simpanSemua: 'Simpan semua foto', simpanSemuaN: 'Simpan semua ({n} foto)', simpanIni: 'Simpan', simpanTemplate: 'Simpan foto template saja', simpanSatu: 'Simpan foto ini',
-    fotoTemplate: 'Foto dengan template', fotoSatuan: 'Foto satuan', ketukLihat: 'Ketuk foto untuk melihat lebih besar',
-    menyusul: 'Sedang dikirim…', menyusulInfo: 'Foto satuan sedang menyusul. Halaman ini akan memperbarui sendiri.',
-    tersedia: 'Tersedia sampai {t}', bagikan: 'Bagikan link', disalin: 'Link disalin',
+    lang: 'id',
+    judul: 'Foto Photo Booth',
+    siap: 'Fotomu sudah siap',
+    simpanSemua: 'Simpan semua foto',
+    simpanSemuaN: 'Simpan semua ({n} foto)',
+    simpanIni: 'Simpan',
+    simpanTemplate: 'Simpan foto template saja',
+    simpanSatu: 'Simpan foto ini',
+    fotoTemplate: 'Foto dengan template',
+    fotoSatuan: 'Foto satuan',
+    ketukLihat: 'Ketuk foto untuk melihat lebih besar',
+    menyusul: 'Sedang dikirim…',
+    menyusulInfo: 'Foto satuan sedang menyusul. Halaman ini akan memperbarui sendiri.',
+    tersedia: 'Tersedia sampai {t}',
+    bagikan: 'Bagikan link',
+    disalin: 'Link disalin',
     tipsIos: 'Tekan "Simpan semua", lalu pilih "Simpan Gambar" supaya foto masuk ke galeri.',
-    tipsLain: 'Foto tersimpan di folder Unduhan.', memuat: 'Menyiapkan foto…', gagal: 'Gagal menyimpan. Coba tekan lagi.',
-    tersimpan: 'Tersimpan', tutup: 'Tutup', sebelum: 'Sebelumnya', berikut: 'Berikutnya',
-    tunggu: 'Fotomu sedang dikirim…', tungguInfo: 'Halaman ini akan memuat ulang sendiri. Biasanya hanya beberapa detik.',
-    hilang: 'Foto tidak ditemukan', hilangInfo: 'Foto disimpan selama {h} hari setelah diambil. Kalau kamu baru saja berfoto, tunggu sebentar dan buka lagi link ini.',
-    simpanHari: 'Foto tersedia {h} hari.', foto: 'Foto',
-    vJudul: 'Video Leura', vSiap: 'Videomu sudah siap', vPesan: 'Pesan video', vQuiz: 'Quick quiz',
-    vSimpan: 'Simpan video', vMemuat: 'Menyiapkan video… {p}%', vTipsIos: 'Tekan "Simpan video", lalu pilih "Simpan Video" supaya masuk ke galeri.',
-    vTipsLain: 'Video tersimpan di folder Unduhan.', vTersimpan: 'Video tersimpan',
-    vTunggu: 'Videomu sedang disiapkan…', vTungguInfo: 'Video diproses dan dikirim dari booth, biasanya 1 sampai 3 menit. Halaman ini akan terbuka sendiri saat videonya siap.',
+    tipsLain: 'Foto tersimpan di folder Unduhan.',
+    memuat: 'Menyiapkan foto…',
+    gagal: 'Gagal menyimpan. Coba tekan lagi.',
+    tersimpan: 'Tersimpan',
+    tutup: 'Tutup',
+    sebelum: 'Sebelumnya',
+    berikut: 'Berikutnya',
+    tunggu: 'Fotomu sedang dikirim…',
+    tungguInfo: 'Halaman ini akan memuat ulang sendiri. Biasanya hanya beberapa detik.',
+    hilang: 'Foto tidak ditemukan',
+    hilangInfo:
+      'Foto disimpan selama {h} hari setelah diambil. Kalau kamu baru saja berfoto, tunggu sebentar dan buka lagi link ini.',
+    simpanHari: 'Foto tersedia {h} hari.',
+    foto: 'Foto',
+    vJudul: 'Video Leura',
+    vSiap: 'Videomu sudah siap',
+    vPesan: 'Pesan video',
+    vQuiz: 'Quick quiz',
+    vSimpan: 'Simpan video',
+    vMemuat: 'Menyiapkan video… {p}%',
+    vTipsIos: 'Tekan "Simpan video", lalu pilih "Simpan Video" supaya masuk ke galeri.',
+    vTipsLain: 'Video tersimpan di folder Unduhan.',
+    vTersimpan: 'Video tersimpan',
+    vTunggu: 'Videomu sedang disiapkan…',
+    vTungguInfo:
+      'Video diproses dan dikirim dari booth, biasanya 1 sampai 3 menit. Halaman ini akan terbuka sendiri saat videonya siap.',
     vLama: 'Videonya belum sampai. Booth mungkin sedang tidak tersambung internet — coba buka lagi link ini nanti.',
-    vHilang: 'Video tidak ditemukan', vHilangInfo: 'Video disimpan selama {h} hari setelah direkam.', vPutar: 'Putar video',
+    vHilang: 'Video tidak ditemukan',
+    vHilangInfo: 'Video disimpan selama {h} hari setelah direkam.',
+    vPutar: 'Putar video',
   },
   en: {
-    lang: 'en', judul: 'Photo Booth photos', siap: 'Your photos are ready',
-    simpanSemua: 'Save all photos', simpanSemuaN: 'Save all ({n} photos)', simpanIni: 'Save', simpanTemplate: 'Save template photo only', simpanSatu: 'Save this photo',
-    fotoTemplate: 'Photo with template', fotoSatuan: 'Single shots', ketukLihat: 'Tap a photo to see it bigger',
-    menyusul: 'On its way…', menyusulInfo: 'Your single shots are still uploading. This page updates by itself.',
-    tersedia: 'Available until {t}', bagikan: 'Share link', disalin: 'Link copied',
+    lang: 'en',
+    judul: 'Photo Booth photos',
+    siap: 'Your photos are ready',
+    simpanSemua: 'Save all photos',
+    simpanSemuaN: 'Save all ({n} photos)',
+    simpanIni: 'Save',
+    simpanTemplate: 'Save template photo only',
+    simpanSatu: 'Save this photo',
+    fotoTemplate: 'Photo with template',
+    fotoSatuan: 'Single shots',
+    ketukLihat: 'Tap a photo to see it bigger',
+    menyusul: 'On its way…',
+    menyusulInfo: 'Your single shots are still uploading. This page updates by itself.',
+    tersedia: 'Available until {t}',
+    bagikan: 'Share link',
+    disalin: 'Link copied',
     tipsIos: 'Tap "Save all", then choose "Save Images" to put the photos in your gallery.',
-    tipsLain: 'Photos are saved to your Downloads folder.', memuat: 'Preparing photos…', gagal: "Couldn't save. Please try again.",
-    tersimpan: 'Saved', tutup: 'Close', sebelum: 'Previous', berikut: 'Next',
-    tunggu: 'Your photo is on its way…', tungguInfo: 'This page will refresh by itself. It usually takes just a few seconds.',
-    hilang: 'Photo not found', hilangInfo: 'Photos are kept for {h} days after they are taken. If you just took your photo, please wait a moment and open this link again.',
-    simpanHari: 'Available for {h} days.', foto: 'Photo',
-    vJudul: 'Leura video', vSiap: 'Your video is ready', vPesan: 'Video message', vQuiz: 'Quick quiz',
-    vSimpan: 'Save video', vMemuat: 'Preparing video… {p}%', vTipsIos: 'Tap "Save video", then choose "Save Video" to put it in your gallery.',
-    vTipsLain: 'The video is saved to your Downloads folder.', vTersimpan: 'Video saved',
-    vTunggu: 'Your video is being prepared…', vTungguInfo: 'The booth processes and sends the video, usually within 1 to 3 minutes. This page opens by itself when it is ready.',
+    tipsLain: 'Photos are saved to your Downloads folder.',
+    memuat: 'Preparing photos…',
+    gagal: "Couldn't save. Please try again.",
+    tersimpan: 'Saved',
+    tutup: 'Close',
+    sebelum: 'Previous',
+    berikut: 'Next',
+    tunggu: 'Your photo is on its way…',
+    tungguInfo: 'This page will refresh by itself. It usually takes just a few seconds.',
+    hilang: 'Photo not found',
+    hilangInfo:
+      'Photos are kept for {h} days after they are taken. If you just took your photo, please wait a moment and open this link again.',
+    simpanHari: 'Available for {h} days.',
+    foto: 'Photo',
+    vJudul: 'Leura video',
+    vSiap: 'Your video is ready',
+    vPesan: 'Video message',
+    vQuiz: 'Quick quiz',
+    vSimpan: 'Save video',
+    vMemuat: 'Preparing video… {p}%',
+    vTipsIos: 'Tap "Save video", then choose "Save Video" to put it in your gallery.',
+    vTipsLain: 'The video is saved to your Downloads folder.',
+    vTersimpan: 'Video saved',
+    vTunggu: 'Your video is being prepared…',
+    vTungguInfo:
+      'The booth processes and sends the video, usually within 1 to 3 minutes. This page opens by itself when it is ready.',
     vLama: "The video hasn't arrived yet. The booth may be offline — please open this link again later.",
-    vHilang: 'Video not found', vHilangInfo: 'Videos are kept for {h} days after they are recorded.', vPutar: 'Play video',
+    vHilang: 'Video not found',
+    vHilangInfo: 'Videos are kept for {h} days after they are recorded.',
+    vPutar: 'Play video',
   },
 };
 
 const kunciFoto = (kode, n) => (n ? `foto/${kode}-${n}.jpg` : `foto/${kode}.jpg`);
 const hariSimpan = env => Math.max(1, Number(env.HARI_SIMPAN) || 7);
-const waktuUnggah = obj => Number(obj.customMetadata && obj.customMetadata.diunggah) || (obj.uploaded ? new Date(obj.uploaded).getTime() : Date.now());
+const waktuUnggah = obj =>
+  Number(obj.customMetadata && obj.customMetadata.diunggah) ||
+  (obj.uploaded ? new Date(obj.uploaded).getTime() : Date.now());
 const kedaluwarsa = (obj, env) => Date.now() - waktuUnggah(obj) > hariSimpan(env) * 86400000;
 // Bandingkan kunci tanpa bocor lewat waktu proses
 function samaAman(a, b) {
-  a = String(a || ''); b = String(b || '');
+  a = String(a || '');
+  b = String(b || '');
   let beda = a.length ^ b.length;
   for (let i = 0; i < Math.max(a.length, b.length); i++) beda |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
   return beda === 0 && a.length > 0;
 }
-const bolehBooth = (req, env) => samaAman((req.headers.get('authorization') || '').replace(/^Bearer\s+/i, ''), env.KUNCI_BOOTH);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const HEADER_AMAN = { 'x-robots-tag': 'noindex, nofollow', 'referrer-policy': 'no-referrer', 'x-content-type-options': 'nosniff' };
-const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...HEADER_AMAN } });
-const namaCouple = v => { try { return decodeURIComponent(String(v || '')).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 80); } catch (e) { return ''; } };
+const bolehBooth = (req, env) =>
+  samaAman((req.headers.get('authorization') || '').replace(/^Bearer\s+/i, ''), env.KUNCI_BOOTH);
+const esc = s =>
+  String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const HEADER_AMAN = {
+  'x-robots-tag': 'noindex, nofollow',
+  'referrer-policy': 'no-referrer',
+  'x-content-type-options': 'nosniff',
+};
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...HEADER_AMAN },
+  });
+// Karakter kontrol & < > dibuang dari nama couple
+// eslint-disable-next-line no-control-regex -- sengaja mencari karakter kontrol
+const KARAKTER_TERLARANG = /[\u0000-\u001f<>]/g;
+const namaCouple = v => {
+  try {
+    return decodeURIComponent(String(v || ''))
+      .replace(KARAKTER_TERLARANG, '')
+      .trim()
+      .slice(0, 80);
+  } catch {
+    return '';
+  }
+};
 // Nama file unduhan: "Rina-Dimas_foto-1.jpg" (huruf aman saja)
-const namaFile = (couple, kode, n) => `${(couple || 'Leura').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'Leura'}_${n ? 'foto-' + n : 'template'}_${kode.slice(0, 4)}.jpg`;
+const namaFile = (couple, kode, n) =>
+  `${
+    (couple || 'Leura')
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'Leura'
+  }_${n ? 'foto-' + n : 'template'}_${kode.slice(0, 4)}.jpg`;
 
 const kunciVideo = kode => `video/${kode}.mp4`;
 const kunciPoster = kode => `video/${kode}.jpg`;
-const namaFileVideo = (couple, kode, jenis) => `${(couple || 'Leura').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'Leura'}_${jenis === 'quiz' ? 'quiz' : 'pesan'}_${kode.slice(0, 4)}.mp4`;
+const namaFileVideo = (couple, kode, jenis) =>
+  `${
+    (couple || 'Leura')
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 40) || 'Leura'
+  }_${jenis === 'quiz' ? 'quiz' : 'pesan'}_${kode.slice(0, 4)}.mp4`;
 async function infoVideo(env, kode) {
   if (!KODE.test(kode)) return null;
   const obj = await env.FOTO.head(kunciVideo(kode));
   if (!obj || kedaluwarsa(obj, env)) return null;
   const m = obj.customMetadata || {};
-  return { obj, couple: m.couple || '', jenis: m.jenis === 'quiz' ? 'quiz' : 'pesan', ukuran: obj.size, poster: !!(await env.FOTO.head(kunciPoster(kode))),
-           sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000 };
+  return {
+    obj,
+    couple: m.couple || '',
+    jenis: m.jenis === 'quiz' ? 'quiz' : 'pesan',
+    ukuran: obj.size,
+    poster: !!(await env.FOTO.head(kunciPoster(kode))),
+    sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000,
+  };
 }
 // "bytes=a-b" / "bytes=a-" / "bytes=-n" → { offset, length } (null kalau tidak ada/tidak valid)
 function bacaRange(h, ukuran) {
   const m = /^bytes=(\d*)-(\d*)$/.exec(String(h || '').trim());
   if (!m || (m[1] === '' && m[2] === '')) return null;
   let a, b;
-  if (m[1] === '') { const n = Number(m[2]); a = Math.max(0, ukuran - n); b = ukuran - 1; }
-  else { a = Number(m[1]); b = m[2] === '' ? ukuran - 1 : Math.min(Number(m[2]), ukuran - 1); }
+  if (m[1] === '') {
+    const n = Number(m[2]);
+    a = Math.max(0, ukuran - n);
+    b = ukuran - 1;
+  } else {
+    a = Number(m[1]);
+    b = m[2] === '' ? ukuran - 1 : Math.min(Number(m[2]), ukuran - 1);
+  }
   if (a >= ukuran || b < a) return { salah: true };
   return { offset: a, length: b - a + 1 };
 }
@@ -124,7 +235,11 @@ async function ambil(env, kode, n) {
 }
 // Foto satuan mana yang sudah sampai
 async function cekSatuan(env, kode, jumlah) {
-  const ada = await Promise.all(Array.from({ length: jumlah }, (_, i) => (env.FOTO.head ? env.FOTO.head(kunciFoto(kode, i + 1)) : env.FOTO.get(kunciFoto(kode, i + 1)))));
+  const ada = await Promise.all(
+    Array.from({ length: jumlah }, (_, i) =>
+      env.FOTO.head ? env.FOTO.head(kunciFoto(kode, i + 1)) : env.FOTO.get(kunciFoto(kode, i + 1)),
+    ),
+  );
   return ada.map((x, i) => (x ? i + 1 : 0)).filter(Boolean);
 }
 async function statusFoto(env, kode) {
@@ -132,7 +247,12 @@ async function statusFoto(env, kode) {
   if (!obj) return null;
   const m = obj.customMetadata || {};
   const jumlah = Math.min(MAKS_SATUAN, Math.max(0, Number(m.jumlah) || 0));
-  return { couple: m.couple || '', jumlah, ada: jumlah ? await cekSatuan(env, kode, jumlah) : [], sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000 };
+  return {
+    couple: m.couple || '',
+    jumlah,
+    ada: jumlah ? await cekSatuan(env, kode, jumlah) : [],
+    sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000,
+  };
 }
 
 const GAYA = `
@@ -212,29 +332,49 @@ p{margin:8px 0}
 `;
 
 function halaman(t, isi, skrip = '') {
-  return new Response(`<!doctype html><html lang="${t.lang}"><head><meta charset="utf-8">
+  return new Response(
+    `<!doctype html><html lang="${t.lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F6F1EA"><title>${esc(t.judul)}</title><style>${GAYA}</style></head>
 <body><main><div class="merek">LEURA</div>${isi}</main>${skrip}</body></html>`,
-  { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...HEADER_AMAN } });
+    { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...HEADER_AMAN } },
+  );
 }
 
 const IKON = {
-  unduh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>',
-  bagikan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 7.5l4-4 4 4M6 11v8.5h12V11"/></svg>',
-  tutup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  unduh:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>',
+  bagikan:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 7.5l4-4 4 4M6 11v8.5h12V11"/></svg>',
+  tutup:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   kiri: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
-  kanan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
+  kanan:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
 };
 
 // Halaman unduh: foto template besar, foto satuan di bawahnya, lihat besar (geser), simpan satu / semua
 function halamanUnduh(t, kode, s, bahasa) {
-  const tgl = new Date(s.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
+  const tgl = new Date(s.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Makassar',
+  });
   const total = 1 + s.jumlah;
-  const data = { kode, jumlah: s.jumlah, ada: s.ada, couple: s.couple, t, bahasa,
-    nama: [namaFile(s.couple, kode, 0), ...Array.from({ length: s.jumlah }, (_, i) => namaFile(s.couple, kode, i + 1))] };
-  const satuan = s.jumlah ? `<h2>${esc(t.fotoSatuan)} <small>${esc(t.ketukLihat)}</small></h2>
-<div class="grid" id="grid">${Array.from({ length: s.jumlah }, (_, i) => `<div class="sel tunggu muncul" style="animation-delay:${120 + i * 70}ms" data-n="${i + 1}"><span>${esc(t.menyusul)}</span></div>`).join('')}</div>` : '';
+  const data = {
+    kode,
+    jumlah: s.jumlah,
+    ada: s.ada,
+    couple: s.couple,
+    t,
+    bahasa,
+    nama: [namaFile(s.couple, kode, 0), ...Array.from({ length: s.jumlah }, (_, i) => namaFile(s.couple, kode, i + 1))],
+  };
+  const satuan = s.jumlah
+    ? `<h2>${esc(t.fotoSatuan)} <small>${esc(t.ketukLihat)}</small></h2>
+<div class="grid" id="grid">${Array.from({ length: s.jumlah }, (_, i) => `<div class="sel tunggu muncul" style="animation-delay:${120 + i * 70}ms" data-n="${i + 1}"><span>${esc(t.menyusul)}</span></div>`).join('')}</div>`
+    : '';
   const isi = `<h1 class="muncul">${esc(s.couple || t.siap)}</h1>
 <p class="sub muncul" style="animation-delay:60ms">${esc(s.couple ? t.siap : t.judul)} ✨</p>
 <div class="kartu muncul" style="animation-delay:120ms"><button class="hero" id="hero" aria-label="${esc(t.fotoTemplate)}"><img src="/i/${kode}" alt="${esc(t.fotoTemplate)}" fetchpriority="high"><span class="label">${esc(t.fotoTemplate)}</span></button></div>
@@ -260,7 +400,12 @@ ${satuan}
 
 // Halaman video: pemutar, Simpan video (ke galeri lewat menu bagikan), Bagikan link
 function halamanVideo(t, kode, v, bahasa) {
-  const tgl = new Date(v.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Makassar' });
+  const tgl = new Date(v.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Makassar',
+  });
   const label = v.jenis === 'quiz' ? t.vQuiz : t.vPesan;
   const data = { kode, couple: v.couple, nama: namaFileVideo(v.couple, kode, v.jenis), ukuran: v.ukuran, t };
   const isi = `<h1 class="muncul">${esc(v.couple || t.vSiap)}</h1>
@@ -273,7 +418,11 @@ function halamanVideo(t, kode, v, bahasa) {
 <p class="info">${esc(t.tersedia.replace('{t}', tgl))} · ${(v.ukuran / 1048576).toFixed(v.ukuran < 10485760 ? 1 : 0)} MB</p>
 <div class="kaki"><button class="chip" id="bagikan">${IKON.bagikan}${esc(t.bagikan)}</button></div>
 <div class="toast" id="toast" role="status"></div><div class="kilap" id="kilap" aria-hidden="true"></div>`;
-  return halaman({ ...t, judul: t.vJudul }, isi, `<script>const D=${JSON.stringify(data).replace(/</g, '\\u003c')};${SKRIP_VIDEO}</script>`);
+  return halaman(
+    { ...t, judul: t.vJudul },
+    isi,
+    `<script>const D=${JSON.stringify(data).replace(/</g, '\\u003c')};${SKRIP_VIDEO}</script>`,
+  );
 }
 const SKRIP_VIDEO = `
 (function(){
@@ -403,40 +552,66 @@ export default {
     if (jalur === 'uv') {
       if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
       if (!KODE.test(kode)) return json({ ok: false, error: 'Kode tidak valid' }, 400);
-      const kunci = kunciVideo(kode), uploadId = url.searchParams.get('u') || '';
+      const kunci = kunciVideo(kode),
+        uploadId = url.searchParams.get('u') || '';
       if (nTeks === 'poster' && req.method === 'PUT') {
         const data = await req.arrayBuffer();
-        if (!data.byteLength || data.byteLength > MAKS_POSTER) return json({ ok: false, error: 'Ukuran gambar tidak valid' }, 413);
+        if (!data.byteLength || data.byteLength > MAKS_POSTER)
+          return json({ ok: false, error: 'Ukuran gambar tidak valid' }, 413);
         const b = new Uint8Array(data, 0, 3);
-        if (!(b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF)) return json({ ok: false, error: 'Bukan gambar JPEG' }, 415);
-        await env.FOTO.put(kunciPoster(kode), data, { httpMetadata: { contentType: 'image/jpeg' }, customMetadata: { diunggah: String(Date.now()) } });
+        if (!(b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff))
+          return json({ ok: false, error: 'Bukan gambar JPEG' }, 415);
+        await env.FOTO.put(kunciPoster(kode), data, {
+          httpMetadata: { contentType: 'image/jpeg' },
+          customMetadata: { diunggah: String(Date.now()) },
+        });
         return json({ ok: true });
       }
       if (nTeks === 'mulai' && req.method === 'POST') {
         if (await env.FOTO.head(kunci)) return json({ ok: true, ada: true });
-        const meta = { diunggah: String(Date.now()), jenis: req.headers.get('x-leura-jenis') === 'quiz' ? 'quiz' : 'pesan' };
+        const meta = {
+          diunggah: String(Date.now()),
+          jenis: req.headers.get('x-leura-jenis') === 'quiz' ? 'quiz' : 'pesan',
+        };
         const couple = namaCouple(req.headers.get('x-leura-couple'));
         if (couple) meta.couple = couple;
-        const mpu = await env.FOTO.createMultipartUpload(kunci, { httpMetadata: { contentType: 'video/mp4' }, customMetadata: meta });
+        const mpu = await env.FOTO.createMultipartUpload(kunci, {
+          httpMetadata: { contentType: 'video/mp4' },
+          customMetadata: meta,
+        });
         return json({ ok: true, uploadId: mpu.uploadId });
       }
       if (/^\d{1,3}$/.test(nTeks) && req.method === 'PUT') {
         const n = Number(nTeks);
         if (n < 1 || n > MAKS_BAGIAN || !uploadId) return json({ ok: false, error: 'Bagian tidak valid' }, 400);
         const data = await req.arrayBuffer();
-        if (!data.byteLength || data.byteLength > MAKS_BAGIAN_BYTE) return json({ ok: false, error: 'Ukuran bagian tidak valid' }, 413);
+        if (!data.byteLength || data.byteLength > MAKS_BAGIAN_BYTE)
+          return json({ ok: false, error: 'Ukuran bagian tidak valid' }, 413);
         try {
           const bagian = await env.FOTO.resumeMultipartUpload(kunci, uploadId).uploadPart(n, data);
           return json({ ok: true, etag: bagian.etag });
-        } catch (e) { return json({ ok: false, error: 'upload-hilang' }, 404); }
+        } catch {
+          return json({ ok: false, error: 'upload-hilang' }, 404);
+        }
       }
       if (nTeks === 'selesai' && req.method === 'POST') {
         let isi = {};
-        try { isi = await req.json(); } catch (e) {}
-        const bagian = Array.isArray(isi.bagian) ? isi.bagian.filter(x => x && Number.isInteger(x.partNumber) && typeof x.etag === 'string').slice(0, MAKS_BAGIAN) : [];
+        try {
+          isi = await req.json();
+        } catch {
+          /* isi bukan JSON: ditangani pemeriksaan "Daftar bagian kosong" di bawah */
+        }
+        const bagian = Array.isArray(isi.bagian)
+          ? isi.bagian
+              .filter(x => x && Number.isInteger(x.partNumber) && typeof x.etag === 'string')
+              .slice(0, MAKS_BAGIAN)
+          : [];
         if (!bagian.length || !uploadId) return json({ ok: false, error: 'Daftar bagian kosong' }, 400);
-        try { await env.FOTO.resumeMultipartUpload(kunci, uploadId).complete(bagian); }
-        catch (e) { return json({ ok: false, error: 'upload-hilang' }, 404); }
+        try {
+          await env.FOTO.resumeMultipartUpload(kunci, uploadId).complete(bagian);
+        } catch {
+          return json({ ok: false, error: 'upload-hilang' }, 404);
+        }
         return json({ ok: true });
       }
       return json({ ok: false, error: 'Metode tidak didukung' }, 405);
@@ -446,9 +621,10 @@ export default {
       if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
       if (!KODE.test(kode) || n < 0) return json({ ok: false, error: 'Kode tidak valid' }, 400);
       const data = await req.arrayBuffer();
-      if (!data.byteLength || data.byteLength > MAKS_BYTE) return json({ ok: false, error: 'Ukuran foto tidak valid' }, 413);
+      if (!data.byteLength || data.byteLength > MAKS_BYTE)
+        return json({ ok: false, error: 'Ukuran foto tidak valid' }, 413);
       const b = new Uint8Array(data, 0, 3);
-      if (!(b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF)) return json({ ok: false, error: 'Bukan foto JPEG' }, 415);
+      if (!(b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff)) return json({ ok: false, error: 'Bukan foto JPEG' }, 415);
       const meta = { diunggah: String(Date.now()) };
       if (!n) {
         const couple = namaCouple(req.headers.get('x-leura-couple'));
@@ -456,7 +632,10 @@ export default {
         if (couple) meta.couple = couple;
         if (jumlah) meta.jumlah = String(jumlah);
       }
-      await env.FOTO.put(kunciFoto(kode, n), data, { httpMetadata: { contentType: 'image/jpeg' }, customMetadata: meta });
+      await env.FOTO.put(kunciFoto(kode, n), data, {
+        httpMetadata: { contentType: 'image/jpeg' },
+        customMetadata: meta,
+      });
       return json({ ok: true });
     }
 
@@ -466,16 +645,30 @@ export default {
     if (jalur === 'vf' || jalur === 'vd') {
       const v = await infoVideo(env, kode);
       if (!v) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
-      const headers = { 'content-type': 'video/mp4', 'accept-ranges': 'bytes', 'cache-control': 'private, max-age=3600', ...HEADER_AMAN };
-      if (jalur === 'vd') headers['content-disposition'] = `attachment; filename="${namaFileVideo(v.couple, kode, v.jenis)}"`;
+      const headers = {
+        'content-type': 'video/mp4',
+        'accept-ranges': 'bytes',
+        'cache-control': 'private, max-age=3600',
+        ...HEADER_AMAN,
+      };
+      if (jalur === 'vd')
+        headers['content-disposition'] = `attachment; filename="${namaFileVideo(v.couple, kode, v.jenis)}"`;
       const rg = bacaRange(req.headers.get('range'), v.ukuran);
-      if (rg && rg.salah) return new Response('', { status: 416, headers: { ...headers, 'content-range': `bytes */${v.ukuran}` } });
-      if (req.method === 'HEAD') return new Response(null, { headers: { ...headers, 'content-length': String(v.ukuran) } });
+      if (rg && rg.salah)
+        return new Response('', { status: 416, headers: { ...headers, 'content-range': `bytes */${v.ukuran}` } });
+      if (req.method === 'HEAD')
+        return new Response(null, { headers: { ...headers, 'content-length': String(v.ukuran) } });
       if (rg) {
         const obj = await env.FOTO.get(kunciVideo(kode), { range: { offset: rg.offset, length: rg.length } });
         if (!obj) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
-        return new Response(obj.body, { status: 206, headers: { ...headers, 'content-length': String(rg.length),
-          'content-range': `bytes ${rg.offset}-${rg.offset + rg.length - 1}/${v.ukuran}` } });
+        return new Response(obj.body, {
+          status: 206,
+          headers: {
+            ...headers,
+            'content-length': String(rg.length),
+            'content-range': `bytes ${rg.offset}-${rg.offset + rg.length - 1}/${v.ukuran}`,
+          },
+        });
       }
       const obj = await env.FOTO.get(kunciVideo(kode));
       if (!obj) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
@@ -484,20 +677,28 @@ export default {
     if (jalur === 'vp') {
       const obj = KODE.test(kode) ? await env.FOTO.get(kunciPoster(kode)) : null;
       if (!obj || kedaluwarsa(obj, env)) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
-      return new Response(obj.body, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=3600', ...HEADER_AMAN } });
+      return new Response(obj.body, {
+        headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=3600', ...HEADER_AMAN },
+      });
     }
     if (jalur === 'vs') {
       const v = await infoVideo(env, kode);
-      return v ? json({ ok: true, ada: true, couple: v.couple, jenis: v.jenis, ukuran: v.ukuran, sampai: v.sampai }) : json({ ok: false, ada: false }, 404);
+      return v
+        ? json({ ok: true, ada: true, couple: v.couple, jenis: v.jenis, ukuran: v.ukuran, sampai: v.sampai })
+        : json({ ok: false, ada: false }, 404);
     }
     if (jalur === 'v') {
       const v = await infoVideo(env, kode);
       if (v) return halamanVideo(t, kode, v, bahasa);
-      if (!KODE.test(kode)) return halaman(t, `<h1>${esc(t.vHilang)}</h1><p class="sub">${esc(t.vHilangInfo.replace('{h}', h))}</p>`);
+      if (!KODE.test(kode))
+        return halaman(t, `<h1>${esc(t.vHilang)}</h1><p class="sub">${esc(t.vHilangInfo.replace('{h}', h))}</p>`);
       // Belum sampai: tanya status setiap 5 detik (video perlu diproses & diunggah, bisa beberapa menit)
-      return halaman({ ...t, judul: t.vJudul }, `<div class="putar"></div><h1>${esc(t.vTunggu)}</h1><p class="sub" id="info">${esc(t.vTungguInfo)}</p>`,
+      return halaman(
+        { ...t, judul: t.vJudul },
+        `<div class="putar"></div><h1>${esc(t.vTunggu)}</h1><p class="sub" id="info">${esc(t.vTungguInfo)}</p>`,
         `<script>(function(){var ke=0,info=${JSON.stringify(t.vLama).replace(/</g, '\\u003c')};(function tanya(){if(ke++>1440){document.getElementById('info').textContent=info;return}
-setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){if(r.ok)location.reload();else tanya()}).catch(tanya)},5000)})()})()</script>`);
+setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){if(r.ok)location.reload();else tanya()}).catch(tanya)},5000)})()})()</script>`,
+      );
     }
 
     if (n < 0) return new Response('Tidak ditemukan', { status: 404, headers: HEADER_AMAN });
@@ -525,8 +726,11 @@ setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){i
       // Belum sampai (internet booth lambat) atau sudah lewat masa simpan. Muat ulang sendiri selama 15 menit pertama.
       const umur = Number(url.searchParams.get('n') || 0);
       if (KODE.test(kode) && umur < 180) {
-        return halaman(t, `<div class="putar"></div><h1>${esc(t.tunggu)}</h1><p class="sub">${esc(t.tungguInfo)}</p>`,
-          `<script>setTimeout(function(){var u=new URL(location.href);u.searchParams.set('n',${umur + 1});location.replace(u)},5000)</script>`);
+        return halaman(
+          t,
+          `<div class="putar"></div><h1>${esc(t.tunggu)}</h1><p class="sub">${esc(t.tungguInfo)}</p>`,
+          `<script>setTimeout(function(){var u=new URL(location.href);u.searchParams.set('n',${umur + 1});location.replace(u)},5000)</script>`,
+        );
       }
       return halaman(t, `<h1>${esc(t.hilang)}</h1><p class="sub">${esc(t.hilangInfo.replace('{h}', h))}</p>`);
     }

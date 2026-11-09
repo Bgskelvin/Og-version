@@ -16,23 +16,36 @@ const path = require('path');
 
 const FOLDER = path.join(app.getPath('userData'), 'catatan');
 const SIMPAN_HARI = 30;
-const MAKS_BARIS = 2000;                 // satu baris catatan dipotong kalau lebih panjang dari ini
+const MAKS_BARIS = 2000; // satu baris catatan dipotong kalau lebih panjang dari ini
 const TANDA = { info: ' ', peringatan: '⚠', error: '✗' };
 
 const pad = n => String(n).padStart(2, '0');
 const tanggal = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const jam = (d = new Date()) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 const fileHari = (t = tanggal()) => path.join(FOLDER, t + '.txt');
-const versi = () => { try { return app.getVersion(); } catch (e) { return '?'; } };
+const versi = () => {
+  try {
+    return app.getVersion();
+  } catch {
+    return '?';
+  }
+};
 
 let siapFolder = false;
 // Tulis satu baris. tingkat: 'info' | 'peringatan' | 'error'
 function catat(pesan, tingkat = 'info') {
   try {
-    if (!siapFolder) { fs.mkdirSync(FOLDER, { recursive: true }); siapFolder = true; }
-    const teks = String(pesan).replace(/\s*\n\s*/g, ' ⏎ ').slice(0, MAKS_BARIS);
+    if (!siapFolder) {
+      fs.mkdirSync(FOLDER, { recursive: true });
+      siapFolder = true;
+    }
+    const teks = String(pesan)
+      .replace(/\s*\n\s*/g, ' ⏎ ')
+      .slice(0, MAKS_BARIS);
     fs.appendFileSync(fileHari(), `${jam()} ${TANDA[tingkat] || ' '} ${teks}\n`);
-  } catch (e) { /* catatan gagal ditulis: jangan ganggu aplikasi */ }
+  } catch {
+    /* catatan gagal ditulis: jangan ganggu aplikasi */
+  }
 }
 const peringatan = p => catat(p, 'peringatan');
 const error = p => catat(p, 'error');
@@ -43,12 +56,42 @@ function pasangConsole() {
   if (consoleTerpasang) return;
   consoleTerpasang = true;
   const asli = { log: console.log, warn: console.warn, error: console.error };
-  const gabung = a => a.map(x => (x instanceof Error ? x.stack || x.message : typeof x === 'string' ? x : (() => { try { return JSON.stringify(x); } catch (e) { return String(x); } })())).join(' ');
-  console.log = (...a) => { asli.log(...a); catat(gabung(a)); };
-  console.warn = (...a) => { asli.warn(...a); catat(gabung(a), 'peringatan'); };
-  console.error = (...a) => { asli.error(...a); catat(gabung(a), 'error'); };
-  process.on('uncaughtException', e => { asli.error(e); catat('Error tak tertangani: ' + (e && e.stack || e), 'error'); });
-  process.on('unhandledRejection', e => { asli.error(e); catat('Promise gagal tak tertangani: ' + (e && e.stack || e), 'error'); });
+  const gabung = a =>
+    a
+      .map(x =>
+        x instanceof Error
+          ? x.stack || x.message
+          : typeof x === 'string'
+            ? x
+            : (() => {
+                try {
+                  return JSON.stringify(x);
+                } catch {
+                  return String(x);
+                }
+              })(),
+      )
+      .join(' ');
+  console.log = (...a) => {
+    asli.log(...a);
+    catat(gabung(a));
+  };
+  console.warn = (...a) => {
+    asli.warn(...a);
+    catat(gabung(a), 'peringatan');
+  };
+  console.error = (...a) => {
+    asli.error(...a);
+    catat(gabung(a), 'error');
+  };
+  process.on('uncaughtException', e => {
+    asli.error(e);
+    catat('Error tak tertangani: ' + ((e && e.stack) || e), 'error');
+  });
+  process.on('unhandledRejection', e => {
+    asli.error(e);
+    catat('Promise gagal tak tertangani: ' + ((e && e.stack) || e), 'error');
+  });
 }
 
 // Hapus catatan yang lebih lama dari SIMPAN_HARI hari
@@ -59,23 +102,41 @@ function bersihkanLama() {
       const m = /^(\d{4})-(\d\d)-(\d\d)\.txt$/.exec(f);
       if (m && new Date(+m[1], +m[2] - 1, +m[3]).getTime() < batas) fs.unlinkSync(path.join(FOLDER, f));
     }
-  } catch (e) {}
+  } catch {
+    /* catatan lama dicoba dihapus lagi saat aplikasi dibuka berikutnya */
+  }
 }
 // Daftar file catatan, terbaru dulu
 function daftar() {
-  try { return fs.readdirSync(FOLDER).filter(f => /^\d{4}-\d\d-\d\d\.txt$/.test(f)).sort().reverse(); }
-  catch (e) { return []; }
+  try {
+    return fs
+      .readdirSync(FOLDER)
+      .filter(f => /^\d{4}-\d\d-\d\d\.txt$/.test(f))
+      .sort()
+      .reverse();
+  } catch {
+    return [];
+  }
 }
 
 function daftarkan() {
   // Baris dari tampilan (error JavaScript, crash kecil di layar tamu)
-  ipcMain.on('catat', (e, pesan, tingkat) => catat('[tampilan] ' + String(pesan).slice(0, MAKS_BARIS), ['info', 'peringatan', 'error'].includes(tingkat) ? tingkat : 'info'));
+  ipcMain.on('catat', (e, pesan, tingkat) =>
+    catat(
+      '[tampilan] ' + String(pesan).slice(0, MAKS_BARIS),
+      ['info', 'peringatan', 'error'].includes(tingkat) ? tingkat : 'info',
+    ),
+  );
   // Admin → "Lihat catatan": catatan hari terakhir (maks ±400 baris terakhir)
   ipcMain.handle('catatan-baca', () => {
     const files = daftar();
     if (!files.length) return { teks: '', file: '', hari: [] };
     let teks = '';
-    try { teks = fs.readFileSync(path.join(FOLDER, files[0]), 'utf8'); } catch (e) {}
+    try {
+      teks = fs.readFileSync(path.join(FOLDER, files[0]), 'utf8');
+    } catch {
+      /* file catatan hari ini belum ada */
+    }
     const baris = teks.split('\n');
     if (baris.length > 401) teks = '… (bagian awal tidak ditampilkan)\n' + baris.slice(-401).join('\n');
     return { teks, file: files[0].replace('.txt', ''), hari: files.map(f => f.replace('.txt', '')) };
@@ -91,20 +152,29 @@ function daftarkan() {
     });
     if (r.canceled || !r.filePath) return { batal: true };
     try {
-      const isi = [`Catatan aplikasi Leura — disimpan ${tanggal()} ${jam()}`, `Versi ${versi()} · ${process.platform} ${require('os').release()}`, ''];
-      for (const f of files) isi.push(`===== ${f.replace('.txt', '')} =====`, fs.readFileSync(path.join(FOLDER, f), 'utf8'));
+      const isi = [
+        `Catatan aplikasi Leura — disimpan ${tanggal()} ${jam()}`,
+        `Versi ${versi()} · ${process.platform} ${require('os').release()}`,
+        '',
+      ];
+      for (const f of files)
+        isi.push(`===== ${f.replace('.txt', '')} =====`, fs.readFileSync(path.join(FOLDER, f), 'utf8'));
       fs.writeFileSync(r.filePath, isi.join('\n'));
       shell.showItemInFolder(r.filePath);
       catat('Catatan disimpan ke ' + r.filePath);
       return { ok: true, file: r.filePath };
-    } catch (e) { return { error: 'Could not save: ' + e.message }; }
+    } catch (e) {
+      return { error: 'Could not save: ' + e.message };
+    }
   });
 }
 
 function mulai() {
   bersihkanLama();
   catat('────────── Aplikasi dibuka ──────────');
-  catat(`Leura versi ${versi()} · ${process.platform} ${require('os').release()} · Electron ${process.versions.electron}`);
+  catat(
+    `Leura versi ${versi()} · ${process.platform} ${require('os').release()} · Electron ${process.versions.electron}`,
+  );
 }
 
 module.exports = { catat, peringatan, error, pasangConsole, daftarkan, mulai, FOLDER, fileHari, tanggal };

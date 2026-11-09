@@ -23,13 +23,13 @@ try {
   // LEURA_UJI_FFMPEG hanya dipakai uji otomatis (FFmpeg sungguhan di komputer uji)
   ffmpegPath = process.env.LEURA_UJI_FFMPEG || require('ffmpeg-static');
   if (ffmpegPath) ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
-} catch (e) {
+} catch {
   console.log('ffmpeg-static belum terpasang: rekaman tetap disimpan sebagai .webm');
 }
 const ada = () => !!ffmpegPath;
 
-const FOLDER_KAPSI = path.join(userData, 'kapsi');       // gambar teks pertanyaan (PNG) dari tampilan
-const FOLDER_HP = path.join(userData, 'qr-video');      // versi HP sementara, dihapus setelah terunggah
+const FOLDER_KAPSI = path.join(userData, 'kapsi'); // gambar teks pertanyaan (PNG) dari tampilan
+const FOLDER_HP = path.join(userData, 'qr-video'); // versi HP sementara, dihapus setelah terunggah
 const MAKS_KAPSI = 20;
 
 // Satu pekerjaan FFmpeg pada satu waktu (komputer booth tetap lancar untuk tamu berikutnya)
@@ -44,25 +44,47 @@ function jalankan(args, batasMs = 60 * 60000) {
   return new Promise(resolve => {
     let galat = '';
     const p = spawn(ffmpegPath, ['-hide_banner', '-nostdin', '-y', ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
-    const waktu = setTimeout(() => { try { p.kill('SIGKILL'); } catch (e) {} }, batasMs);
-    p.stderr.on('data', d => { galat = (galat + d).slice(-4000); });
-    p.on('error', err => { clearTimeout(waktu); resolve({ ok: false, galat: err.message }); });
-    p.on('close', code => { clearTimeout(waktu); resolve({ ok: code === 0, galat }); });
+    const waktu = setTimeout(() => {
+      try {
+        p.kill('SIGKILL');
+      } catch {
+        /* FFmpeg sudah berhenti sendiri */
+      }
+    }, batasMs);
+    p.stderr.on('data', d => {
+      galat = (galat + d).slice(-4000);
+    });
+    p.on('error', err => {
+      clearTimeout(waktu);
+      resolve({ ok: false, galat: err.message });
+    });
+    p.on('close', code => {
+      clearTimeout(waktu);
+      resolve({ ok: code === 0, galat });
+    });
   });
 }
 // Ukuran gambar video (memperhitungkan video yang diputar, mis. kamera tegak)
 async function ukuran(file) {
-  const r = await jalankan(['-i', file], 30000);          // selalu "gagal" (tanpa output), yang dibaca keterangannya
+  const r = await jalankan(['-i', file], 30000); // selalu "gagal" (tanpa output), yang dibaca keterangannya
   const baris = (r.galat.match(/Stream #\d+:\d+[^\n]*Video:[^\n]*/) || [''])[0];
-  const m = baris.match(/[ ,](\d{2,5})x(\d{2,5})[ ,\[]/);
+  const m = baris.match(/[ ,](\d{2,5})x(\d{2,5})[ ,[]/);
   if (!m) return null;
-  let w = Number(m[1]), h = Number(m[2]);
+  let w = Number(m[1]),
+    h = Number(m[2]);
   if (/rotation of -?90/.test(r.galat)) [w, h] = [h, w];
   const kbps = Number((r.galat.match(/bitrate: (\d+) kb\/s/) || [])[1]) || 0;
   return { w, h, kbps };
 }
 // Pengode video: di Mac memakai chip video (cepat, hemat), selain itu libx264
-const pengodeMac = kbps => ['-c:v', 'h264_videotoolbox', '-b:v', Math.max(2500, Math.min(kbps || 12000, 60000)) + 'k', '-allow_sw', '1'];
+const pengodeMac = kbps => [
+  '-c:v',
+  'h264_videotoolbox',
+  '-b:v',
+  Math.max(2500, Math.min(kbps || 12000, 60000)) + 'k',
+  '-allow_sw',
+  '1',
+];
 const pengodeUmum = crf => ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf)];
 async function kode(argsDepan, argsBelakang, keluar, { kbps, crf = 20 } = {}) {
   if (process.platform === 'darwin') {
@@ -72,7 +94,13 @@ async function kode(argsDepan, argsBelakang, keluar, { kbps, crf = 20 } = {}) {
   }
   return jalankan([...argsDepan, ...pengodeUmum(crf), '-pix_fmt', 'yuv420p', ...argsBelakang, keluar]);
 }
-const hapus = f => { try { fs.unlinkSync(f); } catch (e) {} };
+const hapus = f => {
+  try {
+    fs.unlinkSync(f);
+  } catch {
+    /* file sementara sudah tidak ada */
+  }
+};
 const lokasi = s => path.join(s.dir || defaultDir, s.file || '');
 const cariSesi = sid => readSessions().find(s => s.id === sid);
 
@@ -84,13 +112,22 @@ function simpanKapsi(sid, kapsi, gambar) {
   try {
     fs.mkdirSync(FOLDER_KAPSI, { recursive: true });
     for (let i = 0; i < Math.min(kapsi.length, gambar.length, MAKS_KAPSI); i++) {
-      const a = Number(kapsi[i] && kapsi[i].a), b = Number(kapsi[i] && kapsi[i].b);
+      const a = Number(kapsi[i] && kapsi[i].a),
+        b = Number(kapsi[i] && kapsi[i].b);
       const u = gambar[i] instanceof Uint8Array ? gambar[i] : new Uint8Array(gambar[i] || []);
-      if (!(a >= 0) || !(b > a) || u.length < 8 || u.length > 4 * 1024 * 1024 || u[0] !== 0x89 || u[1] !== 0x50) continue;
+      if (!(a >= 0) || !(b > a) || u.length < 8 || u.length > 4 * 1024 * 1024 || u[0] !== 0x89 || u[1] !== 0x50)
+        continue;
       fs.writeFileSync(path.join(FOLDER_KAPSI, `${sid}-${bersih.length + 1}.png`), Buffer.from(u));
-      bersih.push({ a: Math.round(a * 100) / 100, b: Math.round(b * 100) / 100, ...(kapsi[i].judul ? { judul: String(kapsi[i].judul).slice(0, 300) } : {}) });
+      bersih.push({
+        a: Math.round(a * 100) / 100,
+        b: Math.round(b * 100) / 100,
+        ...(kapsi[i].judul ? { judul: String(kapsi[i].judul).slice(0, 300) } : {}),
+      });
     }
-  } catch (e) { catatan.peringatan('Teks pertanyaan quiz gagal disimpan: ' + e.message); return null; }
+  } catch (e) {
+    catatan.peringatan('Teks pertanyaan quiz gagal disimpan: ' + e.message);
+    return null;
+  }
   return bersih.length ? bersih : null;
 }
 const fileKapsi = (sid, i) => path.join(FOLDER_KAPSI, `${sid}-${i + 1}.png`);
@@ -99,10 +136,15 @@ const hapusKapsi = s => (s.kapsi || []).forEach((_, i) => hapus(fileKapsi(s.id, 
 // Bab per pertanyaan (format FFMETADATA)
 function teksBab(kapsi, durasiAkhir) {
   const esc = t => String(t).replace(/([=;#\\\n])/g, '\\$1');
-  return ';FFMETADATA1\n' + kapsi.map((k, i) => {
-    const akhir = i + 1 < kapsi.length ? kapsi[i + 1].a : Math.max(k.b, durasiAkhir || k.b);
-    return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(i ? k.a * 1000 : 0)}\nEND=${Math.round(akhir * 1000)}\ntitle=${esc(`${i + 1}. ${k.judul || ''}`.trim())}\n`;
-  }).join('');
+  return (
+    ';FFMETADATA1\n' +
+    kapsi
+      .map((k, i) => {
+        const akhir = i + 1 < kapsi.length ? kapsi[i + 1].a : Math.max(k.b, durasiAkhir || k.b);
+        return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(i ? k.a * 1000 : 0)}\nEND=${Math.round(akhir * 1000)}\ntitle=${esc(`${i + 1}. ${k.judul || ''}`.trim())}\n`;
+      })
+      .join('')
+  );
 }
 
 // Tempel teks pertanyaan ke video quiz. Video asli tanpa teks → original/<nama>_original.mp4
@@ -113,13 +155,22 @@ async function tempelTeks(sid) {
   const folderAsli = path.join(path.dirname(utama), 'original');
   const asli = path.join(folderAsli, s.file.replace(/\.mp4$/i, '') + '_original.mp4');
   const sementara = path.join(path.dirname(utama), '.' + s.file.replace(/\.mp4$/i, '') + '.teks.mp4');
-  const sumber = fs.existsSync(asli) ? asli : utama;        // kalau diulang: mulai lagi dari video asli
-  if (!fs.existsSync(sumber)) { updateSession(sid, { status: 'done', teks: 'gagal', error: 'Video file not found for adding the questions' }); return; }
+  const sumber = fs.existsSync(asli) ? asli : utama; // kalau diulang: mulai lagi dari video asli
+  if (!fs.existsSync(sumber)) {
+    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Video file not found for adding the questions' });
+    return;
+  }
   const gambar = s.kapsi.map((_, i) => fileKapsi(sid, i));
-  if (gambar.some(g => !fs.existsSync(g))) { updateSession(sid, { status: 'done', teks: 'gagal', error: 'Question text images are missing' }); return; }
+  if (gambar.some(g => !fs.existsSync(g))) {
+    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Question text images are missing' });
+    return;
+  }
   updateSession(sid, { status: 'teks', teks: 'proses' });
   const uk = await ukuran(sumber);
-  if (!uk) { updateSession(sid, { status: 'done', teks: 'gagal', error: 'Could not read the video size' }); return; }
+  if (!uk) {
+    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Could not read the video size' });
+    return;
+  }
   // Gambar teks dirancang selebar 1920 piksel; disesuaikan ke lebar video, menempel di bawah
   const filter = [];
   let akhir = '0:v';
@@ -132,17 +183,39 @@ async function tempelTeks(sid) {
   const fileBab = path.join(FOLDER_KAPSI, `${sid}-bab.txt`);
   fs.writeFileSync(fileBab, teksBab(s.kapsi, s.seconds));
   const masuk = ['-i', sumber, ...gambar.flatMap(g => ['-i', g]), '-f', 'ffmetadata', '-i', fileBab];
-  const r = await kode(masuk, ['-filter_complex', filter.join(';'), '-map', `[${akhir}]`, '-map', '0:a?', '-map_chapters', String(gambar.length + 1),
-    '-c:a', 'copy', '-movflags', '+faststart'], sementara, { kbps: uk.kbps, crf: 20 });
+  const r = await kode(
+    masuk,
+    [
+      '-filter_complex',
+      filter.join(';'),
+      '-map',
+      `[${akhir}]`,
+      '-map',
+      '0:a?',
+      '-map_chapters',
+      String(gambar.length + 1),
+      '-c:a',
+      'copy',
+      '-movflags',
+      '+faststart',
+    ],
+    sementara,
+    { kbps: uk.kbps, crf: 20 },
+  );
   hapus(fileBab);
   if (!r.ok || !fs.existsSync(sementara)) {
     hapus(sementara);
-    catatan.error(`Teks pertanyaan gagal ditempel (${s.file}): ${r.galat.split('\n').filter(Boolean).slice(-1)[0] || 'FFmpeg error'}`);
+    catatan.error(
+      `Teks pertanyaan gagal ditempel (${s.file}): ${r.galat.split('\n').filter(Boolean).slice(-1)[0] || 'FFmpeg error'}`,
+    );
     updateSession(sid, { status: 'done', teks: 'gagal' });
     return;
   }
   try {
-    if (sumber === utama) { fs.mkdirSync(folderAsli, { recursive: true }); fs.renameSync(utama, asli); }
+    if (sumber === utama) {
+      fs.mkdirSync(folderAsli, { recursive: true });
+      fs.renameSync(utama, asli);
+    }
     fs.renameSync(sementara, utama);
   } catch (e) {
     hapus(sementara);
@@ -151,7 +224,12 @@ async function tempelTeks(sid) {
     return;
   }
   hapusKapsi(s);
-  updateSession(sid, { status: 'done', teks: 'selesai', fileAsli: path.relative(path.dirname(utama), asli), error: undefined });
+  updateSession(sid, {
+    status: 'done',
+    teks: 'selesai',
+    fileAsli: path.relative(path.dirname(utama), asli),
+    error: undefined,
+  });
   catatan.catat(`Teks pertanyaan ditempel: ${s.file} (asli: original/${path.basename(asli)})`);
 }
 
@@ -167,22 +245,53 @@ async function versiHp(sid, kualitas) {
   const p = kualitas === '1080' ? 1080 : 720;
   // Sisi pendek video = 720 (atau 1080); video yang lebih kecil tidak diperbesar
   const skala = `scale=w='if(gt(iw\\,ih)\\,-2\\,min(${p}\\,iw))':h='if(gt(iw\\,ih)\\,min(${p}\\,ih)\\,-2)'`;
-  const keluar = fileHp(sid), poster = filePoster(sid);
-  const r = await kode(['-i', sumber], ['-vf', skala, '-r', '30', '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-movflags', '+faststart',
-    ...(process.platform === 'darwin' ? [] : ['-maxrate', p === 1080 ? '6000k' : '3000k', '-bufsize', p === 1080 ? '12000k' : '6000k'])],
-    keluar, { kbps: p === 1080 ? 6000 : 3000, crf: p === 1080 ? 23 : 26 });
-  if (!r.ok || !fs.existsSync(keluar)) { hapus(keluar); return { error: r.galat.split('\n').filter(Boolean).slice(-1)[0] || 'FFmpeg error' }; }
-  const g = await jalankan(['-ss', s.seconds > 2 ? '1' : '0', '-i', keluar, '-frames:v', '1', '-q:v', '4', poster], 60000);
+  const keluar = fileHp(sid),
+    poster = filePoster(sid);
+  const r = await kode(
+    ['-i', sumber],
+    [
+      '-vf',
+      skala,
+      '-r',
+      '30',
+      '-c:a',
+      'aac',
+      '-b:a',
+      '128k',
+      '-ac',
+      '2',
+      '-movflags',
+      '+faststart',
+      ...(process.platform === 'darwin'
+        ? []
+        : ['-maxrate', p === 1080 ? '6000k' : '3000k', '-bufsize', p === 1080 ? '12000k' : '6000k']),
+    ],
+    keluar,
+    { kbps: p === 1080 ? 6000 : 3000, crf: p === 1080 ? 23 : 26 },
+  );
+  if (!r.ok || !fs.existsSync(keluar)) {
+    hapus(keluar);
+    return { error: r.galat.split('\n').filter(Boolean).slice(-1)[0] || 'FFmpeg error' };
+  }
+  const g = await jalankan(
+    ['-ss', s.seconds > 2 ? '1' : '0', '-i', keluar, '-frames:v', '1', '-q:v', '4', poster],
+    60000,
+  );
   return { file: keluar, poster: g.ok && fs.existsSync(poster) ? poster : null };
 }
 
 /* ---------- Jalur lengkap setelah video MP4 siap ---------- */
-let unggah = null;              // diisi dari rekaman.js (menghindari require melingkar)
-function pakaiUnggah(u) { unggah = u; }
+let unggah = null; // diisi dari rekaman.js (menghindari require melingkar)
+function pakaiUnggah(u) {
+  unggah = u;
+}
 async function lanjutkan(sid) {
   let s = cariSesi(sid);
   if (!s || !['done', 'teks'].includes(s.status) || !ada()) return;
-  if (s.kapsi && s.kapsi.length && s.teks !== 'selesai' && s.teks !== 'gagal') { await tempelTeks(sid); s = cariSesi(sid); }
+  if (s.kapsi && s.kapsi.length && s.teks !== 'selesai' && s.teks !== 'gagal') {
+    await tempelTeks(sid);
+    s = cariSesi(sid);
+  }
   if (s && s.kode && s.unggah === 'olah' && unggah) {
     const h = await versiHp(sid, unggah.kualitasVideo());
     if (!h || h.error) {
@@ -202,11 +311,30 @@ const lanjutkanNanti = sid => antre(() => lanjutkan(sid));
 function mulai() {
   if (!ada()) return;
   for (const s of readSessions()) {
-    if (s.status === 'teks') { updateSession(s.id, { status: 'done', teks: undefined }); lanjutkanNanti(s.id); }
-    else if (s.status === 'done' && ((s.kapsi && s.kapsi.length && !s.teks) || s.unggah === 'olah')) lanjutkanNanti(s.id);
+    if (s.status === 'teks') {
+      updateSession(s.id, { status: 'done', teks: undefined });
+      lanjutkanNanti(s.id);
+    } else if (s.status === 'done' && ((s.kapsi && s.kapsi.length && !s.teks) || s.unggah === 'olah'))
+      lanjutkanNanti(s.id);
   }
   // Bersihkan file sementara yang tertinggal
-  try { for (const f of fs.readdirSync(FOLDER_KAPSI)) if (f.endsWith('-bab.txt')) hapus(path.join(FOLDER_KAPSI, f)); } catch (e) {}
+  try {
+    for (const f of fs.readdirSync(FOLDER_KAPSI)) if (f.endsWith('-bab.txt')) hapus(path.join(FOLDER_KAPSI, f));
+  } catch {
+    /* folder gambar teks belum ada */
+  }
 }
 
-module.exports = { ada, path: () => ffmpegPath, antre, jalankan, simpanKapsi, lanjutkanNanti, mulai, pakaiUnggah, fileHp, filePoster, FOLDER_HP };
+module.exports = {
+  ada,
+  path: () => ffmpegPath,
+  antre,
+  jalankan,
+  simpanKapsi,
+  lanjutkanNanti,
+  mulai,
+  pakaiUnggah,
+  fileHp,
+  filePoster,
+  FOLDER_HP,
+};

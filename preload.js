@@ -57,5 +57,5 @@ contextBridge.exposeInMainWorld('api', {
   sonyFoto: () => ipcRenderer.invoke('sony-foto'),
   sonyMode: jenis => ipcRenderer.invoke('sony-mode', jenis),
   sonySambungUlang: () => ipcRenderer.invoke('sony-sambung-ulang'),
-  onSonyStatus: cb => ipcRenderer.on('sony-status', (e, s) => cb(s))
+  onSonyStatus: cb => ipcRenderer.on('sony-status', (e, s) => cb(s)),
 });

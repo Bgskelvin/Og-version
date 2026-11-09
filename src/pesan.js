@@ -9,14 +9,18 @@ function openPesan() {
 }
 async function mulaiPesan() {
   if (busy || !needStream()) return;
-  busy = true; resetIdle();
+  busy = true;
+  resetIdle();
   const token = ++sessionToken;
   $('pesanPre').style.display = 'none';
   try {
     // Kamera Sony butuh ±0,5–1 detik sampai benar-benar merekam: mulai merekam di AWAL hitung mundur,
     // supaya kalimat pertama tamu tidak terpotong. Webcam langsung merekam, jadi mulai setelah hitung mundur.
     const awal = pakaiSony() && cfg.pesanCountdown > 0;
-    if (awal) { await startRecording('pesan'); if (token !== sessionToken) return; }
+    if (awal) {
+      await startRecording('pesan');
+      if (token !== sessionToken) return;
+    }
     await countdown(cfg.pesanCountdown);
     if (token !== sessionToken) return;
     if (!awal) await startRecording('pesan');
@@ -31,7 +35,10 @@ async function mulaiPesan() {
     tampil();
     $('pesanRec').style.display = 'flex';
     recTick = setInterval(tampil, 250);
-    if (batas > 0) pesanLimit = setTimeout(() => { if (token === sessionToken) finishSession(); }, batas * 1000);
+    if (batas > 0)
+      pesanLimit = setTimeout(() => {
+        if (token === sessionToken) finishSession();
+      }, batas * 1000);
   } catch (err) {
     console.log('Gagal memulai pesan: ' + err.message);
     if (token === sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);

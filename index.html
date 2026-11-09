@@ -1,611 +1,1005 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Pengaman: tampilan hanya boleh memuat skrip & gaya dari folder aplikasi sendiri -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob: mediastream:; connect-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Videobooth</title>
-<link rel="stylesheet" href="styles/dasar.css">
-<link rel="stylesheet" href="styles/photobooth.css">
-</head>
-<body>
-<!-- Ikon garis (gaya SF Symbols) -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4.5 5h15A1.5 1.5 0 0 1 21 6.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V17h-1A1.5 1.5 0 0 1 3 15.5v-9A1.5 1.5 0 0 1 4.5 5z"/></symbol>
-  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M11 3.5l1.9 4.9 4.9 1.9-4.9 1.9L11 17.1l-1.9-4.9-4.9-1.9 4.9-1.9z"/><path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
-  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
-  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
-  <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/></symbol>
-  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 7h3c4.5 0 6.5 10 11 10h3"/><path d="M3.5 17h3c1.6 0 2.8-1.3 3.8-3M13.7 10c1-1.7 2.2-3 3.8-3h3"/><path d="M18 4.5L20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
-  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4.5 19.5l1-4L16 5l3 3L8.5 18.5z"/><path d="M14 7l3 3"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/></symbol>
-  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"/></symbol>
-  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 10.5l5-3v9l-5-3z"/></symbol>
-  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></symbol>
-  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.5"/></symbol>
-  <symbol id="i-wand" viewBox="0 0 24 24"><path d="M4 20L15 9M13.5 7.5l3 3"/><path d="M17 3.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6zM20 10l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z"/></symbol>
-  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
-  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.5c3 3.6 6 6.9 6 10.2a6 6 0 0 1-12 0c0-3.3 3-6.6 6-10.2z"/></symbol>
-  <symbol id="i-frame" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></symbol>
-  <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14a4.5 4.5 0 0 0 7 0"/><path d="M9.5 9.5h.01M14.5 9.5h.01"/></symbol>
-  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4.5 19.5c2-.3 3-1 4-2l9.5-9.5a2.1 2.1 0 0 0-3-3L5.5 14.5c-1 1-1.7 2-2 4z"/></symbol>
-  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7L4.5 11.5 9 16"/><path d="M5 11.5h9a5 5 0 0 1 0 10h-2"/></symbol>
-</svg>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Pengaman: tampilan hanya boleh memuat skrip & gaya dari folder aplikasi sendiri -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob: mediastream:; connect-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Videobooth</title>
+    <link rel="stylesheet" href="styles/dasar.css" />
+    <link rel="stylesheet" href="styles/photobooth.css" />
+  </head>
+  <body>
+    <!-- Ikon garis (gaya SF Symbols) -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-msg" viewBox="0 0 24 24">
+        <path
+          d="M4.5 5h15A1.5 1.5 0 0 1 21 6.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V17h-1A1.5 1.5 0 0 1 3 15.5v-9A1.5 1.5 0 0 1 4.5 5z"
+        />
+      </symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24">
+        <path d="M11 3.5l1.9 4.9 4.9 1.9-4.9 1.9L11 17.1l-1.9-4.9-4.9-1.9 4.9-1.9z" />
+        <path d="M18.5 14.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+      </symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24">
+        <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+        <circle cx="15" cy="7" r="2" />
+        <circle cx="9" cy="17" r="2" />
+      </symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24">
+        <rect x="9" y="3" width="6" height="11" rx="3" />
+        <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5" /></symbol>
+      <symbol id="i-retry" viewBox="0 0 24 24">
+        <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+        <path d="M4.5 4.5v4h4" />
+      </symbol>
+      <symbol id="i-shuffle" viewBox="0 0 24 24">
+        <path d="M3.5 7h3c4.5 0 6.5 10 11 10h3" />
+        <path d="M3.5 17h3c1.6 0 2.8-1.3 3.8-3M13.7 10c1-1.7 2.2-3 3.8-3h3" />
+        <path d="M18 4.5L20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24">
+        <path d="M4.5 19.5l1-4L16 5l3 3L8.5 18.5z" />
+        <path d="M14 7l3 3" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24">
+        <path
+          d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4l2 2h8a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 19H5a1.5 1.5 0 0 1-1.5-1.5z"
+        />
+      </symbol>
+      <symbol id="i-video" viewBox="0 0 24 24">
+        <rect x="3.5" y="6.5" width="12" height="11" rx="2" />
+        <path d="M15.5 10.5l5-3v9l-5-3z" />
+      </symbol>
+      <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5" /></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24">
+        <path
+          d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2l1.4-2h5.8l1.4 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"
+        />
+        <circle cx="12" cy="13" r="3.5" />
+      </symbol>
+      <symbol id="i-wand" viewBox="0 0 24 24">
+        <path d="M4 20L15 9M13.5 7.5l3 3" />
+        <path d="M17 3.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6zM20 10l.4 1 1 .4-1 .4-.4 1-.4-1-1-.4 1-.4z" />
+      </symbol>
+      <symbol id="i-layout" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </symbol>
+      <symbol id="i-drop" viewBox="0 0 24 24">
+        <path d="M12 3.5c3 3.6 6 6.9 6 10.2a6 6 0 0 1-12 0c0-3.3 3-6.6 6-10.2z" />
+      </symbol>
+      <symbol id="i-frame" viewBox="0 0 24 24">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+        <rect x="7" y="7" width="10" height="10" rx="1" />
+      </symbol>
+      <symbol id="i-smile" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M8.5 14a4.5 4.5 0 0 0 7 0" />
+        <path d="M9.5 9.5h.01M14.5 9.5h.01" />
+      </symbol>
+      <symbol id="i-pen" viewBox="0 0 24 24">
+        <path d="M4.5 19.5c2-.3 3-1 4-2l9.5-9.5a2.1 2.1 0 0 0-3-3L5.5 14.5c-1 1-1.7 2-2 4z" />
+      </symbol>
+      <symbol id="i-undo" viewBox="0 0 24 24">
+        <path d="M9 7L4.5 11.5 9 16" />
+        <path d="M5 11.5h9a5 5 0 0 1 0 10h-2" />
+      </symbol>
+    </svg>
 
-<div class="atmo" aria-hidden="true"><b></b><b></b><b></b></div>
-<video id="cam" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video>
-<canvas id="camLv" aria-hidden="true"></canvas>
-<div class="shade"></div>
-<div class="pb-safe" id="pbSafe" aria-hidden="true"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><div class="frame"></div></div>
-<div id="notice" role="status"></div>
-<div id="countOverlay"><div class="glass"><span id="countNum">3</span></div></div>
+    <div class="atmo" aria-hidden="true"><b></b><b></b><b></b></div>
+    <video id="cam" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video>
+    <canvas id="camLv" aria-hidden="true"></canvas>
+    <div class="shade"></div>
+    <div class="pb-safe" id="pbSafe" aria-hidden="true">
+      <i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i>
+      <div class="frame"></div>
+    </div>
+    <div id="notice" role="status"></div>
+    <div id="countOverlay">
+      <div class="glass"><span id="countNum">3</span></div>
+    </div>
 
-<!-- 1. HALAMAN START -->
-<div class="screen mid on" id="start">
-  <button id="btnStart" class="glass"><span class="t">Start</span><span class="s" data-t="start.sentuh">Sentuh untuk mulai</span></button>
-</div>
+    <!-- 1. HALAMAN START -->
+    <div class="screen mid on" id="start">
+      <button id="btnStart" class="glass">
+        <span class="t">Start</span><span class="s" data-t="start.sentuh">Sentuh untuk mulai</span>
+      </button>
+    </div>
 
-<!-- 1b. HALAMAN NAMA TAMU (Admin → Tampilan → Tanya nama tamu) -->
-<div class="screen mid" id="nama">
-  <button class="chip left" id="btnNamaBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-  <div class="nama-kartu glass">
-    <h1 data-t="nama.judul">Siapa namamu?</h1>
-    <p data-t="nama.info">Namamu disimpan bersama video dan fotomu untuk mempelai.</p>
-    <input id="namaInput" class="nama-input" type="text" aria-label="Nama">
-  </div>
-  <div id="namaKeyboard"></div>
-</div>
-
-<!-- 2. HALAMAN UTAMA -->
-<div class="screen" id="utama">
-  <button class="chip right" id="btnAdminOpen"><svg class="i"><use href="#i-sliders"/></svg>Admin</button>
-  <div class="menu-utama glass">
-    <div class="mu-kepala">
-      <p id="sapaTamu" class="sapa" style="display:none"></p>
-      <h1 id="couple"></h1>
-      <p id="welcome"></p>
-    </div>
-    <div class="mu-pilihan">
-      <button id="btnToPesan" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-msg"/></svg></span>
-        <b data-t="utama.pesan">Kirim pesan</b><small data-t="utama.pesanInfo">Rekam ucapan untuk mempelai</small></button>
-      <button id="btnToQuiz" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-spark"/></svg></span>
-        <b data-t="utama.quiz">Quick quiz</b><small data-t="utama.quizInfo">Jawab pertanyaan seru</small></button>
-      <button id="btnToPhoto" class="mu-tombol"><span class="mu-ikon"><svg class="i"><use href="#i-camera"/></svg></span>
-        <b data-t="utama.foto">Photo booth</b><small data-t="utama.fotoInfo">Ambil 4 foto, lalu hias hasilnya</small></button>
-    </div>
-    <!-- Muncul setelah tamu melakukan minimal satu kegiatan; kembali ke halaman Start untuk tamu berikutnya -->
-    <button id="btnSelesaiTamu" class="mu-selesai" data-t="selesai" style="display:none">Selesai</button>
-  </div>
-</div>
-
-<!-- 3. HALAMAN PESAN -->
-<div class="screen" id="pesan">
-  <div class="part" id="pesanPre">
-    <button class="chip left" id="btnPesanBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-    <div class="dock glass">
-      <div class="dock-teks"><h2 data-t="pesan.judul">Kirim pesan</h2><p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu, lalu tekan Selesai.</p></div>
-      <button id="btnPesanMulai" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-mic"/></svg>Mulai</button>
-    </div>
-  </div>
-  <div class="part" id="pesanRec" style="display:none">
-    <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
-    <div class="row"><button id="btnFinish" class="btn go" data-t="selesai"><svg class="i"><use href="#i-check"/></svg>Selesai</button></div>
-  </div>
-</div>
-
-<!-- 4. HALAMAN QUIZ -->
-<div class="screen" id="quiz">
-  <div class="part" id="quizPre">
-    <button class="chip left" id="btnQuizBack" data-t="kembali"><svg class="i"><use href="#i-back"/></svg>Kembali</button>
-    <div class="dock glass">
-      <div class="dock-teks"><h2>Quick quiz</h2><p id="quizInfo"></p></div>
-      <button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai"><svg class="i"><use href="#i-shuffle"/></svg>Mulai quiz</button>
-    </div>
-  </div>
-  <div class="part" id="quizRun" style="display:none">
-    <div class="rec"><span class="dot"></span><span id="qRound"></span></div>
-    <div class="card glass" id="qCard">
-      <h1 id="qText" style="font-size:clamp(26px,3.8vw,46px)"></h1>
-      <div class="bar" id="qBarWrap"><div id="qBar"></div></div>
-      <p id="qTime"></p>
-    </div>
-    <div class="row"><button id="btnNext" class="btn glassy">Lanjut</button></div>
-  </div>
-</div>
-
-<!-- 5. HALAMAN ADMIN -->
-<div class="screen mid" id="admin">
-  <div class="card glass" id="adminLogin">
-    <h1 style="font-size:clamp(30px,3.6vw,42px)">Admin</h1>
-    <p>Sign in to manage the booth</p>
-    <div class="group">
-      <div class="item split"><span>ID</span><input id="uid" class="field" autocomplete="off"></div>
-      <div class="item split"><span>Password</span><input id="pw" class="field" type="password" autocomplete="off"></div>
-    </div>
-    <div class="note err" id="loginErr"></div>
-    <div class="row" style="margin-top:6px">
-      <button id="btnLoginBack" class="btn glassy" style="min-height:58px;font-size:19px">Back</button>
-      <button id="btnLogin" class="btn primary" style="min-height:58px;font-size:19px">Sign in</button>
-    </div>
-  </div>
-
-  <div class="sheet glass" id="adminPanel" style="display:none">
-    <div class="sheet-head">
-      <button id="btnAdminBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Main menu</button>
-      <h2>Admin</h2>
-      <button id="btnRefresh" class="btn sm tint"><svg class="i"><use href="#i-retry"/></svg>Refresh</button>
-    </div>
-    <div class="sheet-body">
-      <div class="group-title">Couples</div>
-      <div class="group" id="coupleList"></div>
-      <div class="pe-row" style="margin-top:10px">
-        <button id="btnAddCouple" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>Add couple</button>
+    <!-- 1b. HALAMAN NAMA TAMU (Admin → Tampilan → Tanya nama tamu) -->
+    <div class="screen mid" id="nama">
+      <button class="chip left" id="btnNamaBack" data-t="kembali">
+        <svg class="i"><use href="#i-back" /></svg>Kembali
+      </button>
+      <div class="nama-kartu glass">
+        <h1 data-t="nama.judul">Siapa namamu?</h1>
+        <p data-t="nama.info">Namamu disimpan bersama video dan fotomu untuk mempelai.</p>
+        <input id="namaInput" class="nama-input" type="text" aria-label="Nama" />
       </div>
-      <p class="pe-hint" style="margin:8px 6px 0">Tap a couple to edit their name, quiz questions and photo templates. Everything for a couple is on one page.</p>
-      <div class="note ok" id="coupleMsg"></div>
+      <div id="namaKeyboard"></div>
+    </div>
 
-      <div class="group-title">Sessions</div>
-      <div class="group">
-        <button class="item nav-row" id="btnRiwayat"><svg class="i"><use href="#i-video"/></svg>
-          <span class="rw-nav"><b>Session history</b><small class="muted" id="riwayatRingkas"></small></span>
-          <em class="rw-badge" id="riwayatBadge" style="display:none"></em><svg class="i chev"><use href="#i-next"/></svg></button>
-      </div>
-      <div class="group-title">Camera and microphone</div>
-      <div class="group">
-        <div class="item split"><span>Source</span><select id="camSumber" aria-label="Camera source">
-          <option value="webcam">Webcam / phone</option>
-          <option value="sony">Sony (USB)</option>
-          <option value="sony-sim">Sony – simulation (no camera)</option>
-        </select></div>
-        <div class="item"><video id="camPrev" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video><canvas id="camPrevLv"></canvas></div>
-        <div class="item split" id="camSelRow"><span>Camera</span><select id="camSel"></select></div>
-        <div class="item split" id="micSelRow"><span>Microphone</span><select id="micSel"></select></div>
-        <div class="item split sony-row" id="sonyRow" style="display:none">
-          <i class="sony-dot merah" id="sonyDot"></i><span class="muted" id="sonyStatus" style="width:auto;flex:1"></span>
-          <button class="btn sm tint" id="btnSonyUlang">Reconnect</button>
+    <!-- 2. HALAMAN UTAMA -->
+    <div class="screen" id="utama">
+      <button class="chip right" id="btnAdminOpen">
+        <svg class="i"><use href="#i-sliders" /></svg>Admin
+      </button>
+      <div class="menu-utama glass">
+        <div class="mu-kepala">
+          <p id="sapaTamu" class="sapa" style="display: none"></p>
+          <h1 id="couple"></h1>
+          <p id="welcome"></p>
         </div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0" id="camHint"></p>
-      <div class="note ok" id="camMsg"></div>
-
-      <div class="group-title">Storage</div>
-      <div class="group">
-        <div class="item"><div class="muted" id="outDir"></div><div class="note err" id="dirMsg" style="margin:4px 0 0;min-height:0"></div></div>
-        <div class="item actions">
-          <button id="btnChooseDir" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Change folder</button>
-          <button id="btnResetDir" class="btn sm tint">Reset to default</button>
-          <button id="btnFolder" class="btn sm tint">Open folder</button>
+        <div class="mu-pilihan">
+          <button id="btnToPesan" class="mu-tombol">
+            <span class="mu-ikon"
+              ><svg class="i"><use href="#i-msg" /></svg
+            ></span>
+            <b data-t="utama.pesan">Kirim pesan</b><small data-t="utama.pesanInfo">Rekam ucapan untuk mempelai</small>
+          </button>
+          <button id="btnToQuiz" class="mu-tombol">
+            <span class="mu-ikon"
+              ><svg class="i"><use href="#i-spark" /></svg
+            ></span>
+            <b data-t="utama.quiz">Quick quiz</b><small data-t="utama.quizInfo">Jawab pertanyaan seru</small>
+          </button>
+          <button id="btnToPhoto" class="mu-tombol">
+            <span class="mu-ikon"
+              ><svg class="i"><use href="#i-camera" /></svg
+            ></span>
+            <b data-t="utama.foto">Photo booth</b
+            ><small data-t="utama.fotoInfo">Ambil 4 foto, lalu hias hasilnya</small>
+          </button>
         </div>
-      </div>
-
-      <div class="group-title">Settings</div>
-      <div class="group">
-        <button class="item nav-row" id="btnSetVideo"><svg class="i"><use href="#i-video"/></svg><span>Video booth settings</span><svg class="i chev"><use href="#i-next"/></svg></button>
-        <button class="item nav-row" id="btnSetPhoto"><svg class="i"><use href="#i-camera"/></svg><span>Photo booth settings</span><svg class="i chev"><use href="#i-next"/></svg></button>
-      </div>
-
-      <div class="group-title">Display</div>
-      <div class="group">
-        <div class="item split"><span>Color</span><div class="swatches" id="swatches"></div></div>
-        <div class="item split"><span>Guest language</span><select id="setBahasa" aria-label="Guest screen language">
-          <option value="en">English</option><option value="id">Bahasa Indonesia</option></select></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Ask the guest's name after Start</span>
-          <label class="switch"><input type="checkbox" id="setTanyaNama"><i></i></label></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Locked full screen (kiosk)</span>
-          <label class="switch"><input type="checkbox" id="setKiosk"><i></i></label></div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">Guest language changes the built-in text on guest screens (buttons, hints, the date on photos). Welcome text, quiz questions and template text appear exactly as you typed them. The guest's name is used for file names in the couple folder, e.g. <b>Budi_pesan.mp4</b> and <b>Budi_hasil.jpg</b>.</p>
-      <div class="note ok" id="setMsg"></div>
-
-      <div class="group-title">Admin login</div>
-      <div class="group">
-        <div class="item split"><span>ID</span><input id="setId" class="field" autocomplete="off"></div>
-        <div class="item split"><span>Current password</span><input id="setOld" class="field" type="password" autocomplete="off"></div>
-        <div class="item split"><span>New password</span><input id="setNew" class="field" type="password" autocomplete="off" placeholder="At least 4 characters"></div>
-        <div class="item split"><span>Repeat</span><input id="setNew2" class="field" type="password" autocomplete="off"></div>
-        <div class="item actions"><button id="btnSaveLogin" class="btn sm primary">Change login</button></div>
-      </div>
-      <div class="note ok" id="loginMsg"></div>
-
-      <div class="group-title">App</div>
-      <div class="group">
-        <div class="item baris-aksi"><span><b>App log</b><small>Every event and error is logged per day (kept 30 days). If something goes wrong, save it and send it to Claude.</small></span>
-          <button id="btnLihatCatatan" class="btn sm tint">View</button><button id="btnSimpanCatatan" class="btn sm tint">Save</button></div>
-        <div class="item baris-aksi"><span><b>Lock Admin</b><small>You only sign in once while the app is open. Lock it here if the booth is left without an operator.</small></span>
-          <button id="btnKunciAdmin" class="btn sm tint">Lock Admin</button></div>
-        <div class="item baris-aksi"><span><b>Quit app</b><small>Disconnects the Sony camera cleanly first. Use this at the end of every event.</small></span>
-          <button id="btnTutupApp" class="btn sm tint danger">Quit app</button></div>
-        <div class="item baris-aksi"><span><b>About Leura</b><small id="infoVersi">Version …</small></span>
-          <button id="btnLisensi" class="btn sm tint" style="display:none">Open-source licenses</button></div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<!-- 7. HALAMAN TAMBAH (tambah / edit couple) -->
-<div class="screen mid" id="tambah">
-  <div class="sheet glass">
-    <div class="sheet-head">
-      <button id="btnTambahBatal" class="btn sm tint">Cancel</button>
-      <h2 id="tambahTitle">Add couple</h2>
-      <button id="btnTambahSimpan" class="btn sm primary">Save</button>
-    </div>
-    <div class="sheet-body">
-      <div class="group-title">Couple</div>
-      <div class="group">
-        <div class="item split"><span>Name</span><input id="fName" class="field" maxlength="80" placeholder="Rina &amp; Dimas" autocomplete="off"></div>
-        <div class="item split"><span>Welcome</span><input id="fWelcome" class="field" maxlength="160" placeholder="Optional" autocomplete="off"></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Make this the active couple</span>
-          <label class="switch"><input type="checkbox" id="fActive"><i></i></label></div>
-      </div>
-      <div class="group-title">Main menu options</div>
-      <div class="group">
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Send a message</span>
-          <label class="switch"><input type="checkbox" id="fMenuPesan"><i></i></label></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Quick quiz</span>
-          <label class="switch"><input type="checkbox" id="fMenuQuiz"><i></i></label></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Photo booth</span>
-          <label class="switch"><input type="checkbox" id="fMenuPhoto"><i></i></label></div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">At least one option must be on. Guests only see the options that are on for this couple.</p>
-      <div class="note err" id="fMenuMsg"></div>
-      <div class="group-title">Quiz questions <span id="qCount" style="font-weight:500"></span><span id="qWajib" style="font-weight:500"></span></div>
-      <div class="group" id="qInputs"></div>
-      <div class="note err" id="tambahErr"></div>
-      <div class="group-title">Photo templates <span id="tplCouple" style="display:none"></span></div>
-      <div id="cpTplBaru" class="group"><div class="item muted">Save this couple first, then you can add photo templates here.</div></div>
-      <div id="cpTplBox">
-        <div class="group" id="tplList"></div>
-        <div class="pe-row" style="margin-top:10px">
-          <button id="btnTplNew" class="btn sm primary"><svg class="i"><use href="#i-plus"/></svg>New template</button>
-        </div>
-        <p class="pe-hint" style="margin:8px 6px 0">Guests can only use this couple's templates. If there is more than one, guests pick one. If there are none, guests use the built-in layouts. Templates are saved right away; you don't need to press Save above.</p>
-        <div class="note ok" id="tplMsg"></div>
-      </div>
-      <div id="cpLainBox">
-        <div class="group-title">More</div>
-        <div class="group"><div class="item actions">
-          <button id="btnCoupleFolder" class="btn sm tint"><svg class="i"><use href="#i-folder"/></svg>Open couple folder</button>
-          <button id="btnDelCouple" class="btn sm tint danger"><span id="delLabel">Delete couple</span></button>
-        </div></div>
-        <p class="pe-hint" style="margin:8px 6px 0">Deleting a couple also deletes its photo templates. Recordings and photos already taken stay in the folder.</p>
-        <div class="note ok" id="cpMsg"></div>
+        <!-- Muncul setelah tamu melakukan minimal satu kegiatan; kembali ke halaman Start untuk tamu berikutnya -->
+        <button id="btnSelesaiTamu" class="mu-selesai" data-t="selesai" style="display: none">Selesai</button>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- HALAMAN MENYIMPAN (loading setelah pesan / quiz) -->
-<div class="screen mid" id="saving">
-  <div class="card glass" style="max-width:560px">
-    <div class="spinner"></div>
-    <h1 id="savingTitle" style="font-size:clamp(26px,3.4vw,40px)">Menyimpan rekamanmu</h1>
-    <p data-t="simpan.tunggu">Mohon tunggu sebentar</p>
-    <div id="saveBar"><div></div></div>
-  </div>
-</div>
-
-<!-- 6. HALAMAN THANK YOU -->
-<div class="screen mid" id="thanks">
-  <div class="tk-wrap">
-    <div class="tk-hasil"><img id="thanksPhoto" alt="Hasil foto"></div>
-    <div class="tk-sisi">
-      <div class="badge" id="thanksBadge"><svg class="i"><use href="#i-check"/></svg></div>
-      <h1 id="thanksJudul"><span data-t="tk.judul">Terima kasih</span><span id="thanksNama"></span></h1>
-      <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
-      <div class="tk-qr" id="thanksQR" style="display:none">
-        <canvas id="qrCanvas" aria-label="Kode QR untuk mengunduh foto"></canvas>
-        <b data-t="tk.qr">Pindai untuk mengunduh fotomu</b>
-        <small data-t="tk.qrInfo">Foto tersedia selama 7 hari.</small>
-        <small class="tk-link" id="qrLink"></small>
-      </div>
-      <button id="btnCobaLagi" class="btn primary tk-menu" data-t="tk.menu"><svg class="i"><use href="#i-back"/></svg>Kembali ke menu</button>
-    </div>
-  </div>
-</div>
-
-<!-- RIWAYAT SESI (dibuka dari Admin) -->
-<div class="screen mid" id="riwayat">
-  <div class="sheet glass">
-    <div class="sheet-head">
-      <button id="rwBack" class="btn sm tint">Admin</button>
-      <h2>Session history</h2>
-      <button id="rwSegar" class="btn sm tint"><svg class="i"><use href="#i-retry"/></svg>Refresh</button>
-    </div>
-    <div class="sheet-body">
-      <div class="group"><div class="item split"><span>Couple</span><select id="rwCouple" aria-label="Choose couple"></select></div></div>
-      <div class="rw-ringkas" id="rwRingkas"></div>
-      <button class="rw-banner" id="rwBanner" style="display:none"></button>
-      <div class="rw-chips" id="rwJenis"></div>
-      <div class="note ok" id="rwMsg"></div>
-      <div id="rwList"></div>
-    </div>
-  </div>
-</div>
-
-<!-- PENGATURAN VIDEOBOOTH (dibuka dari Admin) -->
-<div class="screen mid" id="setvideo">
-  <div class="sheet glass">
-    <div class="sheet-head">
-      <button id="btnSetVideoBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Admin</button>
-      <h2>Video booth settings</h2>
-      <span></span>
-    </div>
-    <div class="sheet-body">
-      <p class="pe-hint" style="margin:4px 6px 0">Send a message and Quick quiz are turned on or off per couple: Admin → tap the couple → Main menu options.</p>
-
-      <div class="group-title">Send a message</div>
-      <div class="group">
-        <div class="item split"><span>Countdown</span><select id="setPesanCountdown" aria-label="Countdown before recording a message"></select></div>
-        <div class="item split"><span>Time limit</span><select id="setPesanMax" aria-label="Message time limit"></select></div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">With a time limit, recording stops by itself if a guest forgets to press Done.</p>
-
-      <div class="group-title">Quick quiz</div>
-      <div class="group">
-        <div class="item split"><span>Answer time</span><select id="setSeconds" aria-label="Answer time per question"></select></div>
-        <div class="item split"><span>Questions</span><select id="setRounds" aria-label="Questions per quiz session"></select></div>
-      </div>
-      <div class="note ok" id="setVideoMsg"></div>
-    </div>
-  </div>
-</div>
-
-<!-- PENGATURAN PHOTOBOOTH (dibuka dari Admin) -->
-<div class="screen mid" id="setphoto">
-  <div class="sheet glass">
-    <div class="sheet-head">
-      <button id="btnSetPhotoBack" class="btn sm tint"><svg class="i"><use href="#i-back"/></svg>Admin</button>
-      <h2>Photo booth settings</h2>
-      <span></span>
-    </div>
-    <div class="sheet-body">
-      <p class="pe-hint" style="margin:4px 6px 0">Photo booth is turned on or off per couple: Admin → tap the couple → Main menu options.</p>
-
-      <div class="group-title">Photo session</div>
-      <div class="group">
-        <div class="item split"><span>Photos</span><span class="muted" style="width:auto">4 photos per session</span></div>
-        <div class="item split"><span>Countdown</span><select id="setPhotoCountdown" aria-label="Countdown before each photo"></select></div>
-        <div class="item split"><span>Preview</span><select id="setPhotoPreview" aria-label="Preview time after each shot"></select></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">White screen flash when shooting</span>
-          <label class="switch"><input type="checkbox" id="setPhotoFlash"><i></i></label></div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">The flash adds extra light from the screen. Turn it off if your booth lights are bright enough.</p>
-      <div class="note ok" id="setPhotoMsg"></div>
-
-      <div class="group-title">Download via QR (photos &amp; videos)</div>
-      <div class="group">
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">Show a QR code on the Thank you page</span>
-          <label class="switch"><input type="checkbox" id="setQrAktif"><i></i></label></div>
-        <div class="item split" style="justify-content:space-between"><span style="width:auto">QR for video messages &amp; quiz</span>
-          <label class="switch"><input type="checkbox" id="setQrVideo"><i></i></label></div>
-        <div class="item split"><span>Video quality for phones</span><select id="setQrKualitas" class="field" aria-label="Video quality for phones">
-          <option value="720">720p · lighter, uploads faster (recommended)</option><option value="1080">1080p · sharper, about 2× larger</option></select></div>
-        <div class="item split"><span>Server address</span><input id="setQrUrl" class="field" placeholder="https://leura-foto.xxx.workers.dev" autocomplete="off"></div>
-        <div class="item split"><span>Booth key</span><input id="setQrKunci" class="field" type="password" autocomplete="off"></div>
-        <div class="item actions">
-          <button id="btnQrSimpan" class="btn sm primary">Save</button>
-          <button id="btnQrTes" class="btn sm tint">Test connection</button>
-          <button id="btnQrPasang" class="btn sm tint">Load from setup</button>
-        </div>
-        <div class="item split sony-row"><i class="sony-dot" id="qrDot"></i><span class="muted" id="qrStatus" style="width:auto;flex:1"></span>
-          <button id="btnQrUlang" class="btn sm tint" style="display:none">Send now</button></div>
-      </div>
-      <p class="pe-hint" style="margin:8px 6px 0">The template photo and the 4 single shots are uploaded to your Cloudflare server, and guests can download them via QR for 7 days. The QR still appears when the internet is down; photos are sent as soon as it's back. Set up the server once with <b>npm run cloud:pasang</b>.</p>
-      <p class="pe-hint" style="margin:6px 6px 0">Video messages and quiz videos get a QR too. A light phone version is made on this Mac and uploaded in the background (the original stays in the couple folder); guests can watch and save it a few minutes later. Photos are always sent first. Turn this off for couples who want the messages to stay private.</p>
-      <div class="note ok" id="qrMsg"></div>
-
-      <p class="pe-hint" style="margin:14px 6px 0">Photo templates are set per couple: Admin → tap the couple → Photo templates.</p>
-    </div>
-  </div>
-</div>
-
-<!-- EDITOR TEMPLATE DESAIN FOTO (Admin → Pengaturan photobooth) -->
-<div class="screen mid" id="tpleditor">
-  <div class="pe-wrap">
-    <div class="pe-stage glass" id="teStage">
-      <div class="pe-box" id="teBox"><canvas id="teCanvas"></canvas><div id="teHandles"></div></div>
-    </div>
-    <div class="sheet glass pe-panel">
-      <div class="sheet-head">
-        <button id="teBatal" class="btn sm tint">Cancel</button>
-        <h2 id="teTitle">New template</h2>
-        <button id="teSimpan" class="btn sm primary">Save</button>
-      </div>
-      <div class="pe-tabs">
-        <button class="pe-tab te-tab on" data-tab="desain"><svg class="i"><use href="#i-frame"/></svg>Design</button>
-        <button class="pe-tab te-tab" data-tab="foto"><svg class="i"><use href="#i-layout"/></svg>Photo layout</button>
-        <button class="pe-tab te-tab" data-tab="teks"><svg class="i"><use href="#i-pen"/></svg>Text</button>
-        <button class="pe-tab te-tab" data-tab="filter"><svg class="i"><use href="#i-drop"/></svg>Filter</button>
-      </div>
-      <div class="sheet-body">
-        <div class="pe-pane te-pane on" data-pane="desain">
-          <div class="pe-sec">Template name</div>
-          <div class="group"><div class="item"><input id="teNama" class="field" maxlength="60" placeholder="e.g. Rustic gold" autocomplete="off"></div></div>
-          <div class="pe-sec">Size</div>
-          <div class="pe-grid" id="teUkuran" style="grid-template-columns:repeat(2,1fr)"></div>
-          <div class="pe-sec">Background color</div>
-          <div class="pe-row" id="teWarnaLatar"></div>
-          <div class="pe-sec">Background image <span class="muted" id="teUkuranInfo"></span></div>
-          <div class="pe-row">
-            <button class="btn sm tint" id="teLatarPilih"><svg class="i"><use href="#i-folder"/></svg>Upload image</button>
-            <button class="btn sm tint danger" id="teLatarHapus">Remove</button>
-            <span class="muted" id="teLatarStatus"></span>
+    <!-- 3. HALAMAN PESAN -->
+    <div class="screen" id="pesan">
+      <div class="part" id="pesanPre">
+        <button class="chip left" id="btnPesanBack" data-t="kembali">
+          <svg class="i"><use href="#i-back" /></svg>Kembali
+        </button>
+        <div class="dock glass">
+          <div class="dock-teks">
+            <h2 data-t="pesan.judul">Kirim pesan</h2>
+            <p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu, lalu tekan Selesai.</p>
           </div>
-          <div class="pe-sec">PNG frame (over the photos)</div>
-          <div class="pe-row">
-            <button class="btn sm tint" id="teBingkaiPilih"><svg class="i"><use href="#i-folder"/></svg>Upload PNG</button>
-            <button class="btn sm tint danger" id="teBingkaiHapus">Remove</button>
-            <span class="muted" id="teBingkaiStatus"></span>
-          </div>
-          <p class="pe-hint">Make your design in Canva or Photoshop at the size above. The <b>background image</b> sits behind the photos. The <b>frame</b> sits in front of them: leave the photo areas empty (transparent) and save it as PNG.</p>
-          <input type="file" id="teLatarFile" accept="image/png,image/jpeg" hidden>
-          <input type="file" id="teBingkaiFile" accept="image/png" hidden>
+          <button id="btnPesanMulai" class="btn primary" data-t="mulai">
+            <svg class="i"><use href="#i-mic" /></svg>Mulai
+          </button>
         </div>
-        <div class="pe-pane te-pane" data-pane="foto">
-          <div class="pe-sec">Photo ratio</div>
-          <div class="pe-grid" id="teRasio" style="grid-template-columns:repeat(4,1fr)"></div>
-          <p class="pe-hint" id="teRasioInfo" style="margin-top:8px"></p>
-          <div class="pe-sec">Quick layouts</div>
-          <div class="pe-grid" id="teSusunan" style="grid-template-columns:repeat(4,1fr)"></div>
-          <div class="pe-sec">Selected photo</div>
-          <div class="pe-row" id="teSlotPilih"></div>
-          <div class="pe-row" style="margin-top:10px">
-            <button class="btn sm tint" id="teSlotTukar">Swap with next photo</button>
-          </div>
-          <div class="pe-sec">Rounded corners</div>
-          <input type="range" id="teSudut" min="0" max="120" step="2" style="width:100%">
-          <p class="pe-hint">Drag a photo box to move it. Drag the dot in its bottom-right corner to resize it; the ratio stays the same. Boxes snap to the center and edges.</p>
+      </div>
+      <div class="part" id="pesanRec" style="display: none">
+        <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
+        <div class="row">
+          <button id="btnFinish" class="btn go" data-t="selesai">
+            <svg class="i"><use href="#i-check" /></svg>Selesai
+          </button>
         </div>
-        <div class="pe-pane te-pane" data-pane="teks">
-          <div class="pe-row"><button class="btn sm primary" id="teTeksTambah"><svg class="i"><use href="#i-plus"/></svg>Add text</button></div>
-          <div class="pe-sec">Text items</div>
-          <div class="group" id="teTeksList"></div>
-          <div id="teTeksEdit">
-            <div class="pe-sec">Text</div>
-            <div class="group"><div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off"></div></div>
-            <p class="pe-hint" style="margin-top:6px">Type <b>{couple}</b> for the couple's name and <b>{tanggal}</b> for today's date.</p>
-            <div class="pe-sec">Font</div>
-            <div class="pe-row" id="teTeksFont"></div>
-            <div class="pe-sec">Size</div>
-            <input type="range" id="teTeksUkuran" min="10" max="300" step="1" style="width:100%">
-            <div class="pe-sec">Color</div>
-            <div class="pe-row" id="teTeksWarna"></div>
-            <div class="pe-row" style="margin-top:14px">
-              <button class="btn sm tint" id="teTeksTebal">Bold</button>
-              <button class="btn sm tint" id="teTeksTengah">Center</button>
-              <button class="btn sm tint danger" id="teTeksHapus"><svg class="i"><use href="#i-trash"/></svg>Delete text</button>
-            </div>
+      </div>
+    </div>
+
+    <!-- 4. HALAMAN QUIZ -->
+    <div class="screen" id="quiz">
+      <div class="part" id="quizPre">
+        <button class="chip left" id="btnQuizBack" data-t="kembali">
+          <svg class="i"><use href="#i-back" /></svg>Kembali
+        </button>
+        <div class="dock glass">
+          <div class="dock-teks">
+            <h2>Quick quiz</h2>
+            <p id="quizInfo"></p>
+          </div>
+          <button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai">
+            <svg class="i"><use href="#i-shuffle" /></svg>Mulai quiz
+          </button>
+        </div>
+      </div>
+      <div class="part" id="quizRun" style="display: none">
+        <div class="rec"><span class="dot"></span><span id="qRound"></span></div>
+        <div class="card glass" id="qCard">
+          <h1 id="qText" style="font-size: clamp(26px, 3.8vw, 46px)"></h1>
+          <div class="bar" id="qBarWrap"><div id="qBar"></div></div>
+          <p id="qTime"></p>
+        </div>
+        <div class="row"><button id="btnNext" class="btn glassy">Lanjut</button></div>
+      </div>
+    </div>
+
+    <!-- 5. HALAMAN ADMIN -->
+    <div class="screen mid" id="admin">
+      <div class="card glass" id="adminLogin">
+        <h1 style="font-size: clamp(30px, 3.6vw, 42px)">Admin</h1>
+        <p>Sign in to manage the booth</p>
+        <div class="group">
+          <div class="item split"><span>ID</span><input id="uid" class="field" autocomplete="off" /></div>
+          <div class="item split">
+            <span>Password</span><input id="pw" class="field" type="password" autocomplete="off" />
           </div>
         </div>
-        <div class="pe-pane te-pane" data-pane="filter">
-          <div class="pe-sec">Photo filter for this template</div>
-          <div class="pe-grid" id="teFilter" style="grid-template-columns:repeat(3,1fr)"></div>
-          <div class="pe-row" style="margin-top:10px">
-            <button class="btn sm tint" id="teFilterTambah"><svg class="i"><use href="#i-plus"/></svg>Add filter (.cube)</button>
-            <button class="btn sm tint danger" id="teFilterHapus"><svg class="i"><use href="#i-trash"/></svg>Delete this filter</button>
-          </div>
-          <div id="teFilterAtur">
-            <div class="pe-sec">Strength <span class="muted" id="teFilterKekuatanNilai"></span></div>
-            <input type="range" id="teFilterKekuatan" min="0" max="100" step="5" style="width:100%">
-            <div class="group" style="margin-top:12px"><div class="item split" style="justify-content:space-between">
-              <span style="width:auto">Guests may choose another filter</span>
-              <label class="switch"><input type="checkbox" id="teFilterTamu"><i></i></label></div></div>
-          </div>
-          <p class="pe-hint" id="teFilterInfo" style="margin-top:10px"></p>
-          <p class="pe-hint"><b>.cube</b> files (3D LUT) can be exported from Photoshop (<i>File → Export → Color Lookup Tables</i>), DaVinci Resolve, or come with preset packs. Filters you add can be used in every template. The preview on the left uses a sample photo.</p>
-          <input type="file" id="teFilterFile" accept=".cube" hidden>
+        <div class="note err" id="loginErr"></div>
+        <div class="row" style="margin-top: 6px">
+          <button id="btnLoginBack" class="btn glassy" style="min-height: 58px; font-size: 19px">Back</button>
+          <button id="btnLogin" class="btn primary" style="min-height: 58px; font-size: 19px">Sign in</button>
         </div>
-        <div class="note ok" id="teMsg"></div>
       </div>
-    </div>
-  </div>
-</div>
 
-<!-- PHOTO BOOTH: halamanPhoto, halamanEditPhoto, hitung mundur & kilat -->
-  <div class="screen" id="photo">
-    <button class="chip left" id="pbBack"><svg class="i"><use href="#i-back"/></svg><span id="pbBackLabel">Kembali</span></button>
-    <div class="rec pb-pill" id="pbPill" style="display:none"><svg class="i"><use href="#i-camera"/></svg><span id="pbPillText"></span></div>
-    <div class="part" id="pbPre">
-      <div class="dock glass">
-        <div class="dock-teks"><h2>Photo booth</h2><p id="pbIntro"></p></div>
-        <button id="pbStart" class="btn primary" data-t="mulai"><svg class="i"><use href="#i-camera"/></svg>Mulai</button>
-      </div>
-    </div>
-    <div class="pb-bottom" id="pbBottom" style="display:none">
-      <div class="pb-strip" id="pbStrip"></div>
-      <div class="pb-actions" id="pbActions" style="display:none">
-        <button id="pbFinish" class="btn primary" data-t="pb.selesaiEdit">Finish &amp; edit<svg class="i"><use href="#i-next"/></svg></button>
-      </div>
-    </div>
-  </div>
-
-  <div class="screen mid" id="editphoto">
-    <div class="pe-wrap">
-      <div class="pe-stage glass" id="peStage">
-        <div class="pe-box" id="peBox"><canvas id="peCanvas"></canvas><canvas id="peDraw"></canvas><div id="peStickers"></div></div>
-      </div>
-      <div class="sheet glass pe-panel">
+      <div class="sheet glass" id="adminPanel" style="display: none">
         <div class="sheet-head">
-          <button id="peBack" class="btn sm tint" data-t="pe.foto"><svg class="i"><use href="#i-back"/></svg>Foto</button>
-          <h2 data-t="pe.judul">Edit foto</h2>
-          <button id="peDone" class="btn sm primary" data-t="selesai">Selesai</button>
-        </div>
-        <div class="pe-tabs" id="peTabs">
-          <button class="pe-tab on" data-tab="layout"><svg class="i"><use href="#i-layout"/></svg>Layout</button>
-          <button class="pe-tab" data-tab="filter"><svg class="i"><use href="#i-drop"/></svg>Filter</button>
-          <button class="pe-tab" data-tab="frame" data-t="pe.tab.bingkai"><svg class="i"><use href="#i-frame"/></svg>Bingkai</button>
-          <button class="pe-tab" data-tab="sticker" data-t="pe.tab.stiker"><svg class="i"><use href="#i-smile"/></svg>Stiker</button>
-          <button class="pe-tab" data-tab="draw" data-t="pe.tab.coret"><svg class="i"><use href="#i-pen"/></svg>Coret</button>
+          <button id="btnAdminBack" class="btn sm tint">
+            <svg class="i"><use href="#i-back" /></svg>Main menu
+          </button>
+          <h2>Admin</h2>
+          <button id="btnRefresh" class="btn sm tint">
+            <svg class="i"><use href="#i-retry" /></svg>Refresh
+          </button>
         </div>
         <div class="sheet-body">
-          <div class="pe-pane on" data-pane="layout"><div class="pe-sec" data-t="pe.susunan">Susunan foto</div><div class="pe-grid" id="peLayouts"></div></div>
-          <div class="pe-pane" data-pane="filter"><div class="pe-sec" data-t="pe.filter">Filter untuk semua foto</div><div class="pe-grid" id="peFilters"></div></div>
-          <div class="pe-pane" data-pane="frame">
-            <div id="peFrameNormal">
-            <div class="pe-sec" data-t="pe.warnaBingkai">Warna bingkai</div><div class="pe-grid" id="peFrames"></div>
-            <div class="group" style="margin-top:16px"><div class="item split" style="justify-content:space-between">
-              <span style="width:auto" data-t="pe.namaTanggal">Nama couple &amp; tanggal</span>
-              <label class="switch"><input type="checkbox" id="peShowText" checked><i></i></label></div></div>
-            </div>
-            <p class="pe-hint pe-frame-hint" id="peFrameHint" data-t="pe.hintTemplate">Desain ini sudah punya bingkai dan tulisan sendiri.</p>
+          <div class="group-title">Couples</div>
+          <div class="group" id="coupleList"></div>
+          <div class="pe-row" style="margin-top: 10px">
+            <button id="btnAddCouple" class="btn sm primary">
+              <svg class="i"><use href="#i-plus" /></svg>Add couple
+            </button>
           </div>
-          <div class="pe-pane" data-pane="sticker">
-            <div class="pe-sec" data-t="pe.ketuk">Ketuk untuk menambahkan</div><div class="pe-grid" id="peStickerList" style="grid-template-columns:repeat(4,1fr)"></div>
-            <div class="pe-sec" data-t="pe.stikerPilih">Stiker terpilih</div>
-            <div class="pe-row">
-              <button class="btn sm tint" id="peStkSmaller" data-t="pe.perkecil">Perkecil</button>
-              <button class="btn sm tint" id="peStkBigger" data-t="pe.perbesar">Perbesar</button>
-              <button class="btn sm tint" id="peStkRotate" data-t="pe.putar">Putar</button>
-              <button class="btn sm tint danger" id="peStkDelete" data-t="hapus"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
-            </div>
-            <p class="pe-hint" data-t="pe.hintStiker">Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.</p>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            Tap a couple to edit their name, quiz questions and photo templates. Everything for a couple is on one page.
+          </p>
+          <div class="note ok" id="coupleMsg"></div>
+
+          <div class="group-title">Sessions</div>
+          <div class="group">
+            <button class="item nav-row" id="btnRiwayat">
+              <svg class="i"><use href="#i-video" /></svg>
+              <span class="rw-nav"><b>Session history</b><small class="muted" id="riwayatRingkas"></small></span>
+              <em class="rw-badge" id="riwayatBadge" style="display: none"></em
+              ><svg class="i chev"><use href="#i-next" /></svg>
+            </button>
           </div>
-          <div class="pe-pane" data-pane="draw">
-            <div class="pe-sec" data-t="pe.warna">Warna</div><div class="pe-row" id="peColors"></div>
-            <div class="pe-sec" data-t="pe.ukuran">Ukuran</div><div class="pe-row" id="peSizes"></div>
-            <div class="pe-row" style="margin-top:16px">
-              <button class="btn sm tint" id="peUndo" data-t="pe.urungkan"><svg class="i"><use href="#i-undo"/></svg>Urungkan</button>
-              <button class="btn sm tint danger" id="peClear" data-t="pe.hapusSemua">Hapus semua</button>
+          <div class="group-title">Camera and microphone</div>
+          <div class="group">
+            <div class="item split">
+              <span>Source</span
+              ><select id="camSumber" aria-label="Camera source">
+                <option value="webcam">Webcam / phone</option>
+                <option value="sony">Sony (USB)</option>
+                <option value="sony-sim">Sony – simulation (no camera)</option>
+              </select>
             </div>
-            <p class="pe-hint" data-t="pe.hintCoret">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
+            <div class="item">
+              <video id="camPrev" autoplay muted playsinline disableremoteplayback x-webkit-airplay="deny"></video
+              ><canvas id="camPrevLv"></canvas>
+            </div>
+            <div class="item split" id="camSelRow">
+              <span>Camera</span
+              ><select id="camSel"></select>
+            </div>
+            <div class="item split" id="micSelRow">
+              <span>Microphone</span
+              ><select id="micSel"></select>
+            </div>
+            <div class="item split sony-row" id="sonyRow" style="display: none">
+              <i class="sony-dot merah" id="sonyDot"></i
+              ><span class="muted" id="sonyStatus" style="width: auto; flex: 1"></span>
+              <button class="btn sm tint" id="btnSonyUlang">Reconnect</button>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0" id="camHint"></p>
+          <div class="note ok" id="camMsg"></div>
+
+          <div class="group-title">Storage</div>
+          <div class="group">
+            <div class="item">
+              <div class="muted" id="outDir"></div>
+              <div class="note err" id="dirMsg" style="margin: 4px 0 0; min-height: 0"></div>
+            </div>
+            <div class="item actions">
+              <button id="btnChooseDir" class="btn sm tint">
+                <svg class="i"><use href="#i-folder" /></svg>Change folder
+              </button>
+              <button id="btnResetDir" class="btn sm tint">Reset to default</button>
+              <button id="btnFolder" class="btn sm tint">Open folder</button>
+            </div>
+          </div>
+
+          <div class="group-title">Settings</div>
+          <div class="group">
+            <button class="item nav-row" id="btnSetVideo">
+              <svg class="i"><use href="#i-video" /></svg><span>Video booth settings</span
+              ><svg class="i chev"><use href="#i-next" /></svg>
+            </button>
+            <button class="item nav-row" id="btnSetPhoto">
+              <svg class="i"><use href="#i-camera" /></svg><span>Photo booth settings</span
+              ><svg class="i chev"><use href="#i-next" /></svg>
+            </button>
+          </div>
+
+          <div class="group-title">Display</div>
+          <div class="group">
+            <div class="item split">
+              <span>Color</span>
+              <div class="swatches" id="swatches"></div>
+            </div>
+            <div class="item split">
+              <span>Guest language</span
+              ><select id="setBahasa" aria-label="Guest screen language">
+                <option value="en">English</option>
+                <option value="id">Bahasa Indonesia</option>
+              </select>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Ask the guest's name after Start</span>
+              <label class="switch"><input type="checkbox" id="setTanyaNama" /><i></i></label>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Locked full screen (kiosk)</span>
+              <label class="switch"><input type="checkbox" id="setKiosk" /><i></i></label>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            Guest language changes the built-in text on guest screens (buttons, hints, the date on photos). Welcome
+            text, quiz questions and template text appear exactly as you typed them. The guest's name is used for file
+            names in the couple folder, e.g. <b>Budi_pesan.mp4</b> and <b>Budi_hasil.jpg</b>.
+          </p>
+          <div class="note ok" id="setMsg"></div>
+
+          <div class="group-title">Admin login</div>
+          <div class="group">
+            <div class="item split"><span>ID</span><input id="setId" class="field" autocomplete="off" /></div>
+            <div class="item split">
+              <span>Current password</span><input id="setOld" class="field" type="password" autocomplete="off" />
+            </div>
+            <div class="item split">
+              <span>New password</span
+              ><input
+                id="setNew"
+                class="field"
+                type="password"
+                autocomplete="off"
+                placeholder="At least 4 characters"
+              />
+            </div>
+            <div class="item split">
+              <span>Repeat</span><input id="setNew2" class="field" type="password" autocomplete="off" />
+            </div>
+            <div class="item actions"><button id="btnSaveLogin" class="btn sm primary">Change login</button></div>
+          </div>
+          <div class="note ok" id="loginMsg"></div>
+
+          <div class="group-title">App</div>
+          <div class="group">
+            <div class="item baris-aksi">
+              <span
+                ><b>App log</b
+                ><small
+                  >Every event and error is logged per day (kept 30 days). If something goes wrong, save it and send it
+                  to Claude.</small
+                ></span
+              >
+              <button id="btnLihatCatatan" class="btn sm tint">View</button
+              ><button id="btnSimpanCatatan" class="btn sm tint">Save</button>
+            </div>
+            <div class="item baris-aksi">
+              <span
+                ><b>Lock Admin</b
+                ><small
+                  >You only sign in once while the app is open. Lock it here if the booth is left without an
+                  operator.</small
+                ></span
+              >
+              <button id="btnKunciAdmin" class="btn sm tint">Lock Admin</button>
+            </div>
+            <div class="item baris-aksi">
+              <span
+                ><b>Quit app</b
+                ><small>Disconnects the Sony camera cleanly first. Use this at the end of every event.</small></span
+              >
+              <button id="btnTutupApp" class="btn sm tint danger">Quit app</button>
+            </div>
+            <div class="item baris-aksi">
+              <span><b>About Leura</b><small id="infoVersi">Version …</small></span>
+              <button id="btnLisensi" class="btn sm tint" style="display: none">Open-source licenses</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="pb-count" id="pbCount"><div class="glass"><span id="pbCountNum">5</span></div></div>
-  <div class="pb-preview" id="pbPreview"><div class="pb-preview-card"><img id="pbPreviewImg" alt="Pratinjau foto"><span id="pbPreviewLabel"></span></div></div>
-  <div id="pbFlash"></div>
+    <!-- 7. HALAMAN TAMBAH (tambah / edit couple) -->
+    <div class="screen mid" id="tambah">
+      <div class="sheet glass">
+        <div class="sheet-head">
+          <button id="btnTambahBatal" class="btn sm tint">Cancel</button>
+          <h2 id="tambahTitle">Add couple</h2>
+          <button id="btnTambahSimpan" class="btn sm primary">Save</button>
+        </div>
+        <div class="sheet-body">
+          <div class="group-title">Couple</div>
+          <div class="group">
+            <div class="item split">
+              <span>Name</span
+              ><input id="fName" class="field" maxlength="80" placeholder="Rina &amp; Dimas" autocomplete="off" />
+            </div>
+            <div class="item split">
+              <span>Welcome</span
+              ><input id="fWelcome" class="field" maxlength="160" placeholder="Optional" autocomplete="off" />
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Make this the active couple</span>
+              <label class="switch"><input type="checkbox" id="fActive" /><i></i></label>
+            </div>
+          </div>
+          <div class="group-title">Main menu options</div>
+          <div class="group">
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Send a message</span>
+              <label class="switch"><input type="checkbox" id="fMenuPesan" /><i></i></label>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Quick quiz</span>
+              <label class="switch"><input type="checkbox" id="fMenuQuiz" /><i></i></label>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Photo booth</span>
+              <label class="switch"><input type="checkbox" id="fMenuPhoto" /><i></i></label>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            At least one option must be on. Guests only see the options that are on for this couple.
+          </p>
+          <div class="note err" id="fMenuMsg"></div>
+          <div class="group-title">
+            Quiz questions <span id="qCount" style="font-weight: 500"></span
+            ><span id="qWajib" style="font-weight: 500"></span>
+          </div>
+          <div class="group" id="qInputs"></div>
+          <div class="note err" id="tambahErr"></div>
+          <div class="group-title">Photo templates <span id="tplCouple" style="display: none"></span></div>
+          <div id="cpTplBaru" class="group">
+            <div class="item muted">Save this couple first, then you can add photo templates here.</div>
+          </div>
+          <div id="cpTplBox">
+            <div class="group" id="tplList"></div>
+            <div class="pe-row" style="margin-top: 10px">
+              <button id="btnTplNew" class="btn sm primary">
+                <svg class="i"><use href="#i-plus" /></svg>New template
+              </button>
+            </div>
+            <p class="pe-hint" style="margin: 8px 6px 0">
+              Guests can only use this couple's templates. If there is more than one, guests pick one. If there are
+              none, guests use the built-in layouts. Templates are saved right away; you don't need to press Save above.
+            </p>
+            <div class="note ok" id="tplMsg"></div>
+          </div>
+          <div id="cpLainBox">
+            <div class="group-title">More</div>
+            <div class="group">
+              <div class="item actions">
+                <button id="btnCoupleFolder" class="btn sm tint">
+                  <svg class="i"><use href="#i-folder" /></svg>Open couple folder
+                </button>
+                <button id="btnDelCouple" class="btn sm tint danger"><span id="delLabel">Delete couple</span></button>
+              </div>
+            </div>
+            <p class="pe-hint" style="margin: 8px 6px 0">
+              Deleting a couple also deletes its photo templates. Recordings and photos already taken stay in the
+              folder.
+            </p>
+            <div class="note ok" id="cpMsg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-<!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
-<script src="src/state.js"></script>
-<script src="src/bahasa.js"></script>
-<script src="src/qr.js"></script>
-<script src="src/app.js"></script>
-<script src="src/keyboard.js"></script>
-<script src="src/nama.js"></script>
-<script src="src/kamera.js"></script>
-<script src="src/kamera-sony.js"></script>
-<script src="src/rekaman.js"></script>
-<script src="src/pesan.js"></script>
-<script src="src/quiz.js"></script>
-<script src="src/couple.js"></script>
-<script src="src/pengaturan.js"></script>
-<script src="src/pengaturan-booth.js"></script>
-<script src="src/admin.js"></script>
-<script src="src/riwayat.js"></script>
-<script src="src/unduh-qr.js"></script>
-<script src="src/lut.js"></script>
-<script src="src/template-gambar.js"></script>
-<script src="src/template-editor.js"></script>
-<script src="src/photobooth.js"></script>
-<script src="src/mulai.js"></script>
-</body>
+    <!-- HALAMAN MENYIMPAN (loading setelah pesan / quiz) -->
+    <div class="screen mid" id="saving">
+      <div class="card glass" style="max-width: 560px">
+        <div class="spinner"></div>
+        <h1 id="savingTitle" style="font-size: clamp(26px, 3.4vw, 40px)">Menyimpan rekamanmu</h1>
+        <p data-t="simpan.tunggu">Mohon tunggu sebentar</p>
+        <div id="saveBar"><div></div></div>
+      </div>
+    </div>
+
+    <!-- 6. HALAMAN THANK YOU -->
+    <div class="screen mid" id="thanks">
+      <div class="tk-wrap">
+        <div class="tk-hasil"><img id="thanksPhoto" alt="Hasil foto" /></div>
+        <div class="tk-sisi">
+          <div class="badge" id="thanksBadge">
+            <svg class="i"><use href="#i-check" /></svg>
+          </div>
+          <h1 id="thanksJudul"><span data-t="tk.judul">Terima kasih</span><span id="thanksNama"></span></h1>
+          <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
+          <div class="tk-qr" id="thanksQR" style="display: none">
+            <canvas id="qrCanvas" aria-label="Kode QR untuk mengunduh foto"></canvas>
+            <b data-t="tk.qr">Pindai untuk mengunduh fotomu</b>
+            <small data-t="tk.qrInfo">Foto tersedia selama 7 hari.</small>
+            <small class="tk-link" id="qrLink"></small>
+          </div>
+          <button id="btnCobaLagi" class="btn primary tk-menu" data-t="tk.menu">
+            <svg class="i"><use href="#i-back" /></svg>Kembali ke menu
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIWAYAT SESI (dibuka dari Admin) -->
+    <div class="screen mid" id="riwayat">
+      <div class="sheet glass">
+        <div class="sheet-head">
+          <button id="rwBack" class="btn sm tint">Admin</button>
+          <h2>Session history</h2>
+          <button id="rwSegar" class="btn sm tint">
+            <svg class="i"><use href="#i-retry" /></svg>Refresh
+          </button>
+        </div>
+        <div class="sheet-body">
+          <div class="group">
+            <div class="item split">
+              <span>Couple</span
+              ><select id="rwCouple" aria-label="Choose couple"></select>
+            </div>
+          </div>
+          <div class="rw-ringkas" id="rwRingkas"></div>
+          <button class="rw-banner" id="rwBanner" style="display: none"></button>
+          <div class="rw-chips" id="rwJenis"></div>
+          <div class="note ok" id="rwMsg"></div>
+          <div id="rwList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENGATURAN VIDEOBOOTH (dibuka dari Admin) -->
+    <div class="screen mid" id="setvideo">
+      <div class="sheet glass">
+        <div class="sheet-head">
+          <button id="btnSetVideoBack" class="btn sm tint">
+            <svg class="i"><use href="#i-back" /></svg>Admin
+          </button>
+          <h2>Video booth settings</h2>
+          <span></span>
+        </div>
+        <div class="sheet-body">
+          <p class="pe-hint" style="margin: 4px 6px 0">
+            Send a message and Quick quiz are turned on or off per couple: Admin → tap the couple → Main menu options.
+          </p>
+
+          <div class="group-title">Send a message</div>
+          <div class="group">
+            <div class="item split">
+              <span>Countdown</span
+              ><select id="setPesanCountdown" aria-label="Countdown before recording a message"></select>
+            </div>
+            <div class="item split">
+              <span>Time limit</span
+              ><select id="setPesanMax" aria-label="Message time limit"></select>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            With a time limit, recording stops by itself if a guest forgets to press Done.
+          </p>
+
+          <div class="group-title">Quick quiz</div>
+          <div class="group">
+            <div class="item split">
+              <span>Answer time</span
+              ><select id="setSeconds" aria-label="Answer time per question"></select>
+            </div>
+            <div class="item split">
+              <span>Questions</span
+              ><select id="setRounds" aria-label="Questions per quiz session"></select>
+            </div>
+          </div>
+          <div class="note ok" id="setVideoMsg"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PENGATURAN PHOTOBOOTH (dibuka dari Admin) -->
+    <div class="screen mid" id="setphoto">
+      <div class="sheet glass">
+        <div class="sheet-head">
+          <button id="btnSetPhotoBack" class="btn sm tint">
+            <svg class="i"><use href="#i-back" /></svg>Admin
+          </button>
+          <h2>Photo booth settings</h2>
+          <span></span>
+        </div>
+        <div class="sheet-body">
+          <p class="pe-hint" style="margin: 4px 6px 0">
+            Photo booth is turned on or off per couple: Admin → tap the couple → Main menu options.
+          </p>
+
+          <div class="group-title">Photo session</div>
+          <div class="group">
+            <div class="item split">
+              <span>Photos</span><span class="muted" style="width: auto">4 photos per session</span>
+            </div>
+            <div class="item split">
+              <span>Countdown</span
+              ><select id="setPhotoCountdown" aria-label="Countdown before each photo"></select>
+            </div>
+            <div class="item split">
+              <span>Preview</span
+              ><select id="setPhotoPreview" aria-label="Preview time after each shot"></select>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">White screen flash when shooting</span>
+              <label class="switch"><input type="checkbox" id="setPhotoFlash" /><i></i></label>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            The flash adds extra light from the screen. Turn it off if your booth lights are bright enough.
+          </p>
+          <div class="note ok" id="setPhotoMsg"></div>
+
+          <div class="group-title">Download via QR (photos &amp; videos)</div>
+          <div class="group">
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Show a QR code on the Thank you page</span>
+              <label class="switch"><input type="checkbox" id="setQrAktif" /><i></i></label>
+            </div>
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">QR for video messages &amp; quiz</span>
+              <label class="switch"><input type="checkbox" id="setQrVideo" /><i></i></label>
+            </div>
+            <div class="item split">
+              <span>Video quality for phones</span
+              ><select id="setQrKualitas" class="field" aria-label="Video quality for phones">
+                <option value="720">720p · lighter, uploads faster (recommended)</option>
+                <option value="1080">1080p · sharper, about 2× larger</option>
+              </select>
+            </div>
+            <div class="item split">
+              <span>Server address</span
+              ><input id="setQrUrl" class="field" placeholder="https://leura-foto.xxx.workers.dev" autocomplete="off" />
+            </div>
+            <div class="item split">
+              <span>Booth key</span><input id="setQrKunci" class="field" type="password" autocomplete="off" />
+            </div>
+            <div class="item actions">
+              <button id="btnQrSimpan" class="btn sm primary">Save</button>
+              <button id="btnQrTes" class="btn sm tint">Test connection</button>
+              <button id="btnQrPasang" class="btn sm tint">Load from setup</button>
+            </div>
+            <div class="item split sony-row">
+              <i class="sony-dot" id="qrDot"></i><span class="muted" id="qrStatus" style="width: auto; flex: 1"></span>
+              <button id="btnQrUlang" class="btn sm tint" style="display: none">Send now</button>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            The template photo and the 4 single shots are uploaded to your Cloudflare server, and guests can download
+            them via QR for 7 days. The QR still appears when the internet is down; photos are sent as soon as it's
+            back. Set up the server once with <b>npm run cloud:pasang</b>.
+          </p>
+          <p class="pe-hint" style="margin: 6px 6px 0">
+            Video messages and quiz videos get a QR too. A light phone version is made on this Mac and uploaded in the
+            background (the original stays in the couple folder); guests can watch and save it a few minutes later.
+            Photos are always sent first. Turn this off for couples who want the messages to stay private.
+          </p>
+          <div class="note ok" id="qrMsg"></div>
+
+          <p class="pe-hint" style="margin: 14px 6px 0">
+            Photo templates are set per couple: Admin → tap the couple → Photo templates.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- EDITOR TEMPLATE DESAIN FOTO (Admin → Pengaturan photobooth) -->
+    <div class="screen mid" id="tpleditor">
+      <div class="pe-wrap">
+        <div class="pe-stage glass" id="teStage">
+          <div class="pe-box" id="teBox">
+            <canvas id="teCanvas"></canvas>
+            <div id="teHandles"></div>
+          </div>
+        </div>
+        <div class="sheet glass pe-panel">
+          <div class="sheet-head">
+            <button id="teBatal" class="btn sm tint">Cancel</button>
+            <h2 id="teTitle">New template</h2>
+            <button id="teSimpan" class="btn sm primary">Save</button>
+          </div>
+          <div class="pe-tabs">
+            <button class="pe-tab te-tab on" data-tab="desain">
+              <svg class="i"><use href="#i-frame" /></svg>Design
+            </button>
+            <button class="pe-tab te-tab" data-tab="foto">
+              <svg class="i"><use href="#i-layout" /></svg>Photo layout
+            </button>
+            <button class="pe-tab te-tab" data-tab="teks">
+              <svg class="i"><use href="#i-pen" /></svg>Text
+            </button>
+            <button class="pe-tab te-tab" data-tab="filter">
+              <svg class="i"><use href="#i-drop" /></svg>Filter
+            </button>
+          </div>
+          <div class="sheet-body">
+            <div class="pe-pane te-pane on" data-pane="desain">
+              <div class="pe-sec">Template name</div>
+              <div class="group">
+                <div class="item">
+                  <input id="teNama" class="field" maxlength="60" placeholder="e.g. Rustic gold" autocomplete="off" />
+                </div>
+              </div>
+              <div class="pe-sec">Size</div>
+              <div class="pe-grid" id="teUkuran" style="grid-template-columns: repeat(2, 1fr)"></div>
+              <div class="pe-sec">Background color</div>
+              <div class="pe-row" id="teWarnaLatar"></div>
+              <div class="pe-sec">Background image <span class="muted" id="teUkuranInfo"></span></div>
+              <div class="pe-row">
+                <button class="btn sm tint" id="teLatarPilih">
+                  <svg class="i"><use href="#i-folder" /></svg>Upload image
+                </button>
+                <button class="btn sm tint danger" id="teLatarHapus">Remove</button>
+                <span class="muted" id="teLatarStatus"></span>
+              </div>
+              <div class="pe-sec">PNG frame (over the photos)</div>
+              <div class="pe-row">
+                <button class="btn sm tint" id="teBingkaiPilih">
+                  <svg class="i"><use href="#i-folder" /></svg>Upload PNG
+                </button>
+                <button class="btn sm tint danger" id="teBingkaiHapus">Remove</button>
+                <span class="muted" id="teBingkaiStatus"></span>
+              </div>
+              <p class="pe-hint">
+                Make your design in Canva or Photoshop at the size above. The <b>background image</b> sits behind the
+                photos. The <b>frame</b> sits in front of them: leave the photo areas empty (transparent) and save it as
+                PNG.
+              </p>
+              <input type="file" id="teLatarFile" accept="image/png,image/jpeg" hidden />
+              <input type="file" id="teBingkaiFile" accept="image/png" hidden />
+            </div>
+            <div class="pe-pane te-pane" data-pane="foto">
+              <div class="pe-sec">Photo ratio</div>
+              <div class="pe-grid" id="teRasio" style="grid-template-columns: repeat(4, 1fr)"></div>
+              <p class="pe-hint" id="teRasioInfo" style="margin-top: 8px"></p>
+              <div class="pe-sec">Quick layouts</div>
+              <div class="pe-grid" id="teSusunan" style="grid-template-columns: repeat(4, 1fr)"></div>
+              <div class="pe-sec">Selected photo</div>
+              <div class="pe-row" id="teSlotPilih"></div>
+              <div class="pe-row" style="margin-top: 10px">
+                <button class="btn sm tint" id="teSlotTukar">Swap with next photo</button>
+              </div>
+              <div class="pe-sec">Rounded corners</div>
+              <input type="range" id="teSudut" min="0" max="120" step="2" style="width: 100%" />
+              <p class="pe-hint">
+                Drag a photo box to move it. Drag the dot in its bottom-right corner to resize it; the ratio stays the
+                same. Boxes snap to the center and edges.
+              </p>
+            </div>
+            <div class="pe-pane te-pane" data-pane="teks">
+              <div class="pe-row">
+                <button class="btn sm primary" id="teTeksTambah">
+                  <svg class="i"><use href="#i-plus" /></svg>Add text
+                </button>
+              </div>
+              <div class="pe-sec">Text items</div>
+              <div class="group" id="teTeksList"></div>
+              <div id="teTeksEdit">
+                <div class="pe-sec">Text</div>
+                <div class="group">
+                  <div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off" /></div>
+                </div>
+                <p class="pe-hint" style="margin-top: 6px">
+                  Type <b>{couple}</b> for the couple's name and <b>{tanggal}</b> for today's date.
+                </p>
+                <div class="pe-sec">Font</div>
+                <div class="pe-row" id="teTeksFont"></div>
+                <div class="pe-sec">Size</div>
+                <input type="range" id="teTeksUkuran" min="10" max="300" step="1" style="width: 100%" />
+                <div class="pe-sec">Color</div>
+                <div class="pe-row" id="teTeksWarna"></div>
+                <div class="pe-row" style="margin-top: 14px">
+                  <button class="btn sm tint" id="teTeksTebal">Bold</button>
+                  <button class="btn sm tint" id="teTeksTengah">Center</button>
+                  <button class="btn sm tint danger" id="teTeksHapus">
+                    <svg class="i"><use href="#i-trash" /></svg>Delete text
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="pe-pane te-pane" data-pane="filter">
+              <div class="pe-sec">Photo filter for this template</div>
+              <div class="pe-grid" id="teFilter" style="grid-template-columns: repeat(3, 1fr)"></div>
+              <div class="pe-row" style="margin-top: 10px">
+                <button class="btn sm tint" id="teFilterTambah">
+                  <svg class="i"><use href="#i-plus" /></svg>Add filter (.cube)
+                </button>
+                <button class="btn sm tint danger" id="teFilterHapus">
+                  <svg class="i"><use href="#i-trash" /></svg>Delete this filter
+                </button>
+              </div>
+              <div id="teFilterAtur">
+                <div class="pe-sec">Strength <span class="muted" id="teFilterKekuatanNilai"></span></div>
+                <input type="range" id="teFilterKekuatan" min="0" max="100" step="5" style="width: 100%" />
+                <div class="group" style="margin-top: 12px">
+                  <div class="item split" style="justify-content: space-between">
+                    <span style="width: auto">Guests may choose another filter</span>
+                    <label class="switch"><input type="checkbox" id="teFilterTamu" /><i></i></label>
+                  </div>
+                </div>
+              </div>
+              <p class="pe-hint" id="teFilterInfo" style="margin-top: 10px"></p>
+              <p class="pe-hint">
+                <b>.cube</b> files (3D LUT) can be exported from Photoshop (<i>File → Export → Color Lookup Tables</i>),
+                DaVinci Resolve, or come with preset packs. Filters you add can be used in every template. The preview
+                on the left uses a sample photo.
+              </p>
+              <input type="file" id="teFilterFile" accept=".cube" hidden />
+            </div>
+            <div class="note ok" id="teMsg"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHOTO BOOTH: halamanPhoto, halamanEditPhoto, hitung mundur & kilat -->
+    <div class="screen" id="photo">
+      <button class="chip left" id="pbBack">
+        <svg class="i"><use href="#i-back" /></svg><span id="pbBackLabel">Kembali</span>
+      </button>
+      <div class="rec pb-pill" id="pbPill" style="display: none">
+        <svg class="i"><use href="#i-camera" /></svg><span id="pbPillText"></span>
+      </div>
+      <div class="part" id="pbPre">
+        <div class="dock glass">
+          <div class="dock-teks">
+            <h2>Photo booth</h2>
+            <p id="pbIntro"></p>
+          </div>
+          <button id="pbStart" class="btn primary" data-t="mulai">
+            <svg class="i"><use href="#i-camera" /></svg>Mulai
+          </button>
+        </div>
+      </div>
+      <div class="pb-bottom" id="pbBottom" style="display: none">
+        <div class="pb-strip" id="pbStrip"></div>
+        <div class="pb-actions" id="pbActions" style="display: none">
+          <button id="pbFinish" class="btn primary" data-t="pb.selesaiEdit">
+            Finish &amp; edit<svg class="i"><use href="#i-next" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen mid" id="editphoto">
+      <div class="pe-wrap">
+        <div class="pe-stage glass" id="peStage">
+          <div class="pe-box" id="peBox">
+            <canvas id="peCanvas"></canvas><canvas id="peDraw"></canvas>
+            <div id="peStickers"></div>
+          </div>
+        </div>
+        <div class="sheet glass pe-panel">
+          <div class="sheet-head">
+            <button id="peBack" class="btn sm tint" data-t="pe.foto">
+              <svg class="i"><use href="#i-back" /></svg>Foto
+            </button>
+            <h2 data-t="pe.judul">Edit foto</h2>
+            <button id="peDone" class="btn sm primary" data-t="selesai">Selesai</button>
+          </div>
+          <div class="pe-tabs" id="peTabs">
+            <button class="pe-tab on" data-tab="layout">
+              <svg class="i"><use href="#i-layout" /></svg>Layout
+            </button>
+            <button class="pe-tab" data-tab="filter">
+              <svg class="i"><use href="#i-drop" /></svg>Filter
+            </button>
+            <button class="pe-tab" data-tab="frame" data-t="pe.tab.bingkai">
+              <svg class="i"><use href="#i-frame" /></svg>Bingkai
+            </button>
+            <button class="pe-tab" data-tab="sticker" data-t="pe.tab.stiker">
+              <svg class="i"><use href="#i-smile" /></svg>Stiker
+            </button>
+            <button class="pe-tab" data-tab="draw" data-t="pe.tab.coret">
+              <svg class="i"><use href="#i-pen" /></svg>Coret
+            </button>
+          </div>
+          <div class="sheet-body">
+            <div class="pe-pane on" data-pane="layout">
+              <div class="pe-sec" data-t="pe.susunan">Susunan foto</div>
+              <div class="pe-grid" id="peLayouts"></div>
+            </div>
+            <div class="pe-pane" data-pane="filter">
+              <div class="pe-sec" data-t="pe.filter">Filter untuk semua foto</div>
+              <div class="pe-grid" id="peFilters"></div>
+            </div>
+            <div class="pe-pane" data-pane="frame">
+              <div id="peFrameNormal">
+                <div class="pe-sec" data-t="pe.warnaBingkai">Warna bingkai</div>
+                <div class="pe-grid" id="peFrames"></div>
+                <div class="group" style="margin-top: 16px">
+                  <div class="item split" style="justify-content: space-between">
+                    <span style="width: auto" data-t="pe.namaTanggal">Nama couple &amp; tanggal</span>
+                    <label class="switch"><input type="checkbox" id="peShowText" checked /><i></i></label>
+                  </div>
+                </div>
+              </div>
+              <p class="pe-hint pe-frame-hint" id="peFrameHint" data-t="pe.hintTemplate">
+                Desain ini sudah punya bingkai dan tulisan sendiri.
+              </p>
+            </div>
+            <div class="pe-pane" data-pane="sticker">
+              <div class="pe-sec" data-t="pe.ketuk">Ketuk untuk menambahkan</div>
+              <div class="pe-grid" id="peStickerList" style="grid-template-columns: repeat(4, 1fr)"></div>
+              <div class="pe-sec" data-t="pe.stikerPilih">Stiker terpilih</div>
+              <div class="pe-row">
+                <button class="btn sm tint" id="peStkSmaller" data-t="pe.perkecil">Perkecil</button>
+                <button class="btn sm tint" id="peStkBigger" data-t="pe.perbesar">Perbesar</button>
+                <button class="btn sm tint" id="peStkRotate" data-t="pe.putar">Putar</button>
+                <button class="btn sm tint danger" id="peStkDelete" data-t="hapus">
+                  <svg class="i"><use href="#i-trash" /></svg>Hapus
+                </button>
+              </div>
+              <p class="pe-hint" data-t="pe.hintStiker">
+                Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.
+              </p>
+            </div>
+            <div class="pe-pane" data-pane="draw">
+              <div class="pe-sec" data-t="pe.warna">Warna</div>
+              <div class="pe-row" id="peColors"></div>
+              <div class="pe-sec" data-t="pe.ukuran">Ukuran</div>
+              <div class="pe-row" id="peSizes"></div>
+              <div class="pe-row" style="margin-top: 16px">
+                <button class="btn sm tint" id="peUndo" data-t="pe.urungkan">
+                  <svg class="i"><use href="#i-undo" /></svg>Urungkan
+                </button>
+                <button class="btn sm tint danger" id="peClear" data-t="pe.hapusSemua">Hapus semua</button>
+              </div>
+              <p class="pe-hint" data-t="pe.hintCoret">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pb-count" id="pbCount">
+      <div class="glass"><span id="pbCountNum">5</span></div>
+    </div>
+    <div class="pb-preview" id="pbPreview">
+      <div class="pb-preview-card"><img id="pbPreviewImg" alt="Pratinjau foto" /><span id="pbPreviewLabel"></span></div>
+    </div>
+    <div id="pbFlash"></div>
+
+    <!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
+    <script src="src/state.js"></script>
+    <script src="src/bahasa.js"></script>
+    <script src="src/qr.js"></script>
+    <script src="src/app.js"></script>
+    <script src="src/keyboard.js"></script>
+    <script src="src/nama.js"></script>
+    <script src="src/kamera.js"></script>
+    <script src="src/kamera-sony.js"></script>
+    <script src="src/rekaman.js"></script>
+    <script src="src/pesan.js"></script>
+    <script src="src/quiz.js"></script>
+    <script src="src/couple.js"></script>
+    <script src="src/pengaturan.js"></script>
+    <script src="src/pengaturan-booth.js"></script>
+    <script src="src/admin.js"></script>
+    <script src="src/riwayat.js"></script>
+    <script src="src/unduh-qr.js"></script>
+    <script src="src/lut.js"></script>
+    <script src="src/template-gambar.js"></script>
+    <script src="src/template-editor.js"></script>
+    <script src="src/photobooth.js"></script>
+    <script src="src/mulai.js"></script>
+  </body>
 </html>
