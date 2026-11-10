@@ -23,31 +23,66 @@ const HASIL = path.join(AKAR, 'kamera-sony', 'hasil-uji');
 const iMenit = process.argv.indexOf('--menit');
 const MENIT = Math.max(1, Number(iMenit > 0 ? process.argv[iMenit + 1] : 2) || 2);
 const laporan = [];
-const tulis = t => { console.log(t); laporan.push(t); };
+const tulis = t => {
+  console.log(t);
+  laporan.push(t);
+};
 const detik = ms => (ms / 1000).toFixed(1) + ' dtk';
 const jeda = ms => new Promise(r => setTimeout(r, ms));
 
-if (!fs.existsSync(HELPER)) { console.log('\n✗ Program kamera Sony belum dibuat. Jalankan dulu:  npm run build:sony\n'); process.exit(1); }
+if (!fs.existsSync(HELPER)) {
+  console.log('\n✗ Program kamera Sony belum dibuat. Jalankan dulu:  npm run build:sony\n');
+  process.exit(1);
+}
 fs.mkdirSync(HASIL, { recursive: true });
 
 const p = spawn(HELPER, [], { cwd: path.dirname(HELPER) });
-let seq = 0, selesai = false;
+let seq = 0,
+  selesai = false;
 const tunggu = new Map();
 readline.createInterface({ input: p.stdout }).on('line', l => {
   if (!l.startsWith('{')) return;
-  let m; try { m = JSON.parse(l); } catch (e) { return; }
-  if (m.ev) { if (!['unduh-progres', 'foto-masuk', 'siap'].includes(m.ev)) tulis(`   (kabar kamera: ${m.ev}${m.kode ? ' ' + m.kode : ''})`); return; }
-  const t = tunggu.get(m.id); if (t) { tunggu.delete(m.id); t(m); }
+  let m;
+  try {
+    m = JSON.parse(l);
+  } catch {
+    return;
+  }
+  if (m.ev) {
+    if (!['unduh-progres', 'foto-masuk', 'siap'].includes(m.ev))
+      tulis(`   (kabar kamera: ${m.ev}${m.kode ? ' ' + m.kode : ''})`);
+    return;
+  }
+  const t = tunggu.get(m.id);
+  if (t) {
+    tunggu.delete(m.id);
+    t(m);
+  }
 });
 p.stderr.on('data', d => tulis('   [stderr] ' + String(d).trim()));
-p.on('exit', c => { if (!selesai) { tulis(`\n✗ Program kamera berhenti mendadak (kode ${c}).`); simpan(); process.exit(1); } });
-const kirim = (cmd, ...args) => new Promise(r => {
-  const id = ++seq;
-  const batas = setTimeout(() => { tunggu.delete(id); r({ ok: false, error: 'tidak ada jawaban (' + cmd + ')' }); }, 40000);
-  tunggu.set(id, m => { clearTimeout(batas); r(m); });
-  p.stdin.write([id, cmd, ...args].join('\t') + '\n');
+p.on('exit', c => {
+  if (!selesai) {
+    tulis(`\n✗ Program kamera berhenti mendadak (kode ${c}).`);
+    simpan();
+    process.exit(1);
+  }
 });
-function simpan() { fs.writeFileSync(path.join(HASIL, 'laporan-tidur.txt'), laporan.join('\n') + '\n'); }
+const kirim = (cmd, ...args) =>
+  new Promise(r => {
+    const id = ++seq;
+    const batas = setTimeout(() => {
+      tunggu.delete(id);
+      r({ ok: false, error: 'tidak ada jawaban (' + cmd + ')' });
+    }, 40000);
+    tunggu.set(id, m => {
+      clearTimeout(batas);
+      r(m);
+    });
+    p.stdin.write([id, cmd, ...args].join('\t') + '\n');
+  });
+function simpan() {
+  fs.writeFileSync(path.join(HASIL, 'laporan-tidur.txt'), laporan.join('\n') + '\n');
+}
 async function akhiri(kode) {
   selesai = true;
   await kirim('keluar');
@@ -72,14 +107,21 @@ async function sambungDanLihat() {
 (async () => {
   tulis(`Uji istirahat kamera Sony — ${new Date().toLocaleString('id-ID')} (tunggu tidur: ${MENIT} menit)\n`);
   let r = await sambungDanLihat();
-  if (!r.ok) { tulis(`✗ Sambung awal gagal: ${r.pesan}`); return akhiri(1); }
+  if (!r.ok) {
+    tulis(`✗ Sambung awal gagal: ${r.pesan}`);
+    return akhiri(1);
+  }
   tulis(`✓ Sambung awal: ${r.model}, live view keluar (${detik(r.ms)})`);
 
   // Uji 1: istirahat ringan
-  await kirim('putus'); await jeda(5000);
+  await kirim('putus');
+  await jeda(5000);
   r = await sambungDanLihat();
-  tulis(r.ok ? `✓ Uji 1 — lepas 5 detik lalu sambung lagi: berhasil (${detik(r.ms)})`
-             : `✗ Uji 1 — lepas 5 detik lalu sambung lagi: GAGAL — ${r.pesan}`);
+  tulis(
+    r.ok
+      ? `✓ Uji 1 — lepas 5 detik lalu sambung lagi: berhasil (${detik(r.ms)})`
+      : `✗ Uji 1 — lepas 5 detik lalu sambung lagi: GAGAL — ${r.pesan}`,
+  );
   if (!r.ok) return akhiri(1);
 
   // Uji 2: biarkan kamera tertidur
@@ -98,10 +140,15 @@ async function sambungDanLihat() {
   for (let coba = 1; coba <= 3 && !berhasil; coba++) {
     r = await sambungDanLihat();
     if (r.ok) berhasil = r;
-    else { tulis(`   percobaan ${coba}: gagal — ${r.pesan}`); await jeda(3000); }
+    else {
+      tulis(`   percobaan ${coba}: gagal — ${r.pesan}`);
+      await jeda(3000);
+    }
   }
   if (berhasil) {
-    tulis(`✓ Uji 2 — setelah ditinggal ${MENIT} menit, kamera bisa dipakai lagi lewat USB tanpa disentuh (${detik(berhasil.ms)}).`);
+    tulis(
+      `✓ Uji 2 — setelah ditinggal ${MENIT} menit, kamera bisa dipakai lagi lewat USB tanpa disentuh (${detik(berhasil.ms)}).`,
+    );
     tulis('   → Kalau layar kamera tadi sempat MATI: kamera bisa dibangunkan dari tidur lewat USB.');
     tulis('   → Kalau layar TIDAK mati: kamera tidak tidur selama tercolok USB (tidak macet, tapi tetap menyala).');
   } else {

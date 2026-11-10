@@ -24,8 +24,12 @@ const KB_ANGKA = [
 
 function buatKeyboard(wadah, input, opsi = {}) {
   const maks = opsi.maks || 40;
-  let mode = 'huruf', shift = false, shiftManual = false, ulang = null, jeda = null;
-  input.setAttribute('inputmode', 'none');      // jangan munculkan keyboard bawaan sistem (Windows/iPad)
+  let mode = 'huruf',
+    shift = false,
+    shiftManual = false,
+    ulang = null,
+    jeda = null;
+  input.setAttribute('inputmode', 'none'); // jangan munculkan keyboard bawaan sistem (Windows/iPad)
   input.setAttribute('autocomplete', 'off');
   input.setAttribute('autocorrect', 'off');
   input.setAttribute('spellcheck', 'false');
@@ -40,27 +44,54 @@ function buatKeyboard(wadah, input, opsi = {}) {
 
   function ketik(teks) {
     if (input.value.length >= maks && input.selectionStart === input.selectionEnd) return;
-    const a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
+    const a = input.selectionStart ?? input.value.length,
+      b = input.selectionEnd ?? a;
     input.setRangeText(teks, a, b, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
   function hapus() {
-    let a = input.selectionStart ?? input.value.length, b = input.selectionEnd ?? a;
-    if (a === b) { if (a === 0) return; a -= 1; }
+    let a = input.selectionStart ?? input.value.length;
+    const b = input.selectionEnd ?? a;
+    if (a === b) {
+      if (a === 0) return;
+      a -= 1;
+    }
     input.setRangeText('', a, b, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  function berhentiUlang() { clearTimeout(jeda); clearInterval(ulang); jeda = ulang = null; }
+  function berhentiUlang() {
+    clearTimeout(jeda);
+    clearInterval(ulang);
+    jeda = ulang = null;
+  }
 
   function tekan(k) {
-    if (k === '⌫') { hapus(); return gambar(); }
-    if (k === '⇧') { shift = !besar(); shiftManual = !shift; return gambar(); }
-    if (k === '123') { mode = 'angka'; return gambar(); }
-    if (k === 'ABC') { mode = 'huruf'; return gambar(); }
-    if (k === 'enter') { if (opsi.onEnter) opsi.onEnter(); return; }
-    if (k === 'spasi') { if (input.value && !/\s$/.test(input.value.slice(0, input.selectionStart))) ketik(' '); }
-    else ketik(mode === 'huruf' && besar() ? k.toUpperCase() : k);
-    shift = false; shiftManual = false;
+    if (k === '⌫') {
+      hapus();
+      return gambar();
+    }
+    if (k === '⇧') {
+      shift = !besar();
+      shiftManual = !shift;
+      return gambar();
+    }
+    if (k === '123') {
+      mode = 'angka';
+      return gambar();
+    }
+    if (k === 'ABC') {
+      mode = 'huruf';
+      return gambar();
+    }
+    if (k === 'enter') {
+      if (opsi.onEnter) opsi.onEnter();
+      return;
+    }
+    if (k === 'spasi') {
+      if (input.value && !/\s$/.test(input.value.slice(0, input.selectionStart))) ketik(' ');
+    } else ketik(mode === 'huruf' && besar() ? k.toUpperCase() : k);
+    shift = false;
+    shiftManual = false;
     gambar();
   }
 
@@ -70,18 +101,33 @@ function buatKeyboard(wadah, input, opsi = {}) {
     wadah.innerHTML = '';
     wadah.classList.add('kb');
     for (const row of baris) {
-      const r = document.createElement('div'); r.className = 'kb-baris';
+      const r = document.createElement('div');
+      r.className = 'kb-baris';
       for (const k of row) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'kb-tombol';
         b.dataset.k = k;
-        if (k === 'spasi') { b.classList.add('kb-spasi'); b.textContent = t('kb.spasi'); }
-        else if (k === 'enter') { b.classList.add('kb-enter'); b.textContent = t('kb.lanjut'); b.disabled = !input.value.trim(); }
-        else if (k === '⌫') { b.classList.add('kb-fungsi'); b.textContent = '⌫'; b.setAttribute('aria-label', t('kb.hapus')); }
-        else if (k === '⇧') { b.classList.add('kb-fungsi'); b.classList.toggle('aktif', up); b.textContent = '⇧'; b.setAttribute('aria-label', 'Shift'); }
-        else if (k === '123' || k === 'ABC') { b.classList.add('kb-fungsi'); b.textContent = k; }
-        else b.textContent = up ? k.toUpperCase() : k;
+        if (k === 'spasi') {
+          b.classList.add('kb-spasi');
+          b.textContent = t('kb.spasi');
+        } else if (k === 'enter') {
+          b.classList.add('kb-enter');
+          b.textContent = t('kb.lanjut');
+          b.disabled = !input.value.trim();
+        } else if (k === '⌫') {
+          b.classList.add('kb-fungsi');
+          b.textContent = '⌫';
+          b.setAttribute('aria-label', t('kb.hapus'));
+        } else if (k === '⇧') {
+          b.classList.add('kb-fungsi');
+          b.classList.toggle('aktif', up);
+          b.textContent = '⇧';
+          b.setAttribute('aria-label', 'Shift');
+        } else if (k === '123' || k === 'ABC') {
+          b.classList.add('kb-fungsi');
+          b.textContent = k;
+        } else b.textContent = up ? k.toUpperCase() : k;
         r.appendChild(b);
       }
       wadah.appendChild(r);
@@ -97,17 +143,43 @@ function buatKeyboard(wadah, input, opsi = {}) {
     b.classList.add('ditekan');
     const k = b.dataset.k;
     tekan(k);
-    if (k === '⌫') { jeda = setTimeout(() => { ulang = setInterval(hapus, 70); }, 450); }
+    if (k === '⌫') {
+      jeda = setTimeout(() => {
+        ulang = setInterval(hapus, 70);
+      }, 450);
+    }
   });
-  const lepas = () => { const tadi = !!ulang; berhentiUlang(); wadah.querySelectorAll('.ditekan').forEach(x => x.classList.remove('ditekan')); if (tadi) gambar(); };
+  const lepas = () => {
+    const tadi = !!ulang;
+    berhentiUlang();
+    wadah.querySelectorAll('.ditekan').forEach(x => x.classList.remove('ditekan'));
+    if (tadi) gambar();
+  };
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => wadah.addEventListener(ev, lepas));
   // Ketikan dari keyboard fisik: perbarui huruf besar & tombol Lanjut
-  input.addEventListener('input', () => { if (!wadah.querySelector('.ditekan')) gambar(); else { const en = wadah.querySelector('.kb-enter'); if (en) en.disabled = !input.value.trim(); } });
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (opsi.onEnter) opsi.onEnter(); } });
+  input.addEventListener('input', () => {
+    if (!wadah.querySelector('.ditekan')) gambar();
+    else {
+      const en = wadah.querySelector('.kb-enter');
+      if (en) en.disabled = !input.value.trim();
+    }
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (opsi.onEnter) opsi.onEnter();
+    }
+  });
 
   gambar();
   return {
-    gambarUlang: gambar,                     // mis. setelah bahasa layar tamu diganti
-    reset: () => { mode = 'huruf'; shift = false; shiftManual = false; berhentiUlang(); gambar(); },
+    gambarUlang: gambar, // mis. setelah bahasa layar tamu diganti
+    reset: () => {
+      mode = 'huruf';
+      shift = false;
+      shiftManual = false;
+      berhentiUlang();
+      gambar();
+    },
   };
 }

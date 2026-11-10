@@ -4,7 +4,16 @@
 const { ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { config, userData, readJSON, writeJSON, readSettings, getOutDir, usableDir, coupleDir } = require('./penyimpanan');
+const {
+  config,
+  userData,
+  readJSON,
+  writeJSON,
+  readSettings,
+  getOutDir,
+  usableDir,
+  coupleDir,
+} = require('./penyimpanan');
 const { hapusTemplateCouple } = require('./template');
 
 /* ---------- Data couple ---------- */
@@ -20,16 +29,20 @@ function readCouples() {
       id: idBaru(),
       name: config.couple || 'Couple Baru',
       welcome: config.welcome || '',
-      questions: (config.quiz || []).slice(0, MAX_Q)
+      questions: (config.quiz || []).slice(0, MAX_Q),
     };
     d = { activeId: first.id, couples: [first] };
     writeCouples(d);
   }
-  d.couples.forEach(c => { c.menu = bersihkanMenu(c.menu); });
+  d.couples.forEach(c => {
+    c.menu = bersihkanMenu(c.menu);
+  });
   if (!d.couples.find(c => c.id === d.activeId)) d.activeId = d.couples[0] ? d.couples[0].id : null;
   return d;
 }
-function writeCouples(d) { writeJSON(couplesPath, d); }
+function writeCouples(d) {
+  writeJSON(couplesPath, d);
+}
 
 /* Menu di Halaman Utama, diatur per couple. Couple lama yang belum punya
    pengaturan ini memakai pengaturan menu lama (dulu berlaku untuk semua couple). */
@@ -49,10 +62,20 @@ function cleanCouple(c) {
   return {
     menu: bersihkanMenu(c.menu),
     id: c.id || idBaru(),
-    name: String(c.name || '').trim().slice(0, 80),
-    welcome: String(c.welcome || '').trim().slice(0, 160),
+    name: String(c.name || '')
+      .trim()
+      .slice(0, 80),
+    welcome: String(c.welcome || '')
+      .trim()
+      .slice(0, 160),
     questions: (Array.isArray(c.questions) ? c.questions : [])
-      .map(q => String(q || '').trim().slice(0, 200)).filter(Boolean).slice(0, MAX_Q)
+      .map(q =>
+        String(q || '')
+          .trim()
+          .slice(0, 200),
+      )
+      .filter(Boolean)
+      .slice(0, MAX_Q),
   };
 }
 
@@ -66,12 +89,15 @@ function daftarkan() {
   ipcMain.handle('get-couples', () => readCouples());
   ipcMain.handle('save-couple', (e, input) => {
     const c = cleanCouple(input || {});
-    if (!c.name) return { error: 'Please enter the couple\'s name.' };
-    if (!Object.values(c.menu).some(Boolean)) return { error: 'At least one option must be on: Send a message, Quick quiz or Photo booth.' };
-    if (c.menu.quiz && !c.questions.length) return { error: 'Quick quiz is on: add at least 1 question, or turn Quick quiz off.' };
+    if (!c.name) return { error: "Please enter the couple's name." };
+    if (!Object.values(c.menu).some(Boolean))
+      return { error: 'At least one option must be on: Send a message, Quick quiz or Photo booth.' };
+    if (c.menu.quiz && !c.questions.length)
+      return { error: 'Quick quiz is on: add at least 1 question, or turn Quick quiz off.' };
     const d = readCouples();
     const i = d.couples.findIndex(x => x.id === c.id);
-    if (i >= 0) d.couples[i] = c; else d.couples.push(c);
+    if (i >= 0) d.couples[i] = c;
+    else d.couples.push(c);
     if (!d.activeId) d.activeId = c.id;
     writeCouples(d);
     return { ok: true, couple: c, data: d };
@@ -82,7 +108,7 @@ function daftarkan() {
     d.couples = d.couples.filter(c => c.id !== id);
     if (d.activeId === id) d.activeId = d.couples[0].id;
     writeCouples(d);
-    const templateDihapus = hapusTemplateCouple(id);   // template couple ini ikut dihapus (rekaman & foto tetap)
+    const templateDihapus = hapusTemplateCouple(id); // template couple ini ikut dihapus (rekaman & foto tetap)
     return { ok: true, data: d, templateDihapus };
   });
   ipcMain.handle('set-active-couple', (e, id) => {

@@ -26,8 +26,11 @@ if (app.setPath) app.setPath('userData', path.join(app.getPath('appData'), 'leur
 // ---------- Hanya satu jendela aplikasi ----------
 // Kalau ikon diklik lagi saat aplikasi sudah jalan, jendela yang ada dimunculkan,
 // bukan membuka aplikasi kedua yang berebut kamera dan file data.
-if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
-const DEV = process.argv.includes('--dev');   // npx electron main.js --dev  -> menu Reload & DevTools aktif
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  process.exit(0);
+}
+const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> menu Reload & DevTools aktif
 
 // Catatan harian dipasang paling awal, supaya semua pesan & error sesudahnya ikut tercatat
 const catatan = require('./main/catatan');
@@ -57,11 +60,11 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'media'));
   powerSaveBlocker.start('prevent-display-sleep'); // layar & PC tidak tidur selama aplikasi jalan
 
-  catatan.mulai();          // "Aplikasi dibuka" + hapus catatan lama
-  rekaman.mulai();          // pulihkan rekaman terputus & lanjutkan konversi
+  catatan.mulai(); // "Aplikasi dibuka" + hapus catatan lama
+  rekaman.mulai(); // pulihkan rekaman terputus & lanjutkan konversi
   jendela.buatJendela(DEV);
-  kameraSony.mulai();       // sambungkan kamera Sony kalau dipilih di Admin
-  unggah.mulai();           // lanjutkan antrean unggah foto (QR) yang tersisa
+  kameraSony.mulai(); // sambungkan kamera Sony kalau dipilih di Admin
+  unggah.mulai(); // lanjutkan antrean unggah foto (QR) yang tersisa
 });
 
 app.on('second-instance', () => jendela.munculkan());
@@ -72,8 +75,13 @@ const keluar = require('./main/keluar');
 app.on('before-quit', e => {
   if (sudahBeres) return;
   e.preventDefault();
-  if (!keluar.boleh()) return keluar.minta('⌘Q');      // tanya dulu, seperti tombol Tutup aplikasi di Admin
+  if (!keluar.boleh()) return keluar.minta('⌘Q'); // tanya dulu, seperti tombol Tutup aplikasi di Admin
   catatan.catat('Aplikasi ditutup');
   rekaman.tutupSemua();
-  Promise.resolve(kameraSony.matikan()).catch(() => {}).then(() => { sudahBeres = true; app.quit(); });
+  Promise.resolve(kameraSony.matikan())
+    .catch(() => {})
+    .then(() => {
+      sudahBeres = true;
+      app.quit();
+    });
 });

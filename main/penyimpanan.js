@@ -23,18 +23,28 @@ const sessionsPath = path.join(userData, 'sessions.json');
 fs.mkdirSync(userData, { recursive: true });
 
 function tryRead(p) {
-  try { return { ok: true, data: JSON.parse(fs.readFileSync(p, 'utf8')) }; }
-  catch (e) { return { ok: false, missing: e.code === 'ENOENT' }; }
+  try {
+    return { ok: true, data: JSON.parse(fs.readFileSync(p, 'utf8')) };
+  } catch (e) {
+    return { ok: false, missing: e.code === 'ENOENT' };
+  }
 }
 // Baca file; kalau rusak, pakai cadangan (.bak). File rusak tidak pernah dibuang diam-diam.
 function readJSON(p, fallback) {
   const a = tryRead(p);
   if (a.ok) return a.data;
   const b = tryRead(p + '.bak');
-  if (b.ok) { if (!a.missing) console.log('File rusak, memakai cadangan: ' + p); return b.data; }
+  if (b.ok) {
+    if (!a.missing) console.log('File rusak, memakai cadangan: ' + p);
+    return b.data;
+  }
   if (!a.missing) {
     console.log('File rusak tanpa cadangan, salinannya disimpan: ' + p);
-    try { fs.copyFileSync(p, p + '.corrupt-' + Date.now()); } catch (e) {}
+    try {
+      fs.copyFileSync(p, p + '.corrupt-' + Date.now());
+    } catch {
+      /* salinan file rusak hanya untuk diperiksa; gagal pun data cadangan tetap dipakai */
+    }
   }
   return fallback;
 }
@@ -43,10 +53,29 @@ function readJSON(p, fallback) {
 function writeJSON(p, data) {
   const tmp = p + '.tmp';
   const fd = fs.openSync(tmp, 'w');
-  try { fs.writeSync(fd, JSON.stringify(data, null, 2)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-  if (tryRead(p).ok) { try { fs.copyFileSync(p, p + '.bak'); } catch (e) {} }
-  try { fs.renameSync(tmp, p); }
-  catch (e) { fs.copyFileSync(tmp, p); try { fs.unlinkSync(tmp); } catch (e2) {} }  // cadangan jika rename diblokir (mis. antivirus)
+  try {
+    fs.writeSync(fd, JSON.stringify(data, null, 2));
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (tryRead(p).ok) {
+    try {
+      fs.copyFileSync(p, p + '.bak');
+    } catch {
+      /* cadangan .bak gagal: file utama tetap ditulis */
+    }
+  }
+  try {
+    fs.renameSync(tmp, p);
+  } catch {
+    fs.copyFileSync(tmp, p);
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* file sementara tertinggal, ditimpa saat penulisan berikutnya */
+    }
+  } // cadangan jika rename diblokir (mis. antivirus)
 }
 const readSettings = () => readJSON(settingsPath, {});
 const writeSettings = s => writeJSON(settingsPath, s);
@@ -57,7 +86,10 @@ const writeSessions = l => writeJSON(sessionsPath, l);
 const oldSessions = path.join(defaultDir, 'sessions.json');
 if (!fs.existsSync(sessionsPath) && fs.existsSync(oldSessions)) {
   const old = readJSON(oldSessions, []);
-  old.forEach(s => { s.dir = s.dir || defaultDir; s.id = s.id || Date.parse(s.time) || Date.now(); });
+  old.forEach(s => {
+    s.dir = s.dir || defaultDir;
+    s.id = s.id || Date.parse(s.time) || Date.now();
+  });
   writeSessions(old);
 }
 
@@ -66,9 +98,11 @@ const getOutDir = () => readSettings().outDir || defaultDir;
 // Nama couple -> nama yang aman untuk folder & file di Windows dan Mac
 function safeName(name) {
   const s = String(name || '')
-    .replace(/[<>:"\/\\|?*\x00-\x1F]/g, '')   // karakter terlarang
-    .replace(/\s+/g, ' ').trim()
-    .replace(/[. ]+$/, '')                          // Windows: tidak boleh berakhir titik/spasi
+    // eslint-disable-next-line no-control-regex -- sengaja: karakter kontrol tidak boleh ada di nama file
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // karakter terlarang
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/, '') // Windows: tidak boleh berakhir titik/spasi
     .slice(0, 60);
   return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s) ? s + '_' : s;
 }
@@ -77,13 +111,21 @@ function coupleDir(base, name) {
   return n ? path.join(base, n) : base;
 }
 function usableDir(dir) {
-  try { fs.mkdirSync(dir, { recursive: true }); fs.accessSync(dir, fs.constants.W_OK); return true; }
-  catch (e) { return false; }
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 function updateSession(id, patch) {
   const list = readSessions();
   const s = list.find(x => x.id === id);
-  if (s) { Object.assign(s, patch); writeSessions(list); }
+  if (s) {
+    Object.assign(s, patch);
+    writeSessions(list);
+  }
 }
 
 // Nama tamu dari layar "Siapa namamu?" -> nama file yang aman (maks 40 huruf)
@@ -103,7 +145,22 @@ function stamp() {
 }
 
 module.exports = {
-  config, configPath, userData, defaultDir,
-  readJSON, writeJSON, readSettings, writeSettings, readSessions, writeSessions, updateSession,
-  getOutDir, usableDir, safeName, coupleDir, stamp, namaTamu, namaBebas
+  config,
+  configPath,
+  userData,
+  defaultDir,
+  readJSON,
+  writeJSON,
+  readSettings,
+  writeSettings,
+  readSessions,
+  writeSessions,
+  updateSession,
+  getOutDir,
+  usableDir,
+  safeName,
+  coupleDir,
+  stamp,
+  namaTamu,
+  namaBebas,
 };

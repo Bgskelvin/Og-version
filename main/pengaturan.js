@@ -10,33 +10,44 @@ const { getWin } = require('./jendela-aktif');
 /* ---------- Pengaturan (diubah dari Admin & halaman Pengaturan Videobooth/Photobooth) ---------- */
 // Angka: [terkecil, terbesar, bawaan]. Saklar: nilai bawaan.
 const ANGKA = {
-  quizSeconds:     [10, 300, 60],   // Videobooth: detik menjawab per pertanyaan quiz
-  quizRounds:      [1, 10, 3],      // Videobooth: jumlah pertanyaan per sesi quiz
-  pesanCountdown:  [0, 10, 3],      // Videobooth: hitung mundur sebelum merekam pesan (0 = langsung)
-  pesanMaxSeconds: [0, 600, 0],     // Videobooth: batas durasi pesan (0 = tanpa batas)
-  photoCountdown:  [2, 10, 5],      // Photobooth: hitung mundur sebelum setiap foto
-  photoPreview:    [0, 5, 2],       // Photobooth: detik pratinjau setelah jepret (0 = tanpa)
+  quizSeconds: [10, 300, 60], // Videobooth: detik menjawab per pertanyaan quiz
+  quizRounds: [1, 10, 3], // Videobooth: jumlah pertanyaan per sesi quiz
+  pesanCountdown: [0, 10, 3], // Videobooth: hitung mundur sebelum merekam pesan (0 = langsung)
+  pesanMaxSeconds: [0, 600, 0], // Videobooth: batas durasi pesan (0 = tanpa batas)
+  photoCountdown: [2, 10, 5], // Photobooth: hitung mundur sebelum setiap foto
+  photoPreview: [0, 5, 2], // Photobooth: detik pratinjau setelah jepret (0 = tanpa)
 };
 const SAKLAR = {
-  enablePesan: true, enableQuiz: true,   // Videobooth: menu di Halaman Utama
-  enablePhoto: true, photoFlash: true,   // Photobooth: menu & efek kilat layar
-  tanyaNama: true,                       // layar "Siapa namamu?" setelah Start; nama tamu jadi nama file
+  enablePesan: true,
+  enableQuiz: true, // Videobooth: menu di Halaman Utama
+  enablePhoto: true,
+  photoFlash: true, // Photobooth: menu & efek kilat layar
+  tanyaNama: true, // layar "Siapa namamu?" setelah Start; nama tamu jadi nama file
 };
 const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
-const KAMERA = ['webcam', 'sony', 'sony-sim'];  // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
-const BAHASA = ['en', 'id'];                      // bahasa layar tamu (Admin selalu bahasa Inggris); bawaan: English
-const clampInt = (v, [lo, hi], dflt) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
+const KAMERA = ['webcam', 'sony', 'sony-sim']; // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
+const BAHASA = ['en', 'id']; // bahasa layar tamu (Admin selalu bahasa Inggris); bawaan: English
+const clampInt = (v, [lo, hi], dflt) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
+};
 const isColor = v => /^#[0-9a-f]{6}$/i.test(String(v || ''));
 function effective() {
   const s = readSettings();
   return {
-    ...Object.fromEntries(Object.entries(ANGKA).map(([k, [lo, hi, d]]) => [k, clampInt(s[k] ?? config[k], [lo, hi], d)])),
+    ...Object.fromEntries(
+      Object.entries(ANGKA).map(([k, [lo, hi, d]]) => [k, clampInt(s[k] ?? config[k], [lo, hi], d)]),
+    ),
     ...Object.fromEntries(Object.entries(SAKLAR).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
     kamera: KAMERA.includes(s.kamera) ? s.kamera : 'webcam',
     bahasa: BAHASA.includes(s.bahasa) ? s.bahasa : 'en',
-    accent: isColor(s.accent) ? s.accent : ((config.colors && isColor(config.colors.accent)) ? config.colors.accent : '#B08D57'),
-    loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin'
+    accent: isColor(s.accent)
+      ? s.accent
+      : config.colors && isColor(config.colors.accent)
+        ? config.colors.accent
+        : '#B08D57',
+    loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin',
   };
 }
 // Password baru disimpan sebagai hash, bukan teks biasa
@@ -45,8 +56,10 @@ function checkLogin(id, pw) {
   const s = readSettings();
   if (s.login && s.login.hash) {
     const h = hashPw(pw, s.login.salt);
-    return String(id).toLowerCase() === String(s.login.id).toLowerCase()
-      && crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(s.login.hash, 'hex'));
+    return (
+      String(id).toLowerCase() === String(s.login.id).toLowerCase() &&
+      crypto.timingSafeEqual(Buffer.from(h, 'hex'), Buffer.from(s.login.hash, 'hex'))
+    );
   }
   const c = config.login || {};
   return String(id).toLowerCase() === String(c.id || '').toLowerCase() && String(pw) === String(c.password || '');
@@ -60,7 +73,10 @@ function daftarkan() {
   });
   ipcMain.handle('login', (e, id, pw) => {
     const ok = checkLogin(id, pw);
-    require('./catatan').catat(ok ? 'Login Admin berhasil' : 'Login Admin gagal (ID atau password salah)', ok ? 'info' : 'peringatan');
+    require('./catatan').catat(
+      ok ? 'Login Admin berhasil' : 'Login Admin gagal (ID atau password salah)',
+      ok ? 'info' : 'peringatan',
+    );
     return ok;
   });
 
@@ -70,7 +86,8 @@ function daftarkan() {
     for (const [k, [lo, hi, d]] of Object.entries(ANGKA)) if (k in patch) s[k] = clampInt(patch[k], [lo, hi], d);
     for (const k of Object.keys(SAKLAR)) if (k in patch) s[k] = !!patch[k];
     // Minimal satu menu harus tetap tampil di Halaman Utama
-    const now = effective(), next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
+    const now = effective(),
+      next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
     if (!MENU.some(k => next[k])) return { ...now, error: 'At least one option must stay on the main menu.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
     if ('bahasa' in patch && BAHASA.includes(patch.bahasa)) s.bahasa = patch.bahasa;
@@ -81,7 +98,10 @@ function daftarkan() {
     if ('kiosk' in patch) {
       s.kiosk = !!patch.kiosk;
       const win = getWin();
-      if (win) { win.setKiosk(s.kiosk); if (!s.kiosk) win.setFullScreen(false); }
+      if (win) {
+        win.setKiosk(s.kiosk);
+        if (!s.kiosk) win.setFullScreen(false);
+      }
     }
     writeSettings(s);
     return effective();
@@ -98,22 +118,35 @@ function daftarkan() {
     return { ok: true, id };
   });
 
-  ipcMain.handle('open-folder', () => { const d = getOutDir(); usableDir(d); return shell.openPath(d); });
+  ipcMain.handle('open-folder', () => {
+    const d = getOutDir();
+    usableDir(d);
+    return shell.openPath(d);
+  });
   ipcMain.handle('get-outdir', () => {
     const dir = getOutDir();
     return { dir, isDefault: !readSettings().outDir, ok: usableDir(dir) };
   });
   ipcMain.handle('choose-outdir', async () => {
     const r = await dialog.showOpenDialog(getWin(), {
-      title: 'Choose storage folder', defaultPath: getOutDir(), properties: ['openDirectory', 'createDirectory']
+      title: 'Choose storage folder',
+      defaultPath: getOutDir(),
+      properties: ['openDirectory', 'createDirectory'],
     });
     if (r.canceled || !r.filePaths[0]) return { canceled: true };
     const dir = r.filePaths[0];
     if (!usableDir(dir)) return { error: 'That folder is not writable. Choose another folder.' };
-    const s = readSettings(); s.outDir = dir; writeSettings(s);
+    const s = readSettings();
+    s.outDir = dir;
+    writeSettings(s);
     return { dir };
   });
-  ipcMain.handle('reset-outdir', () => { const s = readSettings(); delete s.outDir; writeSettings(s); return { dir: defaultDir }; });
+  ipcMain.handle('reset-outdir', () => {
+    const s = readSettings();
+    delete s.outDir;
+    writeSettings(s);
+    return { dir: defaultDir };
+  });
 }
 
 module.exports = { effective, checkLogin, daftarkan };

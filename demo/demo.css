@@ -1,63 +1,193 @@
 /* demo.css — penyesuaian Leura untuk layar HP (hanya dipakai versi demo) */
-html.demo, html.demo body { overscroll-behavior:none; -webkit-tap-highlight-color:transparent; }
+html.demo,
+html.demo body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
 /* Bungkus seluruh tampilan: diperkecil di HP landscape (ukurannya diatur api-demo.js) */
-#skala { position:fixed; left:0; top:0; width:var(--skW, 100vw); height:var(--skH, 100vh); overflow:hidden;
-  transform:scale(var(--sk, 1)); transform-origin:0 0; }
+#skala {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--skW, 100vw);
+  height: var(--skH, 100vh);
+  overflow: hidden;
+  transform: scale(var(--sk, 1));
+  transform-origin: 0 0;
+}
 
 /* Tombol Start muat di layar HP */
-@media (max-width:600px) {
-  html.demo #btnStart { width:min(72vw, 300px); height:min(72vw, 300px); }
+@media (max-width: 600px) {
+  html.demo #btnStart {
+    width: min(72vw, 300px);
+    height: min(72vw, 300px);
+  }
 }
 
 /* Tanda kecil "DEMO" di pojok kanan bawah */
-.demo-tanda { position:fixed; right:calc(10px + env(safe-area-inset-right)); bottom:calc(10px + env(safe-area-inset-bottom)); z-index:9000;
-  padding:3px 9px; border-radius:999px; font:600 11px/1.4 -apple-system, system-ui, sans-serif; letter-spacing:.08em;
-  color:#fff; background:rgba(0,0,0,.38); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); pointer-events:none; }
+.demo-tanda {
+  position: fixed;
+  right: calc(10px + env(safe-area-inset-right));
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 9000;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font:
+    600 11px/1.4 -apple-system,
+    system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
 
 /* Petunjuk login Admin */
-.demo-petunjuk { margin:-4px 0 4px; padding:8px 12px; border-radius:12px; font-size:14px; font-weight:600;
-  color:var(--text); background:color-mix(in srgb, var(--accent) 16%, transparent); }
+.demo-petunjuk {
+  margin: -4px 0 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
 
 /* Pemutar foto/video dari Riwayat sesi */
-.demo-putar { position:fixed; inset:0; z-index:9500; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
-  padding:calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); background:rgba(10,10,14,.88); }
-.demo-putar img, .demo-putar video { max-width:100%; max-height:calc(100% - 90px); border-radius:12px; background:#000; }
-.demo-putar .btn { min-width:160px; min-height:52px; font-size:18px; }
+.demo-putar {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
+  background: rgba(10, 10, 14, 0.88);
+}
+.demo-putar img,
+.demo-putar video {
+  max-width: 100%;
+  max-height: calc(100% - 90px);
+  border-radius: 12px;
+  background: #000;
+}
+.demo-putar .btn {
+  min-width: 160px;
+  min-height: 52px;
+  font-size: 18px;
+}
 
 /* ============ Layar HP (lebar ≤ 600px) ============ */
-@media (max-width:600px) {
+@media (max-width: 600px) {
   /* Terima kasih: foto, QR, dan tombol muat dalam satu layar tanpa terpotong */
-  html.demo .tk-wrap { gap:1.6vh; }
-  html.demo #thanks.tk-foto .tk-hasil, html.demo #thanksPhoto { max-height:36vh; }
-  html.demo #thanks.tk-foto .tk-sisi { width:100%; gap:1.4vh; }
-  html.demo #thanks.tk-foto h1 { font-size:26px; }
-  html.demo .tk-qr { column-gap:16px; padding:12px 16px 12px 12px; }   /* susunan grid dari photobooth.css (layar tegak) */
-  html.demo .tk-qr canvas { width:min(20vh, 150px); }
-  html.demo .tk-qr b { font-size:17px; margin-top:0; }
-  html.demo .tk-qr small { font-size:13px; }
-  html.demo .tk-qr .tk-link { display:none; }
-  html.demo .tk-menu { min-height:56px; font-size:18px; margin-top:0; }
+  html.demo .tk-wrap {
+    gap: 1.6vh;
+  }
+  html.demo #thanks.tk-foto .tk-hasil,
+  html.demo #thanksPhoto {
+    max-height: 36vh;
+  }
+  html.demo #thanks.tk-foto .tk-sisi {
+    width: 100%;
+    gap: 1.4vh;
+  }
+  html.demo #thanks.tk-foto h1 {
+    font-size: 26px;
+  }
+  html.demo .tk-qr {
+    column-gap: 16px;
+    padding: 12px 16px 12px 12px;
+  } /* susunan grid dari photobooth.css (layar tegak) */
+  html.demo .tk-qr canvas {
+    width: min(20vh, 150px);
+  }
+  html.demo .tk-qr b {
+    font-size: 17px;
+    margin-top: 0;
+  }
+  html.demo .tk-qr small {
+    font-size: 13px;
+  }
+  html.demo .tk-qr .tk-link {
+    display: none;
+  }
+  html.demo .tk-menu {
+    min-height: 56px;
+    font-size: 18px;
+    margin-top: 0;
+  }
 
   /* Judul Admin / Riwayat: tombol samping cukup ikon */
-  html.demo .sheet-head { gap:8px; padding:12px; }
-  html.demo .sheet-head h2 { font-size:20px; white-space:nowrap; }
-  html.demo .sheet-head .btn.sm { min-height:40px; padding:0 12px; font-size:15px; white-space:nowrap; }
-  html.demo #btnAdminBack, html.demo #btnRefresh, html.demo #rwSegar { font-size:0; gap:0; width:44px; padding:0; justify-content:center; }
-  html.demo #btnAdminBack svg.i, html.demo #btnRefresh svg.i, html.demo #rwSegar svg.i { width:20px; height:20px; }
+  html.demo .sheet-head {
+    gap: 8px;
+    padding: 12px;
+  }
+  html.demo .sheet-head h2 {
+    font-size: 20px;
+    white-space: nowrap;
+  }
+  html.demo .sheet-head .btn.sm {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+  html.demo #btnAdminBack,
+  html.demo #btnRefresh,
+  html.demo #rwSegar {
+    font-size: 0;
+    gap: 0;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  html.demo #btnAdminBack svg.i,
+  html.demo #btnRefresh svg.i,
+  html.demo #rwSegar svg.i {
+    width: 20px;
+    height: 20px;
+  }
 
   /* Riwayat: baris lebih lega */
-  html.demo .rw-row { gap:10px; }
-  html.demo .rw-tag { display:none; }
-  html.demo .rw-teks b { font-size:15px; }
-  html.demo .rw-ringkas { gap:6px; }
-  html.demo .rw-ringkas div { padding:10px 4px; }
+  html.demo .rw-row {
+    gap: 10px;
+  }
+  html.demo .rw-tag {
+    display: none;
+  }
+  html.demo .rw-teks b {
+    font-size: 15px;
+  }
+  html.demo .rw-ringkas {
+    gap: 6px;
+  }
+  html.demo .rw-ringkas div {
+    padding: 10px 4px;
+  }
 }
 
 /* ============ HP landscape (tampilan diperkecil, lihat api-demo.js) ============ */
 /* Kotak "Photo booth · Mulai" selalu di bawah, seperti Kirim pesan & Quiz */
-html.demo #photo #pbPre { margin-top:auto; }
+html.demo #photo #pbPre {
+  margin-top: auto;
+}
 /* Quiz: kartu pertanyaan & tombol Lanjut lebih ramping */
-html.demo-kecil #qCard, html.demo-kecil #quizRun .row { width:100%; max-width:680px; }
-html.demo-kecil #qCard { padding:18px 28px; }
-html.demo-kecil #qText { font-size:30px !important; }
-html.demo-kecil #btnNext { min-height:56px; font-size:20px; }
+html.demo-kecil #qCard,
+html.demo-kecil #quizRun .row {
+  width: 100%;
+  max-width: 680px;
+}
+html.demo-kecil #qCard {
+  padding: 18px 28px;
+}
+html.demo-kecil #qText {
+  font-size: 30px !important;
+}
+html.demo-kecil #btnNext {
+  min-height: 56px;
+  font-size: 20px;
+}

@@ -27,20 +27,34 @@ const MAKS_SATUAN = 4;
 // Ukuran tiap bagian video (R2: semua bagian sama besar, kecuali terakhir). LEURA_UJI_BAGIAN hanya untuk uji otomatis.
 const BAGIAN = Number(process.env.LEURA_UJI_BAGIAN) || 8 * 1024 * 1024;
 const HASIL_PASANG = path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
-const HURUF = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';   // tanpa huruf yang mirip (0/O, 1/l/I)
+const HURUF = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'; // tanpa huruf yang mirip (0/O, 1/l/I)
 
-let antrean = [], dimuat = false;
-let berjalan = false, timer = null;
+let antrean = [],
+  dimuat = false;
+let berjalan = false,
+  timer = null;
 const st = { terkirim: 0, terkirimVideo: 0, errorTerakhir: '', sedang: null, progres: null };
 
 const pengaturan = () => {
   const u = readSettings().unggah || {};
-  return { aktif: !!u.aktif, url: u.url || '', kunci: u.kunci || '', video: u.video !== false, videoKualitas: u.videoKualitas === '1080' ? '1080' : '720' };
+  return {
+    aktif: !!u.aktif,
+    url: u.url || '',
+    kunci: u.kunci || '',
+    video: u.video !== false,
+    videoKualitas: u.videoKualitas === '1080' ? '1080' : '720',
+  };
 };
-const siap = () => { const p = pengaturan(); return p.aktif && !!p.url && !!p.kunci; };
+const siap = () => {
+  const p = pengaturan();
+  return p.aktif && !!p.url && !!p.kunci;
+};
 const siapVideo = () => siap() && pengaturan().video;
 const kualitasVideo = () => pengaturan().videoKualitas;
-const alamat = url => String(url || '').trim().replace(/\/+$/, '');
+const alamat = url =>
+  String(url || '')
+    .trim()
+    .replace(/\/+$/, '');
 const kodeBaru = () => Array.from({ length: 10 }, () => HURUF[crypto.randomInt(HURUF.length)]).join('');
 const linkFoto = kode => alamat(pengaturan().url) + '/f/' + kode;
 const linkVideo = kode => alamat(pengaturan().url) + '/v/' + kode;
@@ -53,16 +67,33 @@ function muat() {
   antrean = readJSON(FILE_ANTREAN, []);
   if (!Array.isArray(antrean)) antrean = [];
 }
-function simpanAntrean() { try { writeJSON(FILE_ANTREAN, antrean); } catch (e) { console.log('Gagal menyimpan antrean unggah: ' + e.message); } }
+function simpanAntrean() {
+  try {
+    writeJSON(FILE_ANTREAN, antrean);
+  } catch (e) {
+    console.log('Gagal menyimpan antrean unggah: ' + e.message);
+  }
+}
 function status() {
   muat();
   const p = pengaturan();
-  return { aktif: p.aktif, url: p.url, adaKunci: !!p.kunci, video: p.video, videoKualitas: p.videoKualitas,
-           menunggu: antrean.filter(x => !isVideo(x) && !x.hasilTerkirim).length,
-           menungguSatuan: antrean.reduce((n, x) => n + sisaSatuan(x).length, 0),
-           menungguVideo: antrean.filter(isVideo).length, videoDiolah: antrean.filter(x => isVideo(x) && !x.file).length,
-           terkirim: st.terkirim, terkirimVideo: st.terkirimVideo,
-           errorTerakhir: st.errorTerakhir, sedang: st.sedang, progres: st.progres, adaHasilPasang: fs.existsSync(HASIL_PASANG) };
+  return {
+    aktif: p.aktif,
+    url: p.url,
+    adaKunci: !!p.kunci,
+    video: p.video,
+    videoKualitas: p.videoKualitas,
+    menunggu: antrean.filter(x => !isVideo(x) && !x.hasilTerkirim).length,
+    menungguSatuan: antrean.reduce((n, x) => n + sisaSatuan(x).length, 0),
+    menungguVideo: antrean.filter(isVideo).length,
+    videoDiolah: antrean.filter(x => isVideo(x) && !x.file).length,
+    terkirim: st.terkirim,
+    terkirimVideo: st.terkirimVideo,
+    errorTerakhir: st.errorTerakhir,
+    sedang: st.sedang,
+    progres: st.progres,
+    adaHasilPasang: fs.existsSync(HASIL_PASANG),
+  };
 }
 function kabarkan() {
   const win = getWin();
@@ -76,17 +107,26 @@ async function simpanSatuan(sid, satuan) {
   try {
     for (const [i, b] of satuan.slice(0, MAKS_SATUAN).entries()) {
       const u = b instanceof Uint8Array ? b : new Uint8Array(b || []);
-      if (u.length < 4 || u.length > 15 * 1024 * 1024 || u[0] !== 0xFF || u[1] !== 0xD8) continue;
+      if (u.length < 4 || u.length > 15 * 1024 * 1024 || u[0] !== 0xff || u[1] !== 0xd8) continue;
       fs.mkdirSync(FOLDER_SATUAN, { recursive: true });
       const f = path.join(FOLDER_SATUAN, `${sid}-${i + 1}.jpg`);
       await fs.promises.writeFile(f, Buffer.from(u));
       out.push(f);
     }
-  } catch (e) { catatan.peringatan('Foto satuan untuk QR gagal disimpan: ' + e.message); }
+  } catch (e) {
+    catatan.peringatan('Foto satuan untuk QR gagal disimpan: ' + e.message);
+  }
   return out;
 }
-const hapusFile = f => { try { fs.unlinkSync(f); } catch (e) {} };
-const sisaSatuan = item => (item.satuan || []).map((f, i) => i + 1).filter(n => !(item.satuanTerkirim || []).includes(n));
+const hapusFile = f => {
+  try {
+    fs.unlinkSync(f);
+  } catch {
+    /* file sudah terhapus */
+  }
+};
+const sisaSatuan = item =>
+  (item.satuan || []).map((f, i) => i + 1).filter(n => !(item.satuanTerkirim || []).includes(n));
 
 // Server lama (sebelum ada foto satuan / video) tidak mengenal fitur baru — foto satuan bahkan akan
 // MENIMPA foto hasil. Jadi tanya dulu sekali: server baru menjawab /ping dengan satuan: true, video: true.
@@ -94,13 +134,24 @@ let fiturServer = null;
 async function serverDukung(p, fitur) {
   if (fiturServer === null) {
     try {
-      const r = await fetch(`${alamat(p.url)}/ping`, { headers: { authorization: 'Bearer ' + p.kunci }, signal: AbortSignal.timeout(10000) });
-      if (!r.ok) return null;                                       // belum tahu (internet?) — coba lagi nanti
+      const r = await fetch(`${alamat(p.url)}/ping`, {
+        headers: { authorization: 'Bearer ' + p.kunci },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!r.ok) return null; // belum tahu (internet?) — coba lagi nanti
       const j = await r.json();
       fiturServer = { satuan: !!j.satuan, video: !!j.video };
-      if (!fiturServer.satuan) catatan.peringatan('Server QR versi lama: foto satuan tidak diunggah. Jalankan "npm run cloud:pasang" untuk memperbarui server.');
-      if (!fiturServer.video) catatan.peringatan('Server QR versi lama: video tidak bisa diunggah. Jalankan "npm run cloud:pasang" untuk memperbarui server.');
-    } catch (e) { return null; }
+      if (!fiturServer.satuan)
+        catatan.peringatan(
+          'Server QR versi lama: foto satuan tidak diunggah. Jalankan "npm run cloud:pasang" untuk memperbarui server.',
+        );
+      if (!fiturServer.video)
+        catatan.peringatan(
+          'Server QR versi lama: video tidak bisa diunggah. Jalankan "npm run cloud:pasang" untuk memperbarui server.',
+        );
+    } catch {
+      return null;
+    }
   }
   return fiturServer[fitur];
 }
@@ -108,8 +159,11 @@ async function serverDukung(p, fitur) {
 // Kirim satu foto (n = 0: foto hasil, 1-4: foto satuan). Kembali: '' kalau berhasil, atau teks error.
 async function kirim(item, p, n = 0) {
   let data;
-  try { data = fs.readFileSync(n ? item.satuan[n - 1] : item.file); }
-  catch (e) { return 'HILANG'; }
+  try {
+    data = fs.readFileSync(n ? item.satuan[n - 1] : item.file);
+  } catch {
+    return 'HILANG';
+  }
   const ctrl = new AbortController();
   const batas = setTimeout(() => ctrl.abort(), 60000);
   const headers = { authorization: 'Bearer ' + p.kunci, 'content-type': 'image/jpeg' };
@@ -118,21 +172,35 @@ async function kirim(item, p, n = 0) {
     if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
   }
   try {
-    const r = await fetch(`${alamat(p.url)}/u/${item.kode}${n ? '/' + n : ''}`, { method: 'PUT', body: data, signal: ctrl.signal, headers });
+    const r = await fetch(`${alamat(p.url)}/u/${item.kode}${n ? '/' + n : ''}`, {
+      method: 'PUT',
+      body: data,
+      signal: ctrl.signal,
+      headers,
+    });
     if (r.ok) return '';
     let pesan = '';
-    try { pesan = (await r.json()).error || ''; } catch (e) {}
+    try {
+      pesan = (await r.json()).error || '';
+    } catch {
+      /* server tidak mengirim JSON: cukup kode status */
+    }
     return `Server refused (${r.status}${pesan ? ': ' + pesan : ''})`;
   } catch (e) {
     return e.name === 'AbortError' ? 'Upload took too long (slow internet?)' : 'No internet / server unreachable';
-  } finally { clearTimeout(batas); }
+  } finally {
+    clearTimeout(batas);
+  }
 }
 
 // Selesai dengan satu item: keluarkan dari antrean & hapus file sementara (foto satuan / versi HP video)
 function selesaiItem(item) {
   antrean = antrean.filter(x => x !== item);
   (item.satuan || []).forEach(hapusFile);
-  if (isVideo(item)) { if (item.file) hapusFile(item.file); if (item.poster) hapusFile(item.poster); }
+  if (isVideo(item)) {
+    if (item.file) hapusFile(item.file);
+    if (item.poster) hapusFile(item.poster);
+  }
 }
 
 // Kirim SATU langkah video: sampul → mulai → bagian ke-n → selesai. Kembali: '' kalau berhasil, atau teks error.
@@ -140,26 +208,54 @@ async function permintaan(p, jalur, opsi = {}, batasMs = 120000) {
   const ctrl = new AbortController();
   const batas = setTimeout(() => ctrl.abort(), batasMs);
   try {
-    const r = await fetch(`${alamat(p.url)}${jalur}`, { ...opsi, signal: ctrl.signal, headers: { authorization: 'Bearer ' + p.kunci, ...(opsi.headers || {}) } });
+    const r = await fetch(`${alamat(p.url)}${jalur}`, {
+      ...opsi,
+      signal: ctrl.signal,
+      headers: { authorization: 'Bearer ' + p.kunci, ...(opsi.headers || {}) },
+    });
     let j = {};
-    try { j = await r.json(); } catch (e) {}
+    try {
+      j = await r.json();
+    } catch {
+      /* server tidak mengirim JSON: diperiksa dari kode status */
+    }
     return { r, j };
   } catch (e) {
-    return { galat: e.name === 'AbortError' ? 'Upload took too long (slow internet?)' : 'No internet / server unreachable' };
-  } finally { clearTimeout(batas); }
+    return {
+      galat: e.name === 'AbortError' ? 'Upload took too long (slow internet?)' : 'No internet / server unreachable',
+    };
+  } finally {
+    clearTimeout(batas);
+  }
 }
 const tolak = (r, j) => `Server refused (${r.status}${j && j.error ? ': ' + j.error : ''})`;
 async function kirimVideo(item, p) {
   let ukuran;
-  try { ukuran = fs.statSync(item.file).size; } catch (e) { return 'HILANG'; }
+  try {
+    ukuran = fs.statSync(item.file).size;
+  } catch {
+    return 'HILANG';
+  }
   const total = Math.max(1, Math.ceil(ukuran / BAGIAN));
   const dasar = `/uv/${item.kode}`;
   if (!item.posterTerkirim && item.poster) {
-    let data; try { data = fs.readFileSync(item.poster); } catch (e) { item.posterTerkirim = true; return ''; }
-    const { r, j, galat } = await permintaan(p, dasar + '/poster', { method: 'PUT', body: data, headers: { 'content-type': 'image/jpeg' } }, 60000);
+    let data;
+    try {
+      data = fs.readFileSync(item.poster);
+    } catch {
+      item.posterTerkirim = true;
+      return '';
+    }
+    const { r, j, galat } = await permintaan(
+      p,
+      dasar + '/poster',
+      { method: 'PUT', body: data, headers: { 'content-type': 'image/jpeg' } },
+      60000,
+    );
     if (galat) return galat;
     if (!r.ok) return tolak(r, j);
-    item.posterTerkirim = true; return '';
+    item.posterTerkirim = true;
+    return '';
   }
   if (!item.uploadId) {
     const headers = { 'x-leura-jenis': item.label === 'quiz' ? 'quiz' : 'pesan', 'x-leura-ukuran': String(ukuran) };
@@ -167,25 +263,52 @@ async function kirimVideo(item, p) {
     const { r, j, galat } = await permintaan(p, dasar + '/mulai', { method: 'POST', headers }, 60000);
     if (galat) return galat;
     if (!r.ok) return tolak(r, j);
-    if (j.ada) { item.terkirim = true; return ''; }          // sudah pernah sampai (mis. aplikasi ditutup saat menyelesaikan)
-    item.uploadId = j.uploadId; item.bagian = []; return '';
+    if (j.ada) {
+      item.terkirim = true;
+      return '';
+    } // sudah pernah sampai (mis. aplikasi ditutup saat menyelesaikan)
+    item.uploadId = j.uploadId;
+    item.bagian = [];
+    return '';
   }
   const q = '?u=' + encodeURIComponent(item.uploadId);
   if (item.bagian.length < total) {
     const n = item.bagian.length + 1;
     const buf = Buffer.alloc(Math.min(BAGIAN, ukuran - (n - 1) * BAGIAN));
-    try { const fd = fs.openSync(item.file, 'r'); fs.readSync(fd, buf, 0, buf.length, (n - 1) * BAGIAN); fs.closeSync(fd); } catch (e) { return 'HILANG'; }
+    try {
+      const fd = fs.openSync(item.file, 'r');
+      fs.readSync(fd, buf, 0, buf.length, (n - 1) * BAGIAN);
+      fs.closeSync(fd);
+    } catch {
+      return 'HILANG';
+    }
     st.progres = { kode: item.kode, n, total };
-    const { r, j, galat } = await permintaan(p, `${dasar}/${n}${q}`, { method: 'PUT', body: buf, headers: { 'content-type': 'application/octet-stream' } });
+    const { r, j, galat } = await permintaan(p, `${dasar}/${n}${q}`, {
+      method: 'PUT',
+      body: buf,
+      headers: { 'content-type': 'application/octet-stream' },
+    });
     if (galat) return galat;
-    if (r.status === 404 && j.error === 'upload-hilang') { item.uploadId = null; item.bagian = []; return 'Upload expired on the server, starting again'; }
+    if (r.status === 404 && j.error === 'upload-hilang') {
+      item.uploadId = null;
+      item.bagian = [];
+      return 'Upload expired on the server, starting again';
+    }
     if (!r.ok || !j.etag) return tolak(r, j);
     item.bagian.push({ partNumber: n, etag: j.etag });
     return '';
   }
-  const { r, j, galat } = await permintaan(p, `${dasar}/selesai${q}`, { method: 'POST', body: JSON.stringify({ bagian: item.bagian }), headers: { 'content-type': 'application/json' } });
+  const { r, j, galat } = await permintaan(p, `${dasar}/selesai${q}`, {
+    method: 'POST',
+    body: JSON.stringify({ bagian: item.bagian }),
+    headers: { 'content-type': 'application/json' },
+  });
   if (galat) return galat;
-  if (r.status === 404 && j.error === 'upload-hilang') { item.uploadId = null; item.bagian = []; return 'Upload expired on the server, starting again'; }
+  if (r.status === 404 && j.error === 'upload-hilang') {
+    item.uploadId = null;
+    item.bagian = [];
+    return 'Upload expired on the server, starting again';
+  }
   if (!r.ok) return tolak(r, j);
   item.terkirim = true;
   return '';
@@ -200,15 +323,26 @@ async function jalankan() {
   berjalan = true;
   try {
     while (antrean.length && siap()) {
-      const sekarang = Date.now(), siapKirim = x => (x.berikut || 0) <= sekarang;
+      const sekarang = Date.now(),
+        siapKirim = x => (x.berikut || 0) <= sekarang;
       const foto = antrean.filter(x => !isVideo(x));
-      let item = foto.find(x => !x.hasilTerkirim && siapKirim(x)), n = 0;
+      let item = foto.find(x => !x.hasilTerkirim && siapKirim(x)),
+        n = 0;
       if (!item && !foto.some(x => !x.hasilTerkirim)) {
         item = foto.find(x => siapKirim(x) && sisaSatuan(x).length);
         if (item) {
           const dukung = await serverDukung(pengaturan(), 'satuan');
-          if (dukung === false) { foto.filter(x => x.hasilTerkirim).forEach(selesaiItem); simpanAntrean(); kabarkan(); continue; }
-          if (dukung === null) { item.berikut = Date.now() + 15000; simpanAntrean(); continue; }
+          if (dukung === false) {
+            foto.filter(x => x.hasilTerkirim).forEach(selesaiItem);
+            simpanAntrean();
+            kabarkan();
+            continue;
+          }
+          if (dukung === null) {
+            item.berikut = Date.now() + 15000;
+            simpanAntrean();
+            continue;
+          }
           n = sisaSatuan(item)[0];
         }
       }
@@ -218,63 +352,94 @@ async function jalankan() {
         if (video) {
           const dukung = await serverDukung(pengaturan(), 'video');
           if (dukung === false) {
-            antrean.filter(isVideo).forEach(x => { if (x.sid) updateSession(x.sid, { unggah: 'server-lama' }); selesaiItem(x); });
-            simpanAntrean(); kabarkan(); continue;
+            antrean.filter(isVideo).forEach(x => {
+              if (x.sid) updateSession(x.sid, { unggah: 'server-lama' });
+              selesaiItem(x);
+            });
+            simpanAntrean();
+            kabarkan();
+            continue;
           }
-          if (dukung === null) { video.berikut = Date.now() + 15000; simpanAntrean(); continue; }
-          st.sedang = video.kode; kabarkan();
+          if (dukung === null) {
+            video.berikut = Date.now() + 15000;
+            simpanAntrean();
+            continue;
+          }
+          st.sedang = video.kode;
+          kabarkan();
           const err = await kirimVideo(video, pengaturan());
           st.sedang = null;
           if (err === 'HILANG') {
             catatan.error(`QR ${video.kode}: file video hilang, tidak bisa dikirim`);
             if (video.sid) updateSession(video.sid, { unggah: 'hilang' });
-            selesaiItem(video); st.progres = null;
+            selesaiItem(video);
+            st.progres = null;
           } else if (!err) {
-            video.coba = 0; st.errorTerakhir = '';
+            video.coba = 0;
+            st.errorTerakhir = '';
             if (video.terkirim) {
               catatan.catat(`QR ${video.kode}: video terkirim (${video.bagian ? video.bagian.length : 0} bagian)`);
               if (video.sid) updateSession(video.sid, { unggah: 'terkirim' });
-              selesaiItem(video); st.terkirimVideo++; st.progres = null;
+              selesaiItem(video);
+              st.terkirimVideo++;
+              st.progres = null;
             }
           } else {
             video.coba = (video.coba || 0) + 1;
-            if (err !== st.errorTerakhir) catatan.peringatan(`QR ${video.kode}: video belum terkirim — ${err} (dicoba lagi otomatis)`);
+            if (err !== st.errorTerakhir)
+              catatan.peringatan(`QR ${video.kode}: video belum terkirim — ${err} (dicoba lagi otomatis)`);
             video.berikut = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(video.coba, 5));
             st.errorTerakhir = err;
             if (video.sid) updateSession(video.sid, { unggah: 'menunggu' });
           }
-          simpanAntrean(); kabarkan();
+          simpanAntrean();
+          kabarkan();
           continue;
         }
       }
       if (!item) break;
-      st.sedang = item.kode; kabarkan();
+      st.sedang = item.kode;
+      kabarkan();
       const err = await kirim(item, pengaturan(), n);
       st.sedang = null;
-      if (n && (!err || err === 'HILANG')) {                     // foto satuan
+      if (n && (!err || err === 'HILANG')) {
+        // foto satuan
         item.satuanTerkirim = [...(item.satuanTerkirim || []), n];
         if (err) catatan.peringatan(`QR ${item.kode}: foto satuan ${n} hilang, dilewati`);
-        item.coba = 0; st.errorTerakhir = err ? st.errorTerakhir : '';
-        if (!sisaSatuan(item).length) { selesaiItem(item); catatan.catat(`QR ${item.kode}: ${item.satuan.length} foto satuan terkirim`); }
-      } else if (!err || err === 'HILANG') {                    // foto hasil
+        item.coba = 0;
+        st.errorTerakhir = err ? st.errorTerakhir : '';
+        if (!sisaSatuan(item).length) {
+          selesaiItem(item);
+          catatan.catat(`QR ${item.kode}: ${item.satuan.length} foto satuan terkirim`);
+        }
+      } else if (!err || err === 'HILANG') {
+        // foto hasil
         if (err) catatan.error(`QR ${item.kode}: file foto hilang, tidak bisa dikirim (${path.basename(item.file)})`);
         else catatan.catat(`QR ${item.kode}: foto terkirim${item.coba ? ` (setelah ${item.coba}x gagal)` : ''}`);
-        item.hasilTerkirim = true; item.coba = 0;
+        item.hasilTerkirim = true;
+        item.coba = 0;
         if (err || !sisaSatuan(item).length) selesaiItem(item);
         if (item.sid) updateSession(item.sid, { unggah: err ? 'hilang' : 'terkirim' });
-        if (!err) { st.terkirim++; st.errorTerakhir = ''; }
+        if (!err) {
+          st.terkirim++;
+          st.errorTerakhir = '';
+        }
       } else {
         item.coba = (item.coba || 0) + 1;
-        if (err !== st.errorTerakhir) catatan.peringatan(`QR ${item.kode}: ${n ? 'foto satuan ' + n + ' ' : ''}belum terkirim — ${err} (dicoba lagi otomatis)`);
+        if (err !== st.errorTerakhir)
+          catatan.peringatan(
+            `QR ${item.kode}: ${n ? 'foto satuan ' + n + ' ' : ''}belum terkirim — ${err} (dicoba lagi otomatis)`,
+          );
         item.berikut = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(item.coba, 5));
         st.errorTerakhir = err;
         if (item.sid && !n) updateSession(item.sid, { unggah: 'menunggu' });
       }
-      simpanAntrean(); kabarkan();
+      simpanAntrean();
+      kabarkan();
     }
   } finally {
     berjalan = false;
-    const bisa = antrean.filter(x => !isVideo(x) || x.file);       // video yang masih diolah belum bisa dikirim
+    const bisa = antrean.filter(x => !isVideo(x) || x.file); // video yang masih diolah belum bisa dikirim
     if (bisa.length && siap()) {
       const tunggu = Math.max(500, Math.min(...bisa.map(x => (x.berikut || 0) - Date.now())));
       timer = setTimeout(jalankan, tunggu);
@@ -285,11 +450,24 @@ async function jalankan() {
 // Dipanggil saat foto photobooth disimpan. Kembali: { kode, link } atau null kalau QR mati.
 // opsi.satuan: file foto satuan (dari simpanSatuan); opsi.couple: nama couple untuk halaman unduh
 function daftarkanFoto(file, sid, opsi = {}) {
-  if (!siap()) { (opsi.satuan || []).forEach(hapusFile); return null; }
+  if (!siap()) {
+    (opsi.satuan || []).forEach(hapusFile);
+    return null;
+  }
   muat();
   const kode = kodeBaru();
-  antrean.push({ kode, file, sid, satuan: (opsi.satuan || []).slice(0, MAKS_SATUAN), satuanTerkirim: [], couple: String(opsi.couple || '').slice(0, 80),
-                 hasilTerkirim: false, coba: 0, berikut: 0, dibuat: Date.now() });
+  antrean.push({
+    kode,
+    file,
+    sid,
+    satuan: (opsi.satuan || []).slice(0, MAKS_SATUAN),
+    satuanTerkirim: [],
+    couple: String(opsi.couple || '').slice(0, 80),
+    hasilTerkirim: false,
+    coba: 0,
+    berikut: 0,
+    dibuat: Date.now(),
+  });
   simpanAntrean();
   setImmediate(jalankan);
   return { kode, link: linkFoto(kode) };
@@ -300,61 +478,116 @@ function daftarkanVideo(sid, opsi = {}) {
   if (!siapVideo()) return null;
   muat();
   const kode = kodeBaru();
-  antrean.push({ jenis: 'video', kode, sid, label: opsi.label === 'quiz' ? 'quiz' : 'pesan', couple: String(opsi.couple || '').slice(0, 80),
-                 file: null, poster: null, posterTerkirim: false, uploadId: null, bagian: [], coba: 0, berikut: 0, dibuat: Date.now() });
-  simpanAntrean(); kabarkan();
+  antrean.push({
+    jenis: 'video',
+    kode,
+    sid,
+    label: opsi.label === 'quiz' ? 'quiz' : 'pesan',
+    couple: String(opsi.couple || '').slice(0, 80),
+    file: null,
+    poster: null,
+    posterTerkirim: false,
+    uploadId: null,
+    bagian: [],
+    coba: 0,
+    berikut: 0,
+    dibuat: Date.now(),
+  });
+  simpanAntrean();
+  kabarkan();
   return { kode, link: linkVideo(kode) };
 }
 // Riwayat → "Process again" untuk video yang versi HP-nya gagal: kode lama tetap dipakai
 function daftarkanVideoLagi(s) {
   muat();
   if (!s || !s.kode || antrean.some(x => x.kode === s.kode)) return;
-  antrean.push({ jenis: 'video', kode: s.kode, sid: s.id, label: s.label === 'quiz' ? 'quiz' : 'pesan', couple: String(s.couple || '').slice(0, 80),
-                 file: null, poster: null, posterTerkirim: false, uploadId: null, bagian: [], coba: 0, berikut: 0, dibuat: Date.now() });
-  simpanAntrean(); kabarkan();
+  antrean.push({
+    jenis: 'video',
+    kode: s.kode,
+    sid: s.id,
+    label: s.label === 'quiz' ? 'quiz' : 'pesan',
+    couple: String(s.couple || '').slice(0, 80),
+    file: null,
+    poster: null,
+    posterTerkirim: false,
+    uploadId: null,
+    bagian: [],
+    coba: 0,
+    berikut: 0,
+    dibuat: Date.now(),
+  });
+  simpanAntrean();
+  kabarkan();
 }
 // Versi HP sudah dibuat (olah-video.js): mulai unggah
 function videoSiap(kode, file, poster) {
   muat();
   const item = antrean.find(x => isVideo(x) && x.kode === kode);
-  if (!item) { hapusFile(file); if (poster) hapusFile(poster); return; }
-  Object.assign(item, { file, poster: poster || null, posterTerkirim: !poster, uploadId: null, bagian: [], berikut: 0 });
-  simpanAntrean(); kabarkan();
+  if (!item) {
+    hapusFile(file);
+    if (poster) hapusFile(poster);
+    return;
+  }
+  Object.assign(item, {
+    file,
+    poster: poster || null,
+    posterTerkirim: !poster,
+    uploadId: null,
+    bagian: [],
+    berikut: 0,
+  });
+  simpanAntrean();
+  kabarkan();
   setImmediate(jalankan);
 }
 function videoGagal(kode) {
   muat();
   const item = antrean.find(x => isVideo(x) && x.kode === kode);
-  if (item) { selesaiItem(item); simpanAntrean(); kabarkan(); }
+  if (item) {
+    selesaiItem(item);
+    simpanAntrean();
+    kabarkan();
+  }
 }
 
 async function tesSambungan(p = pengaturan()) {
   if (!p.url || !p.kunci) return { error: 'Enter the server address and booth key first.' };
   try {
-    const r = await fetch(`${alamat(p.url)}/ping`, { headers: { authorization: 'Bearer ' + p.kunci }, signal: AbortSignal.timeout(10000) });
+    const r = await fetch(`${alamat(p.url)}/ping`, {
+      headers: { authorization: 'Bearer ' + p.kunci },
+      signal: AbortSignal.timeout(10000),
+    });
     if (r.status === 401) return { error: 'Wrong booth key.' };
     if (!r.ok) return { error: `Server answered ${r.status}. Check the server address.` };
     const j = await r.json();
     return j.ok ? { ok: true, hari: j.hari } : { error: 'Unknown server response.' };
-  } catch (e) { return { error: 'Server unreachable. Check the internet and the server address.' }; }
+  } catch {
+    return { error: 'Server unreachable. Check the internet and the server address.' };
+  }
 }
 
 function daftarkan() {
   ipcMain.handle('unggah-status', () => status());
   ipcMain.handle('unggah-simpan', (e, masuk) => {
-    const s = readSettings(), lama = s.unggah || {};
+    const s = readSettings(),
+      lama = s.unggah || {};
     const url = alamat(masuk.url != null ? masuk.url : lama.url);
     // https wajib; http hanya untuk server uji di komputer ini
-    if (url && !/^https:\/\/[^\s/]+/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) return { ...status(), error: 'The server address must start with https://' };
+    if (url && !/^https:\/\/[^\s/]+/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url))
+      return { ...status(), error: 'The server address must start with https://' };
     const kunci = masuk.kunci != null ? String(masuk.kunci).trim() : lama.kunci || '';
     const aktif = masuk.aktif != null ? !!masuk.aktif : !!lama.aktif;
-    if (aktif && (!url || !kunci)) return { ...status(), error: 'Enter the server address and booth key before turning the QR on.' };
+    if (aktif && (!url || !kunci))
+      return { ...status(), error: 'Enter the server address and booth key before turning the QR on.' };
     const video = masuk.video != null ? !!masuk.video : lama.video !== false;
-    const videoKualitas = (masuk.videoKualitas != null ? String(masuk.videoKualitas) : lama.videoKualitas) === '1080' ? '1080' : '720';
+    const videoKualitas =
+      (masuk.videoKualitas != null ? String(masuk.videoKualitas) : lama.videoKualitas) === '1080' ? '1080' : '720';
     s.unggah = { aktif, url, kunci, video, videoKualitas };
     writeSettings(s);
-    fiturServer = null;                      // server bisa berganti: tanya lagi
-    catatan.catat(`Pengaturan QR disimpan: ${aktif ? 'aktif' : 'mati'}, video ${video ? videoKualitas + 'p' : 'mati'}, server ${url || '-'}`);   // kunci tidak pernah dicatat
+    fiturServer = null; // server bisa berganti: tanya lagi
+    catatan.catat(
+      `Pengaturan QR disimpan: ${aktif ? 'aktif' : 'mati'}, video ${video ? videoKualitas + 'p' : 'mati'}, server ${url || '-'}`,
+    ); // kunci tidak pernah dicatat
     setImmediate(jalankan);
     return status();
   });
@@ -368,29 +601,70 @@ function daftarkan() {
   // Dari Riwayat sesi: buka link foto di browser / salin link
   ipcMain.handle('buka-link', (e, url) => {
     if (!/^https:\/\/[^\s]+$/.test(String(url || ''))) return { error: 'Invalid link.' };
-    shell.openExternal(url); return { ok: true };
+    shell.openExternal(url);
+    return { ok: true };
   });
-  ipcMain.handle('salin-teks', (e, teks) => { clipboard.writeText(String(teks || '')); return { ok: true }; });
-  ipcMain.handle('unggah-coba-sekarang', () => { antrean.forEach(x => { x.berikut = 0; }); simpanAntrean(); jalankan(); return status(); });
+  ipcMain.handle('salin-teks', (e, teks) => {
+    clipboard.writeText(String(teks || ''));
+    return { ok: true };
+  });
+  ipcMain.handle('unggah-coba-sekarang', () => {
+    antrean.forEach(x => {
+      x.berikut = 0;
+    });
+    simpanAntrean();
+    jalankan();
+    return status();
+  });
 }
 // Saat aplikasi dibuka: lanjutkan antrean yang tersisa
 function mulai() {
   muat();
-  antrean.forEach(x => { x.berikut = 0; });
+  antrean.forEach(x => {
+    x.berikut = 0;
+  });
   // Bersihkan foto satuan sementara yang tidak ada lagi di antrean
   try {
     const dipakai = new Set(antrean.flatMap(x => x.satuan || []));
-    for (const f of fs.readdirSync(FOLDER_SATUAN)) { const p = path.join(FOLDER_SATUAN, f); if (!dipakai.has(p)) hapusFile(p); }
-  } catch (e) {}
+    for (const f of fs.readdirSync(FOLDER_SATUAN)) {
+      const p = path.join(FOLDER_SATUAN, f);
+      if (!dipakai.has(p)) hapusFile(p);
+    }
+  } catch {
+    /* folder foto satuan belum ada */
+  }
   // Versi HP video yang tidak ada lagi di antrean
   try {
     const folder = path.join(userData, 'qr-video');
-    const dipakai = new Set(antrean.filter(isVideo).flatMap(x => [x.file, x.poster]).filter(Boolean));
+    const dipakai = new Set(
+      antrean
+        .filter(isVideo)
+        .flatMap(x => [x.file, x.poster])
+        .filter(Boolean),
+    );
     const diolah = new Set(antrean.filter(x => isVideo(x) && !x.file).map(x => String(x.sid)));
-    for (const f of fs.readdirSync(folder)) { const p = path.join(folder, f); if (!dipakai.has(p) && !diolah.has(f.split('.')[0])) hapusFile(p); }
-  } catch (e) {}
+    for (const f of fs.readdirSync(folder)) {
+      const p = path.join(folder, f);
+      if (!dipakai.has(p) && !diolah.has(f.split('.')[0])) hapusFile(p);
+    }
+  } catch {
+    /* folder versi HP belum ada */
+  }
   setTimeout(jalankan, 2000);
 }
 
-module.exports = { daftarkan, mulai, daftarkanFoto, simpanSatuan, siap, status, kodeBaru,
-                   siapVideo, kualitasVideo, daftarkanVideo, daftarkanVideoLagi, videoSiap, videoGagal };
+module.exports = {
+  daftarkan,
+  mulai,
+  daftarkanFoto,
+  simpanSatuan,
+  siap,
+  status,
+  kodeBaru,
+  siapVideo,
+  kualitasVideo,
+  daftarkanVideo,
+  daftarkanVideoLagi,
+  videoSiap,
+  videoGagal,
+};

@@ -9,9 +9,10 @@ const fs = require('fs');
 const path = require('path');
 
 const AKAR = path.join(__dirname, '..');
-const fileLisensi = () => (app.isPackaged
-  ? path.join(process.resourcesPath, 'THIRD-PARTY-NOTICES.txt')
-  : path.join(AKAR, 'THIRD-PARTY-NOTICES.txt'));
+const fileLisensi = () =>
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'THIRD-PARTY-NOTICES.txt')
+    : path.join(AKAR, 'THIRD-PARTY-NOTICES.txt');
 
 // Nama branch Git (hanya saat dijalankan dari folder kode), dibaca langsung dari .git/HEAD
 function branchGit() {
@@ -19,12 +20,19 @@ function branchGit() {
     const head = fs.readFileSync(path.join(AKAR, '.git', 'HEAD'), 'utf8').trim();
     const m = head.match(/^ref: refs\/heads\/(.+)$/);
     return m ? m[1] : head.slice(0, 7);
-  } catch (e) { return ''; }
+  } catch {
+    return '';
+  }
 }
 
 function info() {
-  return { versi: app.getVersion(), terpasang: !!app.isPackaged, branch: app.isPackaged ? '' : branchGit(),
-           electron: process.versions.electron, lisensi: fs.existsSync(fileLisensi()) };
+  return {
+    versi: app.getVersion(),
+    terpasang: !!app.isPackaged,
+    branch: app.isPackaged ? '' : branchGit(),
+    electron: process.versions.electron,
+    lisensi: fs.existsSync(fileLisensi()),
+  };
 }
 
 function daftarkan() {

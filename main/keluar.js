@@ -17,15 +17,22 @@ const boleh = () => dikonfirmasi;
 
 // Hal yang masih berjalan, untuk peringatan sebelum menutup
 function cekSebelumTutup() {
-  let salin = 0, proses = 0;
+  let salin = 0,
+    proses = 0;
   try {
     for (const s of readSessions()) {
       if (s.status === 'transfer') salin++;
       else if (s.status === 'processing') proses++;
     }
-  } catch (e) {}
+  } catch {
+    /* sessions.json tidak terbaca: dianggap tidak ada video yang diproses */
+  }
   let foto = 0;
-  try { foto = unggah.status().menunggu || 0; } catch (e) {}
+  try {
+    foto = unggah.status().menunggu || 0;
+  } catch {
+    /* antrean QR belum dimuat: dianggap kosong */
+  }
   return { salin, proses, foto };
 }
 
@@ -34,7 +41,11 @@ function cekSebelumTutup() {
 function minta(asal) {
   const win = getWin();
   const wc = win && !win.isDestroyed() ? win.webContents : null;
-  if (!wc || (wc.isCrashed && wc.isCrashed())) { dikonfirmasi = true; app.quit(); return; }
+  if (!wc || (wc.isCrashed && wc.isCrashed())) {
+    dikonfirmasi = true;
+    app.quit();
+    return;
+  }
   require('./catatan').catat(`Tutup aplikasi diminta (${asal}) — menunggu konfirmasi`);
   wc.send('minta-tutup');
 }
@@ -49,7 +60,13 @@ function daftarkan() {
   });
   // Mac dimatikan / restart / logout: jangan menghalangi
   app.whenReady().then(() => {
-    try { require('electron').powerMonitor.on('shutdown', () => { dikonfirmasi = true; }); } catch (e) {}
+    try {
+      require('electron').powerMonitor.on('shutdown', () => {
+        dikonfirmasi = true;
+      });
+    } catch {
+      /* powerMonitor belum siap (sebelum app ready) */
+    }
   });
 }
 

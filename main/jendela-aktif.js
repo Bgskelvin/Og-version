@@ -5,5 +5,7 @@
 let win = null;
 module.exports = {
   getWin: () => (win && !win.isDestroyed() ? win : null),
-  setWin: w => { win = w; }
+  setWin: w => {
+    win = w;
+  },
 };

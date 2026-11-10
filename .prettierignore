@@ -1,0 +1,12 @@
+# Dibuat ulang / bukan kode kita
+node_modules/
+dist/
+sdk/
+demo/web/
+demo/.wrangler/
+cloud/.wrangler/
+kamera-sony/bin/
+kamera-sony/.sdk/
+kamera-sony/hasil-uji/
+kamera-sony/uji/bin/
+package-lock.json

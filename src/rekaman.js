@@ -12,10 +12,18 @@ async function startRecording(label) {
   if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
   if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
   const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
-  if (sony) { rec = cur; recT0 = cur.t0; return; }   // kamera Sony merekam sendiri ke kartu SD
+  if (sony) {
+    rec = cur;
+    recT0 = cur.t0;
+    return;
+  } // kamera Sony merekam sendiri ke kartu SD
   try {
-    cur.recorder = new MediaRecorder(mediaStream, noCam ? { mimeType: 'audio/webm;codecs=opus' }
-      : { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 5000000 });
+    cur.recorder = new MediaRecorder(
+      mediaStream,
+      noCam
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 5000000 },
+    );
   } catch (err) {
     await api.recAbort(r.id);
     throw err;
@@ -26,7 +34,7 @@ async function startRecording(label) {
       .then(async () => api.recChunk(cur.id, new Uint8Array(await e.data.arrayBuffer())))
       .catch(err => console.log('Gagal mengirim potongan rekaman: ' + err.message));
   };
-  cur.recorder.onerror = ev => {
+  cur.recorder.onerror = () => {
     if (rec === cur) abortSession('Perekaman berhenti karena kamera/mic bermasalah. Cek perangkat di Admin.');
   };
   cur.recorder.start(1000);
@@ -51,11 +59,16 @@ function stopRecording(meta) {
         ok = !!(res && res.ok);
         if (ok && res.link && !info.aborted) qrVideoTerakhir = res.link;
         if (res && !res.ok) setNotice('Rekaman terakhir gagal disimpan: ' + res.error, 15000);
-      } catch (err) { setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000); }
+      } catch (err) {
+        setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000);
+      }
       resolve(ok);
     };
     if (!cur.recorder || cur.recorder.state === 'inactive') finish();
-    else { cur.recorder.onstop = finish; cur.recorder.stop(); }
+    else {
+      cur.recorder.onstop = finish;
+      cur.recorder.stop();
+    }
   });
   lastSave = p;
   return p;
@@ -64,16 +77,21 @@ function stopRecording(meta) {
 async function countdown(detik = 3) {
   if (detik <= 0) return;
   $('countOverlay').style.display = 'flex';
-  for (let i = detik; i >= 1; i--) { $('countNum').textContent = i; await sleep(1000); }
+  for (let i = detik; i >= 1; i--) {
+    $('countNum').textContent = i;
+    await sleep(1000);
+  }
   $('countOverlay').style.display = 'none';
 }
 // Setelah pesan/quiz: layar "Menyimpan" minimal 3 detik, dan sampai rekaman benar-benar tersimpan.
 // Tamu tidak bisa menekan apa pun di layar ini, jadi tidak bisa langsung "Coba Lagi".
-const SAVE_MIN_MS = 3000, SAVE_MAX_MS = 15000;
+const SAVE_MIN_MS = 3000,
+  SAVE_MAX_MS = 15000;
 let finishing = false;
 // Pesan di Halaman Terima kasih mengikuti hasil penyimpanan yang sebenarnya
 function setThanks(result) {
-  const ok = result === true, slow = result === 'slow';
+  const ok = result === true,
+    slow = result === 'slow';
   // Pratinjau foto hanya untuk Photo Booth; photobooth.js menampilkannya setelah memanggil fungsi ini
   $('thanks').classList.remove('tk-foto', 'tk-ada-qr');
   $('thanksNama').textContent = namaTamu || '';
@@ -81,21 +99,30 @@ function setThanks(result) {
   $('thanksQR').style.display = 'none';
   $('thanksBadge').style.display = '';
   $('thanksBadge').style.background = ok || slow ? '' : 'var(--orange)';
-  $('thanksBadge').innerHTML = ok || slow ? '<svg class="i"><use href="#i-check"/></svg>' : '<span style="font-size:52px;font-weight:700">!</span>';
+  $('thanksBadge').innerHTML =
+    ok || slow
+      ? '<svg class="i"><use href="#i-check"/></svg>'
+      : '<span style="font-size:52px;font-weight:700">!</span>';
   $('thanksMsg').textContent = ok ? t('tk.ok') : slow ? t('tk.lambat') : t('tk.gagal');
 }
 async function finishSession(meta) {
-  if (finishing) return;                       // cegah tombol Finish tertekan dua kali
+  if (finishing) return; // cegah tombol Finish tertekan dua kali
   finishing = true;
   sessionToken++;
-  clearInterval(recTick); clearTimeout(pesanLimit);
+  clearInterval(recTick);
+  clearTimeout(pesanLimit);
   const bar = $('saveBar');
-  bar.classList.remove('run'); void bar.offsetWidth; bar.classList.add('run');
+  bar.classList.remove('run');
+  void bar.offsetWidth;
+  bar.classList.add('run');
   $('savingTitle').textContent = t('simpan.rekaman');
   show('saving');
   const saved = stopRecording(meta);
   // Batas atas 15 detik supaya layar tidak pernah tertahan; penyimpanan tetap lanjut di belakang
-  const [, result] = await Promise.all([sleep(SAVE_MIN_MS), Promise.race([saved, sleep(SAVE_MAX_MS).then(() => 'slow')])]);
+  const [, result] = await Promise.all([
+    sleep(SAVE_MIN_MS),
+    Promise.race([saved, sleep(SAVE_MAX_MS).then(() => 'slow')]),
+  ]);
   finishing = false;
   busy = false;
   setThanks(result);
@@ -106,7 +133,8 @@ async function finishSession(meta) {
 // Aplikasi tidak pernah tertahan di layar tanpa tombol.
 async function abortSession(msg) {
   sessionToken++;
-  clearInterval(recTick); clearTimeout(pesanLimit);
+  clearInterval(recTick);
+  clearTimeout(pesanLimit);
   if (cancelTimer) cancelTimer();
   $('countOverlay').style.display = 'none';
   const saving = stopRecording({ aborted: true });
@@ -130,7 +158,8 @@ function needStream() {
 function pasangRekaman() {
   // Penyimpanan gagal di tengah rekaman (disk penuh / SSD tercabut)
   api.onRecError((id, msg) => {
-    if (rec && rec.id === id) abortSession('Rekaman gagal disimpan: ' + msg + '. Cek ruang disk / folder penyimpanan di Admin.');
+    if (rec && rec.id === id)
+      abortSession('Rekaman gagal disimpan: ' + msg + '. Cek ruang disk / folder penyimpanan di Admin.');
     else setNotice('Rekaman gagal disimpan: ' + msg, 15000);
   });
 }
