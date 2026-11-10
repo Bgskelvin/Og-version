@@ -32,7 +32,7 @@ fs.mkdirSync(HASIL, { recursive: true });
 
 // Ukuran foto JPEG (lebar × tinggi) dari penanda SOF
 function ukuranJpeg(b) {
-  for (let i = 2; i + 9 < b.length; ) {
+  for (let i = 2; i + 9 < b.length;) {
     if (b[i] !== 0xff) {
       i++;
       continue;

@@ -82,7 +82,7 @@ async function akhiri(kode) {
 }
 // Ukuran gambar live view (lebar × tinggi) dari JPEG
 function ukuranJpeg(b) {
-  for (let i = 2; i + 9 < b.length; ) {
+  for (let i = 2; i + 9 < b.length;) {
     if (b[i] !== 0xff) {
       i++;
       continue;

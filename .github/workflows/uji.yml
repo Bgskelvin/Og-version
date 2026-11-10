@@ -1,0 +1,47 @@
+# Uji otomatis di GitHub: setiap push & Pull Request.
+# Pemeriksa kode (ESLint), format (Prettier), lalu semua uji (proses utama, tampilan, demo).
+name: Uji
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: uji-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  uji:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1' # uji memakai Electron tiruan, tidak perlu mengunduh Electron
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Pasang komponen
+        run: npm ci
+
+      - name: Pasang browser untuk uji tampilan
+        run: npx playwright install --with-deps chromium
+
+      - name: Pemeriksa kode (ESLint)
+        run: npm run lint
+
+      - name: Format kode (Prettier)
+        run: npm run format:check
+
+      - name: Uji proses utama
+        run: npm run test:utama
+
+      - name: Uji tampilan
+        run: npm run test:tampilan
+
+      - name: Uji demo HP
+        run: npm run uji:demo
