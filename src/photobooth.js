@@ -8,6 +8,9 @@
    Data sent to the main process (savePhotos: singles → `satuan`, `tamu`, meta
    values) keeps its current names until refactor/main-english.
    ===================================================================== */
+import { prepareTemplate, drawTemplate } from './template-render.js';
+import { applyLut, loadLut } from './lut.js';
+import { showDownloadQr } from './download-qr.js';
 const SHOTS = 4; // photos per session
 // Countdown length, preview and flash effect are set in Photo booth settings (cfg)
 const COUNTDOWN = () => cfg.photoCountdown;
@@ -195,7 +198,7 @@ function markNext(i) {
    The math matches the crop used when the photo is placed in the template (centered, not squashed). */
 let safeZoneIndex = -1,
   templateReady = Promise.resolve();
-const layoutSlots = lay => (lay.tpl ? lay.siap.tpl.slots : lay.slots());
+const layoutSlots = lay => (lay.tpl ? lay.prepared.tpl.slots : lay.slots());
 function photoRatio(i) {
   const p = layoutChoices(),
     lay = p[editor.layout] || p[Object.keys(p)[0]];
@@ -452,7 +455,7 @@ async function loadCoupleTemplates() {
         H: tpl.H,
         tpl: true,
         lut,
-        siap: await siapkanTemplate(tpl),
+        prepared: await prepareTemplate(tpl),
       };
     }
   } catch (err) {
@@ -518,7 +521,7 @@ function singlePhoto(lay, i, maxSide = 2000) {
 function renderBase(ctx, lay, scale = 1, filterKey = editor.filter) {
   if (lay.tpl) {
     const lut = filterKey === 'tpl' && lay.lut;
-    return gambarTemplate(ctx, lay.siap, {
+    return drawTemplate(ctx, lay.prepared, {
       scale,
       photos: lut ? photosWithLut(lay) : photos,
       filter: lut ? 'none' : cssFilter(filterKey),

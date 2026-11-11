@@ -68,8 +68,8 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 ## Tampilan `src/` (selama `refactor/renderer-modules`)
 
 - `src/package.json` = `"type": "module"`. Pintu masuk: `src/start.js` (`<script type="module">`, jalan **setelah** semua skrip biasa).
-- Sudah modul: `qr.js`, `lut.js`, `download-qr.js`, `message.js`, `photobooth.js`, `quiz.js`, `start.js`. Sisanya masih skrip biasa yang berbagi variabel global.
-- `src/bridge.js` **sementara**: memasang fungsi modul ke `window` untuk skrip biasa. Hapus barisnya begitu pemakainya jadi modul; hapus file-nya di akhir.
+- Sudah modul: `qr.js`, `lut.js`, `download-qr.js`, `message.js`, `photobooth.js`, `quiz.js`, `template-render.js`, `start.js`. Sisanya masih skrip biasa yang berbagi variabel global.
+- `src/bridge.js` **sementara**: memasang fungsi modul ke `window` untuk skrip biasa (satu baris `window.x = …` per nama — ESLint membacanya). Modul sendiri selalu `import` langsung, tidak lewat `window`. Hapus barisnya begitu pemakainya jadi modul; hapus file-nya di akhir.
 - Modul tidak boleh dipanggil skrip biasa saat file dimuat (modul belum jalan) — hanya di dalam fungsi/aksi.
 - `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
 - Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.

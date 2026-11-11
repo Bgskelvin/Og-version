@@ -13,7 +13,7 @@ function show(name) {
   if (name === 'utama') $('btnSelesaiTamu').style.display = kegiatanTamu ? '' : 'none';
   // Nama {couple} di pratinjau template = couple yang sedang diedit, hanya selama di halaman couple/editor.
   // Di halaman lain (termasuk foto tamu) selalu couple aktif.
-  namaCoupleTemplate = ['tambah', 'tpleditor'].includes(name) && coupleTemplate ? coupleTemplate.name : null;
+  setTemplateCoupleName(['tambah', 'tpleditor'].includes(name) && coupleTemplate ? coupleTemplate.name : null);
   SCREENS.forEach(s => $(s).classList.toggle('on', s === name));
   if (typeof modeUntukLayar === 'function') modeUntukLayar(name); // kamera Sony: mode video/foto sesuai halaman
   document.body.classList.toggle('camOn', ['utama', 'pesan', 'quiz', 'photo'].includes(name));

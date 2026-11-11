@@ -1,7 +1,7 @@
 /* =====================================================================
    template-editor.js — daftar template & editor template desain foto
    (Admin → Pengaturan photobooth). Template disimpan per couple aktif.
-   Penggambarannya memakai template-gambar.js, sama dengan hasil tamu.
+   Penggambarannya memakai template-render.js, sama dengan hasil tamu.
    ===================================================================== */
 
 const UKURAN_TEMPLATE = {
@@ -38,7 +38,7 @@ let coupleTemplate = null; // couple yang templatenya sedang diatur (bukan selal
 /* ---------------- Daftar template di halaman couple ---------------- */
 async function daftarTemplateCouple(couple = coupleTemplate) {
   coupleTemplate = couple;
-  if (current === 'tambah' || current === 'tpleditor') namaCoupleTemplate = couple ? couple.name : null;
+  if (current === 'tambah' || current === 'tpleditor') setTemplateCoupleName(couple ? couple.name : null);
   const box = $('tplList');
   box.innerHTML = '';
   const list = couple ? await api.listTemplates(couple.id) : [];
@@ -58,7 +58,7 @@ async function daftarTemplateCouple(couple = coupleTemplate) {
     const k = 64 / Math.max(t.W, t.H);
     mini.width = Math.round(t.W * k);
     mini.height = Math.round(t.H * k);
-    siapkanTemplate(t).then(siap => gambarTemplate(mini.getContext('2d'), siap, { scale: k, placeholder: true }));
+    prepareTemplate(t).then(siap => drawTemplate(mini.getContext('2d'), siap, { scale: k, placeholder: true }));
     const info = document.createElement('div');
     info.className = 'tpl-info';
     info.innerHTML = `<b></b><span class="muted"></span>`;
@@ -111,16 +111,16 @@ function templateBaru() {
     filter: null,
     filterKekuatan: 100,
     filterTamu: true,
-    slots: susunanFoto('kisi', W, H, 3 / 2),
-    texts: teksBawaan(W, H),
+    slots: photoArrangement('kisi', W, H, 3 / 2),
+    texts: defaultTexts(W, H),
   };
 }
 async function bukaEditorTemplate(tpl) {
   if (!coupleTemplate) return flash('tplMsg', 'Save this couple first.', true);
   te.tpl = tpl ? JSON.parse(JSON.stringify({ ...tpl, latarUrl: undefined, bingkaiUrl: undefined })) : templateBaru();
   te.gambar = {};
-  te.latar = tpl ? await muatGambar(tpl.latarUrl) : null;
-  te.bingkai = tpl ? await muatGambar(tpl.bingkaiUrl) : null;
+  te.latar = tpl ? await loadImage(tpl.latarUrl) : null;
+  te.bingkai = tpl ? await loadImage(tpl.bingkaiUrl) : null;
   te.sel = { jenis: 'slot', i: 0 };
   te.berubah = false;
   te.contohFoto = null;
@@ -157,9 +157,9 @@ function gambarEditor() {
   ctx.clearRect(0, 0, c.width, c.height);
   // Di tab Filter, kotak foto diisi foto contoh yang sudah difilter supaya hasilnya terlihat
   const photos = te.tab === 'filter' ? Array(4).fill(te.contohFoto || sampleFilterPhoto()) : [];
-  gambarTemplate(
+  drawTemplate(
     ctx,
-    { tpl: te.tpl, latar: te.latar, bingkai: te.bingkai },
+    { tpl: te.tpl, background: te.latar, frame: te.bingkai },
     { scale: c.width / te.tpl.W, placeholder: true, photos },
   );
   pasangPegangan();
@@ -197,7 +197,7 @@ function pasangPegangan() {
   });
   te.tpl.texts.forEach((t, i) => {
     const el = texts[i],
-      w = lebarTeks(t) + t.size * 0.4,
+      w = textWidth(t) + t.size * 0.4,
       h = t.size * 1.3;
     el.classList.toggle('sel', te.sel.jenis === 'teks' && te.sel.i === i);
     Object.assign(el.style, {
@@ -243,7 +243,7 @@ function geserDenganJari(el, jenis, i) {
     } else if (jenis === 'resize') {
       const s = te.tpl.slots[i],
         o = awal.obj,
-        r = nilaiRasio(te.tpl.rasio);
+        r = ratioValue(te.tpl.rasio);
       if (r) {
         // Rasio terkunci: ikuti arah tarikan yang paling besar, sisi lainnya menyesuaikan
         let w =
@@ -444,8 +444,8 @@ function isiPanelEditor() {
   // Rasio foto (wajib dipilih; besar kecil kotak foto mengikuti rasio ini)
   const ra = $('teRasio');
   ra.innerHTML = '';
-  for (const [key, nilai] of RASIO_FOTO) {
-    const [w, h] = muatRasio(30, 30, nilai);
+  for (const [key, nilai] of PHOTO_RATIOS) {
+    const [w, h] = fitRatio(30, 30, nilai);
     tombolPilihan(
       ra,
       `<span class="te-rasio" style="width:${w}px;height:${h}px"></span>${key}`,
@@ -465,14 +465,14 @@ function isiPanelEditor() {
       k = 70 / Math.max(t.W, t.H);
     c.width = Math.round(t.W * k);
     c.height = Math.round(t.H * k);
-    const rs = nilaiRasio(t.rasio);
-    gambarTemplate(
+    const rs = ratioValue(t.rasio);
+    drawTemplate(
       c.getContext('2d'),
-      { tpl: { ...t, slots: susunanFoto(key, t.W, t.H, rs), texts: [] }, latar: null, bingkai: null },
+      { tpl: { ...t, slots: photoArrangement(key, t.W, t.H, rs), texts: [] }, background: null, frame: null },
       { scale: k, placeholder: true },
     );
     const b = tombolPilihan(su, c, false, () => {
-      t.slots = susunanFoto(key, t.W, t.H, rs);
+      t.slots = photoArrangement(key, t.W, t.H, rs);
       tandaiBerubah();
     });
     b.insertAdjacentText('beforeend', nama);
@@ -522,7 +522,7 @@ function isiPanelEditor() {
     $('teTeksUkuran').value = tx.size;
     const fo = $('teTeksFont');
     fo.innerHTML = '';
-    for (const [key, nama] of Object.entries(NAMA_FONT)) {
+    for (const [key, nama] of Object.entries(FONT_NAMES)) {
       const b = tombolPilihan(
         fo,
         '',
@@ -534,7 +534,7 @@ function isiPanelEditor() {
         'btn sm tint',
       );
       b.textContent = nama;
-      b.style.fontFamily = FONT_TEMPLATE[key];
+      b.style.fontFamily = TEMPLATE_FONTS[key];
     }
     const wt = $('teTeksWarna');
     wt.innerHTML = '';
@@ -576,13 +576,13 @@ function isiPanelEditor() {
 // Ganti rasio: setiap kotak foto disesuaikan (titik tengah & luasnya tetap)
 function pilihRasio(key) {
   const t = te.tpl,
-    r = nilaiRasio(key);
+    r = ratioValue(key);
   t.rasio = key;
-  t.slots = t.slots.map(s => pasRasio(s, r, t.W, t.H));
+  t.slots = t.slots.map(s => applyRatio(s, r, t.W, t.H));
   // Kalau kotak-kotaknya jadi saling tumpuk, rapikan ke susunan kisi 2×2
   const tumpuk = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   if (t.slots.some((a, i) => t.slots.some((b, j) => j > i && tumpuk(a, b)))) {
-    t.slots = susunanFoto('kisi', t.W, t.H, r).map((s, i) => ({ ...s, r: t.slots[i].r }));
+    t.slots = photoArrangement('kisi', t.W, t.H, r).map((s, i) => ({ ...s, r: t.slots[i].r }));
     flash('teMsg', "Photo boxes were rearranged into a grid so they don't overlap.");
   }
   tandaiBerubah();
@@ -594,7 +594,7 @@ function gantiUkuran(key) {
   const sx = u.W / t.W,
     sy = u.H / t.H,
     sm = Math.min(sx, sy),
-    r = nilaiRasio(t.rasio);
+    r = ratioValue(t.rasio);
   t.slots = t.slots.map(s => ({
     ...s,
     x: Math.round(s.x * sx),
@@ -602,7 +602,7 @@ function gantiUkuran(key) {
     w: Math.round(s.w * sx),
     h: Math.round(s.h * sy),
   }));
-  if (r) t.slots = t.slots.map(s => pasRasio(s, r, u.W, u.H)); // rasio foto tetap walau ukuran kertas berubah
+  if (r) t.slots = t.slots.map(s => applyRatio(s, r, u.W, u.H)); // rasio foto tetap walau ukuran kertas berubah
   t.texts = t.texts.map(x => ({
     ...x,
     x: Math.round(x.x * sx),
@@ -623,7 +623,7 @@ async function pilihGambar(file, jenis) {
   if (!/^image\/(png|jpeg)$/.test(file.type)) return flash('teMsg', 'Choose a PNG or JPG image.', true);
   if (file.size > 25 * 1024 * 1024) return flash('teMsg', 'The image is too large (max 25 MB).', true);
   te.gambar[jenis] = new Uint8Array(await file.arrayBuffer());
-  te[jenis] = await muatGambar(URL.createObjectURL(file));
+  te[jenis] = await loadImage(URL.createObjectURL(file));
   $(jenis === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = file.name;
   const img = te[jenis];
   if (img && Math.abs(img.naturalWidth / img.naturalHeight - te.tpl.W / te.tpl.H) > 0.02)

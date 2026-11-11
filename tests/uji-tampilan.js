@@ -941,7 +941,7 @@ async function main() {
   await tunggu(300);
   cek(
     /Sari & Andi/.test(await pg.textContent('#teTitle')) &&
-      (await pg.evaluate(() => isiTeksTemplate('{couple}'))) === 'Sari & Andi',
+      (await pg.evaluate(() => fillTemplateText('{couple}'))) === 'Sari & Andi',
     'pratinjau {couple} memakai nama couple yang diedit',
   );
   await pg.click('#teSimpan');
@@ -967,7 +967,7 @@ async function main() {
   );
   cek(/and 1 template/.test(await pg.textContent('#coupleMsg')), 'pesan menyebut template yang ikut terhapus');
   cek(
-    (await pg.evaluate(() => isiTeksTemplate('{couple}'))) === 'Rina & Dimas',
+    (await pg.evaluate(() => fillTemplateText('{couple}'))) === 'Rina & Dimas',
     'di luar halaman couple, {couple} kembali ke couple aktif',
   );
 
@@ -1282,7 +1282,7 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        isiTeksTemplate('{tanggal}') ===
+        fillTemplateText('{tanggal}') ===
         new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     ),
     'tanggal di template foto ditulis dalam bahasa Inggris',
