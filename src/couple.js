@@ -126,8 +126,8 @@ function openTambah(c, tetapDiForm = false) {
   $('cpTplBaru').style.display = c ? 'none' : '';
   $('cpTplBox').style.display = c ? '' : 'none';
   $('cpLainBox').style.display = c ? '' : 'none';
-  if (c) daftarTemplateCouple(c);
-  else coupleTemplate = null;
+  if (c) listCoupleTemplates(c);
+  else clearTemplateCouple();
   if (tetapDiForm) return; // isi form tidak diubah (setelah simpan couple baru)
   $('fName').value = c ? c.name : '';
   $('fWelcome').value = c ? c.welcome || '' : '';

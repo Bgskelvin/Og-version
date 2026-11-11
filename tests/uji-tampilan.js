@@ -548,7 +548,7 @@ async function main() {
     'Batal tidak menyimpan perubahan',
   );
   cek((await pg.evaluate(() => TPL[0].rasio)) === '1:1', 'rasio foto ikut tersimpan di template');
-  await pg.evaluate(() => bukaEditorTemplate({ ...TPL[0], id: 'lama', rasio: undefined }));
+  await pg.evaluate(() => openTemplateEditor({ ...TPL[0], id: 'lama', rasio: undefined }));
   await tunggu(300);
   await pg.click('#teSimpan');
   await tunggu(200);
@@ -803,7 +803,7 @@ async function main() {
   const pratinjau = await pg.evaluate(() => {
     // foto contoh di kotak foto editor ikut difilter (warna terbalik)
     const asli = sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
-      f = te.contohFoto.getContext('2d').getImageData(10, 10, 1, 1).data;
+      f = te.samplePhoto.getContext('2d').getImageData(10, 10, 1, 1).data;
     return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])];
   });
   cek(pratinjau[0] <= 2 && pratinjau[1] <= 2, 'pratinjau editor: foto contoh di kotak foto memakai filter', pratinjau);

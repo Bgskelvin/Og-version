@@ -11,6 +11,7 @@ import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
 import { setupQuiz } from './quiz.js';
 import { setupHistory } from './session-history.js';
+import { setupTemplateEditor } from './template-editor.js';
 
 (async () => {
   cfg = await api.getConfig();
@@ -38,7 +39,7 @@ import { setupHistory } from './session-history.js';
   pasangRekaman();
   setupPhotobooth();
   await pasangKameraSony();
-  pasangTemplateEditor();
+  setupTemplateEditor();
 
   window.addEventListener('unhandledrejection', e =>
     console.log('Error: ' + ((e.reason && e.reason.message) || e.reason)),

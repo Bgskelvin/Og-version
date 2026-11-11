@@ -1891,6 +1891,43 @@ const KASUS = {
     );
   },
 
+  async 'UI modules (src/): every import has a matching export'() {
+    // A missing export stops the whole UI from loading, and ESLint doesn't check names across files.
+    const espree = require('espree');
+    const dir = path.join(__dirname, '..', 'src');
+    const parsed = {};
+    for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
+      const code = fs.readFileSync(path.join(dir, f), 'utf8');
+      if (/^(import|export)\b/m.test(code))
+        parsed[f] = espree.parse(code, { ecmaVersion: 'latest', sourceType: 'module' });
+    }
+    const exportsOf = f => {
+      const names = new Set();
+      for (const n of parsed[f].body) {
+        if (n.type !== 'ExportNamedDeclaration') continue;
+        if (n.declaration && n.declaration.id) names.add(n.declaration.id.name);
+        if (n.declaration && n.declaration.declarations) n.declaration.declarations.forEach(d => names.add(d.id.name));
+        n.specifiers.forEach(s => names.add(s.exported.name));
+      }
+      return names;
+    };
+    const problems = [];
+    for (const [f, ast] of Object.entries(parsed))
+      for (const n of ast.body) {
+        if (n.type !== 'ImportDeclaration') continue;
+        const target = path.posix.basename(n.source.value);
+        if (!parsed[target]) {
+          problems.push(`${f}: ${n.source.value} is not a module in src/`);
+          continue;
+        }
+        const have = exportsOf(target);
+        for (const s of n.specifiers)
+          if (s.type === 'ImportSpecifier' && !have.has(s.imported.name))
+            problems.push(`${f}: ${s.imported.name} is not exported by ${target}`);
+      }
+    cek(Object.keys(parsed).length >= 5 && !problems.length, 'every named import exists in its module', problems);
+  },
+
   async 'QR generator (src/qr.js) gives the same codes'() {
     const crypto = require('crypto');
     const { createQr } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'src', 'qr.js')).href);
