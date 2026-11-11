@@ -4,10 +4,11 @@
      + beberapa aturan tambahan yang umum dipakai.
    - Lingkungan per bagian: proses utama & uji (Node, CommonJS),
      tampilan (browser, skrip biasa), server Cloudflare (ES module).
-   - Tampilan (src/) masih berupa skrip yang berbagi nama global lintas file.
-     Nama-nama itu dikumpulkan otomatis di bawah supaya ESLint tetap bisa
-     menangkap salah ketik. Bagian ini dihapus saat src/ diubah jadi modul
-     (refactor/renderer-modules).
+   - Tampilan (src/) sedang dipindah ke ES module (refactor/renderer-modules).
+     File yang sudah modul (punya import/export) diperiksa sebagai modul.
+     File yang masih skrip biasa berbagi nama global lintas file; nama-nama
+     itu dikumpulkan otomatis di bawah supaya ESLint tetap bisa menangkap
+     salah ketik. Bagian ini dihapus setelah semua file src/ jadi modul.
    ===================================================================== */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,7 +23,12 @@ const rekomendasi = Object.fromEntries(
   [...builtinRules].filter(([, r]) => r.meta?.docs?.recommended).map(([nama]) => [nama, 'error']),
 );
 
-// Nama tingkat atas di src/*.js (fungsi, let/const/class, window.xxx = …) — dipakai bersama oleh semua file tampilan
+// File src/ yang sudah ES module (ada baris import/export di tingkat atas)
+const isModule = teks => /^(import|export)\b/m.test(teks);
+const SRC_JS = fs.readdirSync('src').filter(f => f.endsWith('.js'));
+const MODUL_TAMPILAN = SRC_JS.filter(f => isModule(fs.readFileSync(path.join('src', f), 'utf8'))).map(f => 'src/' + f);
+
+// Nama tingkat atas di skrip biasa src/*.js (fungsi, let/const/class) + window.xxx = … (juga dari bridge.js)
 function namaPola(p, hasil) {
   if (!p) return;
   if (p.type === 'Identifier') hasil.push(p.name);
@@ -34,10 +40,11 @@ function namaPola(p, hasil) {
 }
 function globalTampilan() {
   const nama = [];
-  for (const f of fs.readdirSync('src').filter(f => f.endsWith('.js'))) {
+  for (const f of SRC_JS) {
     const teks = fs.readFileSync(path.join('src', f), 'utf8');
-    const ast = espree.parse(teks, { ecmaVersion: 'latest', sourceType: 'script' });
-    for (const n of ast.body) {
+    const modul = isModule(teks);
+    const ast = espree.parse(teks, { ecmaVersion: 'latest', sourceType: modul ? 'module' : 'script' });
+    for (const n of modul ? [] : ast.body) {
       if (n.type === 'FunctionDeclaration' || n.type === 'ClassDeclaration') nama.push(n.id.name);
       else if (n.type === 'VariableDeclaration') n.declarations.forEach(d => namaPola(d.id, nama));
     }
@@ -82,9 +89,10 @@ export default [
     files: ['main.js', 'preload.js', 'main/**/*.js', 'tests/**/*.js', 'demo/bangun.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
-  // Tampilan aplikasi (dimuat lewat <script> di index.html) & tiruan api untuk demo HP
+  // Tampilan aplikasi: skrip biasa (dimuat lewat <script> di index.html) & tiruan api untuk demo HP
   {
     files: ['src/**/*.js', 'demo/api-demo.js'],
+    ignores: MODUL_TAMPILAN,
     languageOptions: {
       sourceType: 'script',
       globals: { ...globals.browser, ...GLOBAL_TAMPILAN, api: 'readonly' },
@@ -97,9 +105,14 @@ export default [
       'prefer-const': 'off',
     },
   },
+  // Tampilan aplikasi: ES module. Masih boleh memakai nama global dari skrip biasa
+  // (GLOBAL_TAMPILAN) selama perpindahan; prefer-const sudah menyala di sini.
   {
-    files: ['src/lut.js', 'src/qr.js'], // juga bisa dipakai lewat require() (module.exports)
-    languageOptions: { globals: { module: 'readonly' } },
+    files: MODUL_TAMPILAN,
+    languageOptions: {
+      sourceType: 'module',
+      globals: { ...globals.browser, ...GLOBAL_TAMPILAN, api: 'readonly' },
+    },
   },
   // Uji tampilan & demo: kode di dalam page.evaluate() berjalan di halaman aplikasi
   {

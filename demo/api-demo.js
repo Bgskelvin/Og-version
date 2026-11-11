@@ -494,7 +494,7 @@
       const teks = new TextDecoder().decode(bytes);
       let lut;
       try {
-        lut = bacaCube(teks);
+        lut = parseCube(teks);
       } catch (e) {
         return { error: "This file can't be used: " + e.message };
       }

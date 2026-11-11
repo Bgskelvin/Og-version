@@ -126,7 +126,7 @@ async function finishSession(meta) {
   finishing = false;
   busy = false;
   setThanks(result);
-  if (result === true && qrVideoTerakhir) tampilkanQR(qrVideoTerakhir, 'video');
+  if (result === true && qrVideoTerakhir) showDownloadQr(qrVideoTerakhir, 'video');
   show('thanks');
 }
 // Dipanggil kalau sesuatu gagal: simpan yang sempat terekam, lalu kembali ke Halaman Utama.
@@ -154,7 +154,7 @@ function needStream() {
   return false;
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangRekaman() {
   // Penyimpanan gagal di tengah rekaman (disk penuh / SSD tercabut)
   api.onRecError((id, msg) => {

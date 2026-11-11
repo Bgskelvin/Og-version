@@ -135,7 +135,7 @@ async function bukaRiwayat() {
   show('riwayat');
   $('riwayat').querySelector('.sheet-body').scrollTop = 0;
   try {
-    unggahSt = await api.unggahStatus();
+    await refreshUploadStatus();
   } catch {
     /* tanpa status QR: link sesi lama tidak ditampilkan */
   } // untuk menyusun link QR sesi lama
@@ -406,7 +406,7 @@ function detailSesi(s) {
 function linkSesi(s) {
   if (!s.kode) return '';
   if (s.link) return s.link;
-  const url = String((typeof unggahSt !== 'undefined' && unggahSt.url) || '').replace(/\/+$/, '');
+  const url = String(getUploadStatus().url || '').replace(/\/+$/, '');
   return url ? `${url}/${s.label === 'foto' ? 'f' : 'v'}/${s.kode}` : '';
 }
 // QR besar untuk sesi lama (misalnya tamu tadi lupa memindai)
@@ -420,7 +420,7 @@ function tampilkanQRSesi(s, link) {
     `${s.label === 'foto' ? 'Photo' : s.label === 'quiz' ? 'Quiz video' : 'Video message'} ${jamSesi(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
   lapis.querySelector('small').textContent = url.replace(/^https:\/\//, '');
   try {
-    gambarQR(lapis.querySelector('canvas'), url, 8);
+    drawQr(lapis.querySelector('canvas'), url, 8);
   } catch {
     return flash('rwMsg', 'Could not create the QR code.', true);
   }
@@ -432,7 +432,7 @@ function tampilkanQRSesi(s, link) {
   document.body.appendChild(lapis);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangRiwayat() {
   $('btnRiwayat').onclick = bukaRiwayat;
   $('rwBack').onclick = () => {

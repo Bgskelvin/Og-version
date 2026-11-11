@@ -1,89 +1,99 @@
 /* =====================================================================
-   unduh-qr.js — QR unduh foto di halaman Terima kasih, dan pengaturannya
-   di Admin → Pengaturan photobooth → "Unduh foto lewat QR".
-   Antrean unggahnya ada di main/unggah.js, servernya di cloud/worker.mjs.
+   download-qr.js — photo/video download QR on the Thank you page, and its
+   settings in Admin → Photo booth settings → "Photo download via QR".
+   The upload queue lives in main/unggah.js, the server in cloud/worker.mjs.
+   The status fields (aktif, menunggu, …) come from the main process and are
+   renamed together with it in refactor/main-english.
    ===================================================================== */
+import { drawQr } from './qr.js';
 
-let unggahSt = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' };
+let uploadStatus = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' };
 
-// Tampilkan QR + link di halaman Terima kasih (link sudah ada walau foto/video belum terunggah)
-// jenis: 'foto' (photobooth) atau 'video' (pesan / quiz)
-function tampilkanQR(link, jenis = 'foto') {
+// Latest upload status (the server address is used for links in Session history)
+export const getUploadStatus = () => uploadStatus;
+export async function refreshUploadStatus() {
+  uploadStatus = await api.unggahStatus();
+  return uploadStatus;
+}
+
+// Show the QR + link on the Thank you page (the link exists even before the photo/video is uploaded)
+// kind: 'photo' (photo booth) or 'video' (message / quiz)
+export function showDownloadQr(link, kind = 'photo') {
   const url = link + (bahasa === 'en' ? '?b=en' : '');
   try {
-    gambarQR($('qrCanvas'), url, 8);
-    const [judul, info] = $('thanksQR').querySelectorAll('b, small:not(.tk-link)');
-    if (judul) judul.textContent = t(jenis === 'video' ? 'tk.qrVideo' : 'tk.qrFoto');
-    if (info) info.textContent = t(jenis === 'video' ? 'tk.qrVideoInfo' : 'tk.qrFotoInfo');
+    drawQr($('qrCanvas'), url, 8);
+    const [title, info] = $('thanksQR').querySelectorAll('b, small:not(.tk-link)');
+    if (title) title.textContent = t(kind === 'video' ? 'tk.qrVideo' : 'tk.qrFoto');
+    if (info) info.textContent = t(kind === 'video' ? 'tk.qrVideoInfo' : 'tk.qrFotoInfo');
     $('qrLink').textContent = url.replace(/^https:\/\//, '');
     $('thanksQR').style.display = '';
     $('thanks').classList.add('tk-ada-qr');
   } catch (e) {
-    console.log('QR gagal dibuat: ' + e.message);
+    console.log('QR could not be created: ' + e.message);
     $('thanksQR').style.display = 'none';
     $('thanks').classList.remove('tk-ada-qr');
   }
 }
 
 /* ---------- Admin ---------- */
-function tulisStatusUnggah() {
+function renderUploadStatus() {
   if (!$('qrStatus')) return;
-  const s = unggahSt;
-  let teks, warna;
+  const s = uploadStatus;
+  let text, color;
   if (!s.aktif) {
-    teks = "QR is off. Guests don't see a QR code.";
-    warna = '';
+    text = "QR is off. Guests don't see a QR code.";
+    color = '';
   } else if (s.sedang && s.progres && s.progres.kode === s.sedang) {
-    teks = `Sending video… part ${s.progres.n} of ${s.progres.total}${s.menungguVideo > 1 ? ` · ${s.menungguVideo} video(s) in queue` : ''}`;
-    warna = 'kuning';
+    text = `Sending video… part ${s.progres.n} of ${s.progres.total}${s.menungguVideo > 1 ? ` · ${s.menungguVideo} video(s) in queue` : ''}`;
+    color = 'kuning';
   } else if (s.sedang) {
-    teks = `Sending… · ${s.menunggu + (s.menungguVideo || 0)} in queue`;
-    warna = 'kuning';
+    text = `Sending… · ${s.menunggu + (s.menungguVideo || 0)} in queue`;
+    color = 'kuning';
   } else if (s.menunggu) {
-    teks = `${s.menunggu} photo(s) waiting to be sent${s.errorTerakhir ? ' · ' + s.errorTerakhir : ''}`;
-    warna = s.errorTerakhir ? 'merah' : 'kuning';
+    text = `${s.menunggu} photo(s) waiting to be sent${s.errorTerakhir ? ' · ' + s.errorTerakhir : ''}`;
+    color = s.errorTerakhir ? 'merah' : 'kuning';
   } else if (s.menungguVideo && s.errorTerakhir && s.menungguVideo > (s.videoDiolah || 0)) {
-    teks = `All photos sent · ${s.menungguVideo} video(s) waiting · ${s.errorTerakhir}`;
-    warna = 'merah';
+    text = `All photos sent · ${s.menungguVideo} video(s) waiting · ${s.errorTerakhir}`;
+    color = 'merah';
   } else {
-    teks =
+    text =
       `On · all photos sent${s.terkirim ? ` (${s.terkirim} since the app opened)` : ''}${s.menungguSatuan ? ` · ${s.menungguSatuan} single shot(s) still uploading` : ''}` +
       (s.menungguVideo
         ? ` · ${s.menungguVideo} video(s) ${s.videoDiolah === s.menungguVideo ? 'being prepared' : 'uploading'}`
         : s.terkirimVideo
           ? ` · ${s.terkirimVideo} video(s) sent`
           : '');
-    warna = s.menungguVideo ? 'kuning' : 'hijau';
+    color = s.menungguVideo ? 'kuning' : 'hijau';
   }
-  if (s.aktif && !s.video) teks += ' · Video QR is off';
-  $('qrStatus').textContent = teks;
-  $('qrDot').className = 'sony-dot ' + warna;
+  if (s.aktif && !s.video) text += ' · Video QR is off';
+  $('qrStatus').textContent = text;
+  $('qrDot').className = 'sony-dot ' + color;
   $('btnQrUlang').style.display = (s.menunggu || s.menungguVideo > (s.videoDiolah || 0)) && !s.sedang ? '' : 'none';
   if ($('setQrVideo')) {
     $('setQrVideo').disabled = !s.aktif;
     $('setQrKualitas').disabled = !s.aktif || !s.video;
   }
 }
-async function isiUnduhQR() {
+export async function fillDownloadQrSettings() {
   try {
-    unggahSt = await api.unggahStatus();
+    await refreshUploadStatus();
   } catch {
-    return;
+    return; // no status (main process not ready): leave the fields as they are
   }
-  $('setQrAktif').checked = unggahSt.aktif;
+  $('setQrAktif').checked = uploadStatus.aktif;
   if ($('setQrVideo')) {
-    $('setQrVideo').checked = unggahSt.video !== false;
-    $('setQrKualitas').value = unggahSt.videoKualitas === '1080' ? '1080' : '720';
+    $('setQrVideo').checked = uploadStatus.video !== false;
+    $('setQrKualitas').value = uploadStatus.videoKualitas === '1080' ? '1080' : '720';
   }
-  $('setQrUrl').value = unggahSt.url || '';
+  $('setQrUrl').value = uploadStatus.url || '';
   $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = unggahSt.adaKunci ? '•••••••• (saved)' : 'From npm run cloud:pasang';
-  $('btnQrPasang').style.display = unggahSt.adaHasilPasang ? '' : 'none';
-  tulisStatusUnggah();
+  $('setQrKunci').placeholder = uploadStatus.adaKunci ? '•••••••• (saved)' : 'From npm run cloud:pasang';
+  $('btnQrPasang').style.display = uploadStatus.adaHasilPasang ? '' : 'none';
+  renderUploadStatus();
 }
-async function simpanUnduhQR(patch, pesan) {
+async function saveDownloadQr(patch, message) {
   const r = await api.unggahSimpan(patch);
-  unggahSt = r;
+  uploadStatus = r;
   if (r.error) {
     flash('qrMsg', r.error, true);
     $('setQrAktif').checked = r.aktif;
@@ -92,33 +102,33 @@ async function simpanUnduhQR(patch, pesan) {
   }
   $('setQrKunci').value = '';
   $('setQrKunci').placeholder = r.adaKunci ? '•••••••• (saved)' : '';
-  tulisStatusUnggah();
-  if (pesan) flash('qrMsg', pesan);
+  renderUploadStatus();
+  if (message) flash('qrMsg', message);
   return true;
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
-function pasangUnduhQR() {
+// Wire up this feature's buttons (called once from start.js)
+export function setupDownloadQr() {
   api.onUnggahStatus(s => {
-    unggahSt = s;
-    tulisStatusUnggah();
+    uploadStatus = s;
+    renderUploadStatus();
     if (current === 'riwayat') segarkanRiwayat();
   });
   $('setQrAktif').onchange = e =>
-    simpanUnduhQR(
+    saveDownloadQr(
       { aktif: e.target.checked },
       e.target.checked ? 'QR is on: photo booth guests will see a QR code on the Thank you page.' : 'QR turned off.',
     );
   if ($('setQrVideo')) {
     $('setQrVideo').onchange = e =>
-      simpanUnduhQR(
+      saveDownloadQr(
         { video: e.target.checked },
         e.target.checked
           ? 'Video QR is on: guests who record a message or quiz get a QR for their video.'
           : 'Video QR turned off. Photos still get a QR.',
       );
     $('setQrKualitas').onchange = e =>
-      simpanUnduhQR(
+      saveDownloadQr(
         { videoKualitas: e.target.value },
         e.target.value === '1080'
           ? 'Phone videos: 1080p (sharper, about 2× larger to upload).'
@@ -128,7 +138,7 @@ function pasangUnduhQR() {
   $('btnQrSimpan').onclick = () => {
     const patch = { url: $('setQrUrl').value };
     if ($('setQrKunci').value.trim()) patch.kunci = $('setQrKunci').value;
-    simpanUnduhQR(patch, 'Server settings saved.');
+    saveDownloadQr(patch, 'Server settings saved.');
   };
   $('btnQrTes').onclick = async () => {
     $('qrMsg').textContent = 'Checking…';
@@ -141,7 +151,7 @@ function pasangUnduhQR() {
     if (h.error) return flash('qrMsg', h.error, true);
     $('setQrUrl').value = h.url;
     if (
-      await simpanUnduhQR(
+      await saveDownloadQr(
         { url: h.url, kunci: h.kunci },
         'Address & key loaded from the setup. Press "Test connection", then turn the QR on.',
       )
@@ -149,7 +159,7 @@ function pasangUnduhQR() {
       $('setQrUrl').value = h.url;
   };
   $('btnQrUlang').onclick = async () => {
-    unggahSt = await api.unggahCobaSekarang();
-    tulisStatusUnggah();
+    uploadStatus = await api.unggahCobaSekarang();
+    renderUploadStatus();
   };
 }

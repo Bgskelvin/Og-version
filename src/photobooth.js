@@ -437,7 +437,7 @@
     try {
       for (const t of await api.listTemplates(activeCouple.id)) {
         // Filter LUT pilihan admin untuk template ini (kalau filternya sudah dihapus: tanpa filter)
-        const item = t.filter ? await muatLut(t.filter) : null;
+        const item = t.filter ? await loadLut(t.filter) : null;
         const lut = item
           ? {
               id: item.id,
@@ -487,7 +487,7 @@
       let m = fotoLutCache.get(p);
       if (!m) fotoLutCache.set(p, (m = new Map()));
       const kunci = lay.lut.id + ':' + lay.lut.k;
-      if (!m.has(kunci)) m.set(kunci, terapkanLut(p, lay.lut.data, lay.lut.k, Math.max(lay.W, lay.H)));
+      if (!m.has(kunci)) m.set(kunci, applyLut(p, lay.lut.data, lay.lut.k, Math.max(lay.W, lay.H)));
       return m.get(kunci);
     });
   }
@@ -938,14 +938,14 @@
       $('thanksBadge').style.display = 'none';
       $('thanks').classList.add('tk-foto');
     }
-    if (ok && link) tampilkanQR(link);
+    if (ok && link) showDownloadQr(link);
     photos.fill(null);
     saving = false;
     busy = false;
     show('thanks');
   }
 
-  /* ---------------- Sambungan tombol (dipanggil sekali dari mulai.js) ---------------- */
+  /* ---------------- Sambungan tombol (dipanggil sekali dari start.js) ---------------- */
   window.pasangPhotobooth = function () {
     $('btnToPhoto').onclick = openPhoto;
     $('pbStart').onclick = startSession;

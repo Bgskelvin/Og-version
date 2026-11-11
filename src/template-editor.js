@@ -156,7 +156,7 @@ function gambarEditor() {
     ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
   // Di tab Filter, kotak foto diisi foto contoh yang sudah difilter supaya hasilnya terlihat
-  const photos = te.tab === 'filter' ? Array(4).fill(te.contohFoto || fotoContohFilter()) : [];
+  const photos = te.tab === 'filter' ? Array(4).fill(te.contohFoto || sampleFilterPhoto()) : [];
   gambarTemplate(
     ctx,
     { tpl: te.tpl, latar: te.latar, bingkai: te.bingkai },
@@ -291,9 +291,9 @@ const namaFilterTpl = () => {
 async function perbaruiContohFilter() {
   const t = te.tpl;
   if (!t) return;
-  const item = t.filter ? await muatLut(t.filter) : null;
+  const item = t.filter ? await loadLut(t.filter) : null;
   if (te.tpl !== t) return;
-  te.contohFoto = item ? terapkanLut(fotoContohFilter(), item.lut, (t.filterKekuatan ?? 100) / 100, 600) : null;
+  te.contohFoto = item ? applyLut(sampleFilterPhoto(), item.lut, (t.filterKekuatan ?? 100) / 100, 600) : null;
   if (te.tab === 'filter') gambarEditor();
 }
 let giliranFilter = 0;
@@ -311,18 +311,13 @@ async function isiPanelFilter() {
   if (!masihBerlaku()) return;
   te.filterDaftar = daftar;
   if (t.filter && !daftar.some(f => f.id === t.filter)) t.filter = null; // filternya sudah dihapus
-  const siap = await Promise.all(daftar.map(f => muatLut(f.id)));
+  const siap = await Promise.all(daftar.map(f => loadLut(f.id)));
   if (!masihBerlaku()) return;
   const box = $('teFilter');
   box.innerHTML = '';
-  const contoh = fotoContohFilter();
+  const contoh = sampleFilterPhoto();
   const kotak = (lut, nama, aktif, pilih) => {
-    const b = tombolPilihan(
-      box,
-      terapkanLut(contoh, lut, lut ? (t.filterKekuatan ?? 100) / 100 : 0, 150),
-      aktif,
-      pilih,
-    );
+    const b = tombolPilihan(box, applyLut(contoh, lut, lut ? (t.filterKekuatan ?? 100) / 100 : 0, 150), aktif, pilih);
     b.insertAdjacentText('beforeend', nama);
     return b;
   };
@@ -383,7 +378,7 @@ async function hapusFilterTerpilih() {
   const nama = namaFilterTpl();
   const r = await api.filterHapus(id);
   if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not delete the filter.', true);
-  lupakanLut(id);
+  forgetLut(id);
   te.tpl.filter = null;
   te.berubah = true;
   flash('teMsg', `Filter "${nama}" deleted from your collection.`);
@@ -679,7 +674,7 @@ function batalEditor() {
   show('tambah');
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangTemplateEditor() {
   $('btnTplNew').onclick = () => bukaEditorTemplate(null);
   $('teBatal').onclick = batalEditor;

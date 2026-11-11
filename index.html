@@ -978,10 +978,9 @@
     </div>
     <div id="pbFlash"></div>
 
-    <!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
+    <!-- Urutan penting: state.js dulu (data bersama), start.js (modul) paling akhir -->
     <script src="src/state.js"></script>
     <script src="src/bahasa.js"></script>
-    <script src="src/qr.js"></script>
     <script src="src/app.js"></script>
     <script src="src/keyboard.js"></script>
     <script src="src/nama.js"></script>
@@ -995,11 +994,10 @@
     <script src="src/pengaturan-booth.js"></script>
     <script src="src/admin.js"></script>
     <script src="src/riwayat.js"></script>
-    <script src="src/unduh-qr.js"></script>
-    <script src="src/lut.js"></script>
     <script src="src/template-gambar.js"></script>
     <script src="src/template-editor.js"></script>
     <script src="src/photobooth.js"></script>
-    <script src="src/mulai.js"></script>
+    <!-- Entry module: runs after the plain scripts above (modules are deferred) -->
+    <script type="module" src="src/start.js"></script>
   </body>
 </html>

@@ -5,7 +5,6 @@
    Pemasangan sekali:  npm install --save-dev playwright && npx playwright install chromium
    ===================================================================== */
 const path = require('path');
-const { pathToFileURL } = require('url');
 let playwright;
 try {
   playwright = require('playwright');
@@ -17,7 +16,7 @@ try {
   process.exit(1);
 }
 const { cek, hasil } = require('./bantu');
-const HALAMAN = pathToFileURL(path.join(__dirname, '..', 'index.html')).href;
+const { startStaticServer } = require('./static-server');
 
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
@@ -109,7 +108,7 @@ window.api = {
   filterDaftar: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
   filterTambah: async (nama, bytes) => {
     const teks = new TextDecoder().decode(bytes);
-    let lut; try { lut = bacaCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
+    let lut; try { lut = parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
     const f = { id: 'lut' + ((window.FLT || []).length + 1), nama: nama.replace(/\\.cube$/i, ''), size: lut.size, teks };
     (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, nama: f.nama, size: f.size } };
   },
@@ -130,6 +129,8 @@ window.MediaRecorder = function (s, o) { if (MODE.mrThrow) throw new Error('code
 `;
 
 async function main() {
+  const server = await startStaticServer(path.join(__dirname, '..'));
+  const HALAMAN = server.url + 'index.html';
   const browser = await playwright.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const pg = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = [];
@@ -801,7 +802,7 @@ async function main() {
   );
   const pratinjau = await pg.evaluate(() => {
     // foto contoh di kotak foto editor ikut difilter (warna terbalik)
-    const asli = fotoContohFilter().getContext('2d').getImageData(10, 10, 1, 1).data,
+    const asli = sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
       f = te.contohFoto.getContext('2d').getImageData(10, 10, 1, 1).data;
     return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])];
   });
@@ -1380,10 +1381,11 @@ async function main() {
   await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 0, videoDiolah: 0 }));
   cek(
     (await pg.evaluate(() => {
-      const u = unggahSt.url;
-      unggahSt.url = 'https://x.workers.dev';
+      // server address arrives through the normal upload-status update
+      const u = UNG.st.url;
+      UNG.cb({ ...UNG.st, url: 'https://x.workers.dev' });
       const r = [linkSesi({ label: 'pesan', kode: 'K1' }), linkSesi({ label: 'foto', kode: 'K2' })];
-      unggahSt.url = u;
+      UNG.cb({ ...UNG.st, url: u });
       return r.join();
     })) === 'https://x.workers.dev/v/K1,https://x.workers.dev/f/K2',
     'Riwayat: link sesi video memakai /v/, foto /f/',
@@ -1805,6 +1807,7 @@ async function main() {
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);
 
   await browser.close();
+  await server.close();
   const h = hasil();
   console.log(`\n${h.gagal ? '✗' : '✓'} Uji tampilan: ${h.lulus} lulus, ${h.gagal} gagal`);
   process.exit(h.gagal ? 1 : 0);

@@ -70,7 +70,7 @@ async function bukaPengaturanBooth(layar) {
   const s = await api.getSettings();
   normalisasiCfg(s);
   isiPengaturanBooth({ ...s, ...cfg });
-  if (layar === 'setphoto') isiUnduhQR();
+  if (layar === 'setphoto') fillDownloadQrSettings();
 }
 async function simpanBooth(patch, msgId, msg) {
   const s = await api.saveSettings(patch);
@@ -80,7 +80,7 @@ async function simpanBooth(patch, msgId, msg) {
   else flash(msgId, msg);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangPengaturanBooth() {
   $('btnSetVideo').onclick = () => bukaPengaturanBooth('setvideo');
   $('btnSetPhoto').onclick = () => bukaPengaturanBooth('setphoto');

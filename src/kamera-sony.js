@@ -148,7 +148,7 @@ function terimaStatusSony(s) {
     abortSession('The Sony camera disconnected while recording. What was recorded is still on the camera SD card.');
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 async function pasangKameraSony() {
   api.onSonyStatus(terimaStatusSony);
   try {

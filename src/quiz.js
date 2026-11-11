@@ -177,7 +177,7 @@ async function mulaiQuiz() {
   }
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangQuiz() {
   $('btnToQuiz').onclick = openQuiz;
   $('btnQuizBack').onclick = () => show('utama');

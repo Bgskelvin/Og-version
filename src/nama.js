@@ -31,7 +31,7 @@ function tulisSapaan() {
   el.style.display = namaTamu ? '' : 'none';
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangNama() {
   kbNama = buatKeyboard($('namaKeyboard'), $('namaInput'), { onEnter: lanjutNama, maks: 40 });
   $('btnNamaBack').onclick = () => show('start');

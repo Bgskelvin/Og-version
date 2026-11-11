@@ -45,7 +45,7 @@ async function mulaiPesan() {
   }
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangPesan() {
   $('btnToPesan').onclick = openPesan;
   $('btnPesanBack').onclick = () => show('utama');

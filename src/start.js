@@ -1,7 +1,11 @@
 /* =====================================================================
-   mulai.js — dijalankan paling akhir: memuat pengaturan & couple,
-   memasang tombol setiap fitur, lalu membuka kamera
+   start.js — the app's entry module (<script type="module"> in index.html).
+   Runs after all plain scripts: loads settings & couples, wires up every
+   feature's buttons, then opens the camera.
    ===================================================================== */
+import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
+import { setupDownloadQr } from './download-qr.js';
+
 (async () => {
   cfg = await api.getConfig();
   cfg.quiz = cfg.quiz || [];
@@ -20,7 +24,7 @@
   pasangQuiz();
   pasangAdmin();
   pasangRiwayat();
-  pasangUnduhQR();
+  setupDownloadQr();
   pasangPengaturan();
   pasangPengaturanBooth();
   terapkanMenu();

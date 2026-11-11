@@ -49,7 +49,7 @@ function setNotice(t, ms) {
   if (t && ms) noticeTimer = setTimeout(() => setNotice(''), ms);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangNavigasi() {
   $('btnStart').onclick = mulaiTamu;
   $('btnCobaLagi').onclick = () => show('utama');

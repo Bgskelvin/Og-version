@@ -181,7 +181,7 @@ async function saveTambah() {
   flash('coupleMsg', `"${r.couple.name}" saved${aktif}.`);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangCouple() {
   $('btnAddCouple').onclick = () => openTambah(null);
   ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].forEach(id => {

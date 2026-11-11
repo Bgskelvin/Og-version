@@ -16,7 +16,7 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
 | `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `daftarkan()` untuk IPC.        |
 | `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                           |
-| `index.html`, `src/`, `styles/` | Tampilan. `src/*.js` masih **skrip biasa yang berbagi variabel global** (belum modul).   |
+| `index.html`, `src/`, `styles/` | Tampilan. Sedang pindah ke ES module (lihat "Tampilan `src/`" di bawah).                 |
 | `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`. |
 | `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.  |
 | `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                             |
@@ -60,7 +60,18 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - Kode lama masih memakai nama, komentar, dan pesan log **bahasa Indonesia**. Kode itu diganti ke bahasa Inggris bertahap lewat refactor (lihat Langkah berikutnya), bukan diubah sedikit-sedikit di tengah pekerjaan lain.
 - **Admin seluruhnya bahasa Inggris.** Layar tamu dua bahasa lewat `src/bahasa.js` (bawaan `en`); teks tamu baru wajib punya kunci di sana.
 - Prettier **3.9.10 dikunci persis** (singleQuote, printWidth 120, arrowParens avoid). Jangan naikkan versi tanpa alasan.
-- ESLint 10 flat config (`eslint.config.mjs`). Untuk `src/`: `prefer-const` **mati** dan nama global dikumpulkan otomatis (`GLOBAL_TAMPILAN`) — jangan ubah `let` bersama menjadi `const`, file lain mengubahnya.
+- ESLint 10 flat config (`eslint.config.mjs`). Untuk skrip biasa di `src/`: `prefer-const` **mati** dan nama global dikumpulkan otomatis (`GLOBAL_TAMPILAN`) — jangan ubah `let` bersama menjadi `const`, file lain mengubahnya. File modul (`import`/`export`) dikenali otomatis dan `prefer-const` menyala.
+
+## Tampilan `src/` (selama `refactor/renderer-modules`)
+
+- `src/package.json` = `"type": "module"`. Pintu masuk: `src/start.js` (`<script type="module">`, jalan **setelah** semua skrip biasa).
+- Sudah modul: `qr.js`, `lut.js`, `download-qr.js`, `start.js`. Sisanya masih skrip biasa yang berbagi variabel global.
+- `src/bridge.js` **sementara**: memasang fungsi modul ke `window` untuk skrip biasa. Hapus barisnya begitu pemakainya jadi modul; hapus file-nya di akhir.
+- Modul tidak boleh dipanggil skrip biasa saat file dimuat (modul belum jalan) — hanya di dalam fungsi/aksi.
+- `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
+- Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.
+- Ganti nama fungsi/file → perbarui juga pemakainya di `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
+- Nama field data dari proses utama (`judul`, `nama`, `aktif`, …) dan nama `api.*` belum diganti — itu bagian `refactor/main-english`.
 - `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/catatan.js`).
 - Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/penyimpanan.js`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `antre()` di `main/olah-video.js`.

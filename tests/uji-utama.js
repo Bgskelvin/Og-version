@@ -1875,6 +1875,39 @@ const KASUS = {
     );
   },
 
+  async 'QR generator (src/qr.js) gives the same codes'() {
+    const crypto = require('crypto');
+    const { createQr } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'src', 'qr.js')).href);
+    const fingerprint = text => {
+      const qr = createQr(text);
+      let bits = '';
+      for (let y = 0; y < qr.size; y++) for (let x = 0; x < qr.size; x++) bits += qr.isDark(x, y) ? 1 : 0;
+      return [qr.size, qr.version, qr.mask, crypto.createHash('sha256').update(bits).digest('hex').slice(0, 16)].join(
+        ' ',
+      );
+    };
+    // Recorded from the original generator (before the ES-module refactor); any change here means the QR changed.
+    const expected = [
+      ['https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk?b=en', '33 4 2 ad837771964d97a5'],
+      ['https://x.workers.dev/v/K1', '25 2 1 e34f764b92fcc31d'],
+      ['A', '21 1 3 2092585037e9da56'],
+      ['Halo 👋 ünïcödé', '25 2 2 1d47b907533f9dbf'],
+      ['v'.repeat(121), '45 7 2 4949e6892db29c45'],
+      ['v'.repeat(212), '57 10 2 ae3a462359de765c'],
+    ];
+    for (const [text, want] of expected) {
+      const got = fingerprint(text);
+      cek(got === want, `QR unchanged: "${text.slice(0, 24)}${text.length > 24 ? '…' : ''}"`, got);
+    }
+    let threw = false;
+    try {
+      createQr('z'.repeat(400));
+    } catch {
+      threw = true;
+    }
+    cek(threw, 'text too long for a QR code → error (not a broken code)');
+  },
+
   async 'satu jendela: aplikasi kedua langsung keluar'() {
     process.on('exit', () => {
       cek(true, 'aplikasi kedua keluar sebelum membuka apa pun');

@@ -118,7 +118,7 @@ async function saveLogin() {
   flash('loginMsg', `Login changed. Next time, sign in with ID "${r.id}" and the new password.`);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
+// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
 function pasangPengaturan() {
   $('setKiosk').onchange = e =>
     saveSetting(
