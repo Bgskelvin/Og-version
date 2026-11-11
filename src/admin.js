@@ -1,7 +1,8 @@
 /* =====================================================================
    admin.js — Admin login, camera/mic, storage folder, quit dialog, app log
-   (the session list is in riwayat.js)
+   (the session list is in session-history.js)
    ===================================================================== */
+import { loadSessions } from './session-history.js';
 
 // Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
 // so after the app is closed and opened again, Admin must log in again.

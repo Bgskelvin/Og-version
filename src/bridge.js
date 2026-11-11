@@ -7,23 +7,22 @@
    (One `window.name = name` per line: eslint.config.mjs reads these lines
    to know which globals the plain scripts may use.)
    ===================================================================== */
-import { drawQr } from './qr.js';
 import { parseCube, applyLut, sampleFilterPhoto, loadLut, forgetLut } from './lut.js';
-import { showDownloadQr, getUploadStatus, refreshUploadStatus } from './download-qr.js';
+import { showDownloadQr } from './download-qr.js';
 import * as templateRender from './template-render.js';
+import { loadSessions, sessionLink } from './session-history.js';
 
-// qr.js — used by riwayat.js
-window.drawQr = drawQr;
 // lut.js — used by template-editor.js and the test/demo fake api
 window.parseCube = parseCube;
 window.applyLut = applyLut;
 window.sampleFilterPhoto = sampleFilterPhoto;
 window.loadLut = loadLut;
 window.forgetLut = forgetLut;
-// download-qr.js — used by rekaman.js, riwayat.js
+// download-qr.js — used by rekaman.js
 window.showDownloadQr = showDownloadQr;
-window.getUploadStatus = getUploadStatus;
-window.refreshUploadStatus = refreshUploadStatus;
+// session-history.js — loadSessions used by couple.js and tests; sessionLink by tests
+window.loadSessions = loadSessions;
+window.sessionLink = sessionLink;
 // template-render.js — used by app.js, template-editor.js; fillTemplateText also by tests
 window.setTemplateCoupleName = templateRender.setTemplateCoupleName;
 window.fillTemplateText = templateRender.fillTemplateText;

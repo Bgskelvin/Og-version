@@ -6,6 +6,7 @@
    renamed together with it in refactor/main-english.
    ===================================================================== */
 import { drawQr } from './qr.js';
+import { refreshHistory } from './session-history.js';
 
 let uploadStatus = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' };
 
@@ -112,7 +113,7 @@ export function setupDownloadQr() {
   api.onUnggahStatus(s => {
     uploadStatus = s;
     renderUploadStatus();
-    if (current === 'riwayat') segarkanRiwayat();
+    if (current === 'riwayat') refreshHistory();
   });
   $('setQrAktif').onchange = e =>
     saveDownloadQr(

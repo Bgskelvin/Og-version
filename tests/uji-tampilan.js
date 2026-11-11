@@ -1384,7 +1384,7 @@ async function main() {
       // server address arrives through the normal upload-status update
       const u = UNG.st.url;
       UNG.cb({ ...UNG.st, url: 'https://x.workers.dev' });
-      const r = [linkSesi({ label: 'pesan', kode: 'K1' }), linkSesi({ label: 'foto', kode: 'K2' })];
+      const r = [sessionLink({ label: 'pesan', kode: 'K1' }), sessionLink({ label: 'foto', kode: 'K2' })];
       UNG.cb({ ...UNG.st, url: u });
       return r.join();
     })) === 'https://x.workers.dev/v/K1,https://x.workers.dev/f/K2',
@@ -1641,12 +1641,9 @@ async function main() {
       });
     window.NTHUMB = 0;
     window.THUMB_URL = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+    // count full redraws of the list (rows replaced in #rwList itself; thumbnails only change inside a row)
     window.NGAMBAR = 0;
-    const asli = gambarRiwayat;
-    gambarRiwayat = function () {
-      window.NGAMBAR++;
-      return asli.apply(this, arguments);
-    };
+    new MutationObserver(() => window.NGAMBAR++).observe(document.getElementById('rwList'), { childList: true });
     show('admin');
   });
   await pg.click('#btnRiwayat');
@@ -1663,11 +1660,8 @@ async function main() {
     (await pg.locator('#rwList .rw-row .rw-ikon img').count()) === nThumb,
     'gambar kecil langsung dipasang ke barisnya',
   );
-  cek(
-    (await pg.evaluate(() => window.NGAMBAR)) <= 2,
-    'daftar tidak digambar ulang setiap gambar kecil selesai',
-    await pg.evaluate(() => window.NGAMBAR),
-  );
+  const redraws = await pg.evaluate(() => window.NGAMBAR);
+  cek(redraws >= 1 && redraws <= 2, 'daftar tidak digambar ulang setiap gambar kecil selesai', redraws);
   await pg.click('#rwLagi');
   await tunggu(300);
   cek((await pg.locator('#rwList .rw-row').count()) === 120, 'Tampilkan lebih banyak: 60 sesi berikutnya');

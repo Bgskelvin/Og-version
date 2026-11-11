@@ -10,6 +10,7 @@ import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
 import { setupQuiz } from './quiz.js';
+import { setupHistory } from './session-history.js';
 
 (async () => {
   cfg = await api.getConfig();
@@ -28,7 +29,7 @@ import { setupQuiz } from './quiz.js';
   setupMessage();
   setupQuiz();
   setupAdmin();
-  pasangRiwayat();
+  setupHistory();
   setupDownloadQr();
   pasangPengaturan();
   setupBoothSettings();
