@@ -6,6 +6,7 @@
 import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
 import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
+import { setupPhotobooth } from './photobooth.js';
 import { setupQuiz } from './quiz.js';
 
 (async () => {
@@ -32,7 +33,7 @@ import { setupQuiz } from './quiz.js';
   terapkanMenu();
   pasangCouple();
   pasangRekaman();
-  pasangPhotobooth();
+  setupPhotobooth();
   await pasangKameraSony();
   pasangTemplateEditor();
 
