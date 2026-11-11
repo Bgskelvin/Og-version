@@ -62,15 +62,18 @@ function bangun() {
   ganti('<title>Videobooth</title>', '<title>Leura Demo</title>');
   // Seluruh tampilan dibungkus supaya bisa diperkecil di HP landscape
   html = html.replace(/<body>\n/, '<body>\n<div id="skala">\n');
-  ganti('<script src="src/state.js"></script>', '</div>\n<script src="src/state.js"></script>');
+  ganti(
+    '<script type="module" src="src/start.js"></script>',
+    '</div>\n<script type="module" src="src/start.js"></script>',
+  );
   html = html.replace(/style="([^"]*)"/g, (m, isi) => `style="${ubahVhVw(isi)}"`);
   ganti(
     '<link rel="stylesheet" href="styles/photobooth.css" />',
     '<link rel="stylesheet" href="styles/photobooth.css" />\n<link rel="stylesheet" href="demo.css" />',
   );
   ganti(
-    '<script src="src/state.js"></script>',
-    '<script src="api-demo.js"></script>\n<script src="src/state.js"></script>',
+    '<script type="module" src="src/start.js"></script>',
+    '<script src="api-demo.js"></script>\n<script type="module" src="src/start.js"></script>',
   );
   fs.writeFileSync(path.join(KELUAR, 'index.html'), html);
 

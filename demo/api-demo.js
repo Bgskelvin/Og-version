@@ -123,7 +123,7 @@
   /* ---------- Bantuan ---------- */
   const pesanLayar = teks => {
     try {
-      if (typeof setNotice === 'function') setNotice(teks, 3500);
+      if (window.__leura) window.__leura.setNotice(teks, 3500);
     } catch {
       /* demo: notifikasi hanya pelengkap */
     }
@@ -494,7 +494,7 @@
       const teks = new TextDecoder().decode(bytes);
       let lut;
       try {
-        lut = bacaCube(teks);
+        lut = window.__leura.parseCube(teks);
       } catch (e) {
         return { error: "This file can't be used: " + e.message };
       }

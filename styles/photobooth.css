@@ -786,7 +786,7 @@ body.camOn .pb-safe.on {
 }
 
 /* ============ Halaman Terima kasih ============
-   Tiga keadaan (kelas di #thanks, diatur rekaman.js / photobooth.js / unduh-qr.js):
+   Tiga keadaan (kelas di #thanks, diatur recording.js / photobooth.js / download-qr.js):
    - tanpa kelas  : video pesan / quiz → kartu kecil di tengah (centang + pesan)
    - .tk-foto     : photo booth → hasil foto besar di kiri, ucapan + tombol di kanan
    - .tk-ada-qr   : + QR besar di kanan, siap dipindai dari jarak satu lengan */

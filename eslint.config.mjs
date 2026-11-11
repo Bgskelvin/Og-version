@@ -3,49 +3,16 @@
    - Aturan "recommended" bawaan ESLint (sama dengan @eslint/js recommended)
      + beberapa aturan tambahan yang umum dipakai.
    - Lingkungan per bagian: proses utama & uji (Node, CommonJS),
-     tampilan (browser, skrip biasa), server Cloudflare (ES module).
-   - Tampilan (src/) masih berupa skrip yang berbagi nama global lintas file.
-     Nama-nama itu dikumpulkan otomatis di bawah supaya ESLint tetap bisa
-     menangkap salah ketik. Bagian ini dihapus saat src/ diubah jadi modul
-     (refactor/renderer-modules).
+     tampilan (browser, ES module), server Cloudflare (ES module).
+   - Tampilan (src/) berupa ES module (index.html memuat src/start.js);
+     setiap file meng-import yang dipakainya, jadi tidak ada nama global bersama.
    ===================================================================== */
-import fs from 'node:fs';
-import path from 'node:path';
-import { createRequire } from 'node:module';
 import globals from 'globals';
 import { builtinRules } from 'eslint/use-at-your-own-risk';
-
-// Pengurai JavaScript yang dipakai ESLint sendiri (ikut terpasang bersama ESLint)
-const espree = createRequire(import.meta.resolve('eslint'))('espree');
 
 const rekomendasi = Object.fromEntries(
   [...builtinRules].filter(([, r]) => r.meta?.docs?.recommended).map(([nama]) => [nama, 'error']),
 );
-
-// Nama tingkat atas di src/*.js (fungsi, let/const/class, window.xxx = …) — dipakai bersama oleh semua file tampilan
-function namaPola(p, hasil) {
-  if (!p) return;
-  if (p.type === 'Identifier') hasil.push(p.name);
-  else if (p.type === 'ObjectPattern')
-    p.properties.forEach(x => namaPola(x.type === 'RestElement' ? x.argument : x.value, hasil));
-  else if (p.type === 'ArrayPattern') p.elements.forEach(x => namaPola(x, hasil));
-  else if (p.type === 'AssignmentPattern') namaPola(p.left, hasil);
-  else if (p.type === 'RestElement') namaPola(p.argument, hasil);
-}
-function globalTampilan() {
-  const nama = [];
-  for (const f of fs.readdirSync('src').filter(f => f.endsWith('.js'))) {
-    const teks = fs.readFileSync(path.join('src', f), 'utf8');
-    const ast = espree.parse(teks, { ecmaVersion: 'latest', sourceType: 'script' });
-    for (const n of ast.body) {
-      if (n.type === 'FunctionDeclaration' || n.type === 'ClassDeclaration') nama.push(n.id.name);
-      else if (n.type === 'VariableDeclaration') n.declarations.forEach(d => namaPola(d.id, nama));
-    }
-    for (const m of teks.matchAll(/\bwindow\.([A-Za-z_$][\w$]*)\s*=[^=]/g)) nama.push(m[1]);
-  }
-  return Object.fromEntries(nama.map(n => [n, 'writable']));
-}
-const GLOBAL_TAMPILAN = globalTampilan();
 
 const aturanUmum = {
   ...rekomendasi,
@@ -82,24 +49,15 @@ export default [
     files: ['main.js', 'preload.js', 'main/**/*.js', 'tests/**/*.js', 'demo/bangun.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
-  // Tampilan aplikasi (dimuat lewat <script> di index.html) & tiruan api untuk demo HP
+  // Tampilan aplikasi (src/): ES module di browser; window.api dari preload.js
   {
-    files: ['src/**/*.js', 'demo/api-demo.js'],
-    languageOptions: {
-      sourceType: 'script',
-      globals: { ...globals.browser, ...GLOBAL_TAMPILAN, api: 'readonly' },
-    },
-    rules: {
-      'no-unused-vars': ['error', { vars: 'local', ignoreRestSiblings: true }], // fungsi tingkat atas dipakai file lain
-      'no-redeclare': ['error', { builtinGlobals: false }],
-      // Variabel bersama (mis. di state.js) diubah dari file lain — ESLint tidak melihatnya,
-      // jadi "ubah let jadi const" bisa merusak aplikasi. Dinyalakan lagi setelah src/ jadi modul.
-      'prefer-const': 'off',
-    },
+    files: ['src/**/*.js'],
+    languageOptions: { sourceType: 'module', globals: { ...globals.browser, api: 'readonly' } },
   },
+  // Tiruan api untuk demo HP (skrip biasa, dimuat sebelum aplikasi)
   {
-    files: ['src/lut.js', 'src/qr.js'], // juga bisa dipakai lewat require() (module.exports)
-    languageOptions: { globals: { module: 'readonly' } },
+    files: ['demo/api-demo.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
   },
   // Uji tampilan & demo: kode di dalam page.evaluate() berjalan di halaman aplikasi
   {
@@ -107,8 +65,8 @@ export default [
     languageOptions: {
       globals: {
         ...globals.browser,
-        ...GLOBAL_TAMPILAN,
         api: 'readonly',
+        __leura: 'readonly', // window.__leura (src/debug-handle.js)
         // tiruan window.api & alat uji yang dipasang di halaman (PALSU di uji-tampilan.js)
         ...Object.fromEntries(
           [

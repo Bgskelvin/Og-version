@@ -1,16 +1,19 @@
 /* =====================================================================
-   state.js — data bersama yang dipakai lintas fitur
-   Semua file di folder src/ dimuat sebagai <script> biasa, jadi nilai di
-   bawah ini bisa dibaca semua fitur. Supaya jelas siapa memakai apa,
-   SEMUA data bersama dideklarasikan di file ini saja.
+   state.js — small helpers and the app state shared across features.
+   Every feature imports what it needs from here. All shared, changing
+   data lives in the single `state` object, so it's clear what is shared
+   and every module can update it (modules can't reassign each other's
+   variables).
+   Field names that are data from the main process (cfg keys such as
+   pesanCountdown, tanyaNama, kamera) are renamed in refactor/main-english.
    ===================================================================== */
 
-// ---------- Alat bantu kecil ----------
-const $ = id => document.getElementById(id); // ambil elemen berdasarkan id
-const sleep = ms => new Promise(r => setTimeout(r, ms)); // tunggu sekian milidetik
-const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; // 75 -> "1:15"
-// localStorage dengan pengaman (bisa gagal di beberapa kondisi)
-const store = {
+// ---------- Small helpers ----------
+export const $ = id => document.getElementById(id); // get an element by id
+export const sleep = ms => new Promise(r => setTimeout(r, ms)); // wait some milliseconds
+export const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; // 75 -> "1:15"
+// localStorage with a safety net (it can fail in some conditions)
+export const store = {
   get: k => {
     try {
       return localStorage.getItem(k);
@@ -22,14 +25,14 @@ const store = {
     try {
       localStorage.setItem(k, v);
     } catch {
-      /* penyimpanan browser diblokir: pilihan hanya berlaku sampai aplikasi ditutup */
+      /* browser storage blocked: the choice only lasts until the app is closed */
     }
   },
 };
 
-// ---------- Daftar halaman ----------
-// Setiap halaman di index.html (div.screen) harus terdaftar di sini.
-const SCREENS = [
+// ---------- Screens ----------
+// Every page in index.html (div.screen) must be listed here.
+export const SCREENS = [
   'start',
   'nama',
   'utama',
@@ -46,32 +49,34 @@ const SCREENS = [
   'saving',
   'thanks',
 ];
-const MAX_Q = 10; // maksimal pertanyaan quiz per couple
+export const MAX_Q = 10; // max quiz questions per couple
 
-// ---------- Status aplikasi ----------
-let cfg; // pengaturan dari main.js (api.getConfig)
-let current = 'start'; // halaman yang sedang tampil
-let busy = false; // true saat merekam / memotret: tombol & idle dikunci
-let idleTimer = null,
-  noticeTimer = null;
-let kegiatanTamu = 0; // jumlah kegiatan (pesan/quiz/foto) tamu ini; > 0 = tombol Selesai muncul
-let namaTamu = ''; // nama tamu dari halaman "Siapa namamu?" (kosong = tidak ditanya)
+// ---------- App state ----------
+export const state = {
+  cfg: null, // settings from the main process (api.getConfig)
+  current: 'start', // the page currently shown
+  busy: false, // true while recording / shooting: buttons & idle timer locked
+  idleTimer: null,
+  noticeTimer: null,
+  guestActivity: 0, // activities (message/quiz/photo) by this guest; > 0 = Done button shows
+  guestName: '', // guest name from the "What's your name?" page (empty = not asked)
 
-// ---------- Kamera & mic ----------
-let mediaStream = null; // aliran kamera + mic yang sedang dibuka
-let noCam = false; // true kalau hanya mic (tanpa kamera)
+  // Camera & mic
+  mediaStream: null, // the open camera + mic stream
+  noCam: false, // true when there's only a mic (no camera)
 
-// ---------- Perekaman video ----------
-let rec = null; // rekaman yang sedang berjalan
-let lastSave = Promise.resolve(); // penyimpanan rekaman terakhir
-let recT0 = 0,
-  recTick = null; // waktu mulai & timer tampilan durasi
-let pesanLimit = null; // timer batas durasi pesan (Pengaturan videobooth)
-let sessionToken = 0; // naik setiap sesi selesai/batal, untuk menghentikan alur lama
-let cancelTimer = null; // menghentikan timer jawaban quiz
+  // Video recording
+  rec: null, // the recording in progress
+  lastSave: Promise.resolve(), // saving of the last recording
+  recT0: 0, // recording start time
+  recTick: null, // timer for the duration display
+  messageLimit: null, // timer for the message length limit (Videobooth settings)
+  sessionToken: 0, // increases every time a session ends/aborts, to stop older flows
+  cancelTimer: null, // stops the quiz answer timer
 
-// ---------- Couple ----------
-let couplesData = null,
-  activeCouple = null;
-let editingId = null,
-  delArmed = null;
+  // Couples
+  couplesData: null,
+  activeCouple: null,
+  editingId: null,
+  delArmed: null,
+};

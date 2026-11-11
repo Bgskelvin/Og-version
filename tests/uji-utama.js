@@ -1694,11 +1694,27 @@ const KASUS = {
     const masuk = f => pola.some(p => (p.endsWith('/') ? f.startsWith(p) : f === p));
     const html = fs.readFileSync(path.join(akar, 'index.html'), 'utf8');
     const dimuat = [...html.matchAll(/(?:src|href)="([^"#:]+)"/g)].map(m => m[1]);
+    // ES modules: follow import '…' / import … from '…' (relative paths) from every loaded .js file
+    for (let i = 0; i < dimuat.length; i++) {
+      if (!dimuat[i].endsWith('.js') || !fs.existsSync(path.join(akar, dimuat[i]))) continue;
+      const code = fs.readFileSync(path.join(akar, dimuat[i]), 'utf8');
+      for (const m of code.matchAll(/^\s*(?:import|export)\s[^'"]*?['"](\.{1,2}\/[^'"]+)['"]/gm)) {
+        const f = path.posix.normalize(path.posix.join(path.posix.dirname(dimuat[i]), m[1]));
+        if (!dimuat.includes(f)) dimuat.push(f);
+      }
+    }
+    const modulTampilan = dimuat.filter(f => f.startsWith('src/'));
     const mainJs = fs.readdirSync(path.join(akar, 'main')).map(f => 'main/' + f);
     const kurang = [...dimuat, ...mainJs, 'main.js', 'preload.js', 'config.json', 'package.json'].filter(
       f => !masuk(f),
     );
-    cek(dimuat.length > 20 && !kurang.length, 'semua file tampilan & proses utama ikut ke Leura.app', kurang);
+    const semuaSrc = fs.readdirSync(path.join(akar, 'src')).filter(f => f.endsWith('.js'));
+    const tidakDimuat = semuaSrc.filter(f => !modulTampilan.includes('src/' + f));
+    cek(
+      !kurang.length && !tidakDimuat.length,
+      'semua file tampilan & proses utama ikut ke Leura.app (termasuk modul yang di-import)',
+      { kurang, tidakDimuat },
+    );
     cek(
       !(b.files || []).some(f => /^(tests|sdk|cloud|demo|kamera-sony)\b/.test(f)),
       'SDK, uji, server & demo tidak ikut ke dalam app.asar',
@@ -1873,6 +1889,76 @@ const KASUS = {
       'kamera diputus rapi, program penghubung berhenti, lalu aplikasi tertutup',
       Date.now() - t0,
     );
+  },
+
+  async 'UI modules (src/): every import has a matching export'() {
+    // A missing export stops the whole UI from loading, and ESLint doesn't check names across files.
+    const espree = require('espree');
+    const dir = path.join(__dirname, '..', 'src');
+    const parsed = {};
+    for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
+      const code = fs.readFileSync(path.join(dir, f), 'utf8');
+      if (/^(import|export)\b/m.test(code))
+        parsed[f] = espree.parse(code, { ecmaVersion: 'latest', sourceType: 'module' });
+    }
+    const exportsOf = f => {
+      const names = new Set();
+      for (const n of parsed[f].body) {
+        if (n.type !== 'ExportNamedDeclaration') continue;
+        if (n.declaration && n.declaration.id) names.add(n.declaration.id.name);
+        if (n.declaration && n.declaration.declarations) n.declaration.declarations.forEach(d => names.add(d.id.name));
+        n.specifiers.forEach(s => names.add(s.exported.name));
+      }
+      return names;
+    };
+    const problems = [];
+    for (const [f, ast] of Object.entries(parsed))
+      for (const n of ast.body) {
+        if (n.type !== 'ImportDeclaration') continue;
+        const target = path.posix.basename(n.source.value);
+        if (!parsed[target]) {
+          problems.push(`${f}: ${n.source.value} is not a module in src/`);
+          continue;
+        }
+        const have = exportsOf(target);
+        for (const s of n.specifiers)
+          if (s.type === 'ImportSpecifier' && !have.has(s.imported.name))
+            problems.push(`${f}: ${s.imported.name} is not exported by ${target}`);
+      }
+    cek(Object.keys(parsed).length >= 5 && !problems.length, 'every named import exists in its module', problems);
+  },
+
+  async 'QR generator (src/qr.js) gives the same codes'() {
+    const crypto = require('crypto');
+    const { createQr } = await import(require('url').pathToFileURL(path.join(__dirname, '..', 'src', 'qr.js')).href);
+    const fingerprint = text => {
+      const qr = createQr(text);
+      let bits = '';
+      for (let y = 0; y < qr.size; y++) for (let x = 0; x < qr.size; x++) bits += qr.isDark(x, y) ? 1 : 0;
+      return [qr.size, qr.version, qr.mask, crypto.createHash('sha256').update(bits).digest('hex').slice(0, 16)].join(
+        ' ',
+      );
+    };
+    // Recorded from the original generator (before the ES-module refactor); any change here means the QR changed.
+    const expected = [
+      ['https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk?b=en', '33 4 2 ad837771964d97a5'],
+      ['https://x.workers.dev/v/K1', '25 2 1 e34f764b92fcc31d'],
+      ['A', '21 1 3 2092585037e9da56'],
+      ['Halo 👋 ünïcödé', '25 2 2 1d47b907533f9dbf'],
+      ['v'.repeat(121), '45 7 2 4949e6892db29c45'],
+      ['v'.repeat(212), '57 10 2 ae3a462359de765c'],
+    ];
+    for (const [text, want] of expected) {
+      const got = fingerprint(text);
+      cek(got === want, `QR unchanged: "${text.slice(0, 24)}${text.length > 24 ? '…' : ''}"`, got);
+    }
+    let threw = false;
+    try {
+      createQr('z'.repeat(400));
+    } catch {
+      threw = true;
+    }
+    cek(threw, 'text too long for a QR code → error (not a broken code)');
   },
 
   async 'satu jendela: aplikasi kedua langsung keluar'() {

@@ -10,7 +10,7 @@ const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { userData, readJSON, writeJSON } = require('./penyimpanan');
-const { bacaCube } = require('../src/lut');
+const { parseCube } = require('../src/lut.js'); // ES module (require(esm), Node 22.12+ / Electron 45)
 const catatan = require('./catatan');
 
 const folderFilter = path.join(userData, 'filter');
@@ -50,7 +50,7 @@ function tambah(nama, bytes) {
   const teks = Buffer.from(b).toString('utf8');
   let lut;
   try {
-    lut = bacaCube(teks);
+    lut = parseCube(teks);
   } catch (e) {
     return { error: "This file can't be used: " + e.message };
   }
@@ -78,7 +78,7 @@ function daftarkan() {
       return { error: err.message };
     }
   });
-  // Isi file .cube (diurai di tampilan dengan bacaCube)
+  // Isi file .cube (diurai di tampilan dengan parseCube)
   ipcMain.handle('filter-isi', (e, id) => {
     const bersih = idAman(id),
       item = daftar().find(x => x.id === bersih);

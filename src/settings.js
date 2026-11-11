@@ -1,7 +1,13 @@
 /* =====================================================================
-   pengaturan.js — grup "Tampilan" dan "Login Admin" di halaman Admin,
-   serta penerapan semua pengaturan ke aplikasi (applySettings)
+   settings.js — the "Display" and "Admin login" groups on the Admin page,
+   and applying all settings to the app (applySettings).
+   Setting keys (pesanCountdown, tanyaNama, bahasa, …) are shared with the
+   main process and renamed with it in refactor/main-english.
    ===================================================================== */
+import { applyCouples } from './couple.js';
+import { $, state } from './state.js';
+import { language, setLanguage } from './language.js';
+import { flash } from './app.js';
 
 const SWATCHES = [
   ['#B08D57', 'Gold'],
@@ -10,9 +16,9 @@ const SWATCHES = [
   ['#3E6E9E', 'Blue'],
   ['#48484A', 'Graphite'],
 ];
-const SECONDS = [20, 30, 45, 60, 90, 120, 180];
-const secLabel = v => (v < 60 ? `${v} seconds` : `${v / 60} minute${v === 60 ? '' : 's'}`);
-function fillSelect(sel, values, current, label) {
+export const SECONDS = [20, 30, 45, 60, 90, 120, 180];
+export const secLabel = v => (v < 60 ? `${v} seconds` : `${v / 60} minute${v === 60 ? '' : 's'}`);
+export function fillSelect(sel, values, current, label) {
   sel.innerHTML = '';
   [...new Set([...values, current])]
     .sort((a, b) => a - b)
@@ -41,8 +47,8 @@ function renderSwatches(accent) {
     box.appendChild(b);
   });
 }
-// Nilai bawaan kalau ada pengaturan yang belum tersedia
-const BAWAAN = {
+// Default values for settings that are missing
+const DEFAULTS = {
   quizSeconds: 60,
   quizRounds: 3,
   pesanCountdown: 3,
@@ -55,10 +61,10 @@ const BAWAAN = {
   enablePhoto: true,
   tanyaNama: true,
 };
-function normalisasiCfg(src) {
-  for (const [k, d] of Object.entries(BAWAAN)) {
+export function normalizeConfig(src) {
+  for (const [k, d] of Object.entries(DEFAULTS)) {
     const v = src[k];
-    cfg[k] =
+    state.cfg[k] =
       typeof d === 'boolean'
         ? typeof v === 'boolean'
           ? v
@@ -68,45 +74,45 @@ function normalisasiCfg(src) {
           : d;
   }
 }
-// Tombol menu di Halaman Utama mengikuti pengaturan couple aktif (Admin → couple → Menu)
-function menuCouple(c = activeCouple) {
+// The main menu buttons follow the active couple's settings (Admin → couple → Menu)
+export function coupleMenu(c = state.activeCouple) {
   return (c && c.menu) || { pesan: true, quiz: true, photo: true };
 }
-function terapkanMenu() {
-  const m = menuCouple();
+export function applyMenu() {
+  const m = coupleMenu();
   $('btnToPesan').style.display = m.pesan ? '' : 'none';
-  $('btnToQuiz').style.display = m.quiz && cfg.quiz && cfg.quiz.length ? '' : 'none';
+  $('btnToQuiz').style.display = m.quiz && state.cfg.quiz && state.cfg.quiz.length ? '' : 'none';
   $('btnToPhoto').style.display = m.photo ? '' : 'none';
 }
-// Terapkan pengaturan terbaru ke aplikasi tanpa perlu menutupnya
-function applySettings(s) {
-  normalisasiCfg(s);
-  if (s.kamera) cfg.kamera = s.kamera;
-  if (s.bahasa && s.bahasa !== bahasa) {
-    cfg.bahasa = s.bahasa;
-    setBahasa(s.bahasa);
-    if (couplesData) applyCouples(couplesData); // sambutan & pertanyaan ikut bahasa baru
+// Apply the latest settings to the app without restarting it
+export function applySettings(s) {
+  normalizeConfig(s);
+  if (s.kamera) state.cfg.kamera = s.kamera;
+  if (s.bahasa && s.bahasa !== language) {
+    state.cfg.bahasa = s.bahasa;
+    setLanguage(s.bahasa);
+    if (state.couplesData) applyCouples(state.couplesData); // welcome text & questions follow the new language
   }
-  terapkanMenu();
+  applyMenu();
   if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
 }
-async function loadSettings() {
+export async function loadSettings() {
   const s = await api.getSettings();
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = cfg.tanyaNama;
+  $('setTanyaNama').checked = state.cfg.tanyaNama;
   $('setBahasa').value = s.bahasa || 'en';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
 }
-// Pengaturan langsung tersimpan dan berlaku, tanpa menutup aplikasi
+// Settings are saved and applied right away, without closing the app
 async function saveSetting(patch, msg) {
   const s = await api.saveSettings(patch);
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = cfg.tanyaNama;
+  $('setTanyaNama').checked = state.cfg.tanyaNama;
   flash('setMsg', msg || 'Saved.');
 }
 async function saveLogin() {
@@ -118,8 +124,8 @@ async function saveLogin() {
   flash('loginMsg', `Login changed. Next time, sign in with ID "${r.id}" and the new password.`);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari mulai.js)
-function pasangPengaturan() {
+// Wire up this feature's buttons (called once from start.js)
+export function setupSettings() {
   $('setKiosk').onchange = e =>
     saveSetting(
       { kiosk: e.target.checked },

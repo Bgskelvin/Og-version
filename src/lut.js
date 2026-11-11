@@ -1,65 +1,68 @@
 /* =====================================================================
-   lut.js — filter foto dari file LUT 3D (.cube)
-   File .cube adalah "resep warna" yang bisa diekspor dari Lightroom/Photoshop
-   (Export Color Lookup Tables), DaVinci Resolve, atau dibeli sebagai preset.
-   - bacaCube(teks)            → { size, data, judul, ... } atau Error (pesan bahasa Inggris)
-   - terapkanLut(foto, lut, k) → kanvas baru berisi foto yang sudah difilter
-                                  (k = kekuatan 0..1; foto besar diperkecil dulu)
-   Dipakai di tampilan (photobooth, editor template) dan di proses utama
-   (main/filter.js memakai bacaCube untuk memeriksa file yang diunggah).
+   lut.js — photo filters from 3D LUT files (.cube)
+   A .cube file is a "color recipe" that can be exported from Lightroom/Photoshop
+   (Export Color Lookup Tables), DaVinci Resolve, or bought as a preset.
+   - parseCube(text)              → { size, data, judul, min, max } or throws (English message)
+   - applyLut(photo, lut, k)      → new canvas with the filtered photo
+                                    (k = strength 0..1; large photos are scaled down first)
+   Used by the UI (photo booth, template editor) and by the main process
+   (main/filter.js uses parseCube to check uploaded files).
+   Note: the `judul` / `nama` fields are part of the data shared with the main
+   process; they are renamed together with it in refactor/main-english.
    ===================================================================== */
 
-const LUT_UKURAN_MAKS = 65; // 65×65×65 titik warna (ukuran .cube terbesar yang umum)
+export const LUT_MAX_SIZE = 65; // 65×65×65 color points (the largest common .cube size)
 
-function bacaCube(teks) {
-  const baris = String(teks || '')
+export function parseCube(text) {
+  const lines = String(text || '')
     .replace(/^\uFEFF/, '')
     .split(/\r?\n/);
   let size = 0,
-    judul = '';
+    title = '';
   let min = [0, 0, 0],
     max = [1, 1, 1];
   let data = null,
     n = 0;
-  for (let i = 0; i < baris.length; i++) {
-    const b = baris[i].trim();
+  for (let i = 0; i < lines.length; i++) {
+    const b = lines[i].trim();
     if (!b || b[0] === '#') continue;
-    const kata = b.split(/\s+/);
-    const kunci = kata[0].toUpperCase();
-    if (kunci === 'TITLE') {
-      judul = b.slice(5).trim().replace(/^"|"$/g, '').slice(0, 60);
+    const words = b.split(/\s+/);
+    const keyword = words[0].toUpperCase();
+    if (keyword === 'TITLE') {
+      title = b.slice(5).trim().replace(/^"|"$/g, '').slice(0, 60);
       continue;
     }
-    if (kunci === 'LUT_1D_SIZE') throw new Error('This filter is a 1D LUT. Export it again as a 3D LUT (.cube).');
-    if (kunci === 'LUT_3D_SIZE') {
-      size = Number(kata[1]);
-      if (!Number.isInteger(size) || size < 2 || size > LUT_UKURAN_MAKS)
-        throw new Error(`Unsupported LUT size (${kata[1]}). Use a size from 2 to ${LUT_UKURAN_MAKS}.`);
+    if (keyword === 'LUT_1D_SIZE') throw new Error('This filter is a 1D LUT. Export it again as a 3D LUT (.cube).');
+    if (keyword === 'LUT_3D_SIZE') {
+      size = Number(words[1]);
+      if (!Number.isInteger(size) || size < 2 || size > LUT_MAX_SIZE)
+        throw new Error(`Unsupported LUT size (${words[1]}). Use a size from 2 to ${LUT_MAX_SIZE}.`);
       data = new Float32Array(size * size * size * 3);
       continue;
     }
-    if (kunci === 'DOMAIN_MIN' || kunci === 'DOMAIN_MAX') {
-      const v = kata.slice(1, 4).map(Number);
-      if (v.length !== 3 || v.some(x => !Number.isFinite(x))) throw new Error(`Line ${i + 1} is not valid: ${kunci}.`);
-      if (kunci === 'DOMAIN_MIN') min = v;
+    if (keyword === 'DOMAIN_MIN' || keyword === 'DOMAIN_MAX') {
+      const v = words.slice(1, 4).map(Number);
+      if (v.length !== 3 || v.some(x => !Number.isFinite(x)))
+        throw new Error(`Line ${i + 1} is not valid: ${keyword}.`);
+      if (keyword === 'DOMAIN_MIN') min = v;
       else max = v;
       continue;
     }
-    if (kunci === 'LUT_3D_INPUT_RANGE') {
-      const lo = Number(kata[1]),
-        hi = Number(kata[2]);
+    if (keyword === 'LUT_3D_INPUT_RANGE') {
+      const lo = Number(words[1]),
+        hi = Number(words[2]);
       if (Number.isFinite(lo) && Number.isFinite(hi)) {
         min = [lo, lo, lo];
         max = [hi, hi, hi];
       }
       continue;
     }
-    if (/^[A-Z_]+$/.test(kunci)) continue; // kata kunci lain yang tidak dipakai
+    if (/^[A-Z_]+$/.test(keyword)) continue; // other keywords we don't use
     if (!data) throw new Error('The .cube file has no LUT_3D_SIZE line before the color data.');
-    if (kata.length < 3) throw new Error(`Line ${i + 1} doesn't contain 3 color values.`);
+    if (words.length < 3) throw new Error(`Line ${i + 1} doesn't contain 3 color values.`);
     if (n >= data.length) throw new Error('There is more color data than the LUT size allows.');
     for (let c = 0; c < 3; c++) {
-      const v = Number(kata[c]);
+      const v = Number(words[c]);
       if (!Number.isFinite(v)) throw new Error(`Line ${i + 1} contains an invalid number.`);
       data[n++] = v;
     }
@@ -67,39 +70,39 @@ function bacaCube(teks) {
   if (!data) throw new Error('This is not a .cube LUT file (no LUT_3D_SIZE).');
   if (n !== data.length) throw new Error(`Missing color data: found ${n / 3}, expected ${data.length / 3}.`);
   for (let c = 0; c < 3; c++) if (!(max[c] > min[c])) throw new Error('DOMAIN_MIN must be smaller than DOMAIN_MAX.');
-  // Simpan sebagai 0..255 supaya penerapan per piksel cepat
+  // Store as 0..255 so applying per pixel is fast
   for (let i = 0; i < data.length; i++) data[i] = Math.min(255, Math.max(0, data[i] * 255));
-  return { size, data, judul, min, max };
+  return { size, data, judul: title, min, max };
 }
 
-// Terapkan LUT ke data piksel RGBA (di tempat). k = kekuatan 0..1.
-function terapkanLutPiksel(px, lut, k = 1) {
+// Apply a LUT to RGBA pixel data (in place). k = strength 0..1.
+export function applyLutPixels(px, lut, k = 1) {
   const N = lut.size,
     D = lut.data,
     N2 = N * N,
-    akhir = N - 1;
-  // nilai 0..255 → posisi 0..N-1 (memperhitungkan DOMAIN_MIN/MAX)
-  const sk = [0, 1, 2].map(c => akhir / (255 * (lut.max[c] - lut.min[c])));
-  const of = [0, 1, 2].map(c => (-lut.min[c] * akhir) / (lut.max[c] - lut.min[c]));
+    last = N - 1;
+  // value 0..255 → position 0..N-1 (taking DOMAIN_MIN/MAX into account)
+  const scale = [0, 1, 2].map(c => last / (255 * (lut.max[c] - lut.min[c])));
+  const offset = [0, 1, 2].map(c => (-lut.min[c] * last) / (lut.max[c] - lut.min[c]));
   const kk = Math.min(1, Math.max(0, k)),
-    asli = 1 - kk;
+    original = 1 - kk;
   for (let i = 0; i < px.length; i += 4) {
-    let r = px[i] * sk[0] + of[0],
-      g = px[i + 1] * sk[1] + of[1],
-      b = px[i + 2] * sk[2] + of[2];
-    r = r < 0 ? 0 : r > akhir ? akhir : r;
-    g = g < 0 ? 0 : g > akhir ? akhir : g;
-    b = b < 0 ? 0 : b > akhir ? akhir : b;
+    let r = px[i] * scale[0] + offset[0],
+      g = px[i + 1] * scale[1] + offset[1],
+      b = px[i + 2] * scale[2] + offset[2];
+    r = r < 0 ? 0 : r > last ? last : r;
+    g = g < 0 ? 0 : g > last ? last : g;
+    b = b < 0 ? 0 : b > last ? last : b;
     const r0 = r | 0,
       g0 = g | 0,
       b0 = b | 0;
-    const r1 = r0 < akhir ? r0 + 1 : r0,
-      g1 = g0 < akhir ? g0 + 1 : g0,
-      b1 = b0 < akhir ? b0 + 1 : b0;
+    const r1 = r0 < last ? r0 + 1 : r0,
+      g1 = g0 < last ? g0 + 1 : g0,
+      b1 = b0 < last ? b0 + 1 : b0;
     const fr = r - r0,
       fg = g - g0,
       fb = b - b0;
-    // urutan .cube: merah berubah paling cepat
+    // .cube order: red changes fastest
     const i000 = (r0 + g0 * N + b0 * N2) * 3,
       i100 = (r1 + g0 * N + b0 * N2) * 3;
     const i010 = (r0 + g1 * N + b0 * N2) * 3,
@@ -116,33 +119,34 @@ function terapkanLutPiksel(px, lut, k = 1) {
       const c0 = c00 + (c10 - c00) * fg,
         c1 = c01 + (c11 - c01) * fg;
       const v = c0 + (c1 - c0) * fb;
-      px[i + c] = kk === 1 ? v : px[i + c] * asli + v * kk;
+      px[i + c] = kk === 1 ? v : px[i + c] * original + v * kk;
     }
   }
   return px;
 }
 
-// Foto (kanvas/gambar) → kanvas baru yang sudah difilter.
-// sisiMaks: foto yang lebih besar diperkecil dulu (hasil cetak 1800 piksel sudah cukup, dan jauh lebih cepat).
-function terapkanLut(foto, lut, k = 1, sisiMaks = 1800) {
-  const w0 = foto.naturalWidth || foto.videoWidth || foto.width,
-    h0 = foto.naturalHeight || foto.videoHeight || foto.height;
-  const s = Math.min(1, sisiMaks / Math.max(w0, h0));
+// Photo (canvas/image) → new canvas with the filter applied.
+// maxSide: larger photos are scaled down first (1800 px is enough for prints, and much faster).
+export function applyLut(photo, lut, k = 1, maxSide = 1800) {
+  const w0 = photo.naturalWidth || photo.videoWidth || photo.width,
+    h0 = photo.naturalHeight || photo.videoHeight || photo.height;
+  const s = Math.min(1, maxSide / Math.max(w0, h0));
   const c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(w0 * s));
   c.height = Math.max(1, Math.round(h0 * s));
   const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(foto, 0, 0, c.width, c.height);
+  ctx.drawImage(photo, 0, 0, c.width, c.height);
   if (!lut || k <= 0) return c;
   const img = ctx.getImageData(0, 0, c.width, c.height);
-  terapkanLutPiksel(img.data, lut, k);
+  applyLutPixels(img.data, lut, k);
   ctx.putImageData(img, 0, 0);
   return c;
 }
 
-// Foto contoh untuk pratinjau filter di Admin (langit, kulit, warna dasar, abu-abu)
-function fotoContohFilter() {
-  if (fotoContohFilter.c) return fotoContohFilter.c;
+// Sample photo for the filter preview in Admin (sky, skin, primary colors, grays)
+let samplePhoto = null;
+export function sampleFilterPhoto() {
+  if (samplePhoto) return samplePhoto;
   const c = document.createElement('canvas');
   c.width = 600;
   c.height = 400;
@@ -157,15 +161,15 @@ function fotoContohFilter() {
   x.fillStyle = '#E0B494';
   x.beginPath();
   x.ellipse(300, 210, 70, 88, 0, 0, Math.PI * 2);
-  x.fill(); // wajah
+  x.fill(); // face
   x.fillStyle = '#3B2A22';
   x.beginPath();
   x.ellipse(300, 150, 76, 48, 0, Math.PI, Math.PI * 2);
-  x.fill(); // rambut
+  x.fill(); // hair
   x.fillStyle = '#F4F1EC';
-  x.fillRect(215, 300, 170, 100); // baju putih
-  ['#D9433B', '#F2B33D', '#3FA35B', '#2F6FD6'].forEach((w, i) => {
-    x.fillStyle = w;
+  x.fillRect(215, 300, 170, 100); // white shirt
+  ['#D9433B', '#F2B33D', '#3FA35B', '#2F6FD6'].forEach((color, i) => {
+    x.fillStyle = color;
     x.fillRect(20 + i * 42, 330, 34, 50);
   });
   for (let i = 0; i < 6; i++) {
@@ -173,28 +177,26 @@ function fotoContohFilter() {
     x.fillStyle = `rgb(${v},${v},${v})`;
     x.fillRect(430 + i * 26, 330, 26, 50);
   }
-  fotoContohFilter.c = c;
+  samplePhoto = c;
   return c;
 }
 
-// Ambil & urai filter dari koleksi Admin (sekali per filter, lalu disimpan sementara)
-const cacheLutTampilan = new Map();
-function muatLut(id) {
+// Fetch & parse a filter from the Admin collection (once per filter, then cached)
+const lutCache = new Map();
+export function loadLut(id) {
   if (!id || typeof window === 'undefined' || !window.api || !window.api.filterIsi) return Promise.resolve(null);
-  if (!cacheLutTampilan.has(id)) {
-    cacheLutTampilan.set(
+  if (!lutCache.has(id)) {
+    lutCache.set(
       id,
       window.api
         .filterIsi(id)
-        .then(r => (r ? { id, nama: r.nama, lut: bacaCube(r.teks) } : null))
+        .then(r => (r ? { id, nama: r.nama, lut: parseCube(r.teks) } : null))
         .catch(e => {
-          console.log('Filter tidak bisa dimuat: ' + (e && e.message));
+          console.log('Filter could not be loaded: ' + (e && e.message));
           return null;
         }),
     );
   }
-  return cacheLutTampilan.get(id);
+  return lutCache.get(id);
 }
-const lupakanLut = id => cacheLutTampilan.delete(id);
-
-if (typeof module !== 'undefined' && module.exports) module.exports = { bacaCube, terapkanLutPiksel, LUT_UKURAN_MAKS };
+export const forgetLut = id => lutCache.delete(id);

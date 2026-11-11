@@ -978,28 +978,7 @@
     </div>
     <div id="pbFlash"></div>
 
-    <!-- Urutan penting: state.js dulu (data bersama), mulai.js paling akhir -->
-    <script src="src/state.js"></script>
-    <script src="src/bahasa.js"></script>
-    <script src="src/qr.js"></script>
-    <script src="src/app.js"></script>
-    <script src="src/keyboard.js"></script>
-    <script src="src/nama.js"></script>
-    <script src="src/kamera.js"></script>
-    <script src="src/kamera-sony.js"></script>
-    <script src="src/rekaman.js"></script>
-    <script src="src/pesan.js"></script>
-    <script src="src/quiz.js"></script>
-    <script src="src/couple.js"></script>
-    <script src="src/pengaturan.js"></script>
-    <script src="src/pengaturan-booth.js"></script>
-    <script src="src/admin.js"></script>
-    <script src="src/riwayat.js"></script>
-    <script src="src/unduh-qr.js"></script>
-    <script src="src/lut.js"></script>
-    <script src="src/template-gambar.js"></script>
-    <script src="src/template-editor.js"></script>
-    <script src="src/photobooth.js"></script>
-    <script src="src/mulai.js"></script>
+    <!-- The whole UI starts from src/start.js (ES modules); shared state is in src/state.js -->
+    <script type="module" src="src/start.js"></script>
   </body>
 </html>

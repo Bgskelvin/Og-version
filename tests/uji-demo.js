@@ -101,7 +101,10 @@ async function main() {
     }),
     'tombol Start muat di lebar layar HP',
   );
-  cek(await pg.evaluate(() => !!(mediaStream && mediaStream.getVideoTracks().length)), 'kamera HP terbuka');
+  cek(
+    await pg.evaluate(() => !!(__leura.state.mediaStream && __leura.state.mediaStream.getVideoTracks().length)),
+    'kamera HP terbuka',
+  );
 
   console.log('\n▶ Kirim pesan');
   await pg.click('#btnStart');
@@ -189,7 +192,7 @@ async function main() {
   console.log('\n▶ Tersimpan setelah halaman dibuka ulang');
   await pg.reload();
   await tunggu(1500);
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   await pg.fill('#uid', 'leura');
