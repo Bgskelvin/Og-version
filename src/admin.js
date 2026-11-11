@@ -5,6 +5,8 @@
 import { loadSessions } from './session-history.js';
 import { applyCouples, fillCoupleSel } from './couple.js';
 import { loadSettings } from './settings.js';
+import { openStream, fillDevices } from './camera.js';
+import { usingSony, fillAdminCamera } from './sony-camera.js';
 
 // Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
 // so after the app is closed and opened again, Admin must log in again.
@@ -46,7 +48,7 @@ async function refreshAdmin() {
   fillCoupleSel();
   await loadSettings();
   await fillDevices();
-  isiKameraAdmin();
+  fillAdminCamera();
   await loadOutDir();
   await loadSessions();
 }
@@ -113,7 +115,7 @@ export function setupAdmin() {
   };
   $('btnFolder').onclick = () => api.openFolder();
   $('btnRefresh').onclick = async () => {
-    if (!pakaiSony()) await openStream();
+    if (!usingSony()) await openStream();
     await refreshAdmin();
   };
 }

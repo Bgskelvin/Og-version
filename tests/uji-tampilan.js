@@ -1019,25 +1019,27 @@ async function main() {
   await tunggu(100);
   await pg.evaluate(() => {
     SONY.st = { ...SONY.st, jenisMode: 'foto' };
-    sonySt.jenisMode = 'foto';
+    SONY.cb(SONY.st); // status update from the (fake) main process
     window.MODE_DELAY = 900;
   });
   await pg.click('#btnToPesan');
   await tunggu(150);
-  const n1 = await pg.evaluate(() => lvNo);
+  const n1 = await pg.evaluate(() => liveViewFrameCount());
   await tunggu(400);
-  const n2 = await pg.evaluate(() => lvNo);
+  const n2 = await pg.evaluate(() => liveViewFrameCount());
   cek(
     (await pg.evaluate(() => document.body.classList.contains('lvGanti'))) && n1 === n2,
     'ganti mode: gambar kamera dibekukan + kabut (blur) selama berganti',
   );
   await tunggu(1800);
   cek(
-    !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))) && (await pg.evaluate(() => lvNo)) > n2,
+    !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))) &&
+      (await pg.evaluate(() => liveViewFrameCount())) > n2,
     'mode selesai: kabut hilang, gambar kamera jalan lagi',
   );
   await pg.evaluate(() => {
-    sonySt.jenisMode = 'video';
+    SONY.st = { ...SONY.st, jenisMode: 'video' };
+    SONY.cb(SONY.st);
     window.MODE_DELAY = 0;
   });
   await pg.click('#btnPesanBack');

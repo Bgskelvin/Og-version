@@ -9,6 +9,7 @@
    Shared session state (cfg, busy, sessionToken, cancelTimer, recT0) still
    lives in state.js as globals until that file becomes a module.
    ===================================================================== */
+import { startRecording, countdown, finishSession, abortSession, needStream } from './recording.js';
 
 const QUIZ_COUNTDOWN = 3; // seconds of countdown before the first question
 

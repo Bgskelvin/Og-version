@@ -8,7 +8,7 @@
    to know which globals the plain scripts may use.)
    ===================================================================== */
 import { parseCube, sampleFilterPhoto } from './lut.js';
-import { showDownloadQr } from './download-qr.js';
+import { cameraModeForScreen, liveViewFrameCount } from './sony-camera.js';
 import { setTemplateCoupleName, fillTemplateText } from './template-render.js';
 import { loadSessions, sessionLink } from './session-history.js';
 import { applySettings, applyMenu } from './settings.js';
@@ -17,8 +17,9 @@ import { te, openTemplateEditor, getTemplateCouple } from './template-editor.js'
 // lut.js — parseCube: test/demo fake api; sampleFilterPhoto: tests
 window.parseCube = parseCube;
 window.sampleFilterPhoto = sampleFilterPhoto;
-// download-qr.js — used by rekaman.js
-window.showDownloadQr = showDownloadQr;
+// sony-camera.js — cameraModeForScreen: app.js; liveViewFrameCount: tests
+window.cameraModeForScreen = cameraModeForScreen;
+window.liveViewFrameCount = liveViewFrameCount;
 // template-render.js — setTemplateCoupleName: app.js; fillTemplateText: tests
 window.setTemplateCoupleName = setTemplateCoupleName;
 window.fillTemplateText = fillTemplateText;
@@ -29,6 +30,6 @@ window.sessionLink = sessionLink;
 window.te = te;
 window.openTemplateEditor = openTemplateEditor;
 window.getTemplateCouple = getTemplateCouple;
-// settings.js — applySettings: kamera-sony.js and tests; applyMenu: tests
+// settings.js — applySettings, applyMenu: tests
 window.applySettings = applySettings;
 window.applyMenu = applyMenu;

@@ -3,7 +3,7 @@
    The page markup is in index.html (#photo and #editphoto).
    Uses shared data & functions that are still globals: $, show, sleep, busy,
    resetIdle, noCam, activeCouple, setNotice, setThanks, needStream (see
-   state.js, app.js, rekaman.js). Only setupPhotobooth() is exported.
+   state.js, app.js). Only setupPhotobooth() is exported.
    Photos are taken in grabFrame() (webcam/HDMI) or captureSony() (Sony camera).
    Data sent to the main process (savePhotos: singles → `satuan`, `tamu`, meta
    values) keeps its current names until refactor/main-english.
@@ -11,6 +11,8 @@
 import { prepareTemplate, drawTemplate } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
 import { showDownloadQr } from './download-qr.js';
+import { usingSony } from './sony-camera.js';
+import { setThanks, needStream } from './recording.js';
 const SHOTS = 4; // photos per session
 // Countdown length, preview and flash effect are set in Photo booth settings (cfg)
 const COUNTDOWN = () => cfg.photoCountdown;
@@ -80,7 +82,7 @@ async function captureSony() {
   return c;
 }
 async function snap() {
-  if (pakaiSony()) return captureSony();
+  if (usingSony()) return captureSony();
   if (!cfg.photoFlash) return grabFrame(); // flash effect turned off in Photo booth settings
   const flashEl = $('pbFlash');
   flashEl.classList.remove('go');
@@ -206,7 +208,7 @@ function photoRatio(i) {
   return s && s.w > 0 && s.h > 0 ? s.w / s.h : null;
 }
 function sourceSize() {
-  if (pakaiSony()) {
+  if (usingSony()) {
     const c = $('camLv');
     return [c.width, c.height];
   }
@@ -251,7 +253,7 @@ function setRunningUI(on) {
 async function shoot(indices) {
   if (running) return;
   if (!needStream()) return;
-  if (noCam && !pakaiSony()) {
+  if (noCam && !usingSony()) {
     setNotice('Photo booth butuh kamera. Sambungkan kamera lalu pilih di Admin.', 8000);
     return;
   }

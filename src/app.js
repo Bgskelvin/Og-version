@@ -17,7 +17,7 @@ function show(name) {
     ['tambah', 'tpleditor'].includes(name) && getTemplateCouple() ? getTemplateCouple().name : null,
   );
   SCREENS.forEach(s => $(s).classList.toggle('on', s === name));
-  if (typeof modeUntukLayar === 'function') modeUntukLayar(name); // kamera Sony: mode video/foto sesuai halaman
+  if (typeof cameraModeForScreen === 'function') cameraModeForScreen(name); // kamera Sony: mode video/foto sesuai halaman
   document.body.classList.toggle('camOn', ['utama', 'pesan', 'quiz', 'photo'].includes(name));
   resetIdle();
 }

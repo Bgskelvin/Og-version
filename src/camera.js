@@ -1,8 +1,10 @@
 /* =====================================================================
-   kamera.js — membuka kamera & mic, memilih perangkat di Admin
+   camera.js — opens the webcam/phone camera & mic, device choice in Admin
+   Shared state (mediaStream, noCam, store, cfg) still lives in state.js as
+   globals until that file becomes a module.
    ===================================================================== */
 
-async function openStream() {
+export async function openStream() {
   if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
   mediaStream = null;
   const camId = store.get('camId'),
@@ -20,7 +22,7 @@ async function openStream() {
       s = await navigator.mediaDevices.getUserMedia(c);
       break;
     } catch (e) {
-      console.log('Gagal buka perangkat: ' + e.name);
+      console.log('Device could not be opened: ' + e.name);
     }
   }
   if (!s) {
@@ -33,11 +35,11 @@ async function openStream() {
   $('cam').srcObject = s;
   $('camPrev').srcObject = s;
 }
-async function initDevices() {
+export async function initDevices() {
   await openStream();
   const devs = await navigator.mediaDevices.enumerateDevices();
   console.log(
-    'PERANGKAT TERDETEKSI:\n' +
+    'DEVICES FOUND:\n' +
       devs
         .filter(d => d.kind !== 'audiooutput')
         .map(d => `  ${d.kind}: ${d.label}`)
@@ -62,7 +64,7 @@ async function initDevices() {
   }
   if (changed) await openStream();
 }
-async function fillDevices() {
+export async function fillDevices() {
   const devs = await navigator.mediaDevices.enumerateDevices();
   const cur = kind => {
     const t =

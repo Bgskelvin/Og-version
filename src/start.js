@@ -6,12 +6,15 @@
 import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
 import { setupAdmin } from './admin.js';
 import { setupBoothSettings } from './booth-settings.js';
+import { initDevices } from './camera.js';
 import { applyCouples, buildQInputs, setupCouples } from './couple.js';
 import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
 import { setupQuiz } from './quiz.js';
+import { setupRecording } from './recording.js';
 import { normalizeConfig, applyMenu, setupSettings } from './settings.js';
+import { usingSony, applyCameraSource, setupSonyCamera } from './sony-camera.js';
 import { setupHistory } from './session-history.js';
 import { setupTemplateEditor } from './template-editor.js';
 
@@ -38,9 +41,9 @@ import { setupTemplateEditor } from './template-editor.js';
   setupBoothSettings();
   applyMenu();
   setupCouples();
-  pasangRekaman();
+  setupRecording();
   setupPhotobooth();
-  await pasangKameraSony();
+  await setupSonyCamera();
   setupTemplateEditor();
 
   window.addEventListener('unhandledrejection', e =>
@@ -54,8 +57,8 @@ import { setupTemplateEditor } from './template-editor.js';
   });
   ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
 
-  if (pakaiSony())
-    await terapkanKamera(); // kamera Sony: webcam & mic komputer tidak dibuka
+  if (usingSony())
+    await applyCameraSource(); // kamera Sony: webcam & mic komputer tidak dibuka
   else
     try {
       await initDevices();

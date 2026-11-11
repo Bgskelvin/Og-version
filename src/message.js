@@ -3,6 +3,8 @@
    Shared session state (cfg, busy, sessionToken, recTick, pesanLimit) still
    lives in state.js as globals until that file becomes a module.
    ===================================================================== */
+import { usingSony } from './sony-camera.js';
+import { startRecording, countdown, finishSession, abortSession, needStream } from './recording.js';
 
 function openMessage() {
   $('pesanPre').style.display = 'flex';
@@ -18,7 +20,7 @@ async function startMessage() {
   try {
     // A Sony camera needs ±0.5–1 s before it really records: start recording at the START of the countdown,
     // so the guest's first sentence isn't cut off. A webcam records immediately, so start after the countdown.
-    const recordEarly = pakaiSony() && cfg.pesanCountdown > 0;
+    const recordEarly = usingSony() && cfg.pesanCountdown > 0;
     if (recordEarly) {
       await startRecording('pesan');
       if (token !== sessionToken) return;
