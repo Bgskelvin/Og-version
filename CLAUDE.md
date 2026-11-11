@@ -56,7 +56,8 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 
 ## Konvensi kode
 
-- Komentar, pesan log, nama file/fungsi saat ini **bahasa Indonesia**. (Rencana: diganti bahasa Inggris bertahap, lihat Langkah berikutnya.)
+- **Bicara dengan Gusvin: bahasa Indonesia. Kode baru: bahasa Inggris.** Semua nama variabel, fungsi, file, dan branch yang baru dibuat pakai bahasa Inggris (pilihan Gusvin, 11 Nov 2026).
+- Kode lama masih memakai nama, komentar, dan pesan log **bahasa Indonesia**. Kode itu diganti ke bahasa Inggris bertahap lewat refactor (lihat Langkah berikutnya), bukan diubah sedikit-sedikit di tengah pekerjaan lain.
 - **Admin seluruhnya bahasa Inggris.** Layar tamu dua bahasa lewat `src/bahasa.js` (bawaan `en`); teks tamu baru wajib punya kunci di sana.
 - Prettier **3.9.10 dikunci persis** (singleQuote, printWidth 120, arrowParens avoid). Jangan naikkan versi tanpa alasan.
 - ESLint 10 flat config (`eslint.config.mjs`). Untuk `src/`: `prefer-const` **mati** dan nama global dikumpulkan otomatis (`GLOBAL_TAMPILAN`) — jangan ubah `let` bersama menjadi `const`, file lain mengubahnya.
