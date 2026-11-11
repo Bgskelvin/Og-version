@@ -1,20 +1,20 @@
 /* =====================================================================
-   admin.js — login Admin, kamera/mic, folder penyimpanan
-   (daftar sesi ada di riwayat.js)
+   admin.js — Admin login, camera/mic, storage folder, quit dialog, app log
+   (the session list is in riwayat.js)
    ===================================================================== */
 
-// Login Admin cukup sekali selama aplikasi terbuka. Disimpan di memori saja (bukan di disk),
-// jadi setelah aplikasi ditutup lalu dibuka lagi, Admin harus login lagi.
-let adminMasuk = false;
+// Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
+// so after the app is closed and opened again, Admin must log in again.
+let adminUnlocked = false;
 
-async function bukaPanelAdmin() {
+async function openAdminPanel() {
   $('adminLogin').style.display = 'none';
   $('adminPanel').style.display = 'flex';
   show('admin');
   await refreshAdmin();
 }
 function openAdmin() {
-  if (adminMasuk) return bukaPanelAdmin();
+  if (adminUnlocked) return openAdminPanel();
   $('adminLogin').style.display = 'block';
   $('adminPanel').style.display = 'none';
   $('uid').value = '';
@@ -25,9 +25,9 @@ function openAdmin() {
 }
 async function doLogin() {
   if (await api.login($('uid').value.trim(), $('pw').value)) {
-    adminMasuk = true;
+    adminUnlocked = true;
     $('pw').value = '';
-    await bukaPanelAdmin();
+    await openAdminPanel();
   } else {
     $('loginErr').textContent = 'Wrong ID or password';
     $('pw').value = '';
@@ -48,8 +48,8 @@ async function refreshAdmin() {
   await loadSessions();
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
-function pasangAdmin() {
+// Wire up this feature's buttons (called once from start.js)
+export function setupAdmin() {
   $('btnAdminOpen').onclick = openAdmin;
   $('btnLogin').onclick = doLogin;
   $('btnLoginBack').onclick = () => show('utama');
@@ -60,31 +60,33 @@ function pasangAdmin() {
     if (e.key === 'Enter') $('pw').focus();
   });
   $('btnAdminBack').onclick = () => show('utama');
-  $('btnTutupApp').onclick = konfirmasiTutup;
-  // Tombol ✕ jendela / ⌘Q: dialog yang sama (sekali saja walau ditekan berulang)
-  api.onMintaTutup(() => konfirmasiTutup());
-  $('btnLihatCatatan').onclick = lihatCatatan;
-  // About: versi (Leura.app) atau "development" + branch Git (npm start dari folder kode)
+  $('btnTutupApp').onclick = confirmQuit;
+  // Window ✕ button / ⌘Q: the same dialog (only once even if pressed repeatedly)
+  api.onMintaTutup(() => confirmQuit());
+  $('btnLihatCatatan').onclick = showAppLog;
+  // About: version (Leura.app) or "development" + Git branch (npm start from the code folder)
   if (api.appInfo)
     api
       .appInfo()
-      .then(i => {
-        if (!i) return;
-        $('infoVersi').textContent = i.demo
+      .then(info => {
+        if (!info) return;
+        $('infoVersi').textContent = info.demo
           ? 'Leura Demo for phones (photos stay on this phone)'
-          : `Version ${i.versi}` +
-            (i.terpasang ? ' · installed app' : ` · development (npm start${i.branch ? ', branch ' + i.branch : ''})`);
-        $('btnLisensi').style.display = i.lisensi ? '' : 'none';
+          : `Version ${info.versi}` +
+            (info.terpasang
+              ? ' · installed app'
+              : ` · development (npm start${info.branch ? ', branch ' + info.branch : ''})`);
+        $('btnLisensi').style.display = info.lisensi ? '' : 'none';
       })
-      .catch(() => {});
+      .catch(e => console.warn('App info could not be read: ' + e.message));
   $('btnLisensi').onclick = async () => {
     const r = await api.bukaLisensi();
     if (r && r.error) $('infoVersi').textContent = r.error;
   };
-  $('btnSimpanCatatan').onclick = simpanCatatan;
-  // Kunci Admin lagi (mis. booth ditinggal tanpa operator): berikutnya harus login
+  $('btnSimpanCatatan').onclick = saveAppLog;
+  // Lock Admin again (e.g. booth left without an operator): next time a login is needed
   $('btnKunciAdmin').onclick = () => {
-    adminMasuk = false;
+    adminUnlocked = false;
     show('utama');
   };
   $('camSel').onchange = async e => {
@@ -113,91 +115,91 @@ function pasangAdmin() {
   };
 }
 
-/* ---------- Tutup aplikasi (dari Admin) ---------- */
-let tutupDibuka = false; // cegah dua dialog kalau ✕ / tombol ditekan berulang
-async function konfirmasiTutup() {
-  if (tutupDibuka || $('dlgTutup')) return;
-  tutupDibuka = true;
-  let c = { salin: 0, proses: 0, foto: 0 };
+/* ---------- Quit the app (from Admin) ---------- */
+let quitDialogOpening = false; // prevents two dialogs when ✕ / the button is pressed repeatedly
+async function confirmQuit() {
+  if (quitDialogOpening || $('dlgTutup')) return;
+  quitDialogOpening = true;
+  let counts = { salin: 0, proses: 0, foto: 0 };
   try {
-    c = await api.cekTutup();
+    counts = await api.cekTutup();
   } catch {
-    /* info antrean tidak ada: dialog Tutup aplikasi tetap tampil */
+    /* no queue info: the Quit dialog still shows */
   }
-  tutupDibuka = false;
-  const catatan = [];
-  if (c.salin)
-    catatan.push(
-      `${c.salin} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`,
+  quitDialogOpening = false;
+  const notes = [];
+  if (counts.salin)
+    notes.push(
+      `${counts.salin} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`,
     );
-  if (c.proses)
-    catatan.push(
-      `${c.proses} video(s) still processing. Processing continues automatically when the app is opened again.`,
+  if (counts.proses)
+    notes.push(
+      `${counts.proses} video(s) still processing. Processing continues automatically when the app is opened again.`,
     );
-  if (c.foto)
-    catatan.push(
-      `${c.foto} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`,
+  if (counts.foto)
+    notes.push(
+      `${counts.foto} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`,
     );
-  const lapis = document.createElement('div');
-  lapis.className = 'dialog-lapis';
-  lapis.id = 'dlgTutup';
-  lapis.innerHTML = `<div class="dialog-kartu"><h2>Quit the app?</h2><p></p><ul></ul>
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-lapis';
+  overlay.id = 'dlgTutup';
+  overlay.innerHTML = `<div class="dialog-kartu"><h2>Quit the app?</h2><p></p><ul></ul>
     <div class="dialog-aksi"><button class="btn sm tint" id="dlgTutupBatal">Cancel</button><button class="btn sm primary" id="dlgTutupYa">Quit app</button></div></div>`;
-  lapis.querySelector('p').textContent = 'The Sony camera will be disconnected cleanly, then the app will close.';
-  const ul = lapis.querySelector('ul');
-  if (catatan.length)
-    catatan.forEach(t => {
+  overlay.querySelector('p').textContent = 'The Sony camera will be disconnected cleanly, then the app will close.';
+  const ul = overlay.querySelector('ul');
+  if (notes.length)
+    notes.forEach(note => {
       const li = document.createElement('li');
-      li.textContent = t;
+      li.textContent = note;
       ul.appendChild(li);
     });
   else ul.remove();
-  document.body.appendChild(lapis);
-  lapis.querySelector('#dlgTutupBatal').onclick = () => lapis.remove();
-  lapis.onclick = e => {
-    if (e.target === lapis) lapis.remove();
+  document.body.appendChild(overlay);
+  overlay.querySelector('#dlgTutupBatal').onclick = () => overlay.remove();
+  overlay.onclick = e => {
+    if (e.target === overlay) overlay.remove();
   };
-  lapis.querySelector('#dlgTutupYa').onclick = async () => {
-    lapis.querySelector('.dialog-kartu').innerHTML =
+  overlay.querySelector('#dlgTutupYa').onclick = async () => {
+    overlay.querySelector('.dialog-kartu').innerHTML =
       '<div class="spinner"></div><h2>Closing the app…</h2><p>Disconnecting the camera cleanly. One moment.</p>';
-    lapis.onclick = null;
+    overlay.onclick = null;
     await api.tutupAplikasi();
   };
 }
 
-/* ---------- Catatan aplikasi (log) ---------- */
-async function lihatCatatan() {
+/* ---------- App log ---------- */
+async function showAppLog() {
   let r = { teks: '', file: '' };
   try {
     r = await api.catatanBaca();
   } catch (e) {
     console.warn('App log could not be read: ' + e.message);
   }
-  const lapis = document.createElement('div');
-  lapis.className = 'dialog-lapis';
-  lapis.id = 'dlgCatatan';
-  lapis.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
+  const overlay = document.createElement('div');
+  overlay.className = 'dialog-lapis';
+  overlay.id = 'dlgCatatan';
+  overlay.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
     <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Save to send</button><button class="btn sm primary" id="dlgCatatanTutup">Close</button></div></div>`;
-  lapis.querySelector('h2').textContent = 'App log' + (r.file ? ' · ' + r.file : '');
-  lapis.querySelector('p').textContent = r.teks
+  overlay.querySelector('h2').textContent = 'App log' + (r.file ? ' · ' + r.file : '');
+  overlay.querySelector('p').textContent = r.teks
     ? '✗ = error, ⚠ = warning. Newest at the bottom.'
     : 'No log entries yet.';
-  const pre = lapis.querySelector('pre');
+  const pre = overlay.querySelector('pre');
   pre.textContent = r.teks || '';
   if (!r.teks) pre.remove();
-  document.body.appendChild(lapis);
+  document.body.appendChild(overlay);
   if (r.teks) pre.scrollTop = pre.scrollHeight;
-  const tutup = () => lapis.remove();
-  lapis.onclick = e => {
-    if (e.target === lapis) tutup();
+  const close = () => overlay.remove();
+  overlay.onclick = e => {
+    if (e.target === overlay) close();
   };
-  lapis.querySelector('#dlgCatatanTutup').onclick = tutup;
-  lapis.querySelector('#dlgCatatanSimpan').onclick = async () => {
-    tutup();
-    await simpanCatatan();
+  overlay.querySelector('#dlgCatatanTutup').onclick = close;
+  overlay.querySelector('#dlgCatatanSimpan').onclick = async () => {
+    close();
+    await saveAppLog();
   };
 }
-async function simpanCatatan() {
+async function saveAppLog() {
   const r = await api.catatanSimpan();
   if (r.batal) return;
   if (r.error) setNotice(r.error, 5000);

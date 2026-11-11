@@ -9,7 +9,7 @@
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { parseCube, applyLut, sampleFilterPhoto, loadLut, forgetLut } from './lut.js';
-import { showDownloadQr, fillDownloadQrSettings, getUploadStatus, refreshUploadStatus } from './download-qr.js';
+import { showDownloadQr, getUploadStatus, refreshUploadStatus } from './download-qr.js';
 import * as templateRender from './template-render.js';
 
 // qr.js — used by riwayat.js
@@ -20,9 +20,8 @@ window.applyLut = applyLut;
 window.sampleFilterPhoto = sampleFilterPhoto;
 window.loadLut = loadLut;
 window.forgetLut = forgetLut;
-// download-qr.js — used by rekaman.js, pengaturan-booth.js, riwayat.js
+// download-qr.js — used by rekaman.js, riwayat.js
 window.showDownloadQr = showDownloadQr;
-window.fillDownloadQrSettings = fillDownloadQrSettings;
 window.getUploadStatus = getUploadStatus;
 window.refreshUploadStatus = refreshUploadStatus;
 // template-render.js — used by app.js, template-editor.js; fillTemplateText also by tests

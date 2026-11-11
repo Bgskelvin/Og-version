@@ -4,6 +4,8 @@
    feature's buttons, then opens the camera.
    ===================================================================== */
 import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
+import { setupAdmin } from './admin.js';
+import { setupBoothSettings } from './booth-settings.js';
 import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
@@ -25,11 +27,11 @@ import { setupQuiz } from './quiz.js';
   pasangNama();
   setupMessage();
   setupQuiz();
-  pasangAdmin();
+  setupAdmin();
   pasangRiwayat();
   setupDownloadQr();
   pasangPengaturan();
-  pasangPengaturanBooth();
+  setupBoothSettings();
   terapkanMenu();
   pasangCouple();
   pasangRekaman();
