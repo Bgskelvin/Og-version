@@ -11,13 +11,8 @@ import { parseCube, sampleFilterPhoto } from './lut.js';
 import { showDownloadQr } from './download-qr.js';
 import { setTemplateCoupleName, fillTemplateText } from './template-render.js';
 import { loadSessions, sessionLink } from './session-history.js';
-import {
-  te,
-  openTemplateEditor,
-  listCoupleTemplates,
-  getTemplateCouple,
-  clearTemplateCouple,
-} from './template-editor.js';
+import { applySettings, applyMenu } from './settings.js';
+import { te, openTemplateEditor, getTemplateCouple } from './template-editor.js';
 
 // lut.js — parseCube: test/demo fake api; sampleFilterPhoto: tests
 window.parseCube = parseCube;
@@ -27,13 +22,13 @@ window.showDownloadQr = showDownloadQr;
 // template-render.js — setTemplateCoupleName: app.js; fillTemplateText: tests
 window.setTemplateCoupleName = setTemplateCoupleName;
 window.fillTemplateText = fillTemplateText;
-// session-history.js — loadSessions: couple.js and tests; sessionLink: tests
+// session-history.js — loadSessions, sessionLink: tests
 window.loadSessions = loadSessions;
 window.sessionLink = sessionLink;
-// template-editor.js — getTemplateCouple: app.js; listCoupleTemplates, clearTemplateCouple: couple.js;
-// te, openTemplateEditor: tests
+// template-editor.js — getTemplateCouple: app.js; te, openTemplateEditor: tests
 window.te = te;
 window.openTemplateEditor = openTemplateEditor;
-window.listCoupleTemplates = listCoupleTemplates;
 window.getTemplateCouple = getTemplateCouple;
-window.clearTemplateCouple = clearTemplateCouple;
+// settings.js — applySettings: kamera-sony.js and tests; applyMenu: tests
+window.applySettings = applySettings;
+window.applyMenu = applyMenu;

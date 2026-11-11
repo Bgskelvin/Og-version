@@ -44,6 +44,16 @@ function resetIdle() {
   // Terima kasih → kembali ke menu (tamu mungkin ingin mencoba kegiatan lain); halaman lain → Start
   if (lama) idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), lama);
 }
+// Short green/red message under a form in Admin; clears itself after 4 seconds
+function flash(id, text, isErr) {
+  const el = $(id);
+  el.className = 'note ' + (isErr ? 'err' : 'ok');
+  el.textContent = text;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => {
+    el.textContent = '';
+  }, 4000);
+}
 function setNotice(t, ms) {
   clearTimeout(noticeTimer);
   $('notice').textContent = t;

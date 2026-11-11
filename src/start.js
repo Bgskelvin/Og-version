@@ -6,17 +6,19 @@
 import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
 import { setupAdmin } from './admin.js';
 import { setupBoothSettings } from './booth-settings.js';
+import { applyCouples, buildQInputs, setupCouples } from './couple.js';
 import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
 import { setupQuiz } from './quiz.js';
+import { normalizeConfig, applyMenu, setupSettings } from './settings.js';
 import { setupHistory } from './session-history.js';
 import { setupTemplateEditor } from './template-editor.js';
 
 (async () => {
   cfg = await api.getConfig();
   cfg.quiz = cfg.quiz || [];
-  normalisasiCfg(cfg);
+  normalizeConfig(cfg);
   setBahasa(cfg.bahasa); // bahasa layar tamu (diatur di Admin)
   if (cfg.colors) {
     const r = document.documentElement.style;
@@ -32,10 +34,10 @@ import { setupTemplateEditor } from './template-editor.js';
   setupAdmin();
   setupHistory();
   setupDownloadQr();
-  pasangPengaturan();
+  setupSettings();
   setupBoothSettings();
-  terapkanMenu();
-  pasangCouple();
+  applyMenu();
+  setupCouples();
   pasangRekaman();
   setupPhotobooth();
   await pasangKameraSony();

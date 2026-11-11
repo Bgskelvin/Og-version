@@ -4,6 +4,7 @@
    Values & limits are enforced in main/pengaturan.js.
    ===================================================================== */
 import { fillDownloadQrSettings } from './download-qr.js';
+import { SECONDS, secLabel, fillSelect, normalizeConfig, applySettings } from './settings.js';
 
 const OPTIONS = {
   pesanCountdown: [
@@ -69,7 +70,7 @@ function fillBoothSettings(s) {
 async function openBoothSettings(screen) {
   show(screen);
   const s = await api.getSettings();
-  normalisasiCfg(s);
+  normalizeConfig(s);
   fillBoothSettings({ ...s, ...cfg });
   if (screen === 'setphoto') fillDownloadQrSettings();
 }

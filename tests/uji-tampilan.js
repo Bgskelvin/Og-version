@@ -622,7 +622,7 @@ async function main() {
   await pg.evaluate(() => {
     applySettings({ ...cfg, pesanMaxSeconds: 0 });
     activeCouple.menu.quiz = true;
-    terapkanMenu();
+    applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(/30 detik/.test(await pg.textContent('#quizInfo')), 'waktu jawab baru langsung dipakai quiz');
@@ -1249,7 +1249,7 @@ async function main() {
   );
   await pg.evaluate(() => {
     activeCouple.menu.quiz = true;
-    terapkanMenu();
+    applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(
