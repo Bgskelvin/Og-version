@@ -1694,11 +1694,27 @@ const KASUS = {
     const masuk = f => pola.some(p => (p.endsWith('/') ? f.startsWith(p) : f === p));
     const html = fs.readFileSync(path.join(akar, 'index.html'), 'utf8');
     const dimuat = [...html.matchAll(/(?:src|href)="([^"#:]+)"/g)].map(m => m[1]);
+    // ES modules: follow import '…' / import … from '…' (relative paths) from every loaded .js file
+    for (let i = 0; i < dimuat.length; i++) {
+      if (!dimuat[i].endsWith('.js') || !fs.existsSync(path.join(akar, dimuat[i]))) continue;
+      const code = fs.readFileSync(path.join(akar, dimuat[i]), 'utf8');
+      for (const m of code.matchAll(/^\s*(?:import|export)\s[^'"]*?['"](\.{1,2}\/[^'"]+)['"]/gm)) {
+        const f = path.posix.normalize(path.posix.join(path.posix.dirname(dimuat[i]), m[1]));
+        if (!dimuat.includes(f)) dimuat.push(f);
+      }
+    }
+    const modulTampilan = dimuat.filter(f => f.startsWith('src/'));
     const mainJs = fs.readdirSync(path.join(akar, 'main')).map(f => 'main/' + f);
     const kurang = [...dimuat, ...mainJs, 'main.js', 'preload.js', 'config.json', 'package.json'].filter(
       f => !masuk(f),
     );
-    cek(dimuat.length > 20 && !kurang.length, 'semua file tampilan & proses utama ikut ke Leura.app', kurang);
+    const semuaSrc = fs.readdirSync(path.join(akar, 'src')).filter(f => f.endsWith('.js'));
+    const tidakDimuat = semuaSrc.filter(f => !modulTampilan.includes('src/' + f));
+    cek(
+      !kurang.length && !tidakDimuat.length,
+      'semua file tampilan & proses utama ikut ke Leura.app (termasuk modul yang di-import)',
+      { kurang, tidakDimuat },
+    );
     cek(
       !(b.files || []).some(f => /^(tests|sdk|cloud|demo|kamera-sony)\b/.test(f)),
       'SDK, uji, server & demo tidak ikut ke dalam app.asar',

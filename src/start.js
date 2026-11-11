@@ -5,6 +5,7 @@
    ===================================================================== */
 import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
 import { setupDownloadQr } from './download-qr.js';
+import { setupQuiz } from './quiz.js';
 
 (async () => {
   cfg = await api.getConfig();
@@ -21,7 +22,7 @@ import { setupDownloadQr } from './download-qr.js';
   pasangNavigasi();
   pasangNama();
   pasangPesan();
-  pasangQuiz();
+  setupQuiz();
   pasangAdmin();
   pasangRiwayat();
   setupDownloadQr();
