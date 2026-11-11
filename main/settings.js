@@ -1,32 +1,33 @@
 /* =====================================================================
-   pengaturan.js — pengaturan dari Admin (settings.json), login Admin,
-   dan folder penyimpanan
+   settings.js — settings from Admin (settings.json), Admin login,
+   and the storage folder
    ===================================================================== */
 const { ipcMain, dialog, shell } = require('electron');
 const crypto = require('crypto');
-const { config, defaultDir, readSettings, writeSettings, getOutDir, usableDir } = require('./penyimpanan');
-const { getWin } = require('./jendela-aktif');
+const { config, defaultDir, readSettings, writeSettings, getOutDir, usableDir } = require('./storage');
+const { getWin } = require('./active-window');
 
-/* ---------- Pengaturan (diubah dari Admin & halaman Pengaturan Videobooth/Photobooth) ---------- */
-// Angka: [terkecil, terbesar, bawaan]. Saklar: nilai bawaan.
-const ANGKA = {
-  quizSeconds: [10, 300, 60], // Videobooth: detik menjawab per pertanyaan quiz
-  quizRounds: [1, 10, 3], // Videobooth: jumlah pertanyaan per sesi quiz
-  pesanCountdown: [0, 10, 3], // Videobooth: hitung mundur sebelum merekam pesan (0 = langsung)
-  pesanMaxSeconds: [0, 600, 0], // Videobooth: batas durasi pesan (0 = tanpa batas)
-  photoCountdown: [2, 10, 5], // Photobooth: hitung mundur sebelum setiap foto
-  photoPreview: [0, 5, 2], // Photobooth: detik pratinjau setelah jepret (0 = tanpa)
+/* ---------- Settings (changed from Admin & the Videobooth/Photobooth settings pages) ---------- */
+// Numbers: [smallest, largest, default]. Switches: default value.
+// The key names are stored in settings.json and shared with the UI.
+const NUMBERS = {
+  quizSeconds: [10, 300, 60], // Videobooth: seconds to answer each quiz question
+  quizRounds: [1, 10, 3], // Videobooth: number of questions per quiz session
+  pesanCountdown: [0, 10, 3], // Videobooth: countdown before recording a message (0 = right away)
+  pesanMaxSeconds: [0, 600, 0], // Videobooth: message length limit (0 = no limit)
+  photoCountdown: [2, 10, 5], // Photobooth: countdown before each photo
+  photoPreview: [0, 5, 2], // Photobooth: preview seconds after each shot (0 = none)
 };
-const SAKLAR = {
+const SWITCHES = {
   enablePesan: true,
-  enableQuiz: true, // Videobooth: menu di Halaman Utama
+  enableQuiz: true, // Videobooth: menu on the main page
   enablePhoto: true,
-  photoFlash: true, // Photobooth: menu & efek kilat layar
-  tanyaNama: true, // layar "Siapa namamu?" setelah Start; nama tamu jadi nama file
+  photoFlash: true, // Photobooth: screen flash effect
+  tanyaNama: true, // "What's your name?" screen after Start; the guest name becomes the file name
 };
 const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
-const KAMERA = ['webcam', 'sony', 'sony-sim']; // sumber kamera: webcam/HP, Sony lewat USB, Sony simulasi
-const BAHASA = ['en', 'id']; // bahasa layar tamu (Admin selalu bahasa Inggris); bawaan: English
+const CAMERA_SOURCES = ['webcam', 'sony', 'sony-sim']; // webcam/phone, Sony over USB, simulated Sony
+const LANGUAGES = ['en', 'id']; // guest screen language (Admin is always English); default: English
 const clampInt = (v, [lo, hi], dflt) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
@@ -36,12 +37,12 @@ function effective() {
   const s = readSettings();
   return {
     ...Object.fromEntries(
-      Object.entries(ANGKA).map(([k, [lo, hi, d]]) => [k, clampInt(s[k] ?? config[k], [lo, hi], d)]),
+      Object.entries(NUMBERS).map(([k, [lo, hi, d]]) => [k, clampInt(s[k] ?? config[k], [lo, hi], d)]),
     ),
-    ...Object.fromEntries(Object.entries(SAKLAR).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
+    ...Object.fromEntries(Object.entries(SWITCHES).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
-    kamera: KAMERA.includes(s.kamera) ? s.kamera : 'webcam',
-    bahasa: BAHASA.includes(s.bahasa) ? s.bahasa : 'en',
+    kamera: CAMERA_SOURCES.includes(s.kamera) ? s.kamera : 'webcam',
+    bahasa: LANGUAGES.includes(s.bahasa) ? s.bahasa : 'en',
     accent: isColor(s.accent)
       ? s.accent
       : config.colors && isColor(config.colors.accent)
@@ -50,7 +51,7 @@ function effective() {
     loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin',
   };
 }
-// Password baru disimpan sebagai hash, bukan teks biasa
+// A new password is stored as a hash, not as plain text
 const hashPw = (pw, salt) => crypto.scryptSync(String(pw), salt, 32).toString('hex');
 function checkLogin(id, pw) {
   const s = readSettings();
@@ -65,7 +66,7 @@ function checkLogin(id, pw) {
   return String(id).toLowerCase() === String(c.id || '').toLowerCase() && String(pw) === String(c.password || '');
 }
 
-function daftarkan() {
+function register() {
   ipcMain.handle('get-config', () => {
     const e = effective();
     const { loginId, accent, ...booth } = e;
@@ -73,9 +74,9 @@ function daftarkan() {
   });
   ipcMain.handle('login', (e, id, pw) => {
     const ok = checkLogin(id, pw);
-    require('./catatan').catat(
-      ok ? 'Login Admin berhasil' : 'Login Admin gagal (ID atau password salah)',
-      ok ? 'info' : 'peringatan',
+    require('./log').write(
+      ok ? 'Admin login succeeded' : 'Admin login failed (wrong ID or password)',
+      ok ? 'info' : 'warn',
     );
     return ok;
   });
@@ -83,17 +84,17 @@ function daftarkan() {
   ipcMain.handle('get-settings', () => effective());
   ipcMain.handle('save-settings', (e, patch) => {
     const s = readSettings();
-    for (const [k, [lo, hi, d]] of Object.entries(ANGKA)) if (k in patch) s[k] = clampInt(patch[k], [lo, hi], d);
-    for (const k of Object.keys(SAKLAR)) if (k in patch) s[k] = !!patch[k];
-    // Minimal satu menu harus tetap tampil di Halaman Utama
+    for (const [k, [lo, hi, d]] of Object.entries(NUMBERS)) if (k in patch) s[k] = clampInt(patch[k], [lo, hi], d);
+    for (const k of Object.keys(SWITCHES)) if (k in patch) s[k] = !!patch[k];
+    // At least one menu option must stay on the main page
     const now = effective(),
       next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
     if (!MENU.some(k => next[k])) return { ...now, error: 'At least one option must stay on the main menu.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
-    if ('bahasa' in patch && BAHASA.includes(patch.bahasa)) s.bahasa = patch.bahasa;
-    if ('kamera' in patch && KAMERA.includes(patch.kamera)) {
+    if ('bahasa' in patch && LANGUAGES.includes(patch.bahasa)) s.bahasa = patch.bahasa;
+    if ('kamera' in patch && CAMERA_SOURCES.includes(patch.kamera)) {
       s.kamera = patch.kamera;
-      require('./kamera-sony').setel(s.kamera);
+      require('./sony-camera').setSource(s.kamera);
     }
     if ('kiosk' in patch) {
       s.kiosk = !!patch.kiosk;
@@ -149,4 +150,4 @@ function daftarkan() {
   });
 }
 
-module.exports = { effective, checkLogin, daftarkan };
+module.exports = { effective, checkLogin, register };

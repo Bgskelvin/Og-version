@@ -13,7 +13,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { jelaskanSambung } = require('../main/pesan-sony');
+const { explainConnectError: jelaskanSambung } = require('../main/sony-messages');
 
 const AKAR = path.join(__dirname, '..');
 const HELPER = process.env.SONY_HELPER || path.join(AKAR, 'kamera-sony', 'bin', 'sony-helper');

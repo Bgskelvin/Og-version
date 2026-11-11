@@ -1,56 +1,58 @@
 /* =====================================================================
-   main.js — titik awal aplikasi (proses utama Electron)
-   Isinya hanya urutan menyalakan aplikasi. Fitur-fiturnya ada di main/:
-     penyimpanan.js  lokasi data, config.json, baca/tulis JSON yang aman
-     pengaturan.js   pengaturan Admin, login, folder penyimpanan
-     couple.js       data couple & couple aktif
-     rekaman.js      perekaman video, MP4, pemulihan rekaman terputus
-     foto.js         penyimpanan Photo Booth
-     template.js     template desain foto per couple
-     kamera-sony.js  kamera Sony lewat USB (program penghubung + simulasi)
-     unggah.js       unduh foto lewat QR: antrean unggah ke Cloudflare
-     jendela.js      jendela, menu, pengaman navigasi
-     catatan.js      catatan harian (log) untuk melacak masalah
-     keluar.js       tutup aplikasi dengan konfirmasi (Admin, tombol ✕, ⌘Q)
-     tentang.js      versi aplikasi & lisensi pihak ketiga (Admin → App)
+   main.js — starting point of the app (Electron main process)
+   It only holds the start-up order. The features live in main/:
+     storage.js          data locations, config.json, safe JSON read/write
+     settings.js         Admin settings, login, storage folder
+     couple.js           couple data & the active couple
+     recording.js        video recording, MP4, recovering interrupted recordings
+     video-processing.js quiz texts on the video & phone version for QR (FFmpeg)
+     photo.js            saving Photo Booth results
+     template.js         photo design templates per couple
+     filter.js           photo filters (.cube LUT) for templates
+     sony-camera.js      Sony camera over USB (helper program + simulation)
+     upload.js           download by QR: upload queue to Cloudflare
+     window.js           window, menu, navigation guards
+     log.js              daily log for tracking down problems
+     quit.js             closing the app with confirmation (Admin, ✕ button, ⌘Q)
+     about.js            app version & third-party licenses (Admin → App)
    ===================================================================== */
 const { app, session, systemPreferences, powerSaveBlocker } = require('electron');
 const path = require('path');
 
-// ---------- Folder data selalu sama ----------
-// ~/Library/Application Support/leura — dipakai bersama oleh "npm start" (folder kode)
-// dan Leura.app (installer), jadi couple, rekaman, pengaturan & antrean QR tidak pindah.
-// Harus dipasang paling awal: kunci "satu jendela" & semua modul memakai folder ini.
+// ---------- The data folder is always the same ----------
+// ~/Library/Application Support/leura — shared by "npm start" (code folder)
+// and Leura.app (installer), so couples, recordings, settings & the QR queue don't move.
+// Must be set first: the "single window" lock & every module use this folder.
 if (app.setPath) app.setPath('userData', path.join(app.getPath('appData'), 'leura'));
 
-// ---------- Hanya satu jendela aplikasi ----------
-// Kalau ikon diklik lagi saat aplikasi sudah jalan, jendela yang ada dimunculkan,
-// bukan membuka aplikasi kedua yang berebut kamera dan file data.
+// ---------- Only one app window ----------
+// If the icon is clicked again while the app is running, the existing window is shown,
+// instead of opening a second app that fights over the camera and data files.
 if (!app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
-const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> menu Reload & DevTools aktif
+const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> Reload & DevTools menu on
 
-// Catatan harian dipasang paling awal, supaya semua pesan & error sesudahnya ikut tercatat
-const catatan = require('./main/catatan');
-catatan.pasangConsole();
-catatan.daftarkan();
+// The daily log is set up first, so every message & error after it is recorded too
+const log = require('./main/log');
+log.hookConsole();
+log.register();
 
-const rekaman = require('./main/rekaman');
-const jendela = require('./main/jendela');
-require('./main/pengaturan').daftarkan();
-require('./main/couple').daftarkan();
-require('./main/foto').daftarkan();
-require('./main/template').daftarkan();
-require('./main/filter').daftarkan();
-const kameraSony = require('./main/kamera-sony');
-kameraSony.daftarkan();
-const unggah = require('./main/unggah');
-unggah.daftarkan();
-require('./main/keluar').daftarkan();
-require('./main/tentang').daftarkan();
-rekaman.daftarkan();
+const recording = require('./main/recording');
+const appWindow = require('./main/window');
+require('./main/settings').register();
+require('./main/couple').register();
+require('./main/photo').register();
+require('./main/template').register();
+require('./main/filter').register();
+const sonyCamera = require('./main/sony-camera');
+sonyCamera.register();
+const upload = require('./main/upload');
+upload.register();
+require('./main/quit').register();
+require('./main/about').register();
+recording.register();
 
 app.whenReady().then(async () => {
   if (process.platform === 'darwin') {
@@ -58,30 +60,30 @@ app.whenReady().then(async () => {
     await systemPreferences.askForMediaAccess('microphone');
   }
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(perm === 'media'));
-  powerSaveBlocker.start('prevent-display-sleep'); // layar & PC tidak tidur selama aplikasi jalan
+  powerSaveBlocker.start('prevent-display-sleep'); // the screen & computer don't sleep while the app runs
 
-  catatan.mulai(); // "Aplikasi dibuka" + hapus catatan lama
-  rekaman.mulai(); // pulihkan rekaman terputus & lanjutkan konversi
-  jendela.buatJendela(DEV);
-  kameraSony.mulai(); // sambungkan kamera Sony kalau dipilih di Admin
-  unggah.mulai(); // lanjutkan antrean unggah foto (QR) yang tersisa
+  log.start(); // "App opened" + delete old logs
+  recording.start(); // recover interrupted recordings & continue conversions
+  appWindow.createWindow(DEV);
+  sonyCamera.start(); // connect the Sony camera if chosen in Admin
+  upload.start(); // continue the remaining photo upload queue (QR)
 });
 
-app.on('second-instance', () => jendela.munculkan());
+app.on('second-instance', () => appWindow.showWindow());
 app.on('window-all-closed', () => app.quit());
-// Saat keluar: tunggu kamera Sony diputus dengan rapi dulu (maks ±4 detik), baru aplikasi benar-benar tutup
-let sudahBeres = false;
-const keluar = require('./main/keluar');
+// When quitting: wait for the Sony camera to disconnect cleanly first (max ±4 seconds), then really close
+let cleanedUp = false;
+const quit = require('./main/quit');
 app.on('before-quit', e => {
-  if (sudahBeres) return;
+  if (cleanedUp) return;
   e.preventDefault();
-  if (!keluar.boleh()) return keluar.minta('⌘Q'); // tanya dulu, seperti tombol Tutup aplikasi di Admin
-  catatan.catat('Aplikasi ditutup');
-  rekaman.tutupSemua();
-  Promise.resolve(kameraSony.matikan())
+  if (!quit.quitConfirmed()) return quit.requestQuit('⌘Q'); // ask first, like the Close app button in Admin
+  log.write('App closed');
+  recording.closeAll();
+  Promise.resolve(sonyCamera.shutdown())
     .catch(() => {})
     .then(() => {
-      sudahBeres = true;
+      cleanedUp = true;
       app.quit();
     });
 });

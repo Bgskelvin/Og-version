@@ -1,33 +1,24 @@
 /* =====================================================================
-   couple.js — data couple (couples.json) dan couple aktif
+   couple.js — couple data (couples.json) and the active couple
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const {
-  config,
-  userData,
-  readJSON,
-  writeJSON,
-  readSettings,
-  getOutDir,
-  usableDir,
-  coupleDir,
-} = require('./penyimpanan');
-const { hapusTemplateCouple } = require('./template');
+const { config, userData, readJSON, writeJSON, readSettings, getOutDir, usableDir, coupleDir } = require('./storage');
+const { deleteCoupleTemplates } = require('./template');
 
-/* ---------- Data couple ---------- */
+/* ---------- Couple data ---------- */
 const couplesPath = path.join(userData, 'couples.json');
 const MAX_Q = 10;
-// ID unik: waktu + acak, supaya dua couple yang dibuat bersamaan tidak pernah sama
-const idBaru = () => 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
+// Unique ID: time + random, so two couples created at the same moment are never the same
+const newId = () => 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
 function readCouples() {
   let d = readJSON(couplesPath, null);
   if (!d || !Array.isArray(d.couples)) {
-    // Pertama kali: ambil couple dari config.json sebagai data awal
+    // First run: take the couple from config.json as starting data
     const first = {
-      id: idBaru(),
-      name: config.couple || 'Couple Baru',
+      id: newId(),
+      name: config.couple || 'New couple',
       welcome: config.welcome || '',
       questions: (config.quiz || []).slice(0, MAX_Q),
     };
@@ -35,7 +26,7 @@ function readCouples() {
     writeCouples(d);
   }
   d.couples.forEach(c => {
-    c.menu = bersihkanMenu(c.menu);
+    c.menu = cleanMenu(c.menu);
   });
   if (!d.couples.find(c => c.id === d.activeId)) d.activeId = d.couples[0] ? d.couples[0].id : null;
   return d;
@@ -44,24 +35,24 @@ function writeCouples(d) {
   writeJSON(couplesPath, d);
 }
 
-/* Menu di Halaman Utama, diatur per couple. Couple lama yang belum punya
-   pengaturan ini memakai pengaturan menu lama (dulu berlaku untuk semua couple). */
+/* Main-page menu, set per couple. Old couples that don't have this setting yet
+   use the old menu settings (which used to apply to every couple). */
 const MENU = { pesan: 'Send a message', quiz: 'Quick quiz', photo: 'Photo booth' };
-function menuBawaan() {
+function defaultMenu() {
   const s = readSettings();
   return { pesan: s.enablePesan !== false, quiz: s.enableQuiz !== false, photo: s.enablePhoto !== false };
 }
-function bersihkanMenu(m) {
-  const awal = menuBawaan();
-  if (!m || typeof m !== 'object') return awal;
+function cleanMenu(m) {
+  const fallback = defaultMenu();
+  if (!m || typeof m !== 'object') return fallback;
   const out = {};
-  for (const k of Object.keys(MENU)) out[k] = typeof m[k] === 'boolean' ? m[k] : awal[k];
+  for (const k of Object.keys(MENU)) out[k] = typeof m[k] === 'boolean' ? m[k] : fallback[k];
   return out;
 }
 function cleanCouple(c) {
   return {
-    menu: bersihkanMenu(c.menu),
-    id: c.id || idBaru(),
+    menu: cleanMenu(c.menu),
+    id: c.id || newId(),
     name: String(c.name || '')
       .trim()
       .slice(0, 80),
@@ -85,7 +76,7 @@ function activeCoupleName() {
   return c ? c.name : '';
 }
 
-function daftarkan() {
+function register() {
   ipcMain.handle('get-couples', () => readCouples());
   ipcMain.handle('save-couple', (e, input) => {
     const c = cleanCouple(input || {});
@@ -108,27 +99,27 @@ function daftarkan() {
     d.couples = d.couples.filter(c => c.id !== id);
     if (d.activeId === id) d.activeId = d.couples[0].id;
     writeCouples(d);
-    const templateDihapus = hapusTemplateCouple(id); // template couple ini ikut dihapus (rekaman & foto tetap)
-    return { ok: true, data: d, templateDihapus };
+    const templatesDeleted = deleteCoupleTemplates(id); // this couple's templates go too (recordings & photos stay)
+    return { ok: true, data: d, templateDihapus: templatesDeleted };
   });
   ipcMain.handle('set-active-couple', (e, id) => {
     const d = readCouples();
     if (!d.couples.find(c => c.id === id)) return { error: 'Couple not found.' };
     d.activeId = id;
     writeCouples(d);
-    require('./catatan').catat('Couple aktif: ' + d.couples.find(c => c.id === id).name);
+    require('./log').write('Active couple: ' + d.couples.find(c => c.id === id).name);
     return { ok: true, data: d };
   });
-  // id kosong = couple aktif
+  // empty id = the active couple
   ipcMain.handle('open-couple-folder', (e, id) => {
     const data = readCouples();
     const c = data.couples.find(x => x.id === id);
-    const nama = c ? c.name : activeCoupleName();
-    const d = coupleDir(getOutDir(), nama);
+    const name = c ? c.name : activeCoupleName();
+    const d = coupleDir(getOutDir(), name);
     if (!fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
     if (!usableDir(d)) return 'Folder not available';
     return shell.openPath(d);
   });
 }
 
-module.exports = { readCouples, activeCoupleName, daftarkan };
+module.exports = { readCouples, activeCoupleName, register };

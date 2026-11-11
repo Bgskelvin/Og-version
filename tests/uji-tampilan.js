@@ -67,7 +67,7 @@ window.api = {
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
     if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
       : { mode: p.kamera, tersambung: true, model: 'ILCE-6700 (simulasi)', baterai: 100, kartu: 0, sisaDetik: 9000, pesan: '' });
-    const next = { ...ST, ...p };   // sama seperti main/pengaturan.js: minimal satu menu tetap tampil
+    const next = { ...ST, ...p };   // sama seperti main/settings.js: minimal satu menu tetap tampil
     if (!next.enablePesan && !next.enableQuiz && !next.enablePhoto) return { ...ST, error: 'At least one option must stay on the main menu.' };
     Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Current password is wrong.' },

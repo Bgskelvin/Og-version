@@ -303,20 +303,20 @@ const KASUS = {
     cek(!fs.existsSync(path.join(folder, '2020-01-01.txt')), 'catatan lebih dari 30 hari dihapus otomatis');
     const isi = () => fs.readFileSync(path.join(folder, hariIni), 'utf8');
     cek(
-      /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) && /Aplikasi dibuka/.test(isi()) && /Leura versi 1\.0\.0/.test(isi()),
-      'satu file per hari, dimulai "Aplikasi dibuka" + versi',
+      /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) && /App opened/.test(isi()) && /Leura version 1\.0\.0/.test(isi()),
+      'satu file per hari, dimulai "App opened" + versi',
       hariIni,
     );
     const A = await panggil('rec-start', 'pesan', { tamu: 'Budi' });
     kirim('rec-chunk', A.id, Buffer.from('AA'));
     await panggil('rec-end', A.id, 5, {});
     cek(
-      /\d\d:\d\d:\d\d +Rekam mulai: pesan → Budi_pesan\.webm/.test(isi()) &&
-        /Rekam selesai \(5 dtk\): Budi_pesan\.webm/.test(isi()),
+      /\d\d:\d\d:\d\d +Recording started: pesan → Budi_pesan\.webm/.test(isi()) &&
+        /Recording done \(5 s\): Budi_pesan\.webm/.test(isi()),
       'rekaman mulai & selesai tercatat dengan jam',
     );
     await panggil('login', 'leura', 'salah');
-    cek(/⚠ Login Admin gagal/.test(isi()), 'login Admin gagal tercatat sebagai peringatan');
+    cek(/⚠ Admin login failed/.test(isi()), 'login Admin gagal tercatat sebagai peringatan');
     console.error('uji error proses utama');
     cek(/✗ uji error proses utama/.test(isi()), 'console.error di proses utama masuk catatan (✗)');
     electron.__wcEvents['console-message'] &&
@@ -328,19 +328,19 @@ const KASUS = {
         'file:///app/src/photobooth.js',
       );
     cek(
-      /✗ \[tampilan\] Uncaught TypeError: x is undefined \(photobooth\.js:12\)/.test(isi()),
+      /✗ \[ui\] Uncaught TypeError: x is undefined \(photobooth\.js:12\)/.test(isi()),
       'error di tampilan masuk catatan beserta file & baris',
     );
     kirim('catat', 'baris\ndua', 'peringatan');
-    cek(/⚠ \[tampilan\] baris ⏎ dua/.test(isi()), 'baris dari tampilan: satu baris per kejadian');
+    cek(/⚠ \[ui\] baris ⏎ dua/.test(isi()), 'baris dari tampilan: satu baris per kejadian');
     await panggil('unggah-simpan', { url: 'http://127.0.0.1:9', kunci: 'RAHASIA-KUNCI-123', aktif: true });
     cek(
-      /Pengaturan QR disimpan: aktif/.test(isi()) && !/RAHASIA-KUNCI-123/.test(isi()),
+      /QR settings saved: on/.test(isi()) && !/RAHASIA-KUNCI-123/.test(isi()),
       'kunci booth QR tidak pernah ditulis ke catatan',
     );
     const baca = await panggil('catatan-baca');
     cek(
-      baca.file === hariIni.replace('.txt', '') && /Rekam selesai/.test(baca.teks),
+      baca.file === hariIni.replace('.txt', '') && /Recording done/.test(baca.teks),
       'Admin "Lihat catatan": isi catatan hari ini',
     );
     electron.__simpanKe = path.join(akar, 'kirim.txt');
@@ -348,9 +348,9 @@ const KASUS = {
     const kirimIsi = fs.readFileSync(electron.__simpanKe, 'utf8');
     cek(
       simpan.ok &&
-        /Catatan aplikasi Leura/.test(kirimIsi) &&
+        /Leura app log/.test(kirimIsi) &&
         /===== \d{4}-\d\d-\d\d =====/.test(kirimIsi) &&
-        /Rekam selesai/.test(kirimIsi) &&
+        /Recording done/.test(kirimIsi) &&
         electron.__ditunjukkan === electron.__simpanKe,
       'Admin "Simpan catatan": file gabungan tersimpan & ditunjukkan di Finder',
     );
@@ -788,8 +788,8 @@ const KASUS = {
       cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati');
       return;
     }
-    process.env.LEURA_UJI_FFMPEG = ff;
-    process.env.LEURA_UJI_BAGIAN = String(96 * 1024); // bagian kecil supaya video kecil pun terkirim dalam beberapa bagian
+    process.env.LEURA_TEST_FFMPEG = ff;
+    process.env.LEURA_TEST_PART_SIZE = String(96 * 1024); // bagian kecil supaya video kecil pun terkirim dalam beberapa bagian
     const os = require('os'),
       http = require('http');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uji-video-'));
@@ -1198,7 +1198,7 @@ const KASUS = {
       cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati');
       return;
     }
-    process.env.LEURA_UJI_FFMPEG = ff;
+    process.env.LEURA_TEST_FFMPEG = ff;
     const os = require('os'),
       http = require('http');
     const akar = fs.mkdtempSync(path.join(os.tmpdir(), 'videobooth-uji-'));
@@ -1860,7 +1860,7 @@ const KASUS = {
     electron.__keluar = false;
     const jalan = () => {
       try {
-        return require('child_process').execFileSync('pgrep', ['-f', '^\\S*sony-helper-palsu$']).toString().trim();
+        return require('child_process').execFileSync('pgrep', ['-f', 'sony-helper-palsu$']).toString().trim();
       } catch {
         return '';
       }
@@ -1869,10 +1869,10 @@ const KASUS = {
     const fileCatatan = path.join(dataDir, 'catatan', fs.readdirSync(path.join(dataDir, 'catatan'))[0]);
     const isiCatatan = fs.readFileSync(fileCatatan, 'utf8');
     cek(
-      /\[kondisi Mac · berhasil\] proses kamera: .*sony-helper[-a-z]* \(pid \d+, mulai/.test(isiCatatan) &&
-        /\[kondisi Mac · berhasil\] disk luar:/.test(isiCatatan),
+      /\[Mac state · connected\] camera processes: .*sony-helper[-a-z]* \(pid \d+, started/.test(isiCatatan) &&
+        /\[Mac state · connected\] external disks:/.test(isiCatatan),
       'kamera tersambung: kondisi Mac (program kamera, USB, disk) dicatat sekali',
-      isiCatatan.split('\n').filter(l => /kondisi Mac/.test(l)),
+      isiCatatan.split('\n').filter(l => /Mac state/.test(l)),
     );
     const ev = {
       ditahan: false,

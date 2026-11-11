@@ -14,7 +14,7 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 
 | Folder / file                   | Isi                                                                                      |
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `daftarkan()` untuk IPC.        |
+| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.         |
 | `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                           |
 | `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).      |
 | `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`. |
@@ -61,9 +61,9 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - **Admin seluruhnya bahasa Inggris.** Layar tamu dua bahasa lewat `src/language.js` (bawaan `en`); teks tamu baru wajib punya kunci di sana.
 - Prettier **3.9.10 dikunci persis** (singleQuote, printWidth 120, arrowParens avoid). Jangan naikkan versi tanpa alasan.
 - ESLint 10 flat config (`eslint.config.mjs`). `src/` diperiksa sebagai ES module (browser + `api`), `prefer-const` menyala di semua kode.
-- `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/catatan.js`).
-- Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/penyimpanan.js`.
-- FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `antre()` di `main/olah-video.js`.
+- `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/log.js`).
+- Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/storage.js`.
+- FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `enqueue()` di `main/video-processing.js`.
 
 ## Tampilan `src/`
 
