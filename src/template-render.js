@@ -6,6 +6,8 @@
    Template data fields (latarWarna, latarUrl, bingkaiUrl, diubah, …) come from
    the main process and are renamed with it in refactor/main-english.
    ===================================================================== */
+import { todayDate } from './language.js';
+import { state } from './state.js';
 
 export const TEMPLATE_FONTS = {
   sans: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
@@ -21,8 +23,8 @@ export const setTemplateCoupleName = name => {
   templateCoupleName = name;
 };
 export function fillTemplateText(text) {
-  const date = tanggalHariIni(); // date format follows the guest screen language
-  const name = templateCoupleName !== null ? templateCoupleName : activeCouple ? activeCouple.name : '';
+  const date = todayDate(); // date format follows the guest screen language
+  const name = templateCoupleName !== null ? templateCoupleName : state.activeCouple ? state.activeCouple.name : '';
   return String(text || '')
     .replace(/\{couple\}/gi, name)
     .replace(/\{tanggal\}/gi, date);

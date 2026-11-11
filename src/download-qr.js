@@ -7,6 +7,9 @@
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { refreshHistory } from './session-history.js';
+import { language, t } from './language.js';
+import { $, state } from './state.js';
+import { flash } from './app.js';
 
 let uploadStatus = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' };
 
@@ -20,7 +23,7 @@ export async function refreshUploadStatus() {
 // Show the QR + link on the Thank you page (the link exists even before the photo/video is uploaded)
 // kind: 'photo' (photo booth) or 'video' (message / quiz)
 export function showDownloadQr(link, kind = 'photo') {
-  const url = link + (bahasa === 'en' ? '?b=en' : '');
+  const url = link + (language === 'en' ? '?b=en' : '');
   try {
     drawQr($('qrCanvas'), url, 8);
     const [title, info] = $('thanksQR').querySelectorAll('b, small:not(.tk-link)');
@@ -113,7 +116,7 @@ export function setupDownloadQr() {
   api.onUnggahStatus(s => {
     uploadStatus = s;
     renderUploadStatus();
-    if (current === 'riwayat') refreshHistory();
+    if (state.current === 'riwayat') refreshHistory();
   });
   $('setQrAktif').onchange = e =>
     saveDownloadQr(

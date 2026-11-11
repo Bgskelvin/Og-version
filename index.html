@@ -978,13 +978,7 @@
     </div>
     <div id="pbFlash"></div>
 
-    <!-- Urutan penting: state.js dulu (data bersama), start.js (modul) paling akhir -->
-    <script src="src/state.js"></script>
-    <script src="src/bahasa.js"></script>
-    <script src="src/app.js"></script>
-    <script src="src/keyboard.js"></script>
-    <script src="src/nama.js"></script>
-    <!-- Entry module: runs after the plain scripts above (modules are deferred) -->
+    <!-- The whole UI starts from src/start.js (ES modules); shared state is in src/state.js -->
     <script type="module" src="src/start.js"></script>
   </body>
 </html>

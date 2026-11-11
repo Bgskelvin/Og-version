@@ -3,10 +3,12 @@
    Shared state (mediaStream, noCam, store, cfg) still lives in state.js as
    globals until that file becomes a module.
    ===================================================================== */
+import { $, state, store } from './state.js';
+import { setNotice } from './app.js';
 
 export async function openStream() {
-  if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-  mediaStream = null;
+  if (state.mediaStream) state.mediaStream.getTracks().forEach(t => t.stop());
+  state.mediaStream = null;
   const camId = store.get('camId'),
     micId = store.get('micId');
   const size = { width: { ideal: 1920 }, height: { ideal: 1080 } };
@@ -29,9 +31,9 @@ export async function openStream() {
     setNotice('No usable camera/microphone');
     return;
   }
-  noCam = s.getVideoTracks().length === 0;
-  setNotice(noCam ? 'TEST MODE: no camera (audio only)' : '');
-  mediaStream = s;
+  state.noCam = s.getVideoTracks().length === 0;
+  setNotice(state.noCam ? 'TEST MODE: no camera (audio only)' : '');
+  state.mediaStream = s;
   $('cam').srcObject = s;
   $('camPrev').srcObject = s;
 }
@@ -49,14 +51,14 @@ export async function initDevices() {
     name ? devs.find(d => d.kind === kind && d.label.toLowerCase().includes(name.toLowerCase())) : null;
   let changed = false;
   if (!store.get('camId')) {
-    const c = byName('videoinput', cfg.cameraName);
+    const c = byName('videoinput', state.cfg.cameraName);
     if (c) {
       store.set('camId', c.deviceId);
       changed = true;
     }
   }
   if (!store.get('micId')) {
-    const m = byName('audioinput', cfg.micName);
+    const m = byName('audioinput', state.cfg.micName);
     if (m) {
       store.set('micId', m.deviceId);
       changed = true;
@@ -68,7 +70,8 @@ export async function fillDevices() {
   const devs = await navigator.mediaDevices.enumerateDevices();
   const cur = kind => {
     const t =
-      mediaStream && (kind === 'videoinput' ? mediaStream.getVideoTracks()[0] : mediaStream.getAudioTracks()[0]);
+      state.mediaStream &&
+      (kind === 'videoinput' ? state.mediaStream.getVideoTracks()[0] : state.mediaStream.getAudioTracks()[0]);
     return t ? t.getSettings().deviceId : '';
   };
   const fill = (sel, kind, name, emptyText) => {

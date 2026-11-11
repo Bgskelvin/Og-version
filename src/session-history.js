@@ -13,6 +13,9 @@
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { getUploadStatus, refreshUploadStatus } from './download-qr.js';
+import { $, fmt, state } from './state.js';
+import { flash, show } from './app.js';
+import { language } from './language.js';
 
 // status → [label, color class, needs attention?, explanation]
 const SESSION_STATUS = {
@@ -123,7 +126,7 @@ function summarizeSessions(list, couple) {
 }
 export async function loadSessions() {
   const list = await api.getSessions();
-  const name = activeCouple ? activeCouple.name : null;
+  const name = state.activeCouple ? state.activeCouple.name : null;
   const r = summarizeSessions(list, name);
   $('riwayatRingkas').textContent = `${name || 'All couples'}: ${r.today} today · ${r.total} total`;
   $('riwayatBadge').textContent = r.attention ? `⚠️ ${r.attention}` : '';
@@ -132,7 +135,7 @@ export async function loadSessions() {
 
 /* ---------- Session history page ---------- */
 async function openHistory() {
-  historyView.couple = activeCouple ? activeCouple.name : '';
+  historyView.couple = state.activeCouple ? state.activeCouple.name : '';
   historyView.kind = 'semua';
   historyView.openId = null;
   historyView.fingerprint = '';
@@ -147,7 +150,7 @@ async function openHistory() {
   await refreshHistory(true);
   clearInterval(historyView.timer);
   historyView.timer = setInterval(() => {
-    if (current === 'riwayat') refreshHistory();
+    if (state.current === 'riwayat') refreshHistory();
     else clearInterval(historyView.timer);
   }, 3000);
 }
@@ -170,7 +173,7 @@ function renderHistory() {
   // Couple choice
   const names = [
     ...new Set([
-      ...(couplesData ? couplesData.couples.map(c => c.name) : []),
+      ...(state.couplesData ? state.couplesData.couples.map(c => c.name) : []),
       ...all.map(s => s.couple).filter(Boolean),
     ]),
   ];
@@ -423,7 +426,7 @@ export function sessionLink(s) {
 }
 // Large QR for an earlier session (e.g. the guest forgot to scan it)
 function showSessionQr(s, link) {
-  const url = link + (bahasa === 'en' ? '?b=en' : '');
+  const url = link + (language === 'en' ? '?b=en' : '');
   const overlay = document.createElement('div');
   overlay.className = 'rw-qr-lapis';
   overlay.id = 'rwQR';

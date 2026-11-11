@@ -13,10 +13,13 @@ import { applyLut, loadLut } from './lut.js';
 import { showDownloadQr } from './download-qr.js';
 import { usingSony } from './sony-camera.js';
 import { setThanks, needStream } from './recording.js';
+import { $, sleep, state } from './state.js';
+import { t, todayDate } from './language.js';
+import { resetIdle, setNotice, show } from './app.js';
 const SHOTS = 4; // photos per session
 // Countdown length, preview and flash effect are set in Photo booth settings (cfg)
-const COUNTDOWN = () => cfg.photoCountdown;
-const PREVIEW_MS = () => cfg.photoPreview * 1000;
+const COUNTDOWN = () => state.cfg.photoCountdown;
+const PREVIEW_MS = () => state.cfg.photoPreview * 1000;
 
 /* ---------------- State ---------------- */
 const photos = new Array(SHOTS).fill(null); // full-resolution canvas of each photo
@@ -55,13 +58,13 @@ function grabFrame() {
 // For editing it's scaled down (longest side 3000 px); the original file is saved untouched.
 async function captureSony() {
   const flashEl = $('pbFlash');
-  if (cfg.photoFlash) {
+  if (state.cfg.photoFlash) {
     flashEl.classList.remove('go');
     flashEl.classList.add('on');
     await sleep(90);
   }
   const capture = api.sonyFoto();
-  if (cfg.photoFlash) {
+  if (state.cfg.photoFlash) {
     await sleep(250);
     flashEl.classList.remove('on');
     void flashEl.offsetWidth;
@@ -83,7 +86,7 @@ async function captureSony() {
 }
 async function snap() {
   if (usingSony()) return captureSony();
-  if (!cfg.photoFlash) return grabFrame(); // flash effect turned off in Photo booth settings
+  if (!state.cfg.photoFlash) return grabFrame(); // flash effect turned off in Photo booth settings
   const flashEl = $('pbFlash');
   flashEl.classList.remove('go');
   flashEl.classList.add('on'); // brief white screen as a "flash"
@@ -220,7 +223,7 @@ function updateSafeZone(i = safeZoneIndex) {
   const el = $('pbSafe'),
     r = i >= 0 ? photoRatio(i) : null,
     [fw, fh] = sourceSize();
-  if (!r || !fw || !fh || current !== 'photo') {
+  if (!r || !fw || !fh || state.current !== 'photo') {
     el.classList.remove('on');
     return;
   }
@@ -253,13 +256,13 @@ function setRunningUI(on) {
 async function shoot(indices) {
   if (running) return;
   if (!needStream()) return;
-  if (noCam && !usingSony()) {
+  if (state.noCam && !usingSony()) {
     setNotice('Photo booth butuh kamera. Sambungkan kamera lalu pilih di Admin.', 8000);
     return;
   }
   const token = ++photoToken;
   disarmCancel();
-  busy = true;
+  state.busy = true;
   resetIdle();
   setRunningUI(true);
   await templateReady; // the safe-zone ratio comes from the couple's template
@@ -280,7 +283,7 @@ async function shoot(indices) {
     setNotice('Foto gagal diambil: ' + err.message, 10000);
   } finally {
     if (token === photoToken) {
-      busy = false;
+      state.busy = false;
       running = false;
       setRunningUI(false);
       showDone();
@@ -301,7 +304,7 @@ function openPhoto() {
   $('pbIntro').textContent = t('pb.intro', { n: SHOTS, s: COUNTDOWN() });
   photoToken++;
   running = false;
-  busy = false;
+  state.busy = false;
   photos.fill(null);
   editor = newEditState();
   $('peShowText').checked = true;
@@ -437,9 +440,9 @@ const hasTemplates = () => Object.keys(templateLayouts).length > 0;
 const layoutChoices = () => (hasTemplates() ? templateLayouts : LAYOUTS);
 async function loadCoupleTemplates() {
   templateLayouts = {};
-  if (!activeCouple || !api.listTemplates) return;
+  if (!state.activeCouple || !api.listTemplates) return;
   try {
-    for (const tpl of await api.listTemplates(activeCouple.id)) {
+    for (const tpl of await api.listTemplates(state.activeCouple.id)) {
       // LUT filter chosen in Admin for this template (if the filter was deleted: no filter)
       const item = tpl.filter ? await loadLut(tpl.filter) : null;
       const lut = item
@@ -472,7 +475,7 @@ function drawCover(ctx, img, x, y, w, h) {
     sh = h / s;
   ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, w, h);
 }
-const dateText = () => tanggalHariIni();
+const dateText = () => todayDate();
 
 /* Filters that can be chosen for this layout.
    Template with a filter from Admin: the template filter ('tpl') first, then the built-in
@@ -551,7 +554,7 @@ function renderBase(ctx, lay, scale = 1, filterKey = editor.filter) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.font = `700 ${lay.text.name}px ${FONT}`;
-    ctx.fillText(activeCouple ? activeCouple.name : '', lay.W / 2, lay.text.y, lay.W - 80);
+    ctx.fillText(state.activeCouple ? state.activeCouple.name : '', lay.W / 2, lay.text.y, lay.W - 80);
     ctx.globalAlpha = 0.72;
     ctx.font = `500 ${lay.text.date}px ${FONT}`;
     ctx.fillText(dateText(), lay.W / 2, lay.text.y + lay.text.date * 1.9, lay.W - 80);
@@ -893,7 +896,7 @@ let saving = false;
 async function finishEdit() {
   if (saving) return;
   saving = true;
-  busy = true;
+  state.busy = true;
   const lay = currentLayout();
   const out = document.createElement('canvas');
   out.width = lay.W;
@@ -923,7 +926,7 @@ async function finishEdit() {
       originals,
       result,
       satuan: singles,
-      tamu: namaTamu,
+      tamu: state.guestName,
       meta: {
         layout: lay.tpl ? 'template' : editor.layout,
         template: lay.tpl ? lay.name : undefined,
@@ -955,7 +958,7 @@ async function finishEdit() {
   if (ok && link) showDownloadQr(link);
   photos.fill(null);
   saving = false;
-  busy = false;
+  state.busy = false;
   show('thanks');
 }
 

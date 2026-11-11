@@ -1,19 +1,20 @@
 /* =====================================================================
-   bahasa.js — bahasa layar tamu (diatur di Admin → Tampilan).
-   Halaman Admin selalu berbahasa Inggris (bawaan layar tamu juga English). Isi yang diketik admin
-   (sambutan, pertanyaan quiz, teks template) tampil apa adanya.
+   language.js — guest screen language (set in Admin → Display).
+   Admin pages are always English (the guest screens default to English too).
+   Text typed by Admin (welcome, quiz questions, template text) shows as is.
 
-   Cara pakai:
-   - Tulisan tetap di index.html: beri atribut data-t="kunci". Teks bahasa
-     Indonesianya tetap ditulis di HTML; terjemahannya di KAMUS.en['@kunci'].
-   - Tulisan dari JavaScript: t('kunci', { n: 3 }) → mengambil KAMUS[bahasa].
-   Menambah bahasa lain: tambahkan KAMUS.xx, LOKAL.xx, dan pilihannya di Admin.
+   How to use:
+   - Fixed text in index.html: add data-t="key". The Indonesian text stays in
+     the HTML; its translation goes in DICTIONARY.en['@key'].
+   - Text from JavaScript: t('key', { n: 3 }) → reads DICTIONARY[language].
+   Adding a language: add DICTIONARY.xx, LOCALES.xx, and its choice in Admin.
+   Dictionary keys ('nama.hai', 'kb.spasi', …) are used by data-t attributes.
    ===================================================================== */
 
-let bahasa = 'en';
-const LOKAL = { id: 'id-ID', en: 'en-GB' }; // format tanggal
+export let language = 'en';
+const LOCALES = { id: 'id-ID', en: 'en-GB' }; // date format
 
-const KAMUS = {
+const DICTIONARY = {
   id: {
     'quiz.kosong': 'Belum ada pertanyaan untuk couple ini. Tambahkan lewat halaman Admin.',
     'quiz.info': '{n} pertanyaan acak · {s} detik per pertanyaan',
@@ -62,7 +63,7 @@ const KAMUS = {
     'bingkai.5': 'Aksen',
   },
   en: {
-    // tulisan tetap di index.html (data-t)
+    // fixed text in index.html (data-t)
     '@start.sentuh': 'Touch to start',
     '@nama.judul': "What's your name?",
     '@nama.info': 'Your name will be saved with your video and photos for the couple.',
@@ -106,7 +107,7 @@ const KAMUS = {
     '@pe.urungkan': 'Undo',
     '@pe.hapusSemua': 'Clear all',
     '@pe.hintCoret': 'Write a greeting or sign directly on the photo with your finger.',
-    // tulisan dari JavaScript
+    // text from JavaScript
     'quiz.kosong': 'There are no questions yet.',
     'quiz.info': '{n} random questions · {s} seconds each',
     'quiz.lanjut': 'Next',
@@ -155,27 +156,30 @@ const KAMUS = {
   },
 };
 
-// Ambil tulisan untuk bahasa layar tamu. {n} dsb. diganti dengan nilai di `isi`.
-function t(kunci, isi = {}) {
-  const s = (KAMUS[bahasa] && KAMUS[bahasa][kunci]) ?? KAMUS.id[kunci] ?? kunci;
-  return String(s).replace(/\{(\w+)\}/g, (_, k) => isi[k] ?? '');
+// Get a text in the guest screen language. {n} etc. are replaced with the values in `values`.
+export function t(key, values = {}) {
+  const s = (DICTIONARY[language] && DICTIONARY[language][key]) ?? DICTIONARY.id[key] ?? key;
+  return String(s).replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
 }
-const tanggalHariIni = () =>
-  new Date().toLocaleDateString(LOKAL[bahasa] || 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+export const todayDate = () =>
+  new Date().toLocaleDateString(LOCALES[language] || 'id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-// Ganti semua tulisan bertanda data-t. Hanya teksnya yang diganti; ikon di dalam tombol tetap.
-function terapkanBahasa() {
-  document.documentElement.lang = bahasa;
+// Replace every text marked data-t. Only the text changes; icons inside buttons stay.
+function applyLanguage() {
+  document.documentElement.lang = language;
   document.querySelectorAll('[data-t]').forEach(el => {
     const node = [...el.childNodes].reverse().find(n => n.nodeType === 3 && n.nodeValue.trim());
     if (!node) return;
-    if (el._asli == null) el._asli = node.nodeValue;
-    const terjemahan = KAMUS[bahasa] && KAMUS[bahasa]['@' + el.dataset.t];
-    node.nodeValue = bahasa !== 'id' && terjemahan ? terjemahan : el._asli;
+    if (el._original == null) el._original = node.nodeValue;
+    const translation = DICTIONARY[language] && DICTIONARY[language]['@' + el.dataset.t];
+    node.nodeValue = language !== 'id' && translation ? translation : el._original;
   });
 }
-function setBahasa(b) {
-  bahasa = KAMUS[b] ? b : 'en';
-  terapkanBahasa();
-  if (typeof kbNama !== 'undefined' && kbNama) kbNama.gambarUlang(); // tulisan tombol keyboard layar
+// Code that shows translated text it built itself (e.g. the on-screen keyboard) redraws on change
+const languageListeners = [];
+export const onLanguageChange = fn => languageListeners.push(fn);
+export function setLanguage(lang) {
+  language = DICTIONARY[lang] ? lang : 'en';
+  applyLanguage();
+  languageListeners.forEach(fn => fn());
 }

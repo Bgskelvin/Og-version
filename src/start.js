@@ -3,7 +3,7 @@
    Runs after all plain scripts: loads settings & couples, wires up every
    feature's buttons, then opens the camera.
    ===================================================================== */
-import './bridge.js'; // TEMPORARY: exposes module functions to the remaining plain scripts
+import './debug-handle.js'; // window.__leura for the UI tests and the phone demo
 import { setupAdmin } from './admin.js';
 import { setupBoothSettings } from './booth-settings.js';
 import { initDevices } from './camera.js';
@@ -17,21 +17,25 @@ import { normalizeConfig, applyMenu, setupSettings } from './settings.js';
 import { usingSony, applyCameraSource, setupSonyCamera } from './sony-camera.js';
 import { setupHistory } from './session-history.js';
 import { setupTemplateEditor } from './template-editor.js';
+import { setLanguage } from './language.js';
+import { resetIdle, setNotice, setupNavigation } from './app.js';
+import { setupGuestName } from './guest-name.js';
+import { state } from './state.js';
 
 (async () => {
-  cfg = await api.getConfig();
-  cfg.quiz = cfg.quiz || [];
-  normalizeConfig(cfg);
-  setBahasa(cfg.bahasa); // bahasa layar tamu (diatur di Admin)
-  if (cfg.colors) {
+  state.cfg = await api.getConfig();
+  state.cfg.quiz = state.cfg.quiz || [];
+  normalizeConfig(state.cfg);
+  setLanguage(state.cfg.bahasa); // bahasa layar tamu (diatur di Admin)
+  if (state.cfg.colors) {
     const r = document.documentElement.style;
-    if (cfg.colors.accent) r.setProperty('--accent', cfg.colors.accent);
+    if (state.cfg.colors.accent) r.setProperty('--accent', state.cfg.colors.accent);
   }
   applyCouples(await api.getCouples());
   buildQInputs();
 
-  pasangNavigasi();
-  pasangNama();
+  setupNavigation();
+  setupGuestName();
   setupMessage();
   setupQuiz();
   setupAdmin();

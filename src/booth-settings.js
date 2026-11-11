@@ -5,6 +5,8 @@
    ===================================================================== */
 import { fillDownloadQrSettings } from './download-qr.js';
 import { SECONDS, secLabel, fillSelect, normalizeConfig, applySettings } from './settings.js';
+import { $, state } from './state.js';
+import { flash, show } from './app.js';
 
 const OPTIONS = {
   pesanCountdown: [
@@ -71,13 +73,13 @@ async function openBoothSettings(screen) {
   show(screen);
   const s = await api.getSettings();
   normalizeConfig(s);
-  fillBoothSettings({ ...s, ...cfg });
+  fillBoothSettings({ ...s, ...state.cfg });
   if (screen === 'setphoto') fillDownloadQrSettings();
 }
 async function saveBoothSetting(patch, msgId, msg) {
   const s = await api.saveSettings(patch);
   applySettings(s);
-  fillBoothSettings({ ...s, ...cfg });
+  fillBoothSettings({ ...s, ...state.cfg });
   if (s.error) flash(msgId, s.error, true);
   else flash(msgId, msg);
 }

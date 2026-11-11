@@ -10,32 +10,35 @@
    lives in state.js as globals until that file becomes a module.
    ===================================================================== */
 import { startRecording, countdown, finishSession, abortSession, needStream } from './recording.js';
+import { $, fmt, sleep, state } from './state.js';
+import { t } from './language.js';
+import { resetIdle, show } from './app.js';
 
 const QUIZ_COUNTDOWN = 3; // seconds of countdown before the first question
 
-const quizRounds = () => Math.min(cfg.quizRounds, cfg.quiz.length);
+const quizRounds = () => Math.min(state.cfg.quizRounds, state.cfg.quiz.length);
 function openQuiz() {
-  $('btnQuizMulai').disabled = !cfg.quiz.length;
-  if (!cfg.quiz.length) {
+  $('btnQuizMulai').disabled = !state.cfg.quiz.length;
+  if (!state.cfg.quiz.length) {
     $('quizInfo').textContent = t('quiz.kosong');
     $('quizPre').style.display = 'flex';
     $('quizRun').style.display = 'none';
     show('quiz');
     return;
   }
-  $('quizInfo').textContent = t('quiz.info', { n: quizRounds(), s: cfg.quizSeconds });
+  $('quizInfo').textContent = t('quiz.info', { n: quizRounds(), s: state.cfg.quizSeconds });
   $('quizPre').style.display = 'flex';
   $('quizRun').style.display = 'none';
   show('quiz');
 }
 function pickQuestions(n) {
-  const idx = cfg.quiz.map((_, i) => i);
+  const idx = state.cfg.quiz.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [idx[i], idx[j]] = [idx[j], idx[i]];
   }
   const out = idx.slice(0, n);
-  while (out.length < n) out.push(Math.floor(Math.random() * cfg.quiz.length));
+  while (out.length < n) out.push(Math.floor(Math.random() * state.cfg.quiz.length));
   return out;
 }
 async function shuffleTo(qi) {
@@ -46,17 +49,17 @@ async function shuffleTo(qi) {
   card.classList.remove('reveal');
   card.classList.add('shuffling');
   for (let d = 60; d < 320; d *= 1.15) {
-    $('qText').textContent = cfg.quiz[Math.floor(Math.random() * cfg.quiz.length)];
+    $('qText').textContent = state.cfg.quiz[Math.floor(Math.random() * state.cfg.quiz.length)];
     await sleep(d);
   }
-  $('qText').textContent = cfg.quiz[qi];
+  $('qText').textContent = state.cfg.quiz[qi];
   card.classList.remove('shuffling');
   void card.offsetWidth;
   card.classList.add('reveal');
   await sleep(500);
 }
 function answerTimer(isLast) {
-  const secs = cfg.quizSeconds;
+  const secs = state.cfg.quizSeconds;
   $('qBarWrap').style.visibility = 'visible';
   $('qTime').style.visibility = 'visible';
   $('btnNext').style.visibility = 'visible';
@@ -72,11 +75,11 @@ function answerTimer(isLast) {
     const done = () => {
       clearInterval(iv);
       $('btnNext').onclick = null;
-      cancelTimer = null;
+      state.cancelTimer = null;
       resolve();
     };
     $('btnNext').onclick = done;
-    cancelTimer = done;
+    state.cancelTimer = done;
   });
 }
 
@@ -142,34 +145,34 @@ export function drawCaption(text, i, n) {
     c.toBlob(b => (b ? b.arrayBuffer().then(a => res(new Uint8Array(a))) : res(null)), 'image/png'),
   );
 }
-const recordingSeconds = () => Math.max(0, (Date.now() - recT0) / 1000);
+const recordingSeconds = () => Math.max(0, (Date.now() - state.recT0) / 1000);
 
 async function startQuiz() {
-  if (busy || !needStream() || !cfg.quiz.length) return;
-  busy = true;
+  if (state.busy || !needStream() || !state.cfg.quiz.length) return;
+  state.busy = true;
   resetIdle();
-  const token = ++sessionToken;
+  const token = ++state.sessionToken;
   $('quizPre').style.display = 'none';
   try {
     await startRecording('quiz'); // record from the start of the countdown
-    if (token !== sessionToken) return;
+    if (token !== state.sessionToken) return;
     await countdown(QUIZ_COUNTDOWN);
-    if (token !== sessionToken) return;
+    if (token !== state.sessionToken) return;
     $('quizRun').style.display = 'flex';
     const picks = pickQuestions(quizRounds());
     // Caption timing for the main process; field names (a, b, judul, kapsi, kapsiGambar)
     // are shared with main/olah-video.js and renamed with it in refactor/main-english.
     const captions = [];
     for (let r = 0; r < picks.length; r++) {
-      if (token !== sessionToken) return;
+      if (token !== state.sessionToken) return;
       $('qRound').textContent = t('quiz.ronde', { i: r + 1, n: picks.length });
       await shuffleTo(picks[r]);
-      if (token !== sessionToken) return;
+      if (token !== state.sessionToken) return;
       const a = Math.max(0, recordingSeconds() - 0.5); // card stops & question shows (0.5 s before shuffleTo ends)
       await answerTimer(r === picks.length - 1);
-      captions.push({ a, b: recordingSeconds(), judul: cfg.quiz[picks[r]] });
+      captions.push({ a, b: recordingSeconds(), judul: state.cfg.quiz[picks[r]] });
     }
-    if (token !== sessionToken) return;
+    if (token !== state.sessionToken) return;
     let captionImages = [];
     try {
       captionImages = await Promise.all(captions.map((k, i) => drawCaption(k.judul, i, picks.length)));
@@ -178,12 +181,12 @@ async function startQuiz() {
     }
     const complete = captionImages.length === captions.length && captionImages.every(Boolean);
     finishSession({
-      questions: picks.map(i => cfg.quiz[i]),
+      questions: picks.map(i => state.cfg.quiz[i]),
       ...(complete ? { kapsi: captions, kapsiGambar: captionImages } : {}),
     });
   } catch (err) {
     console.log('Quiz could not run: ' + err.message);
-    if (token === sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
+    if (token === state.sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
   }
 }
 

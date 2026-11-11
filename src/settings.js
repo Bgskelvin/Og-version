@@ -5,6 +5,9 @@
    main process and renamed with it in refactor/main-english.
    ===================================================================== */
 import { applyCouples } from './couple.js';
+import { $, state } from './state.js';
+import { language, setLanguage } from './language.js';
+import { flash } from './app.js';
 
 const SWATCHES = [
   ['#B08D57', 'Gold'],
@@ -61,7 +64,7 @@ const DEFAULTS = {
 export function normalizeConfig(src) {
   for (const [k, d] of Object.entries(DEFAULTS)) {
     const v = src[k];
-    cfg[k] =
+    state.cfg[k] =
       typeof d === 'boolean'
         ? typeof v === 'boolean'
           ? v
@@ -72,23 +75,23 @@ export function normalizeConfig(src) {
   }
 }
 // The main menu buttons follow the active couple's settings (Admin → couple → Menu)
-export function coupleMenu(c = activeCouple) {
+export function coupleMenu(c = state.activeCouple) {
   return (c && c.menu) || { pesan: true, quiz: true, photo: true };
 }
 export function applyMenu() {
   const m = coupleMenu();
   $('btnToPesan').style.display = m.pesan ? '' : 'none';
-  $('btnToQuiz').style.display = m.quiz && cfg.quiz && cfg.quiz.length ? '' : 'none';
+  $('btnToQuiz').style.display = m.quiz && state.cfg.quiz && state.cfg.quiz.length ? '' : 'none';
   $('btnToPhoto').style.display = m.photo ? '' : 'none';
 }
 // Apply the latest settings to the app without restarting it
 export function applySettings(s) {
   normalizeConfig(s);
-  if (s.kamera) cfg.kamera = s.kamera;
-  if (s.bahasa && s.bahasa !== bahasa) {
-    cfg.bahasa = s.bahasa;
-    setBahasa(s.bahasa);
-    if (couplesData) applyCouples(couplesData); // welcome text & questions follow the new language
+  if (s.kamera) state.cfg.kamera = s.kamera;
+  if (s.bahasa && s.bahasa !== language) {
+    state.cfg.bahasa = s.bahasa;
+    setLanguage(s.bahasa);
+    if (state.couplesData) applyCouples(state.couplesData); // welcome text & questions follow the new language
   }
   applyMenu();
   if (s.accent) document.documentElement.style.setProperty('--accent', s.accent);
@@ -98,7 +101,7 @@ export async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = cfg.tanyaNama;
+  $('setTanyaNama').checked = state.cfg.tanyaNama;
   $('setBahasa').value = s.bahasa || 'en';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
@@ -109,7 +112,7 @@ async function saveSetting(patch, msg) {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = cfg.tanyaNama;
+  $('setTanyaNama').checked = state.cfg.tanyaNama;
   flash('setMsg', msg || 'Saved.');
 }
 async function saveLogin() {

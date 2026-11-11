@@ -9,6 +9,8 @@
 import { openStream, fillDevices } from './camera.js';
 import { applySettings } from './settings.js';
 import { abortSession } from './recording.js';
+import { $, sleep, state } from './state.js';
+import { flash } from './app.js';
 
 // Latest status from the main process (a live binding: importers always see the current value)
 export let sonyState = { mode: 'webcam', tersambung: false, pesan: '' };
@@ -18,20 +20,20 @@ let liveViewFrames = 0; // number of live-view frames drawn so far
 let modeSwitchId = 0;
 export const liveViewFrameCount = () => liveViewFrames; // for the UI tests
 
-export const usingSony = () => !!cfg && (cfg.kamera === 'sony' || cfg.kamera === 'sony-sim');
+export const usingSony = () => !!state.cfg && (state.cfg.kamera === 'sony' || state.cfg.kamera === 'sony-sim');
 
 // Set up the camera source from the settings: webcam/phone or Sony
 export async function applyCameraSource() {
   document.body.classList.toggle('sonyOn', usingSony());
   if (usingSony()) {
     // Computer webcam & mic released: video picture and sound come from the Sony camera
-    if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
-    mediaStream = null;
-    noCam = false;
+    if (state.mediaStream) state.mediaStream.getTracks().forEach(t => t.stop());
+    state.mediaStream = null;
+    state.noCam = false;
     $('cam').srcObject = null;
     $('camPrev').srcObject = null;
     runLiveView();
-  } else if (!mediaStream) {
+  } else if (!state.mediaStream) {
     await openStream();
   }
 }
@@ -73,7 +75,7 @@ export function cameraModeForScreen(name) {
 
 /* ---------- Live view ---------- */
 // Only fetched when needed (pages with the camera behind them, or Admin)
-const liveViewNeeded = () => document.body.classList.contains('camOn') || current === 'admin';
+const liveViewNeeded = () => document.body.classList.contains('camOn') || state.current === 'admin';
 function drawLiveView(c, bmp) {
   if (c.width !== bmp.width || c.height !== bmp.height) {
     c.width = bmp.width;
@@ -104,7 +106,7 @@ async function runLiveView() {
             drawLiveView($('camLv'), bmp);
             liveViewFrames++;
           }
-          if (current === 'admin') drawLiveView($('camPrevLv'), bmp);
+          if (state.current === 'admin') drawLiveView($('camPrevLv'), bmp);
           bmp.close();
         } catch {
           /* broken live-view frame: skipped */
@@ -138,7 +140,7 @@ function renderSonyStatus() {
 }
 export function fillAdminCamera() {
   const sony = usingSony();
-  $('camSumber').value = cfg.kamera || 'webcam';
+  $('camSumber').value = state.cfg.kamera || 'webcam';
   $('camSelRow').style.display = $('micSelRow').style.display = sony ? 'none' : '';
   $('sonyRow').style.display = sony ? '' : 'none';
   $('camHint').textContent = sony
@@ -151,7 +153,7 @@ function receiveSonyStatus(s) {
   sonyState = s || sonyState;
   renderSonyStatus();
   // Camera disconnected during a message/quiz recording: stop the session with a clear message
-  if (wasConnected && !sonyState.tersambung && rec && rec.sony)
+  if (wasConnected && !sonyState.tersambung && state.rec && state.rec.sony)
     abortSession('The Sony camera disconnected while recording. What was recorded is still on the camera SD card.');
 }
 
@@ -169,7 +171,7 @@ export async function setupSonyCamera() {
     await applyCameraSource();
     fillAdminCamera();
     await fillDevices();
-    const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[cfg.kamera];
+    const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[state.cfg.kamera];
     flash('camMsg', `Camera source: ${label}.`);
   };
   $('btnSonyUlang').onclick = async () => {

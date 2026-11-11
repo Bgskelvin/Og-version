@@ -108,7 +108,7 @@ window.api = {
   filterDaftar: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
   filterTambah: async (nama, bytes) => {
     const teks = new TextDecoder().decode(bytes);
-    let lut; try { lut = parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
+    let lut; try { lut = window.__leura.parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
     const f = { id: 'lut' + ((window.FLT || []).length + 1), nama: nama.replace(/\\.cube$/i, ''), size: lut.size, teks };
     (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, nama: f.nama, size: f.size } };
   },
@@ -219,7 +219,7 @@ async function main() {
   await pg.click('#btnToPesan');
   await pg.click('#btnPesanMulai');
   await tunggu(4500);
-  await pg.evaluate(() => fireRecError(rec.id));
+  await pg.evaluate(() => fireRecError(__leura.state.rec.id));
   await tunggu(600);
   cek(
     (await layar()) === 'utama' && /disk/.test(await pg.textContent('#notice')),
@@ -428,9 +428,10 @@ async function main() {
     (await layar()) === 'tpleditor' && (await pg.locator('.te-slot').count()) === 4,
     'editor template terbuka dengan kotak foto 1-4',
   );
-  const rasioSlot = () => pg.evaluate(() => te.tpl.slots.map(s => s.w / s.h));
+  const rasioSlot = () => pg.evaluate(() => __leura.te.tpl.slots.map(s => s.w / s.h));
   cek(
-    (await pg.evaluate(() => te.tpl.rasio)) === '3:2' && (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01),
+    (await pg.evaluate(() => __leura.te.tpl.rasio)) === '3:2' &&
+      (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01),
     'template baru memakai rasio 3:2 (sama dengan foto kamera)',
   );
   await pg.click('[data-tab="foto"]');
@@ -449,33 +450,36 @@ async function main() {
   );
   await pg.fill('#teNama', 'Rustic emas');
   const slot = await pg.locator('.te-slot').first().boundingBox();
-  const x0 = await pg.evaluate(() => te.tpl.slots[0].x);
+  const x0 = await pg.evaluate(() => __leura.te.tpl.slots[0].x);
   await pg.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2);
   await pg.mouse.down();
   await pg.mouse.move(slot.x + slot.width / 2 + 40, slot.y + slot.height / 2 + 30, { steps: 5 });
   await pg.mouse.up();
-  cek((await pg.evaluate(() => te.tpl.slots[0].x)) > x0 + 40, 'kotak foto 1 bisa digeser dengan jari');
+  cek((await pg.evaluate(() => __leura.te.tpl.slots[0].x)) > x0 + 40, 'kotak foto 1 bisa digeser dengan jari');
   const pj = await pg.locator('.te-slot').nth(1).locator('.te-resize').boundingBox();
-  const w0 = await pg.evaluate(() => te.tpl.slots[1].w);
+  const w0 = await pg.evaluate(() => __leura.te.tpl.slots[1].w);
   await pg.mouse.move(pj.x + pj.width / 2, pj.y + pj.height / 2);
   await pg.mouse.down();
   await pg.mouse.move(pj.x - 30, pj.y + pj.height / 2, { steps: 5 });
   await pg.mouse.up();
-  cek((await pg.evaluate(() => te.tpl.slots[1].w)) < w0, 'ukuran kotak foto bisa diubah dari pojoknya');
+  cek((await pg.evaluate(() => __leura.te.tpl.slots[1].w)) < w0, 'ukuran kotak foto bisa diubah dari pojoknya');
   cek(
-    await pg.evaluate(() => Math.abs(te.tpl.slots[1].w - te.tpl.slots[1].h) <= 1),
+    await pg.evaluate(() => Math.abs(__leura.te.tpl.slots[1].w - __leura.te.tpl.slots[1].h) <= 1),
     'saat diubah ukurannya, rasio kotak foto tetap 1:1',
   );
-  const posisi = await pg.evaluate(() => JSON.stringify(te.tpl.slots.slice(0, 2)));
+  const posisi = await pg.evaluate(() => JSON.stringify(__leura.te.tpl.slots.slice(0, 2)));
   await pg.click('[data-tab="foto"]');
   await pg.locator('#teSlotPilih button').first().click();
   await pg.click('#teSlotTukar');
   cek(
-    await pg.evaluate(p => JSON.stringify([te.tpl.slots[1], te.tpl.slots[0]]) === p, posisi),
+    await pg.evaluate(p => JSON.stringify([__leura.te.tpl.slots[1], __leura.te.tpl.slots[0]]) === p, posisi),
     'posisi foto 1 dan 2 bisa ditukar',
   );
   await pg.locator('#teSusunan .pe-opt').nth(1).click();
-  cek(await pg.evaluate(() => te.tpl.slots.every(s => s.x === te.tpl.slots[0].x)), 'susunan cepat "Kolom" dipakai');
+  cek(
+    await pg.evaluate(() => __leura.te.tpl.slots.every(s => s.x === __leura.te.tpl.slots[0].x)),
+    'susunan cepat "Kolom" dipakai',
+  );
   await pg.click('[data-tab="teks"]');
   await pg.click('#teTeksTambah');
   await pg.fill('#teTeksIsi', 'Terima kasih sudah datang');
@@ -483,12 +487,12 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        te.tpl.texts.length === 3 &&
-        te.tpl.texts[2].text === 'Terima kasih sudah datang' &&
-        te.tpl.texts[2].font === 'serif',
+        __leura.te.tpl.texts.length === 3 &&
+        __leura.te.tpl.texts[2].text === 'Terima kasih sudah datang' &&
+        __leura.te.tpl.texts[2].font === 'serif',
     ),
     'teks baru ditambahkan & hurufnya bisa diganti',
-    await pg.evaluate(() => te.tpl.texts.map(t => t.text + '|' + t.font)),
+    await pg.evaluate(() => __leura.te.tpl.texts.map(t => t.text + '|' + t.font)),
   );
   await pg.click('[data-tab="desain"]');
   await pg.locator('#teUkuran .pe-opt').nth(2).click();
@@ -496,9 +500,9 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        te.tpl.W === 600 &&
-        te.tpl.H === 1800 &&
-        te.tpl.slots.every(s => s.x + s.w <= 600 && Math.abs(s.w / s.h - 1) < 0.02),
+        __leura.te.tpl.W === 600 &&
+        __leura.te.tpl.H === 1800 &&
+        __leura.te.tpl.slots.every(s => s.x + s.w <= 600 && Math.abs(s.w / s.h - 1) < 0.02),
     ),
     'ganti ukuran ke Strip: posisi menyesuaikan, rasio tetap',
   );
@@ -548,7 +552,7 @@ async function main() {
     'Batal tidak menyimpan perubahan',
   );
   cek((await pg.evaluate(() => TPL[0].rasio)) === '1:1', 'rasio foto ikut tersimpan di template');
-  await pg.evaluate(() => openTemplateEditor({ ...TPL[0], id: 'lama', rasio: undefined }));
+  await pg.evaluate(() => __leura.openTemplateEditor({ ...TPL[0], id: 'lama', rasio: undefined }));
   await tunggu(300);
   await pg.click('#teSimpan');
   await tunggu(200);
@@ -605,7 +609,7 @@ async function main() {
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   await pg.click('#btnCobaLagi');
-  await pg.evaluate(() => applySettings({ ...cfg, pesanMaxSeconds: 2 }));
+  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, pesanMaxSeconds: 2 }));
   await bersihkan();
   await pg.click('#btnToPesan');
   await pg.click('#btnPesanMulai');
@@ -620,9 +624,9 @@ async function main() {
   await tungguLayar('thanks');
   await pg.click('#btnCobaLagi');
   await pg.evaluate(() => {
-    applySettings({ ...cfg, pesanMaxSeconds: 0 });
-    activeCouple.menu.quiz = true;
-    applyMenu();
+    __leura.applySettings({ ...__leura.state.cfg, pesanMaxSeconds: 0 });
+    __leura.state.activeCouple.menu.quiz = true;
+    __leura.applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(/30 detik/.test(await pg.textContent('#quizInfo')), 'waktu jawab baru langsung dipakai quiz');
@@ -681,7 +685,9 @@ async function main() {
     'hitung mundur pertama besar lalu mengecil, foto 2-4 tetap kecil',
     hitung,
   );
-  await pg.evaluate(() => applySettings({ ...cfg, photoCountdown: 5, photoPreview: 2, photoFlash: true }));
+  await pg.evaluate(() =>
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 5, photoPreview: 2, photoFlash: true }),
+  );
   await pg.evaluate(() => {
     HITUNG.length = 0;
   });
@@ -756,7 +762,7 @@ async function main() {
 
   console.log('\n▶ Filter foto (LUT) per template');
   await pg.evaluate(() => {
-    show('admin');
+    __leura.show('admin');
   });
   await pg.locator('#coupleList .cp-row').first().click();
   await tunggu(300);
@@ -802,8 +808,8 @@ async function main() {
   );
   const pratinjau = await pg.evaluate(() => {
     // foto contoh di kotak foto editor ikut difilter (warna terbalik)
-    const asli = sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
-      f = te.samplePhoto.getContext('2d').getImageData(10, 10, 1, 1).data;
+    const asli = __leura.sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
+      f = __leura.te.samplePhoto.getContext('2d').getImageData(10, 10, 1, 1).data;
     return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])];
   });
   cek(pratinjau[0] <= 2 && pratinjau[1] <= 2, 'pratinjau editor: foto contoh di kotak foto memakai filter', pratinjau);
@@ -827,8 +833,8 @@ async function main() {
   );
   cek(/with filter/.test(await pg.textContent('#tplList')), 'daftar template menandai template berfilter');
   await pg.evaluate(() => {
-    applySettings({ ...cfg, photoCountdown: 2, photoPreview: 0, photoFlash: false });
-    show('utama');
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 2, photoPreview: 0, photoFlash: false });
+    __leura.show('utama');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -872,7 +878,7 @@ async function main() {
 
   console.log('\n▶ Hapus template');
   await pg.evaluate(() => {
-    show('admin');
+    __leura.show('admin');
   });
   await pg.locator('#coupleList .cp-row').first().click();
   await tunggu(300);
@@ -889,8 +895,8 @@ async function main() {
     'template terhapus dari daftar',
   );
   await pg.evaluate(() => {
-    applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0 });
-    show('utama');
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0 });
+    __leura.show('utama');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -908,7 +914,7 @@ async function main() {
   await pg.click('#btnCobaLagi');
 
   console.log('\n▶ Tambah couple baru lalu langsung buat template');
-  await pg.evaluate(() => show('admin'));
+  await pg.evaluate(() => __leura.show('admin'));
   await pg.click('#btnAddCouple');
   await tunggu(200);
   cek(
@@ -941,7 +947,7 @@ async function main() {
   await tunggu(300);
   cek(
     /Sari & Andi/.test(await pg.textContent('#teTitle')) &&
-      (await pg.evaluate(() => fillTemplateText('{couple}'))) === 'Sari & Andi',
+      (await pg.evaluate(() => __leura.fillTemplateText('{couple}'))) === 'Sari & Andi',
     'pratinjau {couple} memakai nama couple yang diedit',
   );
   await pg.click('#teSimpan');
@@ -967,12 +973,12 @@ async function main() {
   );
   cek(/and 1 template/.test(await pg.textContent('#coupleMsg')), 'pesan menyebut template yang ikut terhapus');
   cek(
-    (await pg.evaluate(() => fillTemplateText('{couple}'))) === 'Rina & Dimas',
+    (await pg.evaluate(() => __leura.fillTemplateText('{couple}'))) === 'Rina & Dimas',
     'di luar halaman couple, {couple} kembali ke couple aktif',
   );
 
   console.log('\n▶ Kamera Sony');
-  await pg.evaluate(() => show('admin'));
+  await pg.evaluate(() => __leura.show('admin'));
   cek(
     (await pg.inputValue('#camSumber')) === 'webcam' && !(await pg.isVisible('#sonyRow')),
     'Admin: sumber kamera bawaan Webcam / HP',
@@ -980,7 +986,7 @@ async function main() {
   await pg.selectOption('#camSumber', 'sony-sim');
   await tunggu(400);
   cek(
-    await pg.evaluate(() => document.body.classList.contains('sonyOn') && mediaStream === null),
+    await pg.evaluate(() => document.body.classList.contains('sonyOn') && __leura.state.mediaStream === null),
     'pilih Sony: webcam & mic komputer dilepas',
   );
   cek(
@@ -997,8 +1003,8 @@ async function main() {
     'live view tampil di pratinjau Admin',
   );
   await pg.evaluate(() => {
-    applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0, pesanCountdown: 0 });
-    show('utama');
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0, pesanCountdown: 0 });
+    __leura.show('utama');
   });
   await tunggu(400);
   cek((await pg.isVisible('#camLv')) && !(await pg.isVisible('#cam')), 'live view Sony jadi latar Halaman Utama');
@@ -1007,10 +1013,10 @@ async function main() {
   await tunggu(100);
   cek((await log()).includes('mode video'), 'buka Kirim pesan: kamera Sony dipindah ke mode VIDEO');
   await pg.click('#btnPesanBack');
-  await pg.evaluate(() => show('quiz'));
+  await pg.evaluate(() => __leura.show('quiz'));
   await tunggu(100);
   cek((await log()).filter(x => x === 'mode video').length === 2, 'buka Quiz: kamera Sony ke mode VIDEO');
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnToPhoto');
   await tunggu(100);
   cek((await log()).includes('mode foto'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
@@ -1024,9 +1030,9 @@ async function main() {
   });
   await pg.click('#btnToPesan');
   await tunggu(150);
-  const n1 = await pg.evaluate(() => liveViewFrameCount());
+  const n1 = await pg.evaluate(() => __leura.liveViewFrameCount());
   await tunggu(400);
-  const n2 = await pg.evaluate(() => liveViewFrameCount());
+  const n2 = await pg.evaluate(() => __leura.liveViewFrameCount());
   cek(
     (await pg.evaluate(() => document.body.classList.contains('lvGanti'))) && n1 === n2,
     'ganti mode: gambar kamera dibekukan + kabut (blur) selama berganti',
@@ -1034,7 +1040,7 @@ async function main() {
   await tunggu(1800);
   cek(
     !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))) &&
-      (await pg.evaluate(() => liveViewFrameCount())) > n2,
+      (await pg.evaluate(() => __leura.liveViewFrameCount())) > n2,
     'mode selesai: kabut hilang, gambar kamera jalan lagi',
   );
   await pg.evaluate(() => {
@@ -1043,13 +1049,13 @@ async function main() {
     window.MODE_DELAY = 0;
   });
   await pg.click('#btnPesanBack');
-  await pg.evaluate(() => show('quiz'));
+  await pg.evaluate(() => __leura.show('quiz'));
   await tunggu(100);
   cek(
     !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))),
     'mode sudah benar (pesan → quiz): tanpa kabut',
   );
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1098,12 +1104,12 @@ async function main() {
     'kamera belum tersambung: rekaman tidak dimulai',
   );
   await pg.evaluate(() => {
-    show('admin');
+    __leura.show('admin');
   });
   await pg.selectOption('#camSumber', 'webcam');
   await tunggu(500);
   cek(
-    await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!mediaStream),
+    await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!__leura.state.mediaStream),
     'kembali ke webcam: kamera komputer dibuka lagi',
   );
 
@@ -1141,8 +1147,8 @@ async function main() {
       { id: 6, time: t(0, 18, 24), label: 'pesan', couple: 'Rina & Dimas', seconds: 1, status: 'done' },
       { id: 7, time: t(1, 18, 30), label: 'pesan', couple: 'Rina & Dimas', seconds: 30, status: 'done' },
     ];
-    show('admin');
-    return loadSessions();
+    __leura.show('admin');
+    return __leura.loadSessions();
   });
   cek(
     /Rina & Dimas: 5 today · 6 total/.test(await pg.textContent('#riwayatRingkas')) &&
@@ -1230,7 +1236,7 @@ async function main() {
   cek((await layar()) === 'admin', 'tombol Admin kembali');
 
   console.log('\n▶ Bahasa layar tamu');
-  await pg.evaluate(() => show('admin'));
+  await pg.evaluate(() => __leura.show('admin'));
   cek((await pg.inputValue('#setBahasa')) === 'id', 'bahasa layar tamu dari pengaturan tampil di Admin');
   // Ganti bahasa tamu ke English
   await pg.selectOption('#setBahasa', 'en');
@@ -1250,8 +1256,8 @@ async function main() {
     'Halaman Utama berbahasa Inggris (ikon tombol tetap ada); sambutan tampil seperti yang diketik',
   );
   await pg.evaluate(() => {
-    activeCouple.menu.quiz = true;
-    applyMenu();
+    __leura.state.activeCouple.menu.quiz = true;
+    __leura.applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(
@@ -1260,7 +1266,10 @@ async function main() {
       /Back/.test(await pg.textContent('#btnQuizBack')),
     'halaman Quiz berbahasa Inggris',
   );
-  cek((await pg.evaluate(() => cfg.quiz[0])) === 'Q satu', 'pertanyaan quiz tampil seperti yang diketik admin');
+  cek(
+    (await pg.evaluate(() => __leura.state.cfg.quiz[0])) === 'Q satu',
+    'pertanyaan quiz tampil seperti yang diketik admin',
+  );
   await pg.click('#btnQuizBack');
   await pg.click('#btnToPhoto');
   cek(
@@ -1284,7 +1293,7 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        fillTemplateText('{tanggal}') ===
+        __leura.fillTemplateText('{tanggal}') ===
         new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     ),
     'tanggal di template foto ditulis dalam bahasa Inggris',
@@ -1297,10 +1306,10 @@ async function main() {
       /Back to menu/.test(await pg.textContent('#btnCobaLagi')),
     'halaman Terima kasih berbahasa Inggris',
   );
-  await pg.evaluate(() => show('admin'));
+  await pg.evaluate(() => __leura.show('admin'));
   await pg.selectOption('#setBahasa', 'id');
   await tunggu(300);
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   cek(
     /Kirim pesan/.test(await pg.textContent('#btnToPesan')) &&
       (await pg.textContent('#welcome')) === 'Tinggalkan pesan untuk kami',
@@ -1309,8 +1318,8 @@ async function main() {
 
   console.log('\n▶ Unduh foto lewat QR');
   await pg.evaluate(() => {
-    show('admin');
-    applySettings({ ...cfg, photoCountdown: 3, photoPreview: 0 });
+    __leura.show('admin');
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0 });
   });
   await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded();
   await pg.click('#btnSetPhoto');
@@ -1386,7 +1395,10 @@ async function main() {
       // server address arrives through the normal upload-status update
       const u = UNG.st.url;
       UNG.cb({ ...UNG.st, url: 'https://x.workers.dev' });
-      const r = [sessionLink({ label: 'pesan', kode: 'K1' }), sessionLink({ label: 'foto', kode: 'K2' })];
+      const r = [
+        __leura.sessionLink({ label: 'pesan', kode: 'K1' }),
+        __leura.sessionLink({ label: 'foto', kode: 'K2' }),
+      ];
       UNG.cb({ ...UNG.st, url: u });
       return r.join();
     })) === 'https://x.workers.dev/v/K1,https://x.workers.dev/f/K2',
@@ -1402,7 +1414,7 @@ async function main() {
   await bersihkan();
   await pg.click('#btnQrUlang');
   cek((await log()).includes('unggah coba'), 'Coba kirim sekarang');
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1477,7 +1489,7 @@ async function main() {
         unggah: 'menunggu',
       },
     );
-    show('admin');
+    __leura.show('admin');
   });
   await bersihkan();
   await pg.click('#btnRiwayat');
@@ -1527,7 +1539,7 @@ async function main() {
   await tunggu(200);
 
   console.log('\n▶ Nama tamu');
-  await pg.evaluate(() => show('start'));
+  await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   cek(
     (await layar()) === 'nama' && (await pg.inputValue('#namaInput')) === '',
@@ -1542,13 +1554,13 @@ async function main() {
     (await layar()) === 'utama' && (await pg.textContent('#sapaTamu')) === 'Hai, Sari!',
     'keyboard fisik juga bisa (Enter = Lanjut)',
   );
-  await pg.evaluate(() => show('start'));
+  await pg.evaluate(() => __leura.show('start'));
   cek(
-    (await pg.evaluate(() => namaTamu)) === '' && !(await pg.isVisible('#sapaTamu')),
+    (await pg.evaluate(() => __leura.state.guestName)) === '' && !(await pg.isVisible('#sapaTamu')),
     'kembali ke Start menghapus nama tamu sebelumnya',
   );
   await pg.evaluate(() => {
-    setBahasa('en');
+    __leura.setLanguage('en');
   });
   await pg.click('#btnStart');
   cek(
@@ -1557,28 +1569,28 @@ async function main() {
     'halaman nama & keyboard ikut bahasa tamu',
   );
   await pg.evaluate(() => {
-    setBahasa('id');
-    show('admin');
-    $('adminLogin').style.display = 'none';
-    $('adminPanel').style.display = 'flex';
+    __leura.setLanguage('id');
+    __leura.show('admin');
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'flex';
   });
   await pg.locator('#setTanyaNama').scrollIntoViewIfNeeded();
   cek(await pg.isChecked('#setTanyaNama'), 'Admin: "Tanya nama tamu" menyala sebagai bawaan');
   await pg.click('#setTanyaNama');
   await tunggu(200);
   cek(/"tanyaNama":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
-  await pg.evaluate(() => show('start'));
+  await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   cek(
     (await layar()) === 'utama' && !(await pg.isVisible('#sapaTamu')),
     'tanpa tanya nama: Start langsung ke Halaman Utama',
   );
-  await pg.evaluate(() => show('admin'));
+  await pg.evaluate(() => __leura.show('admin'));
   await pg.click('#setTanyaNama');
   await tunggu(200);
 
   console.log('\n▶ Alur tamu: Terima kasih → menu → Selesai');
-  await pg.evaluate(() => show('start'));
+  await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   await pg.fill('#namaInput', 'Rani');
   await pg.press('#namaInput', 'Enter');
@@ -1608,7 +1620,7 @@ async function main() {
   );
   await pg.click('#btnSelesaiTamu');
   cek(
-    (await layar()) === 'start' && (await pg.evaluate(() => namaTamu)) === '',
+    (await layar()) === 'start' && (await pg.evaluate(() => __leura.state.guestName)) === '',
     'Selesai: kembali ke Start, nama tamu dihapus',
   );
   await pg.click('#btnStart');
@@ -1616,14 +1628,17 @@ async function main() {
   await pg.press('#namaInput', 'Enter');
   cek(!(await pg.isVisible('#btnSelesaiTamu')), 'tamu berikutnya: tombol Selesai tersembunyi lagi');
   await pg.evaluate(() => {
-    kegiatanTamu = 1;
-    show('thanks');
-    idleTimer && clearTimeout(idleTimer);
-    idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), 50);
+    __leura.state.guestActivity = 1;
+    __leura.show('thanks');
+    __leura.state.idleTimer && clearTimeout(__leura.state.idleTimer);
+    __leura.state.idleTimer = setTimeout(
+      () => __leura.show(__leura.state.current === 'thanks' ? 'utama' : 'start'),
+      50,
+    );
   });
   await tunggu(300);
   cek(
-    (await layar()) === 'utama' && (await pg.evaluate(() => namaTamu)) === 'Tono',
+    (await layar()) === 'utama' && (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
     'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start',
   );
 
@@ -1646,7 +1661,7 @@ async function main() {
     // count full redraws of the list (rows replaced in #rwList itself; thumbnails only change inside a row)
     window.NGAMBAR = 0;
     new MutationObserver(() => window.NGAMBAR++).observe(document.getElementById('rwList'), { childList: true });
-    show('admin');
+    __leura.show('admin');
   });
   await pg.click('#btnRiwayat');
   await tunggu(800);
@@ -1668,7 +1683,7 @@ async function main() {
   await tunggu(300);
   cek((await pg.locator('#rwList .rw-row').count()) === 120, 'Tampilkan lebih banyak: 60 sesi berikutnya');
   await pg.evaluate(() => {
-    const b = $('riwayat').querySelector('.sheet-body');
+    const b = document.getElementById('riwayat').querySelector('.sheet-body');
     b.scrollTop = b.scrollHeight;
   });
   await tunggu(500);
@@ -1683,9 +1698,9 @@ async function main() {
 
   console.log('\n▶ Catatan aplikasi di Admin');
   await pg.evaluate(() => {
-    show('admin');
-    $('adminLogin').style.display = 'none';
-    $('adminPanel').style.display = 'flex';
+    __leura.show('admin');
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'flex';
   });
   await pg.locator('#btnLihatCatatan').scrollIntoViewIfNeeded();
   await pg.click('#btnLihatCatatan');
@@ -1707,7 +1722,7 @@ async function main() {
 
   console.log('\n▶ Kunci Admin');
   await pg.evaluate(() => {
-    show('utama');
+    __leura.show('utama');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(300);
@@ -1729,9 +1744,9 @@ async function main() {
 
   console.log('\n▶ Tutup aplikasi dari Admin');
   await pg.evaluate(() => {
-    show('admin');
-    $('adminLogin').style.display = 'none';
-    $('adminPanel').style.display = 'flex';
+    __leura.show('admin');
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'flex';
   });
   await bersihkan();
   await pg.locator('#btnTutupApp').scrollIntoViewIfNeeded();
@@ -1769,7 +1784,7 @@ async function main() {
   await pg.evaluate(() => document.getElementById('dlgTutup').remove());
   await pg.evaluate(() => {
     window.TUTUP = null;
-    show('utama');
+    __leura.show('utama');
     window.MINTA_TUTUP();
     window.MINTA_TUTUP();
   });
@@ -1784,14 +1799,14 @@ async function main() {
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => {
-    show('utama');
+    __leura.show('utama');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(await pg.isVisible('#adminPanel'), 'sebelum ditutup: Admin masih terbuka tanpa login');
   await pg.reload();
   await tunggu(1200);
-  await pg.evaluate(() => show('utama'));
+  await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(

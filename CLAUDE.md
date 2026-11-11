@@ -16,7 +16,7 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 | ------------------------------- | ---------------------------------------------------------------------------------------- |
 | `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `daftarkan()` untuk IPC.        |
 | `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                           |
-| `index.html`, `src/`, `styles/` | Tampilan. Sedang pindah ke ES module (lihat "Tampilan `src/`" di bawah).                 |
+| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).      |
 | `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`. |
 | `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.  |
 | `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                             |
@@ -58,35 +58,35 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 
 - **Bicara dengan Gusvin: bahasa Indonesia. Kode baru: bahasa Inggris.** Semua nama variabel, fungsi, file, dan branch yang baru dibuat pakai bahasa Inggris (pilihan Gusvin, 11 Nov 2026).
 - Kode lama masih memakai nama, komentar, dan pesan log **bahasa Indonesia**. Kode itu diganti ke bahasa Inggris bertahap lewat refactor (lihat Langkah berikutnya), bukan diubah sedikit-sedikit di tengah pekerjaan lain.
-- **Admin seluruhnya bahasa Inggris.** Layar tamu dua bahasa lewat `src/bahasa.js` (bawaan `en`); teks tamu baru wajib punya kunci di sana.
+- **Admin seluruhnya bahasa Inggris.** Layar tamu dua bahasa lewat `src/language.js` (bawaan `en`); teks tamu baru wajib punya kunci di sana.
 - Prettier **3.9.10 dikunci persis** (singleQuote, printWidth 120, arrowParens avoid). Jangan naikkan versi tanpa alasan.
-- ESLint 10 flat config (`eslint.config.mjs`). Untuk skrip biasa di `src/`: `prefer-const` **mati** dan nama global dikumpulkan otomatis (`GLOBAL_TAMPILAN`) — jangan ubah `let` bersama menjadi `const`, file lain mengubahnya. File modul (`import`/`export`) dikenali otomatis dan `prefer-const` menyala.
+- ESLint 10 flat config (`eslint.config.mjs`). `src/` diperiksa sebagai ES module (browser + `api`), `prefer-const` menyala di semua kode.
 - `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/catatan.js`).
 - Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/penyimpanan.js`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `antre()` di `main/olah-video.js`.
 
-## Tampilan `src/` (selama `refactor/renderer-modules`)
+## Tampilan `src/`
 
-- `src/package.json` = `"type": "module"`. Pintu masuk: `src/start.js` (`<script type="module">`, jalan **setelah** semua skrip biasa).
-- Sudah modul: `qr.js`, `lut.js`, `download-qr.js`, `message.js`, `photobooth.js`, `quiz.js`, `template-render.js`, `admin.js`, `booth-settings.js`, `session-history.js`, `template-editor.js`, `settings.js`, `couple.js`, `camera.js`, `sony-camera.js`, `recording.js`, `start.js`. Sisanya masih skrip biasa yang berbagi variabel global.
-- `src/bridge.js` **sementara**: memasang fungsi modul ke `window` untuk skrip biasa (satu baris `window.x = …` per nama — ESLint membacanya). Modul sendiri selalu `import` langsung, tidak lewat `window`. Hapus barisnya begitu pemakainya jadi modul; hapus file-nya di akhir.
-- Modul tidak boleh dipanggil skrip biasa saat file dimuat (modul belum jalan) — hanya di dalam fungsi/aksi.
+- Semua file `src/*.js` adalah **ES module** (`src/package.json` = `"type": "module"`). `index.html` hanya memuat `src/start.js`; file lain dimuat lewat `import`. Nama, komentar, dan log bahasa Inggris.
+- **Data bersama hanya di `state` (`src/state.js`)**: `state.cfg`, `state.current`, `state.busy`, `state.rec`, `state.guestName`, … Ubah lewat `state.x = …` (modul tidak bisa mengubah variabel modul lain). Alat kecil (`$`, `sleep`, `fmt`, `store`) juga dari `state.js`.
+- Tidak ada variabel global antar file. Butuh fungsi dari file lain → `import`. Saling import (siklus) boleh asal hanya dipakai saat berjalan, bukan saat file dimuat.
+- `window.__leura` (`src/debug-handle.js`) = pegangan untuk uji tampilan & demo HP saja; aplikasi sendiri tidak memakainya. Uji yang butuh fungsi/data baru → tambahkan di sana.
 - `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
 - Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.
-- Ganti nama fungsi/file → perbarui juga pemakainya di `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
-- Nama field data dari proses utama (`judul`, `nama`, `aktif`, …) dan nama `api.*` belum diganti — itu bagian `refactor/main-english`.
-- Uji installer (`tests/uji-utama.js`) menelusuri `import` dan memastikan setiap file `src/*.js` benar-benar dimuat — file yang tidak dipakai lagi harus dihapus.
+- Ganti nama fungsi/file → perbarui juga `src/debug-handle.js`, `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
+- Nama field data dari proses utama (`judul`, `nama`, `aktif`, `satuan`, `tamu`, kunci `cfg` seperti `tanyaNama`, …), nama `api.*`, id/kelas di HTML/CSS, dan teks pemberitahuan operator belum diganti — itu bagian `refactor/main-english`.
+- Uji di `tests/uji-utama.js` memeriksa: setiap `import` punya `export` yang cocok, dan setiap file `src/*.js` benar-benar dimuat (file yang tidak dipakai lagi harus dihapus).
 
 ## Uji
 
 - `tests/uji-utama.js` memakai Electron tiruan (`tests/bantu.js`); uji video memakai FFmpeg sungguhan.
-- `tests/uji-tampilan.js` memakai Playwright + tiruan `window.api` (string `PALSU`, backslash ditulis ganda).
+- `tests/uji-tampilan.js` memakai Playwright + tiruan `window.api` (string `PALSU`, backslash ditulis ganda); kode di halaman memakai `__leura.*`.
 - Setelah mengubah kode: jalankan uji yang relevan, lalu `npm run cek` sebelum PR. Fitur baru → tambah uji.
 - GitHub Actions (`.github/workflows/uji.yml`) menjalankan semuanya di setiap PR (±6 menit).
 
 ## Status (11 Nov 2026)
 
 - `main` = v1.1.0 + ESLint/Prettier/CI (PR #2). Leura.app 1.1.0 terpasang di Applications.
-- **Langkah berikutnya (beres-beres langkah 2):** `refactor/renderer-modules` — `src/` jadi ES module + nama bahasa Inggris, per bagian (QR → quiz → pesan → photobooth → Admin → kamera), uji tetap hijau setiap bagian. Setelah selesai: nyalakan lagi `prefer-const` untuk `src/` dan hapus `GLOBAL_TAMPILAN`.
+- `refactor/renderer-modules` (beres-beres langkah 2): `src/` sudah seluruhnya ES module + bahasa Inggris, `prefer-const` menyala, `GLOBAL_TAMPILAN` dihapus. Menunggu: uji dengan kamera Sony A6700 asli, lalu PR.
 - Sesudahnya: `refactor/main-english`, `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
 - Sebelum acara pertama: `feature/guest-consent` (UU PDP), `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

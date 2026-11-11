@@ -23,6 +23,8 @@ import {
   defaultTexts,
 } from './template-render.js';
 import { applyLut, sampleFilterPhoto, loadLut, forgetLut } from './lut.js';
+import { $, state } from './state.js';
+import { flash, resetIdle, show } from './app.js';
 
 const TEMPLATE_SIZES = {
   '4r-tegak': { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
@@ -39,7 +41,7 @@ const ARRANGEMENTS = [
 const BACKGROUND_COLORS = ['#FFFFFF', '#F3EDE4', '#F6E1E3', '#E3EBE1', '#E6ECF5', '#1D1D1F'];
 const TEXT_COLORS = ['#1D1D1F', '#FFFFFF', '#6E6E73', '#8C6A4F', '#5B3A40', '#2F4030'];
 
-// Editor state (exported for the UI tests through bridge.js)
+// Editor state (also exposed to the UI tests through debug-handle.js)
 export const te = {
   tpl: null,
   images: {},
@@ -63,7 +65,7 @@ export const clearTemplateCouple = () => {
 /* ---------------- Template list on the couple page ---------------- */
 export async function listCoupleTemplates(couple = templateCouple) {
   templateCouple = couple;
-  if (current === 'tambah' || current === 'tpleditor') setTemplateCoupleName(couple ? couple.name : null);
+  if (state.current === 'tambah' || state.current === 'tpleditor') setTemplateCoupleName(couple ? couple.name : null);
   const box = $('tplList');
   box.innerHTML = '';
   const list = couple ? await api.listTemplates(couple.id) : [];

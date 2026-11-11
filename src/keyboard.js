@@ -1,55 +1,57 @@
 /* =====================================================================
-   keyboard.js — keyboard di layar untuk monitor sentuh (tanpa keyboard fisik)
-   Pakai:  buatKeyboard($('wadah'), $('input'), { onEnter: () => …, maks: 40 })
-   - Huruf besar otomatis di awal setiap kata (nama orang), ⇧ untuk sekali ganti.
-   - Tombol 123 untuk angka & tanda baca yang aman untuk nama file.
-   - ⌫ ditahan = menghapus terus.
-   - Keyboard fisik tetap bisa dipakai (Enter = Lanjut).
-   Tulisan tombol mengikuti bahasa layar tamu (t('kb.…') di bahasa.js).
+   keyboard.js — on-screen keyboard for touch monitors (no physical keyboard)
+   Use:  createKeyboard($('container'), $('input'), { onEnter: () => …, maxLength: 40 })
+   - Automatic capital at the start of every word (people's names), ⇧ for one change.
+   - The 123 key for numbers & punctuation that is safe in file names.
+   - Holding ⌫ keeps deleting.
+   - A physical keyboard still works (Enter = Continue).
+   Key labels follow the guest screen language (t('kb.…') in language.js).
+   Key values ('spasi', 'enter', …) are data-k attributes used by CSS and tests.
    ===================================================================== */
+import { t } from './language.js';
 
-const KB_HURUF = [
+const LETTER_KEYS = [
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
   ['⇧', 'z', 'x', 'c', 'v', 'b', 'n', 'm', '⌫'],
   ['123', 'spasi', 'enter'],
 ];
-// Tanpa / \ : * ? " < > | — karakter itu tidak boleh ada di nama file
-const KB_ANGKA = [
+// No / \ : * ? " < > | — those characters are not allowed in file names
+const NUMBER_KEYS = [
   ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['-', "'", '.', ',', '&', '(', ')', '!', '@'],
   ['#', '+', '=', '_', '~', '%', '⌫'],
   ['ABC', 'spasi', 'enter'],
 ];
 
-function buatKeyboard(wadah, input, opsi = {}) {
-  const maks = opsi.maks || 40;
-  let mode = 'huruf',
+export function createKeyboard(container, input, options = {}) {
+  const maxLength = options.maxLength || 40;
+  let mode = 'letters',
     shift = false,
     shiftManual = false,
-    ulang = null,
-    jeda = null;
-  input.setAttribute('inputmode', 'none'); // jangan munculkan keyboard bawaan sistem (Windows/iPad)
+    repeatTimer = null,
+    repeatDelay = null;
+  input.setAttribute('inputmode', 'none'); // don't show the system keyboard (Windows/iPad)
   input.setAttribute('autocomplete', 'off');
   input.setAttribute('autocorrect', 'off');
   input.setAttribute('spellcheck', 'false');
-  input.maxLength = maks;
+  input.maxLength = maxLength;
 
-  // Huruf besar otomatis: di awal teks atau setelah spasi
-  const awalKata = () => {
+  // Automatic capitals: at the start of the text or after a space
+  const atWordStart = () => {
     const pos = input.selectionStart ?? input.value.length;
     return pos === 0 || /[\s\-(]$/.test(input.value.slice(0, pos));
   };
-  const besar = () => shift || (!shiftManual && awalKata());
+  const upper = () => shift || (!shiftManual && atWordStart());
 
-  function ketik(teks) {
-    if (input.value.length >= maks && input.selectionStart === input.selectionEnd) return;
+  function typeText(text) {
+    if (input.value.length >= maxLength && input.selectionStart === input.selectionEnd) return;
     const a = input.selectionStart ?? input.value.length,
       b = input.selectionEnd ?? a;
-    input.setRangeText(teks, a, b, 'end');
+    input.setRangeText(text, a, b, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  function hapus() {
+  function deleteChar() {
     let a = input.selectionStart ?? input.value.length;
     const b = input.selectionEnd ?? a;
     if (a === b) {
@@ -59,48 +61,48 @@ function buatKeyboard(wadah, input, opsi = {}) {
     input.setRangeText('', a, b, 'end');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
-  function berhentiUlang() {
-    clearTimeout(jeda);
-    clearInterval(ulang);
-    jeda = ulang = null;
+  function stopRepeat() {
+    clearTimeout(repeatDelay);
+    clearInterval(repeatTimer);
+    repeatDelay = repeatTimer = null;
   }
 
-  function tekan(k) {
+  function press(k) {
     if (k === '⌫') {
-      hapus();
-      return gambar();
+      deleteChar();
+      return render();
     }
     if (k === '⇧') {
-      shift = !besar();
+      shift = !upper();
       shiftManual = !shift;
-      return gambar();
+      return render();
     }
     if (k === '123') {
-      mode = 'angka';
-      return gambar();
+      mode = 'numbers';
+      return render();
     }
     if (k === 'ABC') {
-      mode = 'huruf';
-      return gambar();
+      mode = 'letters';
+      return render();
     }
     if (k === 'enter') {
-      if (opsi.onEnter) opsi.onEnter();
+      if (options.onEnter) options.onEnter();
       return;
     }
     if (k === 'spasi') {
-      if (input.value && !/\s$/.test(input.value.slice(0, input.selectionStart))) ketik(' ');
-    } else ketik(mode === 'huruf' && besar() ? k.toUpperCase() : k);
+      if (input.value && !/\s$/.test(input.value.slice(0, input.selectionStart))) typeText(' ');
+    } else typeText(mode === 'letters' && upper() ? k.toUpperCase() : k);
     shift = false;
     shiftManual = false;
-    gambar();
+    render();
   }
 
-  function gambar() {
-    const baris = mode === 'huruf' ? KB_HURUF : KB_ANGKA;
-    const up = mode === 'huruf' && besar();
-    wadah.innerHTML = '';
-    wadah.classList.add('kb');
-    for (const row of baris) {
+  function render() {
+    const rows = mode === 'letters' ? LETTER_KEYS : NUMBER_KEYS;
+    const up = mode === 'letters' && upper();
+    container.innerHTML = '';
+    container.classList.add('kb');
+    for (const row of rows) {
       const r = document.createElement('div');
       r.className = 'kb-baris';
       for (const k of row) {
@@ -130,56 +132,56 @@ function buatKeyboard(wadah, input, opsi = {}) {
         } else b.textContent = up ? k.toUpperCase() : k;
         r.appendChild(b);
       }
-      wadah.appendChild(r);
+      container.appendChild(r);
     }
   }
 
-  // pointerdown: langsung bereaksi di layar sentuh, dan kursor tidak lepas dari kolom nama
-  wadah.addEventListener('pointerdown', e => {
+  // pointerdown: reacts immediately on touch screens, and the cursor stays in the name field
+  container.addEventListener('pointerdown', e => {
     const b = e.target.closest('.kb-tombol');
     if (!b || b.disabled) return;
     e.preventDefault();
     input.focus({ preventScroll: true });
     b.classList.add('ditekan');
     const k = b.dataset.k;
-    tekan(k);
+    press(k);
     if (k === '⌫') {
-      jeda = setTimeout(() => {
-        ulang = setInterval(hapus, 70);
+      repeatDelay = setTimeout(() => {
+        repeatTimer = setInterval(deleteChar, 70);
       }, 450);
     }
   });
-  const lepas = () => {
-    const tadi = !!ulang;
-    berhentiUlang();
-    wadah.querySelectorAll('.ditekan').forEach(x => x.classList.remove('ditekan'));
-    if (tadi) gambar();
+  const release = () => {
+    const wasRepeating = !!repeatTimer;
+    stopRepeat();
+    container.querySelectorAll('.ditekan').forEach(x => x.classList.remove('ditekan'));
+    if (wasRepeating) render();
   };
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => wadah.addEventListener(ev, lepas));
-  // Ketikan dari keyboard fisik: perbarui huruf besar & tombol Lanjut
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => container.addEventListener(ev, release));
+  // Typing on a physical keyboard: update capitals & the Continue button
   input.addEventListener('input', () => {
-    if (!wadah.querySelector('.ditekan')) gambar();
+    if (!container.querySelector('.ditekan')) render();
     else {
-      const en = wadah.querySelector('.kb-enter');
+      const en = container.querySelector('.kb-enter');
       if (en) en.disabled = !input.value.trim();
     }
   });
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (opsi.onEnter) opsi.onEnter();
+      if (options.onEnter) options.onEnter();
     }
   });
 
-  gambar();
+  render();
   return {
-    gambarUlang: gambar, // mis. setelah bahasa layar tamu diganti
+    redraw: render, // e.g. after the guest screen language changes
     reset: () => {
-      mode = 'huruf';
+      mode = 'letters';
       shift = false;
       shiftManual = false;
-      berhentiUlang();
-      gambar();
+      stopRepeat();
+      render();
     },
   };
 }

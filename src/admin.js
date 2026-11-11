@@ -7,6 +7,8 @@ import { applyCouples, fillCoupleSel } from './couple.js';
 import { loadSettings } from './settings.js';
 import { openStream, fillDevices } from './camera.js';
 import { usingSony, fillAdminCamera } from './sony-camera.js';
+import { $, store } from './state.js';
+import { setNotice, show } from './app.js';
 
 // Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
 // so after the app is closed and opened again, Admin must log in again.

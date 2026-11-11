@@ -7,13 +7,15 @@
 import { coupleMenu, applyMenu } from './settings.js';
 import { listCoupleTemplates, clearTemplateCouple } from './template-editor.js';
 import { loadSessions } from './session-history.js';
+import { $, MAX_Q, state } from './state.js';
+import { flash, show } from './app.js';
 
 export function applyCouples(d) {
-  couplesData = d;
-  activeCouple = d.couples.find(c => c.id === d.activeId) || d.couples[0] || null;
-  $('couple').textContent = activeCouple ? activeCouple.name : '';
-  $('welcome').textContent = (activeCouple && activeCouple.welcome) || cfg.welcome || '';
-  cfg.quiz = activeCouple ? activeCouple.questions.slice() : [];
+  state.couplesData = d;
+  state.activeCouple = d.couples.find(c => c.id === d.activeId) || d.couples[0] || null;
+  $('couple').textContent = state.activeCouple ? state.activeCouple.name : '';
+  $('welcome').textContent = (state.activeCouple && state.activeCouple.welcome) || state.cfg.welcome || '';
+  state.cfg.quiz = state.activeCouple ? state.activeCouple.questions.slice() : [];
   if ($('btnToPesan')) applyMenu();
 }
 // Couple list in Admin: tap a couple to open its page
@@ -24,8 +26,8 @@ export async function fillCoupleSel() {
     api.countTemplates ? api.countTemplates() : {},
     api.getSessions(),
   ]);
-  const sorted = [...couplesData.couples].sort(
-    (a, b) => (b.id === couplesData.activeId) - (a.id === couplesData.activeId),
+  const sorted = [...state.couplesData.couples].sort(
+    (a, b) => (b.id === state.couplesData.activeId) - (a.id === state.couplesData.activeId),
   );
   for (const c of sorted) {
     const sessionCount = sessions.filter(x => x.couple === c.name).length,
@@ -41,7 +43,7 @@ export async function fillCoupleSel() {
       .join(', ');
     row.querySelector('small').textContent =
       `${menu} · ${templateCount} template${templateCount === 1 ? '' : 's'} · ${sessionCount} session${sessionCount === 1 ? '' : 's'}`;
-    if (c.id === couplesData.activeId) {
+    if (c.id === state.couplesData.activeId) {
       const badge = document.createElement('em');
       badge.className = 'cp-aktif';
       badge.textContent = 'Active';
@@ -52,17 +54,17 @@ export async function fillCoupleSel() {
   }
 }
 function disarmDelete() {
-  clearTimeout(delArmed);
-  delArmed = null;
+  clearTimeout(state.delArmed);
+  state.delArmed = null;
   $('delLabel').textContent = 'Delete couple';
 }
 async function deleteCouple() {
-  const target = couplesData.couples.find(c => c.id === editingId);
+  const target = state.couplesData.couples.find(c => c.id === state.editingId);
   if (!target) return;
-  if (!delArmed) {
+  if (!state.delArmed) {
     // press twice to confirm
     $('delLabel').textContent = 'Delete for sure?';
-    delArmed = setTimeout(disarmDelete, 3000);
+    state.delArmed = setTimeout(disarmDelete, 3000);
     return;
   }
   disarmDelete();
@@ -119,7 +121,7 @@ function updateQCount() {
 }
 // Couple page: info, quiz questions, photo templates, folder & delete — all in one place
 function openCouplePage(c, keepForm = false) {
-  editingId = c ? c.id : null;
+  state.editingId = c ? c.id : null;
   disarmDelete();
   $('tambahTitle').textContent = c ? c.name : 'Add couple';
   $('cpTplBaru').style.display = c ? 'none' : '';
@@ -134,7 +136,7 @@ function openCouplePage(c, keepForm = false) {
   document.querySelectorAll('.qIn').forEach((inp, i) => {
     inp.value = qs[i] || '';
   });
-  $('fActive').checked = c ? c.id === couplesData.activeId : true;
+  $('fActive').checked = c ? c.id === state.couplesData.activeId : true;
   const m = coupleMenu(c);
   $('fMenuPesan').checked = m.pesan;
   $('fMenuQuiz').checked = m.quiz;
@@ -149,7 +151,7 @@ function openCouplePage(c, keepForm = false) {
 }
 async function saveCouple() {
   const data = {
-    id: editingId || undefined,
+    id: state.editingId || undefined,
     name: $('fName').value,
     welcome: $('fWelcome').value,
     questions: [...document.querySelectorAll('.qIn')].map(i => i.value),
@@ -167,7 +169,7 @@ async function saveCouple() {
   if ($('fActive').checked && d.activeId !== r.couple.id) d = (await api.setActiveCouple(r.couple.id)).data;
   applyCouples(d);
   const activeNote = d.activeId === r.couple.id ? ' and set as active' : '';
-  if (!editingId) {
+  if (!state.editingId) {
     // new couple: stay on this page so templates can be created right away
     openCouplePage(r.couple, true);
     flash('tplMsg', `"${r.couple.name}" saved${activeNote}. You can now create their photo templates.`);
@@ -188,7 +190,7 @@ export function setupCouples() {
   });
   $('btnDelCouple').onclick = deleteCouple;
   $('btnCoupleFolder').onclick = async () => {
-    const r = await api.openCoupleFolder(editingId);
+    const r = await api.openCoupleFolder(state.editingId);
     if (r) flash('cpMsg', r, true);
   };
   $('btnTambahBatal').onclick = () => {

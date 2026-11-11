@@ -1,29 +1,35 @@
 /* =====================================================================
-   app.js — navigasi antar halaman, kembali otomatis (idle), notifikasi
+   app.js — moving between pages, going back automatically when idle,
+   notices and short form messages
    ===================================================================== */
+import { renderGreeting, startGuest } from './guest-name.js';
+import { $, SCREENS, state } from './state.js';
+import { setTemplateCoupleName } from './template-render.js';
+import { getTemplateCouple } from './template-editor.js';
+import { cameraModeForScreen } from './sony-camera.js';
 
-function show(name) {
-  current = name;
+export function show(name) {
+  state.current = name;
   if (name === 'start') {
-    namaTamu = '';
-    kegiatanTamu = 0;
-    if (typeof tulisSapaan === 'function') tulisSapaan();
-  } // tamu berikutnya mulai dari nol
-  if (name === 'thanks') kegiatanTamu++;
-  if (name === 'utama') $('btnSelesaiTamu').style.display = kegiatanTamu ? '' : 'none';
-  // Nama {couple} di pratinjau template = couple yang sedang diedit, hanya selama di halaman couple/editor.
-  // Di halaman lain (termasuk foto tamu) selalu couple aktif.
+    state.guestName = '';
+    state.guestActivity = 0;
+    renderGreeting();
+  } // the next guest starts from zero
+  if (name === 'thanks') state.guestActivity++;
+  if (name === 'utama') $('btnSelesaiTamu').style.display = state.guestActivity ? '' : 'none';
+  // {couple} in the template preview = the couple being edited, only while on the couple page/editor.
+  // On other pages (including guest photos) it's always the active couple.
   setTemplateCoupleName(
     ['tambah', 'tpleditor'].includes(name) && getTemplateCouple() ? getTemplateCouple().name : null,
   );
   SCREENS.forEach(s => $(s).classList.toggle('on', s === name));
-  if (typeof cameraModeForScreen === 'function') cameraModeForScreen(name); // kamera Sony: mode video/foto sesuai halaman
+  cameraModeForScreen(name); // Sony camera: video/photo mode to match the page
   document.body.classList.toggle('camOn', ['utama', 'pesan', 'quiz', 'photo'].includes(name));
   resetIdle();
 }
-function resetIdle() {
-  clearTimeout(idleTimer);
-  if (busy) return;
+export function resetIdle() {
+  clearTimeout(state.idleTimer);
+  if (state.busy) return;
   const wait = {
     nama: 60000,
     utama: 60000,
@@ -38,14 +44,14 @@ function resetIdle() {
     tpleditor: 900000,
     tambah: 900000,
     thanks: 20000,
-  }[current];
-  // Halaman Terima kasih dengan QR tampil lebih lama supaya tamu sempat memindai
-  const lama = current === 'thanks' && $('thanksQR') && $('thanksQR').style.display !== 'none' ? 60000 : wait;
-  // Terima kasih → kembali ke menu (tamu mungkin ingin mencoba kegiatan lain); halaman lain → Start
-  if (lama) idleTimer = setTimeout(() => show(current === 'thanks' ? 'utama' : 'start'), lama);
+  }[state.current];
+  // The Thank you page with a QR stays longer so guests have time to scan it
+  const delay = state.current === 'thanks' && $('thanksQR') && $('thanksQR').style.display !== 'none' ? 60000 : wait;
+  // Thank you → back to the menu (the guest may want another activity); other pages → Start
+  if (delay) state.idleTimer = setTimeout(() => show(state.current === 'thanks' ? 'utama' : 'start'), delay);
 }
 // Short green/red message under a form in Admin; clears itself after 4 seconds
-function flash(id, text, isErr) {
+export function flash(id, text, isErr) {
   const el = $(id);
   el.className = 'note ' + (isErr ? 'err' : 'ok');
   el.textContent = text;
@@ -54,16 +60,16 @@ function flash(id, text, isErr) {
     el.textContent = '';
   }, 4000);
 }
-function setNotice(t, ms) {
-  clearTimeout(noticeTimer);
+export function setNotice(t, ms) {
+  clearTimeout(state.noticeTimer);
   $('notice').textContent = t;
   $('notice').style.display = t ? 'block' : 'none';
-  if (t && ms) noticeTimer = setTimeout(() => setNotice(''), ms);
+  if (t && ms) state.noticeTimer = setTimeout(() => setNotice(''), ms);
 }
 
-// Pasang tombol-tombol fitur ini (dipanggil sekali dari start.js)
-function pasangNavigasi() {
-  $('btnStart').onclick = mulaiTamu;
+// Wire up this feature's buttons (called once from start.js)
+export function setupNavigation() {
+  $('btnStart').onclick = startGuest;
   $('btnCobaLagi').onclick = () => show('utama');
   $('btnSelesaiTamu').onclick = () => show('start');
 }
