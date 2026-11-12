@@ -84,9 +84,9 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - Setelah mengubah kode: jalankan uji yang relevan, lalu `npm run cek` sebelum PR. Fitur baru → tambah uji.
 - GitHub Actions (`.github/workflows/uji.yml`) menjalankan semuanya di setiap PR (±6 menit).
 
-## Status (11 Nov 2026)
+## Status (12 Nov 2026)
 
-- `main` = v1.1.0 + ESLint/Prettier/CI (PR #2). Leura.app 1.1.0 terpasang di Applications.
-- `refactor/renderer-modules` (beres-beres langkah 2): `src/` sudah seluruhnya ES module + bahasa Inggris, `prefer-const` menyala, `GLOBAL_TAMPILAN` dihapus. Versi 1.1.1. App sudah dicoba Gusvin; jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- Sesudahnya: `refactor/main-english`, `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
+- `main` = v1.1.1: `src/` seluruhnya ES module + bahasa Inggris (PR #4). Leura.app 1.1.0 terpasang di Applications. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
+- `refactor/main-english` bagian 1 (v1.1.2): file, fungsi, komentar dan log di `main/` bahasa Inggris. Belum diubah: nama `api.*`/saluran IPC (bagian 2) dan nama data tersimpan + migrasi data lama (bagian 3), masing-masing branch sendiri.
+- Sesudahnya: `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
 - Sebelum acara pertama: `feature/guest-consent` (UU PDP), `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.
