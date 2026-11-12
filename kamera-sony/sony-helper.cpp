@@ -2,7 +2,7 @@
    sony-helper.cpp — program penghubung antara aplikasi dan kamera Sony
    (Camera Remote SDK v2.02, mode Remote Transfer lewat USB).
 
-   Dijalankan oleh main/kamera-sony.js sebagai proses terpisah, jadi kalau
+   Dijalankan oleh main/sony-camera.js sebagai proses terpisah, jadi kalau
    kamera atau SDK bermasalah, aplikasi utamanya tidak ikut berhenti.
 
    Perintah masuk lewat stdin, satu baris per perintah, dipisah TAB:

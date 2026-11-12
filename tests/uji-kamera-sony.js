@@ -90,7 +90,7 @@ function simpanLaporan() {
   let t = Date.now();
   let r = await kirim('sambung', HASIL);
   if (!r.ok) {
-    tulis(`✗ Sambung: ${require('../main/pesan-sony').jelaskanSambung(r)}`);
+    tulis(`✗ Sambung: ${require('../main/sony-messages').explainConnectError(r)}`);
     return akhiri(1);
   }
   tulis(`✓ Sambung: ${r.model} (${detik(Date.now() - t)})${r.catatan ? '  ⚠ pengaturan gagal: ' + r.catatan : ''}`);

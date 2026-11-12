@@ -1,6 +1,6 @@
 /* =====================================================================
-   jendela-aktif.js — menyimpan jendela aplikasi yang sedang terbuka,
-   supaya modul lain (pengaturan, rekaman) bisa memakainya
+   active-window.js — holds the app window that is currently open,
+   so other modules (settings, recording) can use it
    ===================================================================== */
 let win = null;
 module.exports = {

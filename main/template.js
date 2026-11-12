@@ -1,52 +1,61 @@
 /* =====================================================================
-   template.js — template desain foto Photo Booth (per couple)
-   Disimpan di <folder data>/templates/<id>/:
-     template.json   ukuran, warna latar, posisi foto 1-4, teks
-     latar.png/jpg   gambar latar (opsional, dari Canva/Photoshop)
-     bingkai.png     PNG transparan yang menimpa foto (opsional)
+   template.js — Photo Booth photo design templates (per couple)
+   Stored in <data folder>/templates/<id>/:
+     template.json   size, background color, positions of photos 1-4, texts
+     latar.png/jpg   background image (optional, from Canva/Photoshop)
+     bingkai.png     transparent PNG drawn over the photos (optional)
+   Field names (nama, ukuran, latarWarna, …) and the image names latar/bingkai
+   are stored on disk and shared with the UI.
    ===================================================================== */
 const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { userData, readJSON, writeJSON } = require('./penyimpanan');
-const catatan = require('./catatan');
+const { userData, readJSON, writeJSON } = require('./storage');
+const log = require('./log');
 
 const templatesDir = path.join(userData, 'templates');
-const UKURAN = {
-  // ukuran hasil dalam piksel (300 dpi)
+const SIZES = {
+  // output size in pixels (300 dpi)
   '4r-tegak': { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
   '4r-datar': { W: 1800, H: 1200, nama: '4R landscape (6×4)' },
   strip: { W: 600, H: 1800, nama: 'Strip 2×6' },
   persegi: { W: 1200, H: 1200, nama: 'Square' },
 };
-const MAX_GAMBAR = 25 * 1024 * 1024; // batas ukuran file gambar yang diunggah
-const FONT = ['sans', 'serif', 'script'];
-const RASIO = ['3:2', '4:3', '16:9', '1:1', '4:5', '3:4', '2:3']; // rasio kotak foto (lebar:tinggi)
+const MAX_IMAGE = 25 * 1024 * 1024; // size limit for uploaded image files
+const FONTS = ['sans', 'serif', 'script'];
+const RATIOS = ['3:2', '4:3', '16:9', '1:1', '4:5', '3:4', '2:3']; // photo box ratio (width:height)
+const IMAGES = ['latar', 'bingkai']; // background, frame
 
-const angka = (v, lo, hi, d) => {
+const number = (v, lo, hi, d) => {
   const n = Number(v);
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
 };
-const warna = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : d);
+const color = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : d);
 
-// Bersihkan data dari editor supaya selalu valid
-function bersihkan(t) {
-  const ukuran = UKURAN[t.ukuran] ? t.ukuran : '4r-tegak';
-  const { W, H } = UKURAN[ukuran];
+// Clean the data from the editor so it is always valid
+function cleanTemplate(t) {
+  const size = SIZES[t.ukuran] ? t.ukuran : '4r-tegak';
+  const { W, H } = SIZES[size];
   const slots = (Array.isArray(t.slots) ? t.slots : []).slice(0, 4).map(s => {
-    const w = angka(s.w, 40, W, W / 2),
-      h = angka(s.h, 40, H, H / 4);
-    return { x: angka(s.x, -w / 2, W - w / 2, 0), y: angka(s.y, -h / 2, H - h / 2, 0), w, h, r: angka(s.r, 0, 200, 8) };
+    const w = number(s.w, 40, W, W / 2),
+      h = number(s.h, 40, H, H / 4);
+    return {
+      x: number(s.x, -w / 2, W - w / 2, 0),
+      y: number(s.y, -h / 2, H - h / 2, 0),
+      w,
+      h,
+      r: number(s.r, 0, 200, 8),
+    };
   });
   while (slots.length < 4) slots.push({ x: 40, y: 40 + slots.length * 60, w: W / 3, h: H / 6, r: 8 });
   const texts = (Array.isArray(t.texts) ? t.texts : []).slice(0, 12).map((x, i) => ({
     id: String(x.id || 't' + i).slice(0, 20),
     text: String(x.text || '').slice(0, 120),
-    x: angka(x.x, 0, W, W / 2),
-    y: angka(x.y, 0, H, H / 2),
-    size: angka(x.size, 10, 400, 60),
-    color: warna(x.color, '#1D1D1F'),
-    font: FONT.includes(x.font) ? x.font : 'sans',
+    x: number(x.x, 0, W, W / 2),
+    y: number(x.y, 0, H, H / 2),
+    size: number(x.size, 10, 400, 60),
+    color: color(x.color, '#1D1D1F'),
+    font: FONTS.includes(x.font) ? x.font : 'sans',
     bold: !!x.bold,
   }));
   return {
@@ -59,25 +68,25 @@ function bersihkan(t) {
       String(t.nama || '')
         .trim()
         .slice(0, 60) || 'Untitled template',
-    ukuran,
+    ukuran: size,
     W,
     H,
-    latarWarna: warna(t.latarWarna, '#FFFFFF'),
-    rasio: RASIO.includes(t.rasio) ? t.rasio : null,
-    // Filter foto (LUT .cube dari main/filter.js). Kosong = tanpa filter.
+    latarWarna: color(t.latarWarna, '#FFFFFF'),
+    rasio: RATIOS.includes(t.rasio) ? t.rasio : null,
+    // Photo filter (.cube LUT from main/filter.js). Empty = no filter.
     filter:
       String(t.filter || '')
         .replace(/[^a-z0-9_-]/gi, '')
         .slice(0, 40) || null,
-    filterKekuatan: Math.round(angka(t.filterKekuatan, 0, 100, 100)),
-    filterTamu: t.filterTamu !== false, // tamu masih boleh memilih filter lain
+    filterKekuatan: Math.round(number(t.filterKekuatan, 0, 100, 100)),
+    filterTamu: t.filterTamu !== false, // guests may still pick another filter
     slots,
     texts,
   };
 }
 
 const folder = id => path.join(templatesDir, id);
-const ekstensi = bytes =>
+const imageType = bytes =>
   bytes[0] === 0x89 && bytes[1] === 0x50 ? 'png' : bytes[0] === 0xff && bytes[1] === 0xd8 ? 'jpg' : null;
 function dataUrl(file) {
   try {
@@ -87,25 +96,25 @@ function dataUrl(file) {
     return null;
   }
 }
-function cariGambar(id, dasar) {
+function findImage(id, base) {
   for (const ext of ['png', 'jpg']) {
-    const f = path.join(folder(id), `${dasar}.${ext}`);
+    const f = path.join(folder(id), `${base}.${ext}`);
     if (fs.existsSync(f)) return f;
   }
   return null;
 }
-function hapusGambar(id, dasar) {
+function deleteImage(id, base) {
   for (const ext of ['png', 'jpg']) {
     try {
-      fs.unlinkSync(path.join(folder(id), `${dasar}.${ext}`));
+      fs.unlinkSync(path.join(folder(id), `${base}.${ext}`));
     } catch {
-      /* gambar dengan format itu memang tidak ada */
+      /* there is no image in that format */
     }
   }
 }
 
-// Daftar template untuk satu couple, lengkap dengan gambarnya (sebagai data URL)
-function daftarTemplate(coupleId) {
+// Templates for one couple, with their images (as data URLs)
+function listTemplates(coupleId) {
   let ids;
   try {
     ids = fs.readdirSync(templatesDir);
@@ -116,15 +125,15 @@ function daftarTemplate(coupleId) {
   for (const id of ids) {
     const t = readJSON(path.join(folder(id), 'template.json'), null);
     if (!t || (coupleId && t.coupleId !== coupleId)) continue;
-    const latar = cariGambar(id, 'latar'),
-      bingkai = cariGambar(id, 'bingkai');
-    out.push({ ...t, latarUrl: latar && dataUrl(latar), bingkaiUrl: bingkai && dataUrl(bingkai) });
+    const background = findImage(id, 'latar'),
+      frame = findImage(id, 'bingkai');
+    out.push({ ...t, latarUrl: background && dataUrl(background), bingkaiUrl: frame && dataUrl(frame) });
   }
   return out.sort((a, b) => (a.dibuat || 0) - (b.dibuat || 0));
 }
 
-// Jumlah template setiap couple (tanpa memuat gambar), untuk daftar couple di Admin
-function hitungTemplate() {
+// Number of templates per couple (without loading images), for the couple list in Admin
+function countTemplates() {
   const n = {};
   let ids;
   try {
@@ -138,8 +147,8 @@ function hitungTemplate() {
   }
   return n;
 }
-// Dipanggil saat couple dihapus supaya templatenya tidak tertinggal
-function hapusTemplateCouple(coupleId) {
+// Called when a couple is deleted so its templates aren't left behind
+function deleteCoupleTemplates(coupleId) {
   if (!coupleId) return 0;
   let ids;
   let n = 0;
@@ -155,52 +164,52 @@ function hapusTemplateCouple(coupleId) {
         fs.rmSync(folder(id), { recursive: true, force: true });
         n++;
       } catch (e) {
-        catatan.peringatan(`Template ${id} tidak bisa dihapus: ${e.message}`);
+        log.warn(`Template ${id} could not be deleted: ${e.message}`);
       }
     }
   }
   return n;
 }
 
-function daftarkan() {
-  ipcMain.handle('template-ukuran', () => UKURAN);
-  ipcMain.handle('count-templates', () => hitungTemplate());
-  ipcMain.handle('list-templates', (e, coupleId) => daftarTemplate(coupleId));
+function register() {
+  ipcMain.handle('template-ukuran', () => SIZES);
+  ipcMain.handle('count-templates', () => countTemplates());
+  ipcMain.handle('list-templates', (e, coupleId) => listTemplates(coupleId));
 
-  // gambar: { latar, bingkai } — masing-masing Uint8Array (ganti), null (hapus), atau tidak ada (biarkan)
-  ipcMain.handle('save-template', (e, input, gambar = {}) => {
+  // images: { latar, bingkai } — each a Uint8Array (replace), null (delete), or missing (keep)
+  ipcMain.handle('save-template', (e, input, images = {}) => {
     try {
       if (!input || !input.coupleId) return { error: 'No couple selected.' };
-      const t = bersihkan(input);
-      const lama = readJSON(path.join(folder(t.id), 'template.json'), null);
-      t.dibuat = (lama && lama.dibuat) || Date.now();
+      const t = cleanTemplate(input);
+      const old = readJSON(path.join(folder(t.id), 'template.json'), null);
+      t.dibuat = (old && old.dibuat) || Date.now();
       t.diubah = Date.now();
       fs.mkdirSync(folder(t.id), { recursive: true });
-      for (const dasar of ['latar', 'bingkai']) {
-        if (!(dasar in gambar)) continue;
-        hapusGambar(t.id, dasar);
-        if (gambar[dasar] === null) continue;
-        const bytes = Buffer.from(gambar[dasar]);
-        if (bytes.length > MAX_GAMBAR) return { error: 'The image is too large (max 25 MB).' };
-        const ext = ekstensi(bytes);
+      for (const base of IMAGES) {
+        if (!(base in images)) continue;
+        deleteImage(t.id, base);
+        if (images[base] === null) continue;
+        const bytes = Buffer.from(images[base]);
+        if (bytes.length > MAX_IMAGE) return { error: 'The image is too large (max 25 MB).' };
+        const ext = imageType(bytes);
         if (!ext) return { error: 'The image must be a PNG or JPG.' };
-        if (dasar === 'bingkai' && ext !== 'png')
+        if (base === 'bingkai' && ext !== 'png')
           return { error: 'The frame must be a PNG so the photo areas can be transparent.' };
-        fs.writeFileSync(path.join(folder(t.id), `${dasar}.${ext}`), bytes);
+        fs.writeFileSync(path.join(folder(t.id), `${base}.${ext}`), bytes);
       }
       writeJSON(path.join(folder(t.id), 'template.json'), t);
-      return { ok: true, template: daftarTemplate(t.coupleId).find(x => x.id === t.id) };
+      return { ok: true, template: listTemplates(t.coupleId).find(x => x.id === t.id) };
     } catch (err) {
-      console.log('Gagal menyimpan template: ' + err.message);
+      console.log('Could not save the template: ' + err.message);
       return { error: err.message };
     }
   });
 
   ipcMain.handle('delete-template', (e, id) => {
-    const bersih = String(id || '').replace(/[^a-z0-9_-]/gi, '');
-    if (!bersih) return { error: 'Template not found.' };
+    const clean = String(id || '').replace(/[^a-z0-9_-]/gi, '');
+    if (!clean) return { error: 'Template not found.' };
     try {
-      fs.rmSync(folder(bersih), { recursive: true, force: true });
+      fs.rmSync(folder(clean), { recursive: true, force: true });
       return { ok: true };
     } catch (err) {
       return { error: err.message };
@@ -208,4 +217,4 @@ function daftarkan() {
   });
 }
 
-module.exports = { daftarkan, daftarTemplate, bersihkan, hitungTemplate, hapusTemplateCouple, UKURAN };
+module.exports = { register, listTemplates, cleanTemplate, countTemplates, deleteCoupleTemplates, SIZES };

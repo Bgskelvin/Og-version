@@ -1,16 +1,17 @@
 /* =====================================================================
-   rekaman.js — perekaman video: menulis file, konversi ke MP4 (FFmpeg),
-   pencatatan sesi, dan pemulihan rekaman yang terputus.
-   Dengan kamera Sony: kamera merekam ke kartu SD, lalu file MP4-nya
-   disalin ke folder couple di belakang layar (lihat kamera-sony.js).
-   Setelah MP4 siap: teks pertanyaan quiz ditempel & versi HP untuk QR
-   dibuat di olah-video.js.
+   recording.js — video recording: writing the file, converting to MP4
+   (FFmpeg), recording the session, and recovering interrupted recordings.
+   With the Sony camera: the camera records to its SD card, then the MP4
+   file is copied to the couple folder in the background (see sony-camera.js).
+   Once the MP4 is ready: quiz question texts are overlaid & the phone
+   version for QR is made in video-processing.js.
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const {
+  userData,
   defaultDir,
   readSessions,
   writeSessions,
@@ -20,26 +21,26 @@ const {
   safeName,
   coupleDir,
   stamp,
-  namaTamu,
-  namaBebas,
-} = require('./penyimpanan');
+  guestFileName,
+  freeBaseName,
+} = require('./storage');
 const { activeCoupleName } = require('./couple');
-const { getWin } = require('./jendela-aktif');
-const sony = require('./kamera-sony');
-const catatan = require('./catatan');
-const olah = require('./olah-video');
-const unggah = require('./unggah');
-olah.pakaiUnggah(unggah);
+const { getWin } = require('./active-window');
+const sony = require('./sony-camera');
+const log = require('./log');
+const videoProcessing = require('./video-processing');
+const upload = require('./upload');
+videoProcessing.useUpload(upload);
 
 /* ---------- FFmpeg: .webm -> .mp4 ---------- */
-const ffmpegPath = olah.path();
+const ffmpegPath = videoProcessing.getFfmpegPath();
 
 function convert(id, webmPath) {
   if (!ffmpegPath) {
     updateSession(id, { status: 'webm' });
     return;
   }
-  olah.antre(
+  videoProcessing.enqueue(
     () =>
       new Promise(resolve => {
         const mp4 = webmPath.replace(/\.webm$/i, '.mp4');
@@ -72,7 +73,7 @@ function convert(id, webmPath) {
           { stdio: 'ignore' },
         );
         p.on('error', err => {
-          catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}): ${err.message}`);
+          log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${err.message}`);
           updateSession(id, { status: 'failed' });
           resolve();
         });
@@ -83,14 +84,14 @@ function convert(id, webmPath) {
               fs.mkdirSync(od, { recursive: true });
               fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
               updateSession(id, { file: path.basename(mp4), status: 'done' });
-              catatan.catat('MP4 selesai: ' + path.basename(mp4));
-              olah.lanjutkanNanti(id); // teks pertanyaan quiz & versi HP untuk QR
+              log.write('MP4 done: ' + path.basename(mp4));
+              videoProcessing.processLater(id); // quiz question texts & phone version for QR
             } else {
-              catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}), kode FFmpeg ${code}`);
+              log.error(`MP4 conversion failed (${path.basename(webmPath)}), FFmpeg code ${code}`);
               updateSession(id, { status: 'failed' });
             }
           } catch (e) {
-            catatan.error(`Ubah ke MP4 gagal (${path.basename(webmPath)}): ${e.message}`);
+            log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${e.message}`);
             updateSession(id, { status: 'failed' });
           }
           resolve();
@@ -98,13 +99,13 @@ function convert(id, webmPath) {
       }),
   );
 }
-// Unduh video lewat QR: kode & link langsung ada, video menyusul setelah diolah & diunggah
-function pesanQR(sid, label, couple) {
-  if (!olah.ada() || !unggah.siapVideo()) return null;
-  return unggah.daftarkanVideo(sid, { couple, label });
+// Video download by QR: the code & link exist right away, the video follows after processing & upload
+function reserveQr(sid, label, couple) {
+  if (!videoProcessing.available() || !upload.videoEnabled()) return null;
+  return upload.queueVideo(sid, { couple, label });
 }
 
-const recs = new Map(); // setiap rekaman punya ID sendiri, jadi dua rekaman tidak bisa tercampur
+const recs = new Map(); // every recording has its own ID, so two recordings can never get mixed up
 let recSeq = 0;
 
 function closeStream(rec) {
@@ -116,22 +117,22 @@ function closeStream(rec) {
   });
 }
 
-// Pulihkan rekaman yang terputus (aplikasi ditutup paksa, crash, atau listrik mati saat merekam).
-// Potongan rekaman sudah tertulis ke disk setiap detik, jadi isinya bisa diselamatkan.
+// Recover interrupted recordings (app force-quit, crash, or power cut while recording).
+// Recording chunks are written to disk every second, so their content can be saved.
 function recoverInterrupted() {
   const list = readSessions();
-  // Video kamera Sony yang belum sempat disalin: file aslinya aman di kartu SD kamera
-  let sonyAda = false;
+  // Sony camera videos not copied yet: the original file is safe on the camera's SD card
+  let sonyFound = false;
   for (const s of list) {
     if (s.kamera === 'sony' && (s.status === 'recording' || s.status === 'transfer')) {
       s.status = 'card-only';
       s.recovered = true;
-      sonyAda = true;
+      sonyFound = true;
     }
   }
   const found = list.filter(s => s.status === 'recording');
   if (!found.length) {
-    if (sonyAda) writeSessions(list);
+    if (sonyFound) writeSessions(list);
     return 0;
   }
   let recovered = 0;
@@ -141,22 +142,22 @@ function recoverInterrupted() {
     try {
       st = fs.statSync(p);
     } catch {
-      /* file rekaman belum ada */
+      /* the recording file doesn't exist yet */
     }
     if (!st || st.size < 1024) {
       s.status = 'lost';
       continue;
-    } // file tidak ada / kosong
+    } // file missing / empty
     s.recovered = true;
-    s.seconds = Math.max(0, Math.round((st.mtimeMs - Date.parse(s.time)) / 1000)); // perkiraan durasi
+    s.seconds = Math.max(0, Math.round((st.mtimeMs - Date.parse(s.time)) / 1000)); // estimated length
     s.status = ffmpegPath ? 'processing' : 'webm';
     recovered++;
   }
   writeSessions(list);
-  console.log(`Rekaman terputus dipulihkan: ${recovered} dari ${found.length}`);
+  console.log(`Interrupted recordings recovered: ${recovered} of ${found.length}`);
   return recovered;
 }
-// Tutup rekaman yang masih terbuka dan selamatkan isinya (dipakai saat tampilan aplikasi crash)
+// Close recordings that are still open and save their content (used when the app UI crashes)
 async function rescueOpenRecordings() {
   for (const rec of [...recs.values()]) {
     recs.delete(rec.id);
@@ -173,8 +174,8 @@ async function rescueOpenRecordings() {
 }
 let recoveredCount = 0;
 
-// Saat aplikasi dibuka: pulihkan rekaman yang terputus, lalu lanjutkan konversi yang belum selesai
-function mulai() {
+// When the app opens: recover interrupted recordings, then continue unfinished conversions
+function start() {
   recoveredCount = recoverInterrupted();
   readSessions()
     .filter(s => s.status === 'processing')
@@ -182,54 +183,54 @@ function mulai() {
       const p = path.join(s.dir || defaultDir, s.file);
       if (fs.existsSync(p)) convert(s.id, p);
     });
-  olah.mulai(); // teks quiz / versi HP yang belum selesai
+  videoProcessing.start(); // quiz texts / phone versions not finished yet
 }
-// Saat tampilan aplikasi crash: selamatkan rekaman yang sedang berjalan
-async function selamatkan() {
+// When the app UI crashes: save the recordings in progress
+async function rescue() {
   recoveredCount = await rescueOpenRecordings();
 }
-// Saat aplikasi ditutup: tutup semua file rekaman yang masih terbuka
-function tutupSemua() {
+// When the app closes: close every recording file that is still open
+function closeAll() {
   for (const rec of recs.values()) {
     try {
       if (rec.stream) rec.stream.end();
     } catch {
-      /* aliran sudah tertutup */
+      /* the stream is already closed */
     }
   }
 }
 
-// Salin video Sony dari kartu ke folder couple, lalu perbarui catatan sesi
-function salinVideoSony(sid, info, file) {
-  sony.unduh(info, file).then(h => {
+// Copy a Sony video from the card to the couple folder, then update the session
+function copySonyVideo(sid, info, file) {
+  sony.download(info, file).then(h => {
     if (h.ok) {
       updateSession(sid, { status: 'done', file: path.basename(file) });
-      catatan.catat('Video Sony tersalin: ' + path.basename(file));
-      olah.lanjutkanNanti(sid);
+      log.write('Sony video copied: ' + path.basename(file));
+      videoProcessing.processLater(sid);
     } else {
       updateSession(sid, { status: 'card-only', error: h.error });
-      catatan.error(`Video Sony belum tersalin (${path.basename(file)}): ${h.error} — masih aman di kartu`);
+      log.error(`Sony video not copied yet (${path.basename(file)}): ${h.error} — still safe on the card`);
     }
   });
 }
 
-function daftarkan() {
+function register() {
   ipcMain.handle('get-sessions', () => readSessions());
 
-  /* ---------- Aksi per sesi (halaman Riwayat sesi di Admin) ---------- */
-  const cariSesi = id => readSessions().find(s => s.id === id);
-  const lokasi = s => path.join(s.dir || defaultDir, s.file || '');
+  /* ---------- Per-session actions (Session history page in Admin) ---------- */
+  const findSession = id => readSessions().find(s => s.id === id);
+  const location = s => path.join(s.dir || defaultDir, s.file || '');
   ipcMain.handle('session-open', async (e, id) => {
-    const s = cariSesi(id);
-    if (!s || !s.file || !fs.existsSync(lokasi(s))) return { error: 'File not found in the folder.' };
-    const err = await shell.openPath(lokasi(s));
+    const s = findSession(id);
+    if (!s || !s.file || !fs.existsSync(location(s))) return { error: 'File not found in the folder.' };
+    const err = await shell.openPath(location(s));
     return err ? { error: err } : { ok: true };
   });
   ipcMain.handle('session-reveal', (e, id) => {
-    const s = cariSesi(id);
+    const s = findSession(id);
     if (!s) return { error: 'Session not found.' };
-    if (s.file && fs.existsSync(lokasi(s))) {
-      shell.showItemInFolder(lokasi(s));
+    if (s.file && fs.existsSync(location(s))) {
+      shell.showItemInFolder(location(s));
       return { ok: true };
     }
     if (fs.existsSync(s.dir || '')) {
@@ -238,55 +239,55 @@ function daftarkan() {
     }
     return { error: 'Folder not found.' };
   });
-  // Gambar kecil hasil photobooth untuk daftar sesi.
-  // - Dibuat SATU PER SATU (antrean), tidak sekaligus, supaya aplikasi tidak tersendat.
-  // - Memakai pembuat thumbnail bawaan macOS (asinkron, tidak membekukan aplikasi).
-  // - Disimpan di <folder data>/thumb/<id>.jpg, jadi saat Riwayat dibuka lagi langsung tampil.
-  const cacheThumb = new Map();
-  const FOLDER_THUMB = path.join(require('./penyimpanan').userData, 'thumb');
-  let antreanThumb = Promise.resolve();
-  async function buatThumb(id) {
-    const simpan = path.join(FOLDER_THUMB, `${id}.jpg`);
+  // Small images of photobooth results for the session list.
+  // - Made ONE AT A TIME (queue), not all at once, so the app doesn't stutter.
+  // - Uses the built-in macOS thumbnail maker (asynchronous, doesn't freeze the app).
+  // - Saved in <data folder>/thumb/<id>.jpg, so they show right away when History opens again.
+  const thumbCache = new Map();
+  const THUMB_DIR = path.join(userData, 'thumb');
+  let thumbQueue = Promise.resolve();
+  async function makeThumb(id) {
+    const saved = path.join(THUMB_DIR, `${id}.jpg`);
     try {
-      if (fs.existsSync(simpan)) return 'data:image/jpeg;base64,' + fs.readFileSync(simpan).toString('base64');
+      if (fs.existsSync(saved)) return 'data:image/jpeg;base64,' + fs.readFileSync(saved).toString('base64');
     } catch {
-      /* gambar kecil tersimpan rusak: dibuat ulang di bawah */
+      /* the saved small image is damaged: made again below */
     }
-    const s = cariSesi(id);
-    if (!s || s.label !== 'foto' || !fs.existsSync(lokasi(s))) return null;
+    const s = findSession(id);
+    if (!s || s.label !== 'foto' || !fs.existsSync(location(s))) return null;
     const { nativeImage } = require('electron');
     if (!nativeImage)
-      return fs.statSync(lokasi(s)).size < 3e6
-        ? 'data:image/jpeg;base64,' + fs.readFileSync(lokasi(s)).toString('base64')
+      return fs.statSync(location(s)).size < 3e6
+        ? 'data:image/jpeg;base64,' + fs.readFileSync(location(s)).toString('base64')
         : null;
     let img = null;
     try {
       if (nativeImage.createThumbnailFromPath)
-        img = await nativeImage.createThumbnailFromPath(lokasi(s), { width: 240, height: 240 });
+        img = await nativeImage.createThumbnailFromPath(location(s), { width: 240, height: 240 });
     } catch {
-      /* macOS tidak bisa membuat gambar kecil: memakai FFmpeg di bawah */
+      /* macOS can't make a small image: resized from the full image below */
     }
-    if (!img || img.isEmpty()) img = nativeImage.createFromPath(lokasi(s)).resize({ height: 160 });
+    if (!img || img.isEmpty()) img = nativeImage.createFromPath(location(s)).resize({ height: 160 });
     if (img.isEmpty()) return null;
     const jpg = img.toJPEG(80);
     try {
-      fs.mkdirSync(FOLDER_THUMB, { recursive: true });
-      fs.writeFileSync(simpan, jpg);
+      fs.mkdirSync(THUMB_DIR, { recursive: true });
+      fs.writeFileSync(saved, jpg);
     } catch {
-      /* gambar kecil hanya disimpan supaya lebih cepat; gagal pun tetap tampil */
+      /* the small image is only saved to be faster; it still shows if saving fails */
     }
     return 'data:image/jpeg;base64,' + jpg.toString('base64');
   }
   ipcMain.handle('session-thumb', (e, id) => {
-    if (cacheThumb.has(id)) return cacheThumb.get(id);
-    const hasil = antreanThumb.then(() => buatThumb(id)).catch(() => null);
-    antreanThumb = hasil;
-    cacheThumb.set(id, hasil);
-    return hasil;
+    if (thumbCache.has(id)) return thumbCache.get(id);
+    const result = thumbQueue.then(() => makeThumb(id)).catch(() => null);
+    thumbQueue = result;
+    thumbCache.set(id, result);
+    return result;
   });
-  // Coba lagi: ubah ke MP4 lagi, atau salin lagi video dari kartu SD kamera Sony
+  // Retry: convert to MP4 again, or copy the video from the Sony camera's SD card again
   ipcMain.handle('session-retry', (e, id) => {
-    const s = cariSesi(id);
+    const s = findSession(id);
     if (!s) return { error: 'Session not found.' };
     if (s.status === 'failed' || s.status === 'webm') {
       if (!ffmpegPath) return { error: "FFmpeg is not installed, the video can't be converted to MP4." };
@@ -301,23 +302,23 @@ function daftarkan() {
         return {
           error: `The video is only on the camera SD card${s.kartu ? ' (' + s.kartu + ')' : ''}. Copy it from the card manually.`,
         };
-      if (!sony.siap()) return { error: 'Connect the Sony camera first, then try again.' };
+      if (!sony.ready()) return { error: 'Connect the Sony camera first, then try again.' };
       updateSession(id, { status: 'transfer', error: undefined });
-      salinVideoSony(id, s.kartuInfo, lokasi(s));
+      copySonyVideo(id, s.kartuInfo, location(s));
       return { ok: true };
     }
-    // Teks pertanyaan / versi HP untuk QR yang gagal: buat ulang
+    // Question texts / phone version for QR that failed: make them again
     if (s.status === 'done' && (s.teks === 'gagal' || s.unggah === 'gagal')) {
       if (!ffmpegPath) return { error: "FFmpeg is not installed, the video can't be processed." };
       const patch = {};
       if (s.teks === 'gagal') patch.teks = undefined;
       if (s.unggah === 'gagal') {
-        if (!unggah.siapVideo()) return { error: 'Turn on "QR for video" in Admin first.' };
+        if (!upload.videoEnabled()) return { error: 'Turn on "QR for video" in Admin first.' };
         patch.unggah = 'olah';
-        unggah.daftarkanVideoLagi(s);
+        upload.requeueVideo(s);
       }
       updateSession(id, patch);
-      olah.lanjutkanNanti(id);
+      videoProcessing.processLater(id);
       return { ok: true };
     }
     return { error: "This session doesn't need a retry." };
@@ -328,56 +329,56 @@ function daftarkan() {
     return r;
   });
 
-  ipcMain.handle('rec-start', async (e, label, opsi) => {
-    const pakaiSony = !!(opsi && opsi.sony);
+  ipcMain.handle('rec-start', async (e, label, options) => {
+    const useSony = !!(options && options.sony);
     const name = activeCoupleName();
     let base = getOutDir(),
       fallback = false;
     if (!usableDir(base)) {
       base = defaultDir;
       fallback = true;
-      console.log('Folder pilihan tidak tersedia, memakai folder default');
+      console.log('Chosen folder not available, using the default folder');
       if (!usableDir(base)) return { error: 'The storage folder is not writable.' };
     }
     let dir = coupleDir(base, name);
     if (!usableDir(dir)) dir = base;
-    const ext = pakaiSony ? 'mp4' : 'webm';
-    // Nama file: nama tamu (dari layar "Siapa namamu?"), mis. "Budi_pesan.mp4". Tanpa nama tamu: "<couple>_<waktu>_pesan".
-    // Nama yang sudah dipakai (file .webm/.mp4 atau sesi yang videonya belum selesai disalin) tidak ditimpa: "Budi_2_pesan".
-    const tamu = namaTamu(opsi && opsi.tamu);
-    const sesiDiFolder = new Set(
+    const ext = useSony ? 'mp4' : 'webm';
+    // File name: the guest's name (from the "What's your name?" screen), e.g. "Budi_pesan.mp4". No guest name: "<couple>_<time>_pesan".
+    // Names already in use (.webm/.mp4 files or sessions whose video isn't copied yet) are not overwritten: "Budi_2_pesan".
+    const guest = guestFileName(options && options.tamu);
+    const sessionsInFolder = new Set(
       readSessions()
         .filter(s => s.dir === dir)
         .map(s => String(s.file || '').replace(/\.(webm|mp4)$/i, '')),
     );
-    const dipakai = b => {
-      const d = tamu ? `${b}_${label}` : b;
-      return sesiDiFolder.has(d) || ['webm', 'mp4'].some(x => fs.existsSync(path.join(dir, `${d}.${x}`)));
+    const isTaken = b => {
+      const d = guest ? `${b}_${label}` : b;
+      return sessionsInFolder.has(d) || ['webm', 'mp4'].some(x => fs.existsSync(path.join(dir, `${d}.${x}`)));
     };
-    const dasar = tamu
-      ? namaBebas(tamu, dipakai)
-      : namaBebas(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${label}`, dipakai);
-    const file = path.join(dir, `${tamu ? `${dasar}_${label}` : dasar}.${ext}`);
+    const baseName = guest
+      ? freeBaseName(guest, isTaken)
+      : freeBaseName(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${label}`, isTaken);
+    const file = path.join(dir, `${guest ? `${baseName}_${label}` : baseName}.${ext}`);
 
     const id = ++recSeq;
     const sid = Date.now() * 1000 + (id % 1000);
-    const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now(), sony: pakaiSony };
-    if (pakaiSony) {
-      const r = await sony.rekamMulai();
+    const rec = { id, sid, file, dir, label, error: null, stream: null, t0: Date.now(), sony: useSony };
+    if (useSony) {
+      const r = await sony.startRecording();
       if (r.error) {
-        catatan.error(`Rekam ${label} (Sony) tidak bisa dimulai: ${r.error}`);
+        log.error(`Recording ${label} (Sony) could not start: ${r.error}`);
         return { error: r.error };
       }
     } else {
       try {
         rec.stream = fs.createWriteStream(file);
       } catch (err) {
-        catatan.error(`Rekam ${label} tidak bisa dimulai: ${err.message}`);
-        return { error: 'Tidak bisa membuat file rekaman: ' + err.message };
+        log.error(`Recording ${label} could not start: ${err.message}`);
+        return { error: 'Could not create the recording file: ' + err.message };
       }
     }
-    // Catat sesi sejak awal dengan status "recording". Kalau aplikasi atau komputer mati di tengah
-    // rekaman, sesi ini dikenali dan dipulihkan saat aplikasi dibuka lagi.
+    // Record the session from the start with status "recording". If the app or computer dies in the
+    // middle of a recording, this session is recognized and recovered when the app opens again.
     try {
       const list = readSessions();
       list.push({
@@ -387,27 +388,27 @@ function daftarkan() {
         file: path.basename(file),
         dir,
         couple: name,
-        ...(tamu ? { tamu: String(opsi.tamu).trim().slice(0, 40) } : {}),
+        ...(guest ? { tamu: String(options.tamu).trim().slice(0, 40) } : {}),
         seconds: 0,
         status: 'recording',
-        ...(pakaiSony ? { kamera: 'sony' } : {}),
+        ...(useSony ? { kamera: 'sony' } : {}),
       });
       writeSessions(list);
     } catch (err) {
-      console.log('Gagal mencatat sesi: ' + err.message);
+      console.log('Could not record the session: ' + err.message);
     }
-    // Disk penuh / SSD tercabut: jangan crash, catat error dan beri tahu layar
+    // Disk full / SSD unplugged: don't crash, log the error and tell the screen
     if (rec.stream)
       rec.stream.on('error', err => {
         if (rec.error) return;
         rec.error = err.message;
-        catatan.error(`Gagal menulis rekaman ${path.basename(file)} (disk penuh / SSD tercabut?): ${err.message}`);
+        log.error(`Could not write recording ${path.basename(file)} (disk full / SSD unplugged?): ${err.message}`);
         const win = getWin();
         if (win) win.webContents.send('rec-error', id, err.message);
       });
     recs.set(id, rec);
-    catatan.catat(
-      `Rekam mulai: ${label}${pakaiSony ? ' (Sony)' : ''} → ${path.basename(file)}${fallback ? ' [folder cadangan]' : ''}`,
+    log.write(
+      `Recording started: ${label}${useSony ? ' (Sony)' : ''} → ${path.basename(file)}${fallback ? ' [fallback folder]' : ''}`,
     );
     return { id, file, fallback };
   });
@@ -417,19 +418,19 @@ function daftarkan() {
     if (rec && !rec.error && rec.stream && rec.stream.writable) rec.stream.write(Buffer.from(buf));
   });
 
-  ipcMain.handle('rec-end', async (e, id, seconds, metaMasuk) => {
+  ipcMain.handle('rec-end', async (e, id, seconds, incomingMeta) => {
     const rec = recs.get(id);
     if (!rec) return null;
     recs.delete(id);
     const sid = rec.sid;
-    // Quiz: waktu & gambar teks tiap pertanyaan (gambarnya disimpan sebagai file, bukan di sessions.json)
-    const { kapsi, kapsiGambar, ...meta } = metaMasuk || {};
-    const kapsiBersih = !meta.aborted ? olah.simpanKapsi(sid, kapsi, kapsiGambar) : null;
-    if (kapsiBersih) meta.kapsi = kapsiBersih;
+    // Quiz: time & text image of each question (the images are saved as files, not in sessions.json)
+    const { kapsi: captions, kapsiGambar: captionImages, ...meta } = incomingMeta || {};
+    const cleanCaptions = !meta.aborted ? videoProcessing.saveCaptions(sid, captions, captionImages) : null;
+    if (cleanCaptions) meta.kapsi = cleanCaptions;
     if (rec.sony) {
-      // Hentikan rekaman di kamera. Tamu tidak perlu menunggu video disalin.
-      const r = await sony.rekamStop();
-      const qr = !r.error && !meta.aborted ? pesanQR(sid, rec.label, meta.couple) : null;
+      // Stop recording on the camera. The guest doesn't have to wait for the video to be copied.
+      const r = await sony.stopRecording();
+      const qr = !r.error && !meta.aborted ? reserveQr(sid, rec.label, meta.couple) : null;
       const patch = {
         seconds,
         ...meta,
@@ -443,17 +444,17 @@ function daftarkan() {
             }),
       };
       updateSession(sid, patch);
-      if (r.error) catatan.error(`Rekam Sony berhenti dengan error (${path.basename(rec.file)}): ${r.error}`);
+      if (r.error) log.error(`Sony recording stopped with an error (${path.basename(rec.file)}): ${r.error}`);
       else
-        catatan.catat(
-          `Rekam selesai (Sony, ${seconds} dtk): ${path.basename(rec.file)}, menyalin dari kartu ${r.nama}${qr ? ', QR ' + qr.kode : ''}`,
+        log.write(
+          `Recording done (Sony, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.nama}${qr ? ', QR ' + qr.kode : ''}`,
         );
-      if (!r.error) salinVideoSony(sid, r, rec.file);
+      if (!r.error) copySonyVideo(sid, r, rec.file);
       return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file, link: qr ? qr.link : null };
     }
     await closeStream(rec);
     const ok = !rec.error;
-    const qr = ok && ffmpegPath && !meta.aborted ? pesanQR(sid, rec.label, meta.couple) : null;
+    const qr = ok && ffmpegPath && !meta.aborted ? reserveQr(sid, rec.label, meta.couple) : null;
     const patch = {
       seconds,
       status: !ok ? 'write-error' : ffmpegPath ? 'processing' : 'webm',
@@ -476,32 +477,32 @@ function daftarkan() {
         });
       writeSessions(list);
     } catch (err) {
-      console.log('Gagal mencatat sesi: ' + err.message);
+      console.log('Could not record the session: ' + err.message);
     }
-    if (ok) catatan.catat(`Rekam selesai (${seconds} dtk): ${path.basename(rec.file)}${qr ? ', QR ' + qr.kode : ''}`);
-    else catatan.error(`Rekam gagal disimpan (${path.basename(rec.file)}): ${rec.error}`);
+    if (ok) log.write(`Recording done (${seconds} s): ${path.basename(rec.file)}${qr ? ', QR ' + qr.kode : ''}`);
+    else log.error(`Recording could not be saved (${path.basename(rec.file)}): ${rec.error}`);
     if (ok) convert(sid, rec.file);
     return { ok, file: rec.file, error: rec.error, link: qr ? qr.link : null };
   });
 
-  // Batalkan rekaman yang gagal dimulai: tutup dan hapus file yang belum berisi
+  // Cancel a recording that failed to start: close it and delete the still-empty file
   ipcMain.handle('rec-abort', async (e, id) => {
     const rec = recs.get(id);
     if (!rec) return;
     recs.delete(id);
-    if (rec.sony) await sony.rekamStop();
+    if (rec.sony) await sony.stopRecording();
     await closeStream(rec);
     try {
       if (!rec.sony && fs.statSync(rec.file).size < 1024) fs.unlinkSync(rec.file);
     } catch (e) {
-      catatan.peringatan('Rekaman yang dibatalkan tidak bisa dihapus: ' + e.message);
+      log.warn('The cancelled recording could not be deleted: ' + e.message);
     }
     try {
       writeSessions(readSessions().filter(x => x.id !== rec.sid));
     } catch (e) {
-      catatan.peringatan('Sesi yang dibatalkan tidak bisa dihapus dari daftar: ' + e.message);
+      log.warn('The cancelled session could not be removed from the list: ' + e.message);
     }
   });
 }
 
-module.exports = { daftarkan, mulai, selamatkan, tutupSemua };
+module.exports = { register, start, rescue, closeAll };

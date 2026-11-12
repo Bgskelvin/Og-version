@@ -1,12 +1,12 @@
 /* =====================================================================
-   penyimpanan.js — lokasi data, config.json, baca/tulis JSON yang aman,
-   dan alat bantu nama file/folder. Dipakai semua modul lain di main/.
+   storage.js — data locations, config.json, safe JSON read/write,
+   and file/folder name helpers. Used by every other module in main/.
    ===================================================================== */
 const { app } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-/* ---------- Konfigurasi ---------- */
+/* ---------- Configuration ---------- */
 const bundledCfg = path.join(__dirname, '..', 'config.json');
 const configPath = app.isPackaged ? path.join(app.getPath('userData'), 'config.json') : bundledCfg;
 if (app.isPackaged && !fs.existsSync(configPath)) {
@@ -15,7 +15,7 @@ if (app.isPackaged && !fs.existsSync(configPath)) {
 }
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-/* ---------- Lokasi data ---------- */
+/* ---------- Data locations ---------- */
 const userData = app.getPath('userData');
 const defaultDir = path.join(app.getPath('documents'), 'VideoboothRecordings');
 const settingsPath = path.join(userData, 'settings.json');
@@ -29,27 +29,27 @@ function tryRead(p) {
     return { ok: false, missing: e.code === 'ENOENT' };
   }
 }
-// Baca file; kalau rusak, pakai cadangan (.bak). File rusak tidak pernah dibuang diam-diam.
+// Read a file; if it is damaged, use the backup (.bak). A damaged file is never silently thrown away.
 function readJSON(p, fallback) {
   const a = tryRead(p);
   if (a.ok) return a.data;
   const b = tryRead(p + '.bak');
   if (b.ok) {
-    if (!a.missing) console.log('File rusak, memakai cadangan: ' + p);
+    if (!a.missing) console.log('File damaged, using the backup: ' + p);
     return b.data;
   }
   if (!a.missing) {
-    console.log('File rusak tanpa cadangan, salinannya disimpan: ' + p);
+    console.log('File damaged and no backup, a copy was kept: ' + p);
     try {
       fs.copyFileSync(p, p + '.corrupt-' + Date.now());
     } catch {
-      /* salinan file rusak hanya untuk diperiksa; gagal pun data cadangan tetap dipakai */
+      /* the copy of the damaged file is only for inspection; the fallback data is used anyway */
     }
   }
   return fallback;
 }
-// Tulis aman: tulis ke file sementara, simpan versi lama sebagai .bak, lalu ganti sekaligus.
-// Kalau listrik mati di tengah jalan, file lama atau cadangannya tetap utuh.
+// Safe write: write to a temporary file, keep the old version as .bak, then swap in one step.
+// If the power goes out halfway, the old file or its backup is still intact.
 function writeJSON(p, data) {
   const tmp = p + '.tmp';
   const fd = fs.openSync(tmp, 'w');
@@ -63,7 +63,7 @@ function writeJSON(p, data) {
     try {
       fs.copyFileSync(p, p + '.bak');
     } catch {
-      /* cadangan .bak gagal: file utama tetap ditulis */
+      /* .bak backup failed: the main file is still written */
     }
   }
   try {
@@ -73,16 +73,16 @@ function writeJSON(p, data) {
     try {
       fs.unlinkSync(tmp);
     } catch {
-      /* file sementara tertinggal, ditimpa saat penulisan berikutnya */
+      /* temporary file left behind, overwritten on the next write */
     }
-  } // cadangan jika rename diblokir (mis. antivirus)
+  } // fallback if rename is blocked (e.g. antivirus)
 }
 const readSettings = () => readJSON(settingsPath, {});
 const writeSettings = s => writeJSON(settingsPath, s);
 const readSessions = () => readJSON(sessionsPath, []);
 const writeSessions = l => writeJSON(sessionsPath, l);
 
-// Pindahkan riwayat sesi versi lama (dulu disimpan di folder rekaman)
+// Move the session history of old versions (it used to live in the recordings folder)
 const oldSessions = path.join(defaultDir, 'sessions.json');
 if (!fs.existsSync(sessionsPath) && fs.existsSync(oldSessions)) {
   const old = readJSON(oldSessions, []);
@@ -95,14 +95,14 @@ if (!fs.existsSync(sessionsPath) && fs.existsSync(oldSessions)) {
 
 const getOutDir = () => readSettings().outDir || defaultDir;
 
-// Nama couple -> nama yang aman untuk folder & file di Windows dan Mac
+// Couple name -> a name that is safe for folders & files on Windows and Mac
 function safeName(name) {
   const s = String(name || '')
-    // eslint-disable-next-line no-control-regex -- sengaja: karakter kontrol tidak boleh ada di nama file
-    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // karakter terlarang
+    // eslint-disable-next-line no-control-regex -- on purpose: control characters are not allowed in file names
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '') // forbidden characters
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/[. ]+$/, '') // Windows: tidak boleh berakhir titik/spasi
+    .replace(/[. ]+$/, '') // Windows: may not end with a dot/space
     .slice(0, 60);
   return /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s) ? s + '_' : s;
 }
@@ -128,14 +128,14 @@ function updateSession(id, patch) {
   }
 }
 
-// Nama tamu dari layar "Siapa namamu?" -> nama file yang aman (maks 40 huruf)
-const namaTamu = t => safeName(String(t || '').slice(0, 40));
-// Nama dasar file yang belum dipakai di folder itu: "Budi", lalu "Budi_2", "Budi_3", ...
-// `dipakai(nama)` mengembalikan true kalau nama dasar itu sudah terpakai.
-function namaBebas(dasar, dipakai) {
-  if (!dipakai(dasar)) return dasar;
-  for (let n = 2; n < 10000; n++) if (!dipakai(`${dasar}_${n}`)) return `${dasar}_${n}`;
-  return `${dasar}_${Date.now()}`;
+// Guest name from the "What's your name?" screen -> a safe file name (max 40 characters)
+const guestFileName = t => safeName(String(t || '').slice(0, 40));
+// A base file name not yet used in that folder: "Budi", then "Budi_2", "Budi_3", ...
+// `isTaken(name)` returns true if that base name is already in use.
+function freeBaseName(base, isTaken) {
+  if (!isTaken(base)) return base;
+  for (let n = 2; n < 10000; n++) if (!isTaken(`${base}_${n}`)) return `${base}_${n}`;
+  return `${base}_${Date.now()}`;
 }
 
 const pad = n => String(n).padStart(2, '0');
@@ -161,6 +161,6 @@ module.exports = {
   safeName,
   coupleDir,
   stamp,
-  namaTamu,
-  namaBebas,
+  guestFileName,
+  freeBaseName,
 };
