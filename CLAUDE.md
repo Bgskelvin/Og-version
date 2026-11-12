@@ -93,4 +93,4 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - `refactor/main-english-data` (v1.2.0): nama data tersimpan bahasa Inggris + `main/migrate.js` (data lama diubah otomatis, cadangan disimpan). Setelah 1.2.0 dibuka, jangan kembali ke Leura.app lama tanpa memulihkan cadangan.
 - Berikutnya: bahasa Inggris untuk tampilan (id/kelas HTML/CSS, nama layar, kunci kamus, teks pemberitahuan operator).
 - Sesudahnya: `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
-- Sebelum acara pertama: `feature/guest-consent` (UU PDP), `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.
+- Sebelum acara pertama: `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.
