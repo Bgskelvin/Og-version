@@ -9,13 +9,13 @@ import { $, state } from './state.js';
 import { flash, show } from './app.js';
 
 const OPTIONS = {
-  pesanCountdown: [
+  messageCountdown: [
     [0, 'Record right away'],
     [3, '3 seconds'],
     [5, '5 seconds'],
     [10, '10 seconds'],
   ],
-  pesanMaxSeconds: [
+  messageMaxSeconds: [
     [0, 'No limit'],
     [30, '30 seconds'],
     [60, '1 minute'],
@@ -42,15 +42,15 @@ function fillBoothSettings(s) {
   // Videobooth
   fillSelect(
     $('setPesanCountdown'),
-    OPTIONS.pesanCountdown.map(p => p[0]),
-    s.pesanCountdown,
-    labelFor('pesanCountdown'),
+    OPTIONS.messageCountdown.map(p => p[0]),
+    s.messageCountdown,
+    labelFor('messageCountdown'),
   );
   fillSelect(
     $('setPesanMax'),
-    OPTIONS.pesanMaxSeconds.map(p => p[0]),
-    s.pesanMaxSeconds,
-    labelFor('pesanMaxSeconds'),
+    OPTIONS.messageMaxSeconds.map(p => p[0]),
+    s.messageMaxSeconds,
+    labelFor('messageMaxSeconds'),
   );
   fillSelect($('setSeconds'), SECONDS, s.quizSeconds, secLabel);
   fillSelect($('setRounds'), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], s.quizRounds, v => `${v} question${v === 1 ? '' : 's'}`);
@@ -107,15 +107,15 @@ export function setupBoothSettings() {
   };
   choice(
     'setPesanCountdown',
-    'pesanCountdown',
+    'messageCountdown',
     'setVideoMsg',
-    v => `Message countdown: ${labelFor('pesanCountdown')(v).toLowerCase()}.`,
+    v => `Message countdown: ${labelFor('messageCountdown')(v).toLowerCase()}.`,
   );
   choice(
     'setPesanMax',
-    'pesanMaxSeconds',
+    'messageMaxSeconds',
     'setVideoMsg',
-    v => `Message time limit: ${labelFor('pesanMaxSeconds')(v).toLowerCase()}.`,
+    v => `Message time limit: ${labelFor('messageMaxSeconds')(v).toLowerCase()}.`,
   );
   choice('setSeconds', 'quizSeconds', 'setVideoMsg', v => `Answer time: ${secLabel(v)}.`);
   choice('setRounds', 'quizRounds', 'setVideoMsg', v => `Questions per session: ${v}.`);

@@ -1,8 +1,7 @@
 /* =====================================================================
    settings.js — the "Display" and "Admin login" groups on the Admin page,
    and applying all settings to the app (applySettings).
-   Setting keys (pesanCountdown, tanyaNama, bahasa, …) are shared with the
-   main process and renamed with it in refactor/main-english.
+   Setting keys (messageCountdown, askName, language, …) come from main/settings.js.
    ===================================================================== */
 import { applyCouples } from './couple.js';
 import { $, state } from './state.js';
@@ -51,15 +50,15 @@ function renderSwatches(accent) {
 const DEFAULTS = {
   quizSeconds: 60,
   quizRounds: 3,
-  pesanCountdown: 3,
-  pesanMaxSeconds: 0,
+  messageCountdown: 3,
+  messageMaxSeconds: 0,
   photoCountdown: 5,
   photoPreview: 2,
   photoFlash: true,
-  enablePesan: true,
+  enableMessage: true,
   enableQuiz: true,
   enablePhoto: true,
-  tanyaNama: true,
+  askName: true,
 };
 export function normalizeConfig(src) {
   for (const [k, d] of Object.entries(DEFAULTS)) {
@@ -76,21 +75,21 @@ export function normalizeConfig(src) {
 }
 // The main menu buttons follow the active couple's settings (Admin → couple → Menu)
 export function coupleMenu(c = state.activeCouple) {
-  return (c && c.menu) || { pesan: true, quiz: true, photo: true };
+  return (c && c.menu) || { message: true, quiz: true, photo: true };
 }
 export function applyMenu() {
   const m = coupleMenu();
-  $('btnToPesan').style.display = m.pesan ? '' : 'none';
+  $('btnToPesan').style.display = m.message ? '' : 'none';
   $('btnToQuiz').style.display = m.quiz && state.cfg.quiz && state.cfg.quiz.length ? '' : 'none';
   $('btnToPhoto').style.display = m.photo ? '' : 'none';
 }
 // Apply the latest settings to the app without restarting it
 export function applySettings(s) {
   normalizeConfig(s);
-  if (s.kamera) state.cfg.kamera = s.kamera;
-  if (s.bahasa && s.bahasa !== language) {
-    state.cfg.bahasa = s.bahasa;
-    setLanguage(s.bahasa);
+  if (s.camera) state.cfg.camera = s.camera;
+  if (s.language && s.language !== language) {
+    state.cfg.language = s.language;
+    setLanguage(s.language);
     if (state.couplesData) applyCouples(state.couplesData); // welcome text & questions follow the new language
   }
   applyMenu();
@@ -101,8 +100,8 @@ export async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = state.cfg.tanyaNama;
-  $('setBahasa').value = s.bahasa || 'en';
+  $('setTanyaNama').checked = state.cfg.askName;
+  $('setBahasa').value = s.language || 'en';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
 }
@@ -112,7 +111,7 @@ async function saveSetting(patch, msg) {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = state.cfg.tanyaNama;
+  $('setTanyaNama').checked = state.cfg.askName;
   flash('setMsg', msg || 'Saved.');
 }
 async function saveLogin() {
@@ -133,12 +132,12 @@ export function setupSettings() {
     );
   $('setBahasa').onchange = e =>
     saveSetting(
-      { bahasa: e.target.value },
+      { language: e.target.value },
       e.target.value === 'en' ? 'Guest screens are now in English.' : 'Guest screens are now in Indonesian.',
     );
   $('setTanyaNama').onchange = e =>
     saveSetting(
-      { tanyaNama: e.target.checked },
+      { askName: e.target.checked },
       e.target.checked
         ? 'Guests will be asked to type their name after pressing Start.'
         : 'Guests go straight to the main menu without typing a name.',

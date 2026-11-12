@@ -27,11 +27,11 @@ function gitBranch() {
 
 function info() {
   return {
-    versi: app.getVersion(),
-    terpasang: !!app.isPackaged,
+    version: app.getVersion(),
+    installed: !!app.isPackaged,
     branch: app.isPackaged ? '' : gitBranch(),
     electron: process.versions.electron,
-    lisensi: fs.existsSync(licenseFile()),
+    licenses: fs.existsSync(licenseFile()),
   };
 }
 

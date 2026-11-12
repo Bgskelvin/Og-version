@@ -26,7 +26,7 @@ import { state } from './state.js';
   state.cfg = await api.getConfig();
   state.cfg.quiz = state.cfg.quiz || [];
   normalizeConfig(state.cfg);
-  setLanguage(state.cfg.bahasa); // bahasa layar tamu (diatur di Admin)
+  setLanguage(state.cfg.language); // bahasa layar tamu (diatur di Admin)
   if (state.cfg.colors) {
     const r = document.documentElement.style;
     if (state.cfg.colors.accent) r.setProperty('--accent', state.cfg.colors.accent);

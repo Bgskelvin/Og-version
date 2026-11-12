@@ -17,7 +17,7 @@ export async function startRecording(label) {
   // (a failed previous save was already reported when it happened)
   await Promise.race([state.lastSave.catch(() => false), sleep(15000)]);
   const sony = usingSony();
-  const r = await api.recStart(label, { sony, tamu: state.guestName });
+  const r = await api.recStart(label, { sony, guest: state.guestName });
   if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
   if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
   const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
@@ -154,7 +154,7 @@ export async function abortSession(msg) {
 }
 export function needStream() {
   if (usingSony()) {
-    if (sonyState.tersambung) return true;
+    if (sonyState.connected) return true;
     setNotice('Kamera Sony belum tersambung. Cek kabel USB & kamera, atau lihat di Admin.', 8000);
     return false;
   }

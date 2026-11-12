@@ -13,19 +13,19 @@ const { getWin } = require('./active-window');
 const NUMBERS = {
   quizSeconds: [10, 300, 60], // Videobooth: seconds to answer each quiz question
   quizRounds: [1, 10, 3], // Videobooth: number of questions per quiz session
-  pesanCountdown: [0, 10, 3], // Videobooth: countdown before recording a message (0 = right away)
-  pesanMaxSeconds: [0, 600, 0], // Videobooth: message length limit (0 = no limit)
+  messageCountdown: [0, 10, 3], // Videobooth: countdown before recording a message (0 = right away)
+  messageMaxSeconds: [0, 600, 0], // Videobooth: message length limit (0 = no limit)
   photoCountdown: [2, 10, 5], // Photobooth: countdown before each photo
   photoPreview: [0, 5, 2], // Photobooth: preview seconds after each shot (0 = none)
 };
 const SWITCHES = {
-  enablePesan: true,
+  enableMessage: true,
   enableQuiz: true, // Videobooth: menu on the main page
   enablePhoto: true,
   photoFlash: true, // Photobooth: screen flash effect
-  tanyaNama: true, // "What's your name?" screen after Start; the guest name becomes the file name
+  askName: true, // "What's your name?" screen after Start; the guest name becomes the file name
 };
-const MENU = ['enablePesan', 'enableQuiz', 'enablePhoto'];
+const MENU = ['enableMessage', 'enableQuiz', 'enablePhoto'];
 const CAMERA_SOURCES = ['webcam', 'sony', 'sony-sim']; // webcam/phone, Sony over USB, simulated Sony
 const LANGUAGES = ['en', 'id']; // guest screen language (Admin is always English); default: English
 const clampInt = (v, [lo, hi], dflt) => {
@@ -41,8 +41,8 @@ function effective() {
     ),
     ...Object.fromEntries(Object.entries(SWITCHES).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
-    kamera: CAMERA_SOURCES.includes(s.kamera) ? s.kamera : 'webcam',
-    bahasa: LANGUAGES.includes(s.bahasa) ? s.bahasa : 'en',
+    camera: CAMERA_SOURCES.includes(s.camera) ? s.camera : 'webcam',
+    language: LANGUAGES.includes(s.language) ? s.language : 'en',
     accent: isColor(s.accent)
       ? s.accent
       : config.colors && isColor(config.colors.accent)
@@ -91,10 +91,10 @@ function register() {
       next = { ...now, ...Object.fromEntries(MENU.filter(k => k in s).map(k => [k, s[k]])) };
     if (!MENU.some(k => next[k])) return { ...now, error: 'At least one option must stay on the main menu.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
-    if ('bahasa' in patch && LANGUAGES.includes(patch.bahasa)) s.bahasa = patch.bahasa;
-    if ('kamera' in patch && CAMERA_SOURCES.includes(patch.kamera)) {
-      s.kamera = patch.kamera;
-      require('./sony-camera').setSource(s.kamera);
+    if ('language' in patch && LANGUAGES.includes(patch.language)) s.language = patch.language;
+    if ('camera' in patch && CAMERA_SOURCES.includes(patch.camera)) {
+      s.camera = patch.camera;
+      require('./sony-camera').setSource(s.camera);
     }
     if ('kiosk' in patch) {
       s.kiosk = !!patch.kiosk;

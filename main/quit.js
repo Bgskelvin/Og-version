@@ -29,12 +29,12 @@ function pendingWork() {
   }
   let photos = 0;
   try {
-    photos = upload.status().menunggu || 0;
+    photos = upload.status().waiting || 0;
   } catch {
     /* QR queue not loaded yet: assume empty */
   }
   // Field names are shared with the UI (src/admin.js)
-  return { salin: copying, proses: processing, foto: photos };
+  return { copying, processing, photos };
 }
 
 // ✕ or ⌘Q pressed: ask the UI to show the confirmation dialog.

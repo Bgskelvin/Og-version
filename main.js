@@ -2,6 +2,7 @@
    main.js — starting point of the app (Electron main process)
    It only holds the start-up order. The features live in main/:
      storage.js          data locations, config.json, safe JSON read/write
+     migrate.js          brings data from older versions up to date
      settings.js         Admin settings, login, storage folder
      couple.js           couple data & the active couple
      recording.js        video recording, MP4, recovering interrupted recordings
@@ -23,7 +24,11 @@ const path = require('path');
 // ~/Library/Application Support/leura — shared by "npm start" (code folder)
 // and Leura.app (installer), so couples, recordings, settings & the QR queue don't move.
 // Must be set first: the "single window" lock & every module use this folder.
-if (app.setPath) app.setPath('userData', path.join(app.getPath('appData'), 'leura'));
+// From the code folder only (not Leura.app): --data-dir=<folder> uses another data folder,
+// e.g. to try a new version on a copy of the event data without touching the real data.
+const dataDirArg = !app.isPackaged && process.argv.find(a => a.startsWith('--data-dir='));
+if (app.setPath)
+  app.setPath('userData', dataDirArg ? path.resolve(dataDirArg.slice(11)) : path.join(app.getPath('appData'), 'leura'));
 
 // ---------- Only one app window ----------
 // If the icon is clicked again while the app is running, the existing window is shown,
@@ -33,6 +38,10 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> Reload & DevTools menu on
+
+// Data saved by older versions (Indonesian field & folder names) is brought up to date
+// before any module reads it. Its notes go into the log once the log is ready.
+const migrationNotes = require('./main/migrate').run();
 
 // The daily log is set up first, so every message & error after it is recorded too
 const log = require('./main/log');
@@ -63,6 +72,7 @@ app.whenReady().then(async () => {
   powerSaveBlocker.start('prevent-display-sleep'); // the screen & computer don't sleep while the app runs
 
   log.start(); // "App opened" + delete old logs
+  migrationNotes.forEach(n => log.write(n.text, n.level));
   recording.start(); // recover interrupted recordings & continue conversions
   appWindow.createWindow(DEV);
   sonyCamera.start(); // connect the Sony camera if chosen in Admin

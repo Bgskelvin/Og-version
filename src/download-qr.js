@@ -1,9 +1,7 @@
 /* =====================================================================
    download-qr.js — photo/video download QR on the Thank you page, and its
    settings in Admin → Photo booth settings → "Photo download via QR".
-   The upload queue lives in main/unggah.js, the server in cloud/worker.mjs.
-   The status fields (aktif, menunggu, …) come from the main process and are
-   renamed together with it in refactor/main-english.
+   The upload queue lives in main/upload.js, the server in cloud/worker.mjs.
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { refreshHistory } from './session-history.js';
@@ -11,7 +9,7 @@ import { language, t } from './language.js';
 import { $, state } from './state.js';
 import { flash } from './app.js';
 
-let uploadStatus = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' };
+let uploadStatus = { enabled: false, waiting: 0, sent: 0, lastError: '' };
 
 // Latest upload status (the server address is used for links in Session history)
 export const getUploadStatus = () => uploadStatus;
@@ -44,38 +42,39 @@ function renderUploadStatus() {
   if (!$('qrStatus')) return;
   const s = uploadStatus;
   let text, color;
-  if (!s.aktif) {
+  if (!s.enabled) {
     text = "QR is off. Guests don't see a QR code.";
     color = '';
-  } else if (s.sedang && s.progres && s.progres.kode === s.sedang) {
-    text = `Sending video… part ${s.progres.n} of ${s.progres.total}${s.menungguVideo > 1 ? ` · ${s.menungguVideo} video(s) in queue` : ''}`;
+  } else if (s.current && s.progress && s.progress.code === s.current) {
+    text = `Sending video… part ${s.progress.n} of ${s.progress.total}${s.waitingVideos > 1 ? ` · ${s.waitingVideos} video(s) in queue` : ''}`;
     color = 'kuning';
-  } else if (s.sedang) {
-    text = `Sending… · ${s.menunggu + (s.menungguVideo || 0)} in queue`;
+  } else if (s.current) {
+    text = `Sending… · ${s.waiting + (s.waitingVideos || 0)} in queue`;
     color = 'kuning';
-  } else if (s.menunggu) {
-    text = `${s.menunggu} photo(s) waiting to be sent${s.errorTerakhir ? ' · ' + s.errorTerakhir : ''}`;
-    color = s.errorTerakhir ? 'merah' : 'kuning';
-  } else if (s.menungguVideo && s.errorTerakhir && s.menungguVideo > (s.videoDiolah || 0)) {
-    text = `All photos sent · ${s.menungguVideo} video(s) waiting · ${s.errorTerakhir}`;
+  } else if (s.waiting) {
+    text = `${s.waiting} photo(s) waiting to be sent${s.lastError ? ' · ' + s.lastError : ''}`;
+    color = s.lastError ? 'merah' : 'kuning';
+  } else if (s.waitingVideos && s.lastError && s.waitingVideos > (s.videosProcessing || 0)) {
+    text = `All photos sent · ${s.waitingVideos} video(s) waiting · ${s.lastError}`;
     color = 'merah';
   } else {
     text =
-      `On · all photos sent${s.terkirim ? ` (${s.terkirim} since the app opened)` : ''}${s.menungguSatuan ? ` · ${s.menungguSatuan} single shot(s) still uploading` : ''}` +
-      (s.menungguVideo
-        ? ` · ${s.menungguVideo} video(s) ${s.videoDiolah === s.menungguVideo ? 'being prepared' : 'uploading'}`
-        : s.terkirimVideo
-          ? ` · ${s.terkirimVideo} video(s) sent`
+      `On · all photos sent${s.sent ? ` (${s.sent} since the app opened)` : ''}${s.waitingSingles ? ` · ${s.waitingSingles} single shot(s) still uploading` : ''}` +
+      (s.waitingVideos
+        ? ` · ${s.waitingVideos} video(s) ${s.videosProcessing === s.waitingVideos ? 'being prepared' : 'uploading'}`
+        : s.sentVideos
+          ? ` · ${s.sentVideos} video(s) sent`
           : '');
-    color = s.menungguVideo ? 'kuning' : 'hijau';
+    color = s.waitingVideos ? 'kuning' : 'hijau';
   }
-  if (s.aktif && !s.video) text += ' · Video QR is off';
+  if (s.enabled && !s.video) text += ' · Video QR is off';
   $('qrStatus').textContent = text;
   $('qrDot').className = 'sony-dot ' + color;
-  $('btnQrUlang').style.display = (s.menunggu || s.menungguVideo > (s.videoDiolah || 0)) && !s.sedang ? '' : 'none';
+  $('btnQrUlang').style.display =
+    (s.waiting || s.waitingVideos > (s.videosProcessing || 0)) && !s.current ? '' : 'none';
   if ($('setQrVideo')) {
-    $('setQrVideo').disabled = !s.aktif;
-    $('setQrKualitas').disabled = !s.aktif || !s.video;
+    $('setQrVideo').disabled = !s.enabled;
+    $('setQrKualitas').disabled = !s.enabled || !s.video;
   }
 }
 export async function fillDownloadQrSettings() {
@@ -84,15 +83,15 @@ export async function fillDownloadQrSettings() {
   } catch {
     return; // no status (main process not ready): leave the fields as they are
   }
-  $('setQrAktif').checked = uploadStatus.aktif;
+  $('setQrAktif').checked = uploadStatus.enabled;
   if ($('setQrVideo')) {
     $('setQrVideo').checked = uploadStatus.video !== false;
-    $('setQrKualitas').value = uploadStatus.videoKualitas === '1080' ? '1080' : '720';
+    $('setQrKualitas').value = uploadStatus.videoQuality === '1080' ? '1080' : '720';
   }
   $('setQrUrl').value = uploadStatus.url || '';
   $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = uploadStatus.adaKunci ? '•••••••• (saved)' : 'From npm run cloud:pasang';
-  $('btnQrPasang').style.display = uploadStatus.adaHasilPasang ? '' : 'none';
+  $('setQrKunci').placeholder = uploadStatus.hasKey ? '•••••••• (saved)' : 'From npm run cloud:pasang';
+  $('btnQrPasang').style.display = uploadStatus.hasSetupResult ? '' : 'none';
   renderUploadStatus();
 }
 async function saveDownloadQr(patch, message) {
@@ -100,12 +99,12 @@ async function saveDownloadQr(patch, message) {
   uploadStatus = r;
   if (r.error) {
     flash('qrMsg', r.error, true);
-    $('setQrAktif').checked = r.aktif;
+    $('setQrAktif').checked = r.enabled;
     if ($('setQrVideo')) $('setQrVideo').checked = r.video !== false;
     return false;
   }
   $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = r.adaKunci ? '•••••••• (saved)' : '';
+  $('setQrKunci').placeholder = r.hasKey ? '•••••••• (saved)' : '';
   renderUploadStatus();
   if (message) flash('qrMsg', message);
   return true;
@@ -120,7 +119,7 @@ export function setupDownloadQr() {
   });
   $('setQrAktif').onchange = e =>
     saveDownloadQr(
-      { aktif: e.target.checked },
+      { enabled: e.target.checked },
       e.target.checked ? 'QR is on: photo booth guests will see a QR code on the Thank you page.' : 'QR turned off.',
     );
   if ($('setQrVideo')) {
@@ -133,7 +132,7 @@ export function setupDownloadQr() {
       );
     $('setQrKualitas').onchange = e =>
       saveDownloadQr(
-        { videoKualitas: e.target.value },
+        { videoQuality: e.target.value },
         e.target.value === '1080'
           ? 'Phone videos: 1080p (sharper, about 2× larger to upload).'
           : 'Phone videos: 720p (lighter, uploads faster).',
@@ -141,14 +140,14 @@ export function setupDownloadQr() {
   }
   $('btnQrSimpan').onclick = () => {
     const patch = { url: $('setQrUrl').value };
-    if ($('setQrKunci').value.trim()) patch.kunci = $('setQrKunci').value;
+    if ($('setQrKunci').value.trim()) patch.key = $('setQrKunci').value;
     saveDownloadQr(patch, 'Server settings saved.');
   };
   $('btnQrTes').onclick = async () => {
     $('qrMsg').textContent = 'Checking…';
     const r = await api.testUpload();
     if (r.error) flash('qrMsg', r.error, true);
-    else flash('qrMsg', `Connected to the server. Photos are kept for ${r.hari} days.`);
+    else flash('qrMsg', `Connected to the server. Photos are kept for ${r.days} days.`);
   };
   $('btnQrPasang').onclick = async () => {
     const h = await api.uploadSetupResult();
@@ -156,7 +155,7 @@ export function setupDownloadQr() {
     $('setQrUrl').value = h.url;
     if (
       await saveDownloadQr(
-        { url: h.url, kunci: h.kunci },
+        { url: h.url, key: h.key },
         'Address & key loaded from the setup. Press "Test connection", then turn the QR on.',
       )
     )

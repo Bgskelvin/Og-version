@@ -2,13 +2,11 @@
    lut.js — photo filters from 3D LUT files (.cube)
    A .cube file is a "color recipe" that can be exported from Lightroom/Photoshop
    (Export Color Lookup Tables), DaVinci Resolve, or bought as a preset.
-   - parseCube(text)              → { size, data, judul, min, max } or throws (English message)
+   - parseCube(text)              → { size, data, title, min, max } or throws (English message)
    - applyLut(photo, lut, k)      → new canvas with the filtered photo
                                     (k = strength 0..1; large photos are scaled down first)
    Used by the UI (photo booth, template editor) and by the main process
    (main/filter.js uses parseCube to check uploaded files).
-   Note: the `judul` / `nama` fields are part of the data shared with the main
-   process; they are renamed together with it in refactor/main-english.
    ===================================================================== */
 
 export const LUT_MAX_SIZE = 65; // 65×65×65 color points (the largest common .cube size)
@@ -72,7 +70,7 @@ export function parseCube(text) {
   for (let c = 0; c < 3; c++) if (!(max[c] > min[c])) throw new Error('DOMAIN_MIN must be smaller than DOMAIN_MAX.');
   // Store as 0..255 so applying per pixel is fast
   for (let i = 0; i < data.length; i++) data[i] = Math.min(255, Math.max(0, data[i] * 255));
-  return { size, data, judul: title, min, max };
+  return { size, data, title, min, max };
 }
 
 // Apply a LUT to RGBA pixel data (in place). k = strength 0..1.
@@ -190,7 +188,7 @@ export function loadLut(id) {
       id,
       window.api
         .getFilter(id)
-        .then(r => (r ? { id, nama: r.nama, lut: parseCube(r.teks) } : null))
+        .then(r => (r ? { id, name: r.name, lut: parseCube(r.text) } : null))
         .catch(e => {
           console.log('Filter could not be loaded: ' + (e && e.message));
           return null;

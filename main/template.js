@@ -2,10 +2,8 @@
    template.js — Photo Booth photo design templates (per couple)
    Stored in <data folder>/templates/<id>/:
      template.json   size, background color, positions of photos 1-4, texts
-     latar.png/jpg   background image (optional, from Canva/Photoshop)
-     bingkai.png     transparent PNG drawn over the photos (optional)
-   Field names (nama, ukuran, latarWarna, …) and the image names latar/bingkai
-   are stored on disk and shared with the UI.
+     background.png/jpg  background image (optional, from Canva/Photoshop)
+     frame.png           transparent PNG drawn over the photos (optional)
    ===================================================================== */
 const { ipcMain } = require('electron');
 const fs = require('fs');
@@ -16,15 +14,15 @@ const log = require('./log');
 const templatesDir = path.join(userData, 'templates');
 const SIZES = {
   // output size in pixels (300 dpi)
-  '4r-tegak': { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
-  '4r-datar': { W: 1800, H: 1200, nama: '4R landscape (6×4)' },
-  strip: { W: 600, H: 1800, nama: 'Strip 2×6' },
-  persegi: { W: 1200, H: 1200, nama: 'Square' },
+  '4r-portrait': { W: 1200, H: 1800, name: '4R portrait (4×6)' },
+  '4r-landscape': { W: 1800, H: 1200, name: '4R landscape (6×4)' },
+  strip: { W: 600, H: 1800, name: 'Strip 2×6' },
+  square: { W: 1200, H: 1200, name: 'Square' },
 };
 const MAX_IMAGE = 25 * 1024 * 1024; // size limit for uploaded image files
 const FONTS = ['sans', 'serif', 'script'];
 const RATIOS = ['3:2', '4:3', '16:9', '1:1', '4:5', '3:4', '2:3']; // photo box ratio (width:height)
-const IMAGES = ['latar', 'bingkai']; // background, frame
+const IMAGES = ['background', 'frame'];
 
 const number = (v, lo, hi, d) => {
   const n = Number(v);
@@ -34,7 +32,7 @@ const color = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : d);
 
 // Clean the data from the editor so it is always valid
 function cleanTemplate(t) {
-  const size = SIZES[t.ukuran] ? t.ukuran : '4r-tegak';
+  const size = SIZES[t.size] ? t.size : '4r-portrait';
   const { W, H } = SIZES[size];
   const slots = (Array.isArray(t.slots) ? t.slots : []).slice(0, 4).map(s => {
     const w = number(s.w, 40, W, W / 2),
@@ -64,22 +62,22 @@ function cleanTemplate(t) {
         .replace(/[^a-z0-9_-]/gi, '')
         .slice(0, 40) || 'tpl' + Date.now(),
     coupleId: String(t.coupleId || ''),
-    nama:
-      String(t.nama || '')
+    name:
+      String(t.name || '')
         .trim()
         .slice(0, 60) || 'Untitled template',
-    ukuran: size,
+    size,
     W,
     H,
-    latarWarna: color(t.latarWarna, '#FFFFFF'),
-    rasio: RATIOS.includes(t.rasio) ? t.rasio : null,
+    backgroundColor: color(t.backgroundColor, '#FFFFFF'),
+    ratio: RATIOS.includes(t.ratio) ? t.ratio : null,
     // Photo filter (.cube LUT from main/filter.js). Empty = no filter.
     filter:
       String(t.filter || '')
         .replace(/[^a-z0-9_-]/gi, '')
         .slice(0, 40) || null,
-    filterKekuatan: Math.round(number(t.filterKekuatan, 0, 100, 100)),
-    filterTamu: t.filterTamu !== false, // guests may still pick another filter
+    filterStrength: Math.round(number(t.filterStrength, 0, 100, 100)),
+    guestPicksFilter: t.guestPicksFilter !== false, // guests may still pick another filter
     slots,
     texts,
   };
@@ -125,11 +123,11 @@ function listTemplates(coupleId) {
   for (const id of ids) {
     const t = readJSON(path.join(folder(id), 'template.json'), null);
     if (!t || (coupleId && t.coupleId !== coupleId)) continue;
-    const background = findImage(id, 'latar'),
-      frame = findImage(id, 'bingkai');
-    out.push({ ...t, latarUrl: background && dataUrl(background), bingkaiUrl: frame && dataUrl(frame) });
+    const background = findImage(id, 'background'),
+      frame = findImage(id, 'frame');
+    out.push({ ...t, backgroundUrl: background && dataUrl(background), frameUrl: frame && dataUrl(frame) });
   }
-  return out.sort((a, b) => (a.dibuat || 0) - (b.dibuat || 0));
+  return out.sort((a, b) => (a.created || 0) - (b.created || 0));
 }
 
 // Number of templates per couple (without loading images), for the couple list in Admin
@@ -176,14 +174,14 @@ function register() {
   ipcMain.handle('count-templates', () => countTemplates());
   ipcMain.handle('list-templates', (e, coupleId) => listTemplates(coupleId));
 
-  // images: { latar, bingkai } — each a Uint8Array (replace), null (delete), or missing (keep)
+  // images: { background, frame } — each a Uint8Array (replace), null (delete), or missing (keep)
   ipcMain.handle('save-template', (e, input, images = {}) => {
     try {
       if (!input || !input.coupleId) return { error: 'No couple selected.' };
       const t = cleanTemplate(input);
       const old = readJSON(path.join(folder(t.id), 'template.json'), null);
-      t.dibuat = (old && old.dibuat) || Date.now();
-      t.diubah = Date.now();
+      t.created = (old && old.created) || Date.now();
+      t.changed = Date.now();
       fs.mkdirSync(folder(t.id), { recursive: true });
       for (const base of IMAGES) {
         if (!(base in images)) continue;
@@ -193,7 +191,7 @@ function register() {
         if (bytes.length > MAX_IMAGE) return { error: 'The image is too large (max 25 MB).' };
         const ext = imageType(bytes);
         if (!ext) return { error: 'The image must be a PNG or JPG.' };
-        if (base === 'bingkai' && ext !== 'png')
+        if (base === 'frame' && ext !== 'png')
           return { error: 'The frame must be a PNG so the photo areas can be transparent.' };
         fs.writeFileSync(path.join(folder(t.id), `${base}.${ext}`), bytes);
       }

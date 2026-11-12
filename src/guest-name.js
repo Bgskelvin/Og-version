@@ -14,7 +14,7 @@ let nameKeyboard = null;
 // Start button: to the name page (if turned on), or straight to the main menu
 export function startGuest() {
   state.guestName = '';
-  if (!state.cfg.tanyaNama) return show('utama');
+  if (!state.cfg.askName) return show('utama');
   $('namaInput').value = '';
   if (nameKeyboard) nameKeyboard.reset();
   show('nama');
@@ -30,7 +30,7 @@ function submitName() {
 // "Hi, Budi!" on the main menu
 export function renderGreeting() {
   const el = $('sapaTamu');
-  el.textContent = state.guestName ? t('nama.hai', { nama: state.guestName }) : '';
+  el.textContent = state.guestName ? t('nama.hai', { name: state.guestName }) : '';
   el.style.display = state.guestName ? '' : 'none';
 }
 

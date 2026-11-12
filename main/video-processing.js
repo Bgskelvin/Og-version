@@ -10,8 +10,8 @@
    Order per session:  (webm → MP4)  →  overlay text (quiz)  →  phone version (if QR video is on)
    Every step is recorded in sessions.json, so if the app is closed halfway,
    the work continues when the app is opened again.
-   Session fields (kapsi, teks, fileAsli, unggah) and their values ('proses',
-   'selesai', 'gagal', 'olah', 'antre') are stored on disk and shared with the UI.
+   Session fields set here: captions, captionStatus ('processing' | 'done' |
+   'failed'), originalFile, upload ('processing' | 'queued' | 'failed').
    ===================================================================== */
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -30,7 +30,7 @@ try {
 }
 const available = () => !!ffmpegPath;
 
-const CAPTION_DIR = path.join(userData, 'kapsi'); // question text images (PNG) from the UI
+const CAPTION_DIR = path.join(userData, 'captions'); // question text images (PNG) from the UI
 const PHONE_DIR = path.join(userData, 'qr-video'); // temporary phone versions, deleted after upload
 const MAX_CAPTIONS = 20;
 
@@ -124,7 +124,7 @@ function saveCaptions(sid, captions, images) {
       clean.push({
         a: Math.round(a * 100) / 100,
         b: Math.round(b * 100) / 100,
-        ...(captions[i].judul ? { judul: String(captions[i].judul).slice(0, 300) } : {}),
+        ...(captions[i].title ? { title: String(captions[i].title).slice(0, 300) } : {}),
       });
     }
   } catch (e) {
@@ -134,7 +134,7 @@ function saveCaptions(sid, captions, images) {
   return clean.length ? clean : null;
 }
 const captionFile = (sid, i) => path.join(CAPTION_DIR, `${sid}-${i + 1}.png`);
-const deleteCaptions = s => (s.kapsi || []).forEach((_, i) => removeFile(captionFile(s.id, i)));
+const deleteCaptions = s => (s.captions || []).forEach((_, i) => removeFile(captionFile(s.id, i)));
 
 // One chapter per question (FFMETADATA format)
 function chapterText(captions, endSeconds) {
@@ -144,7 +144,7 @@ function chapterText(captions, endSeconds) {
     captions
       .map((k, i) => {
         const end = i + 1 < captions.length ? captions[i + 1].a : Math.max(k.b, endSeconds || k.b);
-        return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(i ? k.a * 1000 : 0)}\nEND=${Math.round(end * 1000)}\ntitle=${esc(`${i + 1}. ${k.judul || ''}`.trim())}\n`;
+        return `[CHAPTER]\nTIMEBASE=1/1000\nSTART=${Math.round(i ? k.a * 1000 : 0)}\nEND=${Math.round(end * 1000)}\ntitle=${esc(`${i + 1}. ${k.title || ''}`.trim())}\n`;
       })
       .join('')
   );
@@ -153,38 +153,42 @@ function chapterText(captions, endSeconds) {
 // Overlay the question texts on a quiz video. The original video without text → original/<name>_original.mp4
 async function overlayText(sid) {
   const s = findSession(sid);
-  if (!s || !s.kapsi || !s.kapsi.length || !s.file) return;
+  if (!s || !s.captions || !s.captions.length || !s.file) return;
   const main = location(s);
   const originalDir = path.join(path.dirname(main), 'original');
   const original = path.join(originalDir, s.file.replace(/\.mp4$/i, '') + '_original.mp4');
   const temp = path.join(path.dirname(main), '.' + s.file.replace(/\.mp4$/i, '') + '.teks.mp4');
   const source = fs.existsSync(original) ? original : main; // when retried: start again from the original video
   if (!fs.existsSync(source)) {
-    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Video file not found for adding the questions' });
+    updateSession(sid, {
+      status: 'done',
+      captionStatus: 'failed',
+      error: 'Video file not found for adding the questions',
+    });
     return;
   }
-  const images = s.kapsi.map((_, i) => captionFile(sid, i));
+  const images = s.captions.map((_, i) => captionFile(sid, i));
   if (images.some(g => !fs.existsSync(g))) {
-    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Question text images are missing' });
+    updateSession(sid, { status: 'done', captionStatus: 'failed', error: 'Question text images are missing' });
     return;
   }
-  updateSession(sid, { status: 'teks', teks: 'proses' });
+  updateSession(sid, { status: 'captions', captionStatus: 'processing' });
   const size = await videoSize(source);
   if (!size) {
-    updateSession(sid, { status: 'done', teks: 'gagal', error: 'Could not read the video size' });
+    updateSession(sid, { status: 'done', captionStatus: 'failed', error: 'Could not read the video size' });
     return;
   }
   // The text images are designed 1920 pixels wide; scaled to the video width, stuck to the bottom
   const filter = [];
   let last = '0:v';
   images.forEach((_, i) => {
-    const k = s.kapsi[i];
+    const k = s.captions[i];
     filter.push(`[${i + 1}:v]scale=${size.w}:-2[k${i}]`);
     filter.push(`[${last}][k${i}]overlay=0:H-h:enable='between(t,${k.a},${k.b})'[v${i}]`);
     last = `v${i}`;
   });
-  const chapterFile = path.join(CAPTION_DIR, `${sid}-bab.txt`);
-  fs.writeFileSync(chapterFile, chapterText(s.kapsi, s.seconds));
+  const chapterFile = path.join(CAPTION_DIR, `${sid}-chapters.txt`);
+  fs.writeFileSync(chapterFile, chapterText(s.captions, s.seconds));
   const inputs = ['-i', source, ...images.flatMap(g => ['-i', g]), '-f', 'ffmetadata', '-i', chapterFile];
   const r = await encode(
     inputs,
@@ -209,7 +213,7 @@ async function overlayText(sid) {
   if (!r.ok || !fs.existsSync(temp)) {
     removeFile(temp);
     log.error(`Question texts could not be overlaid (${s.file}): ${lastLine(r.stderr) || 'FFmpeg error'}`);
-    updateSession(sid, { status: 'done', teks: 'gagal' });
+    updateSession(sid, { status: 'done', captionStatus: 'failed' });
     return;
   }
   try {
@@ -221,14 +225,14 @@ async function overlayText(sid) {
   } catch (e) {
     removeFile(temp);
     log.error(`Question texts could not be saved (${s.file}): ${e.message}`);
-    updateSession(sid, { status: 'done', teks: 'gagal' });
+    updateSession(sid, { status: 'done', captionStatus: 'failed' });
     return;
   }
   deleteCaptions(s);
   updateSession(sid, {
     status: 'done',
-    teks: 'selesai',
-    fileAsli: path.relative(path.dirname(main), original),
+    captionStatus: 'done',
+    originalFile: path.relative(path.dirname(main), original),
     error: undefined,
   });
   log.write(`Question texts overlaid: ${s.file} (original: original/${path.basename(original)})`);
@@ -239,7 +243,7 @@ const phoneFile = sid => path.join(PHONE_DIR, `${sid}.mp4`);
 const posterFile = sid => path.join(PHONE_DIR, `${sid}.jpg`);
 async function phoneVersion(sid, quality) {
   const s = findSession(sid);
-  if (!s || !s.kode) return null;
+  if (!s || !s.code) return null;
   const source = location(s);
   if (!s.file || !fs.existsSync(source)) return { error: 'Video file not found' };
   fs.mkdirSync(PHONE_DIR, { recursive: true });
@@ -288,22 +292,22 @@ function useUpload(u) {
 }
 async function continueSession(sid) {
   let s = findSession(sid);
-  if (!s || !['done', 'teks'].includes(s.status) || !available()) return;
-  if (s.kapsi && s.kapsi.length && s.teks !== 'selesai' && s.teks !== 'gagal') {
+  if (!s || !['done', 'captions'].includes(s.status) || !available()) return;
+  if (s.captions && s.captions.length && s.captionStatus !== 'done' && s.captionStatus !== 'failed') {
     await overlayText(sid);
     s = findSession(sid);
   }
-  if (s && s.kode && s.unggah === 'olah' && upload) {
+  if (s && s.code && s.upload === 'processing' && upload) {
     const h = await phoneVersion(sid, upload.videoQuality());
     if (!h || h.error) {
       log.error(`Phone version for QR could not be made (${s.file}): ${h ? h.error : '-'}`);
-      updateSession(sid, { unggah: 'gagal' });
-      upload.videoFailed(s.kode);
+      updateSession(sid, { upload: 'failed' });
+      upload.videoFailed(s.code);
       return;
     }
-    updateSession(sid, { unggah: 'antre' });
-    upload.videoFileReady(s.kode, h.file, h.poster);
-    log.write(`Phone version ready for QR ${s.kode}: ${(fs.statSync(h.file).size / 1048576).toFixed(1)} MB`);
+    updateSession(sid, { upload: 'queued' });
+    upload.videoFileReady(s.code, h.file, h.poster);
+    log.write(`Phone version ready for QR ${s.code}: ${(fs.statSync(h.file).size / 1048576).toFixed(1)} MB`);
   }
 }
 const processLater = sid => enqueue(() => continueSession(sid));
@@ -312,15 +316,18 @@ const processLater = sid => enqueue(() => continueSession(sid));
 function start() {
   if (!available()) return;
   for (const s of readSessions()) {
-    if (s.status === 'teks') {
-      updateSession(s.id, { status: 'done', teks: undefined });
+    if (s.status === 'captions') {
+      updateSession(s.id, { status: 'done', captionStatus: undefined });
       processLater(s.id);
-    } else if (s.status === 'done' && ((s.kapsi && s.kapsi.length && !s.teks) || s.unggah === 'olah'))
+    } else if (
+      s.status === 'done' &&
+      ((s.captions && s.captions.length && !s.captionStatus) || s.upload === 'processing')
+    )
       processLater(s.id);
   }
   // Clean up temporary files left behind
   try {
-    for (const f of fs.readdirSync(CAPTION_DIR)) if (f.endsWith('-bab.txt')) removeFile(path.join(CAPTION_DIR, f));
+    for (const f of fs.readdirSync(CAPTION_DIR)) if (f.endsWith('-chapters.txt')) removeFile(path.join(CAPTION_DIR, f));
   } catch {
     /* the text image folder doesn't exist yet */
   }

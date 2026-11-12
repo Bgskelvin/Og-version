@@ -5,8 +5,6 @@
    resetIdle, noCam, activeCouple, setNotice, setThanks, needStream (see
    state.js, app.js). Only setupPhotobooth() is exported.
    Photos are taken in grabFrame() (webcam/HDMI) or captureSony() (Sony camera).
-   Data sent to the main process (savePhotos: singles → `satuan`, `tamu`, meta
-   values) keeps its current names until refactor/main-english.
    ===================================================================== */
 import { prepareTemplate, drawTemplate } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
@@ -448,14 +446,14 @@ async function loadCoupleTemplates() {
       const lut = item
         ? {
             id: item.id,
-            nama: item.nama,
+            name: item.name,
             data: item.lut,
-            k: (tpl.filterKekuatan ?? 100) / 100,
-            tamu: tpl.filterTamu !== false,
+            k: (tpl.filterStrength ?? 100) / 100,
+            guest: tpl.guestPicksFilter !== false,
           }
         : null;
       templateLayouts['tpl:' + tpl.id] = {
-        name: tpl.nama,
+        name: tpl.name,
         W: tpl.W,
         H: tpl.H,
         tpl: true,
@@ -483,8 +481,8 @@ const dateText = () => todayDate();
 const cssFilter = key => (FILTERS.find(x => x[0] === key) || FILTERS[0])[2];
 function filterChoices(lay = currentLayout()) {
   if (!lay.lut) return FILTERS;
-  const templateOption = ['tpl', lay.lut.nama, 'none'];
-  return lay.lut.tamu ? [templateOption, ...FILTERS] : [templateOption];
+  const templateOption = ['tpl', lay.lut.name, 'none'];
+  return lay.lut.guest ? [templateOption, ...FILTERS] : [templateOption];
 }
 // Make sure the chosen filter exists in this layout; a template with a filter starts with it
 function syncFilter(layoutChanged) {
@@ -925,12 +923,12 @@ async function finishEdit() {
     const r = await api.savePhotos({
       originals,
       result,
-      satuan: singles,
-      tamu: state.guestName,
+      singles,
+      guest: state.guestName,
       meta: {
         layout: lay.tpl ? 'template' : editor.layout,
         template: lay.tpl ? lay.name : undefined,
-        filter: editor.filter === 'tpl' ? 'template: ' + (lay.lut ? lay.lut.nama : '-') : editor.filter,
+        filter: editor.filter === 'tpl' ? 'template: ' + (lay.lut ? lay.lut.name : '-') : editor.filter,
         frame: lay.tpl ? undefined : FRAMES()[editor.frame][1],
         stickers: editor.stickers.length,
         drawings: editor.strokes.length,

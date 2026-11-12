@@ -63,6 +63,9 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - ESLint 10 flat config (`eslint.config.mjs`). `src/` diperiksa sebagai ES module (browser + `api`), `prefer-const` menyala di semua kode.
 - `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/log.js`).
 - Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/storage.js`.
+- Nama data tersimpan (settings, sesi, couple, template, filter, antrean QR, folder di data) bahasa Inggris. Data dari versi lama diubah otomatis oleh `main/migrate.js` saat app dibuka (aman diulang, cadangan di `<data>/backup/`). **Mengganti nama data tersimpan → tambah langkah di `main/migrate.js` + uji.**
+- Protokol program kamera Sony (`kamera-sony/sony-helper.cpp`) dan server QR (`cloud/worker.mjs`) tetap memakai kata Indonesia (`sambung`, `tersambung`, `satuan`, `bagian`, …). Diterjemahkan di batasnya saja: `main/sony-camera.js` dan `main/upload.js`.
+- Nama file rekaman pesan tetap `Nama_pesan.mp4` (`FILE_LABELS` di `main/recording.js`), meski labelnya `message`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `enqueue()` di `main/video-processing.js`.
 
 ## Tampilan `src/`
@@ -74,7 +77,7 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
 - Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.
 - Ganti nama fungsi/file → perbarui juga `src/debug-handle.js`, `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
-- Nama field data dari proses utama (`judul`, `nama`, `aktif`, `satuan`, `tamu`, kunci `cfg` seperti `tanyaNama`, …), id/kelas di HTML/CSS, dan teks pemberitahuan operator belum diganti — itu bagian 3 (`refactor/main-english-data`). Nama `api.*` dan saluran IPC sudah bahasa Inggris (bagian 2).
+- Nama `api.*`, saluran IPC dan field data dari proses utama sudah bahasa Inggris. Yang belum: id/kelas di HTML/CSS, nama layar (`utama`, `pesan`, `nama`, …), kunci kamus `src/language.js`, dan teks pemberitahuan operator (`setNotice`) — langkah berikutnya.
 - Uji di `tests/uji-utama.js` memeriksa: setiap `import` punya `export` yang cocok, dan setiap file `src/*.js` benar-benar dimuat (file yang tidak dipakai lagi harus dihapus).
 
 ## Uji
@@ -86,8 +89,8 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 
 ## Status (12 Nov 2026)
 
-- `main` = v1.1.1: `src/` seluruhnya ES module + bahasa Inggris (PR #4). Leura.app 1.1.0 terpasang di Applications. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- `main` v1.1.2 = bagian 1 (PR #5): file, fungsi, komentar dan log di `main/` bahasa Inggris.
-- `refactor/main-english-ipc` (v1.1.3) = bagian 2: nama `api.*` dan saluran IPC bahasa Inggris. Berikutnya bagian 3: nama data tersimpan + migrasi data lama.
+- `main` = v1.1.3: `src/` ES module + bahasa Inggris (v1.1.1), `main/` bahasa Inggris (v1.1.2), nama `api.*`/IPC bahasa Inggris (v1.1.3). Leura.app 1.1.0 terpasang di Applications. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
+- `refactor/main-english-data` (v1.2.0): nama data tersimpan bahasa Inggris + `main/migrate.js` (data lama diubah otomatis, cadangan disimpan). Setelah 1.2.0 dibuka, jangan kembali ke Leura.app lama tanpa memulihkan cadangan.
+- Berikutnya: bahasa Inggris untuk tampilan (id/kelas HTML/CSS, nama layar, kunci kamus, teks pemberitahuan operator).
 - Sesudahnya: `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
 - Sebelum acara pertama: `feature/guest-consent` (UU PDP), `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

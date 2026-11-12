@@ -5,7 +5,7 @@
      doesn't cut off the first question.
    - The time each question is shown is recorded, and its text is drawn
      as a transparent PNG. The main process overlays it at the bottom of the
-     video (main/olah-video.js); the original video without text is kept too.
+     video (main/video-processing.js); the original video without text is kept too.
    Shared session state (cfg, busy, sessionToken, cancelTimer, recT0) still
    lives in state.js as globals until that file becomes a module.
    ===================================================================== */
@@ -160,8 +160,7 @@ async function startQuiz() {
     if (token !== state.sessionToken) return;
     $('quizRun').style.display = 'flex';
     const picks = pickQuestions(quizRounds());
-    // Caption timing for the main process; field names (a, b, judul, kapsi, kapsiGambar)
-    // are shared with main/olah-video.js and renamed with it in refactor/main-english.
+    // Caption timing for the main process (main/video-processing.js): a = start, b = end second
     const captions = [];
     for (let r = 0; r < picks.length; r++) {
       if (token !== state.sessionToken) return;
@@ -170,19 +169,19 @@ async function startQuiz() {
       if (token !== state.sessionToken) return;
       const a = Math.max(0, recordingSeconds() - 0.5); // card stops & question shows (0.5 s before shuffleTo ends)
       await answerTimer(r === picks.length - 1);
-      captions.push({ a, b: recordingSeconds(), judul: state.cfg.quiz[picks[r]] });
+      captions.push({ a, b: recordingSeconds(), title: state.cfg.quiz[picks[r]] });
     }
     if (token !== state.sessionToken) return;
     let captionImages = [];
     try {
-      captionImages = await Promise.all(captions.map((k, i) => drawCaption(k.judul, i, picks.length)));
+      captionImages = await Promise.all(captions.map((k, i) => drawCaption(k.title, i, picks.length)));
     } catch (e) {
       console.log('Question text for the video could not be created: ' + e.message);
     }
     const complete = captionImages.length === captions.length && captionImages.every(Boolean);
     finishSession({
       questions: picks.map(i => state.cfg.quiz[i]),
-      ...(complete ? { kapsi: captions, kapsiGambar: captionImages } : {}),
+      ...(complete ? { captions, captionImages } : {}),
     });
   } catch (err) {
     console.log('Quiz could not run: ' + err.message);

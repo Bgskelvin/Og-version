@@ -2,18 +2,19 @@
    upload.js — photo download by QR: code, link, and the upload queue.
    - Every photobooth session gets a random code; the link & QR exist right
      away, even while the internet is down.
-   - Result photos go into a queue saved on disk (antrean-unggah.json),
+   - Result photos go into a queue saved on disk (upload-queue.json),
      uploaded one at a time to the Cloudflare server (cloud/worker.mjs), and
      retried automatically on failure — also after the app is opened again.
    - Single photos (1-4, without template) are uploaded AFTER every result photo
      has been sent, so each QR opens quickly. Kept temporarily in
-     <data folder>/qr-satuan/ and deleted after sending.
+     <data folder>/qr-singles/ and deleted after sending.
    - Video (message & quiz): the code & link exist as soon as the recording ends;
      the "phone version" is made by video-processing.js, then uploaded IN 8 MB
      PARTS (can resume if the internet drops). Photos always go first:
      new photos are sent between the video parts.
-   Queue item fields, the settings (settings.unggah) and the server protocol
-   (cloud/worker.mjs) keep their names; the status fields are shared with the UI.
+   The server protocol (cloud/worker.mjs: paths, x-leura-* headers, JSON fields
+   such as satuan, bagian, hari) keeps its Indonesian words, so a server that
+   is already installed keeps working without npm run cloud:pasang.
    ===================================================================== */
 const { ipcMain, shell, clipboard } = require('electron');
 const crypto = require('crypto');
@@ -23,8 +24,8 @@ const { userData, readJSON, writeJSON, readSettings, writeSettings, updateSessio
 const { getWin } = require('./active-window');
 const log = require('./log');
 
-const QUEUE_FILE = path.join(userData, 'antrean-unggah.json');
-const SINGLES_DIR = path.join(userData, 'qr-satuan');
+const QUEUE_FILE = path.join(userData, 'upload-queue.json');
+const SINGLES_DIR = path.join(userData, 'qr-singles');
 const MAX_SINGLES = 4;
 // Size of each video part (R2: all parts the same size, except the last). LEURA_TEST_PART_SIZE is only for the automated tests.
 const PART_SIZE = Number(process.env.LEURA_TEST_PART_SIZE) || 8 * 1024 * 1024;
@@ -39,21 +40,21 @@ let running = false,
 const st = { sent: 0, sentVideos: 0, lastError: '', current: null, progress: null };
 
 const settings = () => {
-  const u = readSettings().unggah || {};
+  const u = readSettings().upload || {};
   return {
-    aktif: !!u.aktif,
+    enabled: !!u.enabled,
     url: u.url || '',
-    kunci: u.kunci || '',
+    key: u.key || '',
     video: u.video !== false,
-    videoKualitas: u.videoKualitas === '1080' ? '1080' : '720',
+    videoQuality: u.videoQuality === '1080' ? '1080' : '720',
   };
 };
 const ready = () => {
   const p = settings();
-  return p.aktif && !!p.url && !!p.kunci;
+  return p.enabled && !!p.url && !!p.key;
 };
 const videoEnabled = () => ready() && settings().video;
-const videoQuality = () => settings().videoKualitas;
+const videoQuality = () => settings().videoQuality;
 const baseUrl = url =>
   String(url || '')
     .trim()
@@ -61,7 +62,7 @@ const baseUrl = url =>
 const newCode = () => Array.from({ length: 10 }, () => LETTERS[crypto.randomInt(LETTERS.length)]).join('');
 const photoLink = code => baseUrl(settings().url) + '/f/' + code;
 const videoLink = code => baseUrl(settings().url) + '/v/' + code;
-const isVideo = x => x.jenis === 'video';
+const isVideo = x => x.kind === 'video';
 
 // The queue is read from disk once (also if video-processing.js hands over a video before start() is called)
 function load() {
@@ -81,21 +82,21 @@ function status() {
   load();
   const p = settings();
   return {
-    aktif: p.aktif,
+    enabled: p.enabled,
     url: p.url,
-    adaKunci: !!p.kunci,
+    hasKey: !!p.key,
     video: p.video,
-    videoKualitas: p.videoKualitas,
-    menunggu: queue.filter(x => !isVideo(x) && !x.hasilTerkirim).length,
-    menungguSatuan: queue.reduce((n, x) => n + singlesLeft(x).length, 0),
-    menungguVideo: queue.filter(isVideo).length,
-    videoDiolah: queue.filter(x => isVideo(x) && !x.file).length,
-    terkirim: st.sent,
-    terkirimVideo: st.sentVideos,
-    errorTerakhir: st.lastError,
-    sedang: st.current,
-    progres: st.progress,
-    adaHasilPasang: fs.existsSync(SETUP_RESULT),
+    videoQuality: p.videoQuality,
+    waiting: queue.filter(x => !isVideo(x) && !x.resultSent).length,
+    waitingSingles: queue.reduce((n, x) => n + singlesLeft(x).length, 0),
+    waitingVideos: queue.filter(isVideo).length,
+    videosProcessing: queue.filter(x => isVideo(x) && !x.file).length,
+    sent: st.sent,
+    sentVideos: st.sentVideos,
+    lastError: st.lastError,
+    current: st.current,
+    progress: st.progress,
+    hasSetupResult: fs.existsSync(SETUP_RESULT),
   };
 }
 function broadcast() {
@@ -129,7 +130,7 @@ const removeFile = f => {
   }
 };
 const singlesLeft = item =>
-  (item.satuan || []).map((f, i) => i + 1).filter(n => !(item.satuanTerkirim || []).includes(n));
+  (item.singles || []).map((f, i) => i + 1).filter(n => !(item.singlesSent || []).includes(n));
 
 // An old server (from before single photos / video) doesn't know the new features — single photos would even
 // OVERWRITE the result photo. So ask once first: a new server answers /ping with satuan: true, video: true.
@@ -138,13 +139,13 @@ async function serverSupports(p, feature) {
   if (serverFeatures === null) {
     try {
       const r = await fetch(`${baseUrl(p.url)}/ping`, {
-        headers: { authorization: 'Bearer ' + p.kunci },
+        headers: { authorization: 'Bearer ' + p.key },
         signal: AbortSignal.timeout(10000),
       });
       if (!r.ok) return null; // unknown yet (internet?) — try again later
       const j = await r.json();
-      serverFeatures = { satuan: !!j.satuan, video: !!j.video };
-      if (!serverFeatures.satuan)
+      serverFeatures = { singles: !!j.satuan, video: !!j.video }; // server answers in its own words
+      if (!serverFeatures.singles)
         log.warn('Old QR server: single photos are not uploaded. Run "npm run cloud:pasang" to update the server.');
       if (!serverFeatures.video)
         log.warn('Old QR server: videos cannot be uploaded. Run "npm run cloud:pasang" to update the server.');
@@ -159,19 +160,19 @@ async function serverSupports(p, feature) {
 async function sendPhoto(item, p, n = 0) {
   let data;
   try {
-    data = fs.readFileSync(n ? item.satuan[n - 1] : item.file);
+    data = fs.readFileSync(n ? item.singles[n - 1] : item.file);
   } catch {
     return MISSING;
   }
   const ctrl = new AbortController();
   const limit = setTimeout(() => ctrl.abort(), 60000);
-  const headers = { authorization: 'Bearer ' + p.kunci, 'content-type': 'image/jpeg' };
+  const headers = { authorization: 'Bearer ' + p.key, 'content-type': 'image/jpeg' };
   if (!n) {
-    headers['x-leura-jumlah'] = String((item.satuan || []).length);
+    headers['x-leura-jumlah'] = String((item.singles || []).length);
     if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
   }
   try {
-    const r = await fetch(`${baseUrl(p.url)}/u/${item.kode}${n ? '/' + n : ''}`, {
+    const r = await fetch(`${baseUrl(p.url)}/u/${item.code}${n ? '/' + n : ''}`, {
       method: 'PUT',
       body: data,
       signal: ctrl.signal,
@@ -195,7 +196,7 @@ async function sendPhoto(item, p, n = 0) {
 // Done with one item: take it out of the queue & delete its temporary files (single photos / phone version of the video)
 function finishItem(item) {
   queue = queue.filter(x => x !== item);
-  (item.satuan || []).forEach(removeFile);
+  (item.singles || []).forEach(removeFile);
   if (isVideo(item)) {
     if (item.file) removeFile(item.file);
     if (item.poster) removeFile(item.poster);
@@ -210,7 +211,7 @@ async function request(p, route, options = {}, limitMs = 120000) {
     const r = await fetch(`${baseUrl(p.url)}${route}`, {
       ...options,
       signal: ctrl.signal,
-      headers: { authorization: 'Bearer ' + p.kunci, ...(options.headers || {}) },
+      headers: { authorization: 'Bearer ' + p.key, ...(options.headers || {}) },
     });
     let j = {};
     try {
@@ -236,13 +237,13 @@ async function sendVideo(item, p) {
     return MISSING;
   }
   const total = Math.max(1, Math.ceil(size / PART_SIZE));
-  const base = `/uv/${item.kode}`;
-  if (!item.posterTerkirim && item.poster) {
+  const base = `/uv/${item.code}`;
+  if (!item.posterSent && item.poster) {
     let data;
     try {
       data = fs.readFileSync(item.poster);
     } catch {
-      item.posterTerkirim = true;
+      item.posterSent = true;
       return '';
     }
     const { r, j, fault } = await request(
@@ -253,7 +254,7 @@ async function sendVideo(item, p) {
     );
     if (fault) return fault;
     if (!r.ok) return refused(r, j);
-    item.posterTerkirim = true;
+    item.posterSent = true;
     return '';
   }
   if (!item.uploadId) {
@@ -263,16 +264,16 @@ async function sendVideo(item, p) {
     if (fault) return fault;
     if (!r.ok) return refused(r, j);
     if (j.ada) {
-      item.terkirim = true;
+      item.sent = true;
       return '';
     } // already arrived earlier (e.g. the app was closed while finishing)
     item.uploadId = j.uploadId;
-    item.bagian = [];
+    item.parts = [];
     return '';
   }
   const q = '?u=' + encodeURIComponent(item.uploadId);
-  if (item.bagian.length < total) {
-    const n = item.bagian.length + 1;
+  if (item.parts.length < total) {
+    const n = item.parts.length + 1;
     const buf = Buffer.alloc(Math.min(PART_SIZE, size - (n - 1) * PART_SIZE));
     try {
       const fd = fs.openSync(item.file, 'r');
@@ -281,7 +282,7 @@ async function sendVideo(item, p) {
     } catch {
       return MISSING;
     }
-    st.progress = { kode: item.kode, n, total };
+    st.progress = { code: item.code, n, total };
     const { r, j, fault } = await request(p, `${base}/${n}${q}`, {
       method: 'PUT',
       body: buf,
@@ -290,26 +291,26 @@ async function sendVideo(item, p) {
     if (fault) return fault;
     if (r.status === 404 && j.error === 'upload-hilang') {
       item.uploadId = null;
-      item.bagian = [];
+      item.parts = [];
       return 'Upload expired on the server, starting again';
     }
     if (!r.ok || !j.etag) return refused(r, j);
-    item.bagian.push({ partNumber: n, etag: j.etag });
+    item.parts.push({ partNumber: n, etag: j.etag });
     return '';
   }
   const { r, j, fault } = await request(p, `${base}/selesai${q}`, {
     method: 'POST',
-    body: JSON.stringify({ bagian: item.bagian }),
+    body: JSON.stringify({ bagian: item.parts }), // server protocol keeps its field names
     headers: { 'content-type': 'application/json' },
   });
   if (fault) return fault;
   if (r.status === 404 && j.error === 'upload-hilang') {
     item.uploadId = null;
-    item.bagian = [];
+    item.parts = [];
     return 'Upload expired on the server, starting again';
   }
   if (!r.ok) return refused(r, j);
-  item.terkirim = true;
+  item.sent = true;
   return '';
 }
 
@@ -323,22 +324,22 @@ async function runQueue() {
   try {
     while (queue.length && ready()) {
       const now = Date.now(),
-        due = x => (x.berikut || 0) <= now;
+        due = x => (x.nextTry || 0) <= now;
       const photos = queue.filter(x => !isVideo(x));
-      let item = photos.find(x => !x.hasilTerkirim && due(x)),
+      let item = photos.find(x => !x.resultSent && due(x)),
         n = 0;
-      if (!item && !photos.some(x => !x.hasilTerkirim)) {
+      if (!item && !photos.some(x => !x.resultSent)) {
         item = photos.find(x => due(x) && singlesLeft(x).length);
         if (item) {
-          const supported = await serverSupports(settings(), 'satuan');
+          const supported = await serverSupports(settings(), 'singles');
           if (supported === false) {
-            photos.filter(x => x.hasilTerkirim).forEach(finishItem);
+            photos.filter(x => x.resultSent).forEach(finishItem);
             saveQueue();
             broadcast();
             continue;
           }
           if (supported === null) {
-            item.berikut = Date.now() + 15000;
+            item.nextTry = Date.now() + 15000;
             saveQueue();
             continue;
           }
@@ -346,13 +347,13 @@ async function runQueue() {
         }
       }
       // Video: after every photo (result & single) has been sent, one part per round
-      if (!item && !photos.some(x => !x.hasilTerkirim || singlesLeft(x).length)) {
+      if (!item && !photos.some(x => !x.resultSent || singlesLeft(x).length)) {
         const video = queue.find(x => isVideo(x) && x.file && due(x));
         if (video) {
           const supported = await serverSupports(settings(), 'video');
           if (supported === false) {
             queue.filter(isVideo).forEach(x => {
-              if (x.sid) updateSession(x.sid, { unggah: 'server-lama' });
+              if (x.sid) updateSession(x.sid, { upload: 'old-server' });
               finishItem(x);
             });
             saveQueue();
@@ -360,36 +361,36 @@ async function runQueue() {
             continue;
           }
           if (supported === null) {
-            video.berikut = Date.now() + 15000;
+            video.nextTry = Date.now() + 15000;
             saveQueue();
             continue;
           }
-          st.current = video.kode;
+          st.current = video.code;
           broadcast();
           const err = await sendVideo(video, settings());
           st.current = null;
           if (err === MISSING) {
-            log.error(`QR ${video.kode}: video file missing, cannot be sent`);
-            if (video.sid) updateSession(video.sid, { unggah: 'hilang' });
+            log.error(`QR ${video.code}: video file missing, cannot be sent`);
+            if (video.sid) updateSession(video.sid, { upload: 'missing' });
             finishItem(video);
             st.progress = null;
           } else if (!err) {
-            video.coba = 0;
+            video.attempts = 0;
             st.lastError = '';
-            if (video.terkirim) {
-              log.write(`QR ${video.kode}: video sent (${video.bagian ? video.bagian.length : 0} parts)`);
-              if (video.sid) updateSession(video.sid, { unggah: 'terkirim' });
+            if (video.sent) {
+              log.write(`QR ${video.code}: video sent (${video.parts ? video.parts.length : 0} parts)`);
+              if (video.sid) updateSession(video.sid, { upload: 'sent' });
               finishItem(video);
               st.sentVideos++;
               st.progress = null;
             }
           } else {
-            video.coba = (video.coba || 0) + 1;
+            video.attempts = (video.attempts || 0) + 1;
             if (err !== st.lastError)
-              log.warn(`QR ${video.kode}: video not sent yet — ${err} (retrying automatically)`);
-            video.berikut = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(video.coba, 5));
+              log.warn(`QR ${video.code}: video not sent yet — ${err} (retrying automatically)`);
+            video.nextTry = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(video.attempts, 5));
             st.lastError = err;
-            if (video.sid) updateSession(video.sid, { unggah: 'menunggu' });
+            if (video.sid) updateSession(video.sid, { upload: 'waiting' });
           }
           saveQueue();
           broadcast();
@@ -397,41 +398,42 @@ async function runQueue() {
         }
       }
       if (!item) break;
-      st.current = item.kode;
+      st.current = item.code;
       broadcast();
       const err = await sendPhoto(item, settings(), n);
       st.current = null;
       if (n && (!err || err === MISSING)) {
         // single photo
-        item.satuanTerkirim = [...(item.satuanTerkirim || []), n];
-        if (err) log.warn(`QR ${item.kode}: single photo ${n} missing, skipped`);
-        item.coba = 0;
+        item.singlesSent = [...(item.singlesSent || []), n];
+        if (err) log.warn(`QR ${item.code}: single photo ${n} missing, skipped`);
+        item.attempts = 0;
         st.lastError = err ? st.lastError : '';
         if (!singlesLeft(item).length) {
           finishItem(item);
-          log.write(`QR ${item.kode}: ${item.satuan.length} single photos sent`);
+          log.write(`QR ${item.code}: ${item.singles.length} single photos sent`);
         }
       } else if (!err || err === MISSING) {
         // result photo
-        if (err) log.error(`QR ${item.kode}: photo file missing, cannot be sent (${path.basename(item.file)})`);
-        else log.write(`QR ${item.kode}: photo sent${item.coba ? ` (after ${item.coba} failed attempt(s))` : ''}`);
-        item.hasilTerkirim = true;
-        item.coba = 0;
+        if (err) log.error(`QR ${item.code}: photo file missing, cannot be sent (${path.basename(item.file)})`);
+        else
+          log.write(`QR ${item.code}: photo sent${item.attempts ? ` (after ${item.attempts} failed attempt(s))` : ''}`);
+        item.resultSent = true;
+        item.attempts = 0;
         if (err || !singlesLeft(item).length) finishItem(item);
-        if (item.sid) updateSession(item.sid, { unggah: err ? 'hilang' : 'terkirim' });
+        if (item.sid) updateSession(item.sid, { upload: err ? 'missing' : 'sent' });
         if (!err) {
           st.sent++;
           st.lastError = '';
         }
       } else {
-        item.coba = (item.coba || 0) + 1;
+        item.attempts = (item.attempts || 0) + 1;
         if (err !== st.lastError)
           log.warn(
-            `QR ${item.kode}: ${n ? 'single photo ' + n + ' ' : ''}not sent yet — ${err} (retrying automatically)`,
+            `QR ${item.code}: ${n ? 'single photo ' + n + ' ' : ''}not sent yet — ${err} (retrying automatically)`,
           );
-        item.berikut = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(item.coba, 5));
+        item.nextTry = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(item.attempts, 5));
         st.lastError = err;
-        if (item.sid && !n) updateSession(item.sid, { unggah: 'menunggu' });
+        if (item.sid && !n) updateSession(item.sid, { upload: 'waiting' });
       }
       saveQueue();
       broadcast();
@@ -440,7 +442,7 @@ async function runQueue() {
     running = false;
     const sendable = queue.filter(x => !isVideo(x) || x.file); // videos still being processed can't be sent yet
     if (sendable.length && ready()) {
-      const wait = Math.max(500, Math.min(...sendable.map(x => (x.berikut || 0) - Date.now())));
+      const wait = Math.max(500, Math.min(...sendable.map(x => (x.nextTry || 0) - Date.now())));
       timer = setTimeout(runQueue, wait);
     }
   }
@@ -450,43 +452,43 @@ async function runQueue() {
 // options.satuan: single photo files (from saveSinglePhotos); options.couple: couple name for the download page
 function queuePhoto(file, sid, options = {}) {
   if (!ready()) {
-    (options.satuan || []).forEach(removeFile);
+    (options.singles || []).forEach(removeFile);
     return null;
   }
   load();
   const code = newCode();
   queue.push({
-    kode: code,
+    code,
     file,
     sid,
-    satuan: (options.satuan || []).slice(0, MAX_SINGLES),
-    satuanTerkirim: [],
+    singles: (options.singles || []).slice(0, MAX_SINGLES),
+    singlesSent: [],
     couple: String(options.couple || '').slice(0, 80),
-    hasilTerkirim: false,
-    coba: 0,
-    berikut: 0,
-    dibuat: Date.now(),
+    resultSent: false,
+    attempts: 0,
+    nextTry: 0,
+    created: Date.now(),
   });
   saveQueue();
   setImmediate(runQueue);
-  return { kode: code, link: photoLink(code) };
+  return { code, link: photoLink(code) };
 }
 
 // A new video queue item (its file follows later through videoFileReady())
 const videoItem = (code, sid, label, couple) => ({
-  jenis: 'video',
-  kode: code,
+  kind: 'video',
+  code,
   sid,
-  label: label === 'quiz' ? 'quiz' : 'pesan',
+  label: label === 'quiz' ? 'quiz' : 'message',
   couple: String(couple || '').slice(0, 80),
   file: null,
   poster: null,
-  posterTerkirim: false,
+  posterSent: false,
   uploadId: null,
-  bagian: [],
-  coba: 0,
-  berikut: 0,
-  dibuat: Date.now(),
+  parts: [],
+  attempts: 0,
+  nextTry: 0,
+  created: Date.now(),
 });
 // Called when a message/quiz recording ends (QR video on). The video follows through videoFileReady().
 function queueVideo(sid, options = {}) {
@@ -496,20 +498,20 @@ function queueVideo(sid, options = {}) {
   queue.push(videoItem(code, sid, options.label, options.couple));
   saveQueue();
   broadcast();
-  return { kode: code, link: videoLink(code) };
+  return { code, link: videoLink(code) };
 }
 // History → "Process again" for a video whose phone version failed: the old code is kept
 function requeueVideo(s) {
   load();
-  if (!s || !s.kode || queue.some(x => x.kode === s.kode)) return;
-  queue.push(videoItem(s.kode, s.id, s.label, s.couple));
+  if (!s || !s.code || queue.some(x => x.code === s.code)) return;
+  queue.push(videoItem(s.code, s.id, s.label, s.couple));
   saveQueue();
   broadcast();
 }
 // The phone version has been made (video-processing.js): start uploading
 function videoFileReady(code, file, poster) {
   load();
-  const item = queue.find(x => isVideo(x) && x.kode === code);
+  const item = queue.find(x => isVideo(x) && x.code === code);
   if (!item) {
     removeFile(file);
     if (poster) removeFile(poster);
@@ -518,10 +520,10 @@ function videoFileReady(code, file, poster) {
   Object.assign(item, {
     file,
     poster: poster || null,
-    posterTerkirim: !poster,
+    posterSent: !poster,
     uploadId: null,
-    bagian: [],
-    berikut: 0,
+    parts: [],
+    nextTry: 0,
   });
   saveQueue();
   broadcast();
@@ -529,7 +531,7 @@ function videoFileReady(code, file, poster) {
 }
 function videoFailed(code) {
   load();
-  const item = queue.find(x => isVideo(x) && x.kode === code);
+  const item = queue.find(x => isVideo(x) && x.code === code);
   if (item) {
     finishItem(item);
     saveQueue();
@@ -538,16 +540,16 @@ function videoFailed(code) {
 }
 
 async function testConnection(p = settings()) {
-  if (!p.url || !p.kunci) return { error: 'Enter the server address and booth key first.' };
+  if (!p.url || !p.key) return { error: 'Enter the server address and booth key first.' };
   try {
     const r = await fetch(`${baseUrl(p.url)}/ping`, {
-      headers: { authorization: 'Bearer ' + p.kunci },
+      headers: { authorization: 'Bearer ' + p.key },
       signal: AbortSignal.timeout(10000),
     });
     if (r.status === 401) return { error: 'Wrong booth key.' };
     if (!r.ok) return { error: `Server answered ${r.status}. Check the server address.` };
     const j = await r.json();
-    return j.ok ? { ok: true, hari: j.hari } : { error: 'Unknown server response.' };
+    return j.ok ? { ok: true, days: j.hari } : { error: 'Unknown server response.' };
   } catch {
     return { error: 'Server unreachable. Check the internet and the server address.' };
   }
@@ -557,19 +559,19 @@ function register() {
   ipcMain.handle('upload-status', () => status());
   ipcMain.handle('save-upload-settings', (e, input) => {
     const s = readSettings(),
-      old = s.unggah || {};
+      old = s.upload || {};
     const url = baseUrl(input.url != null ? input.url : old.url);
     // https is required; http only for a test server on this computer
     if (url && !/^https:\/\/[^\s/]+/.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url))
       return { ...status(), error: 'The server address must start with https://' };
-    const key = input.kunci != null ? String(input.kunci).trim() : old.kunci || '';
-    const on = input.aktif != null ? !!input.aktif : !!old.aktif;
+    const key = input.key != null ? String(input.key).trim() : old.key || '';
+    const on = input.enabled != null ? !!input.enabled : !!old.enabled;
     if (on && (!url || !key))
       return { ...status(), error: 'Enter the server address and booth key before turning the QR on.' };
     const video = input.video != null ? !!input.video : old.video !== false;
     const quality =
-      (input.videoKualitas != null ? String(input.videoKualitas) : old.videoKualitas) === '1080' ? '1080' : '720';
-    s.unggah = { aktif: on, url, kunci: key, video, videoKualitas: quality };
+      (input.videoQuality != null ? String(input.videoQuality) : old.videoQuality) === '1080' ? '1080' : '720';
+    s.upload = { enabled: on, url, key, video, videoQuality: quality };
     writeSettings(s);
     serverFeatures = null; // the server may have changed: ask again
     log.write(`QR settings saved: ${on ? 'on' : 'off'}, video ${video ? quality + 'p' : 'off'}, server ${url || '-'}`); // the key is never logged
@@ -580,8 +582,8 @@ function register() {
   // Fill in the address & key from the result of "npm run cloud:pasang"
   ipcMain.handle('upload-setup-result', () => {
     const h = readJSON(SETUP_RESULT, null);
-    if (!h || !h.url || !h.kunci) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
-    return { url: h.url, kunci: h.kunci };
+    if (!h || !h.url || !h.key) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
+    return { url: h.url, key: h.key };
   });
   // From Session history: open the photo link in the browser / copy the link
   ipcMain.handle('open-link', (e, url) => {
@@ -595,7 +597,7 @@ function register() {
   });
   ipcMain.handle('retry-upload-now', () => {
     queue.forEach(x => {
-      x.berikut = 0;
+      x.nextTry = 0;
     });
     saveQueue();
     runQueue();
@@ -606,11 +608,11 @@ function register() {
 function start() {
   load();
   queue.forEach(x => {
-    x.berikut = 0;
+    x.nextTry = 0;
   });
   // Clean up temporary single photos that are no longer in the queue
   try {
-    const used = new Set(queue.flatMap(x => x.satuan || []));
+    const used = new Set(queue.flatMap(x => x.singles || []));
     for (const f of fs.readdirSync(SINGLES_DIR)) {
       const p = path.join(SINGLES_DIR, f);
       if (!used.has(p)) removeFile(p);

@@ -10,7 +10,8 @@
 
    The helper protocol (commands such as 'sambung', 'rekam-mulai', events such
    as 'terputus', and fields such as tersambung, baterai) is shared with
-   kamera-sony/sony-helper.cpp and stays as it is until the helper is rebuilt.
+   kamera-sony/sony-helper.cpp and keeps its Indonesian words; this file
+   translates them, so the rest of the app only sees English names.
    ===================================================================== */
 const { ipcMain } = require('electron');
 const { spawn, execFileSync } = require('child_process');
@@ -31,7 +32,7 @@ const BIN_DIR = () =>
     : path.join(ROOT, 'kamera-sony', 'bin');
 const HELPER = () => process.env.SONY_HELPER || path.join(BIN_DIR(), 'sony-helper');
 const SIMULATION_DIR = path.join(ROOT, 'kamera-sony', 'simulasi');
-const TEMP_DIR = path.join(userData, 'sony-sementara');
+const TEMP_DIR = path.join(userData, 'sony-temp');
 const MODES = ['webcam', 'sony', 'sony-sim'];
 
 /* ---------------- Helper program (separate process) ---------------- */
@@ -251,8 +252,9 @@ let mode = 'webcam',
   connectTimer = null,
   statusTimer = null,
   connecting = false;
-// Status sent to the UI (src/sony-camera.js); field names are shared with it
-let st = { tersambung: false, model: '', pesan: '' };
+// Status sent to the UI (src/sony-camera.js). The helper program answers with its own (Indonesian)
+// field names; they are translated here, in refreshStatus(), handleEvent() and the functions below.
+let st = { connected: false, model: '', message: '' };
 const pendingDownloads = new Map(); // job -> { resolve }
 let downloadQueue = Promise.resolve();
 
@@ -281,21 +283,21 @@ function logMacState(reason) {
     .catch(() => {});
 }
 async function tryConnect() {
-  if (!hub || st.tersambung || connecting) return;
+  if (!hub || st.connected || connecting) return;
   connecting = true;
   fs.mkdirSync(TEMP_DIR, { recursive: true });
   const r = await hub.send('sambung', [TEMP_DIR], 30000);
   connecting = false;
   if (!hub) return;
   if (r.ok) {
-    Object.assign(st, { tersambung: true, model: r.model || 'Sony', pesan: '' });
+    Object.assign(st, { connected: true, model: r.model || 'Sony', message: '' });
     log.write(`Sony camera connected: ${st.model}`);
-    st.jenisMode = null;
+    st.modeKind = null;
     hub
       .send('mode', [], 5000)
       .then(m => {
         if (m && m.ok) {
-          st.jenisMode = m.jenis;
+          st.modeKind = fromHelperKind(m.jenis);
           log.write(`Camera mode when connected: ${m.jenis.toUpperCase()} (${m.mode})`);
         }
       })
@@ -308,10 +310,10 @@ async function tryConnect() {
     if (r.catatan) console.log('Sony camera: some settings could not be applied: ' + r.catatan);
     await refreshStatus();
   } else {
-    Object.assign(st, { tersambung: false, pesan: explainConnectError(r) });
-    if (st.pesan !== lastFailMessage) {
-      log.warn('Sony camera could not connect: ' + st.pesan + ' (retrying every 4 seconds)');
-      lastFailMessage = st.pesan;
+    Object.assign(st, { connected: false, message: explainConnectError(r) });
+    if (st.message !== lastFailMessage) {
+      log.warn('Sony camera could not connect: ' + st.message + ' (retrying every 4 seconds)');
+      lastFailMessage = st.message;
       logMacState('failed ' + (r.kode || ''));
     }
     scheduleConnect(4000);
@@ -319,11 +321,17 @@ async function tryConnect() {
   broadcast();
 }
 async function refreshStatus() {
-  if (!hub || !st.tersambung) return;
+  if (!hub || !st.connected) return;
   const r = await hub.send('status', [], 5000);
   if (r.ok && r.tersambung) {
-    const { baterai, kartu, sisaDetik, sisaFoto, merekam, mengunduh } = r;
-    Object.assign(st, { baterai, kartu, sisaDetik, sisaFoto, merekam, mengunduh });
+    Object.assign(st, {
+      battery: r.baterai,
+      cardError: r.kartu,
+      recordSecondsLeft: r.sisaDetik,
+      photosLeft: r.sisaFoto,
+      recording: r.merekam,
+      downloading: r.mengunduh,
+    });
     broadcast();
   }
 }
@@ -331,9 +339,9 @@ async function refreshStatus() {
 function handleEvent(m) {
   if (m.ev === 'terputus') {
     Object.assign(st, {
-      tersambung: false,
-      pesan: 'Sony camera disconnected. Check the USB cable and camera power.',
-      jenisMode: null,
+      connected: false,
+      message: 'Sony camera disconnected. Check the USB cable and camera power.',
+      modeKind: null,
     });
     log.warn('Sony camera disconnected' + (m.kode ? ' (' + m.kode + ')' : ''));
     // The SDK tries to reconnect by itself; if that hasn't worked after 8 seconds, the app looks for the camera again
@@ -342,9 +350,9 @@ function handleEvent(m) {
       t.resolve({ ok: false, error: 'The camera disconnected while copying the video' });
     pendingDownloads.clear();
   } else if (m.ev === 'menyambung-ulang') {
-    Object.assign(st, { tersambung: false, pesan: 'Reconnecting to the camera…' });
+    Object.assign(st, { connected: false, message: 'Reconnecting to the camera…' });
   } else if (m.ev === 'tersambung') {
-    Object.assign(st, { tersambung: true, pesan: '' });
+    Object.assign(st, { connected: true, message: '' });
     log.write('Sony camera connected again');
     clearTimeout(connectTimer);
   } else if (m.ev === 'unduh-selesai' || m.ev === 'unduh-gagal') {
@@ -371,7 +379,7 @@ function setSource(m) {
   modeUnsupported = false; // a new helper program may already support changing modes
   log.write('Camera source: ' + m);
   mode = m;
-  st = { tersambung: false, model: '', pesan: '' };
+  st = { connected: false, model: '', message: '' };
   if (m === 'webcam') {
     broadcast();
     return status();
@@ -379,7 +387,7 @@ function setSource(m) {
   if (m === 'sony') {
     const file = HELPER();
     if (!fs.existsSync(file)) {
-      st.pesan =
+      st.message =
         process.platform !== 'darwin' && !process.env.SONY_HELPER
           ? 'A Sony camera over USB only works on a Mac.'
           : app && app.isPackaged
@@ -395,7 +403,7 @@ function setSource(m) {
   hub.on('stopped', message => {
     if (hub !== current) return;
     log.error(message + ' — restarting in 3 seconds');
-    Object.assign(st, { tersambung: false, pesan: message });
+    Object.assign(st, { connected: false, message });
     broadcast();
     // the helper program stopped suddenly: start it again
     setTimeout(() => {
@@ -418,7 +426,7 @@ function shutdown() {
   if (hub) {
     const h = hub;
     hub = null;
-    if (st.merekam) h.send('rekam-stop', [], 3000);
+    if (st.recording) h.send('rekam-stop', [], 3000);
     done = h.stop();
   }
   for (const t of pendingDownloads.values()) t.resolve({ ok: false, error: 'Sony camera turned off' });
@@ -428,7 +436,7 @@ function shutdown() {
 
 /* ---------------- Functions for other features ---------------- */
 const usingSony = () => mode !== 'webcam';
-const ready = () => !!hub && st.tersambung;
+const ready = () => !!hub && st.connected;
 
 async function liveView() {
   if (!ready()) return null;
@@ -444,31 +452,34 @@ async function liveView() {
    the booth keeps working as before. */
 let modeQueue = Promise.resolve();
 let modeUnsupported = false;
+// kind: 'photo' | 'video'. The helper program calls them 'foto' | 'video'.
+const toHelperKind = kind => (kind === 'photo' ? 'foto' : kind);
+const fromHelperKind = kind => (kind === 'foto' ? 'photo' : kind);
 function setMode(kind) {
-  if (!['foto', 'video'].includes(kind) || !ready() || modeUnsupported)
-    return Promise.resolve({ ok: false, dilewati: true });
-  if (st.jenisMode === kind) return Promise.resolve({ ok: true, jenis: kind, diubah: false });
+  if (!['photo', 'video'].includes(kind) || !ready() || modeUnsupported)
+    return Promise.resolve({ ok: false, skipped: true });
+  if (st.modeKind === kind) return Promise.resolve({ ok: true, kind, changed: false });
   const job = modeQueue.then(async () => {
     if (!ready()) return { ok: false };
-    if (st.jenisMode === kind) return { ok: true, jenis: kind, diubah: false };
-    const r = await hub.send('mode', [kind], 15000);
+    if (st.modeKind === kind) return { ok: true, kind, changed: false };
+    const r = await hub.send('mode', [toHelperKind(kind)], 15000);
     if (r.ok) {
-      st.jenisMode = r.jenis;
+      st.modeKind = fromHelperKind(r.jenis);
       if (r.diubah) log.write(`Camera mode: ${r.jenis.toUpperCase()} (${r.mode}, ${r.coba || 1} attempt(s))`);
       broadcast();
     } else if (/Perintah tidak dikenal|Unknown command/.test(r.error || '')) {
       modeUnsupported = true;
       log.warn('Switching photo/video mode is not available yet: run npm run build:sony');
     } else log.warn(`Camera mode could not be changed to ${kind}: ${r.error}`);
-    return r;
+    return r.ok ? { ok: true, kind: fromHelperKind(r.jenis), changed: !!r.diubah } : { ok: false, error: r.error };
   });
   modeQueue = job.catch(() => {});
   return job;
 }
 
 async function takePhoto() {
-  if (!ready()) return { error: st.pesan || 'The Sony camera is not connected yet' };
-  await setMode('foto');
+  if (!ready()) return { error: st.message || 'The Sony camera is not connected yet' };
+  await setMode('photo');
   fs.mkdirSync(TEMP_DIR, { recursive: true });
   const r = await hub.send('foto', [TEMP_DIR], 20000);
   if (!r.ok) return { error: r.error };
@@ -481,11 +492,11 @@ async function takePhoto() {
   }
 }
 async function startRecording() {
-  if (!ready()) return { error: st.pesan || 'The Sony camera is not connected yet' };
+  if (!ready()) return { error: st.message || 'The Sony camera is not connected yet' };
   await setMode('video');
   const r = await hub.send('rekam-mulai', [], 10000);
   if (r.ok) {
-    st.merekam = true;
+    st.recording = true;
     broadcast();
   }
   return r.ok ? { ok: true } : { error: r.error };
@@ -493,9 +504,12 @@ async function startRecording() {
 async function stopRecording() {
   if (!hub) return { error: 'The Sony camera is not active' };
   const r = await hub.send('rekam-stop', [], 45000);
-  st.merekam = false;
+  st.recording = false;
   broadcast();
-  return r.ok ? r : { error: r.error };
+  // cardFile: the video's file name on the SD card; slot/contentId/fileId: where download() finds it
+  return r.ok
+    ? { ok: true, cardFile: r.nama, slot: r.slot, contentId: r.contentId, fileId: r.fileId }
+    : { error: r.error };
 }
 // Copy a video from the card to `target` (full .mp4 path). Queued one at a time.
 function download(info, target) {
@@ -546,7 +560,7 @@ function register() {
       mode = 'webcam';
       return setSource(m);
     } // e.g. the helper program was just built
-    st.tersambung = false;
+    st.connected = false;
     connecting = false;
     scheduleConnect(0);
     return status();

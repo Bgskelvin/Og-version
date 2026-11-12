@@ -2,9 +2,8 @@
    sony-camera.js — the Sony camera on screen: camera source choice in Admin,
    camera status, and live view as the booth background.
    Shooting & recording with the Sony camera happen in photobooth.js and
-   recording.js (via usingSony()). The camera bridge is main/kamera-sony.js.
-   Status fields (tersambung, jenisMode, baterai, kartu, …) come from the main
-   process and are renamed with it in refactor/main-english.
+   recording.js (via usingSony()). The camera bridge is main/sony-camera.js.
+   Status fields (connected, modeKind, battery, cardError, …) come from there.
    ===================================================================== */
 import { openStream, fillDevices } from './camera.js';
 import { applySettings } from './settings.js';
@@ -13,14 +12,14 @@ import { $, sleep, state } from './state.js';
 import { flash } from './app.js';
 
 // Latest status from the main process (a live binding: importers always see the current value)
-export let sonyState = { mode: 'webcam', tersambung: false, pesan: '' };
+export let sonyState = { mode: 'webcam', connected: false, message: '' };
 let liveViewRunning = false;
 let liveViewFrozen = false; // true = camera image frozen (while the camera switches mode)
 let liveViewFrames = 0; // number of live-view frames drawn so far
 let modeSwitchId = 0;
 export const liveViewFrameCount = () => liveViewFrames; // for the UI tests
 
-export const usingSony = () => !!state.cfg && (state.cfg.kamera === 'sony' || state.cfg.kamera === 'sony-sim');
+export const usingSony = () => !!state.cfg && (state.cfg.camera === 'sony' || state.cfg.camera === 'sony-sim');
 
 // Set up the camera source from the settings: webcam/phone or Sony
 export async function applyCameraSource() {
@@ -46,10 +45,10 @@ export async function applyCameraSource() {
 // Light: the frozen image isn't redrawn, so the blur is only computed once.
 export function cameraModeForScreen(name) {
   if (!usingSony() || !api.sonyMode) return;
-  const kind = { pesan: 'video', quiz: 'video', photo: 'foto' }[name];
+  const kind = { pesan: 'video', quiz: 'video', photo: 'photo' }[name];
   if (!kind) return;
   const id = ++modeSwitchId;
-  const needsSwitch = sonyState.tersambung && sonyState.jenisMode && sonyState.jenisMode !== kind;
+  const needsSwitch = sonyState.connected && sonyState.modeKind && sonyState.modeKind !== kind;
   if (needsSwitch) {
     liveViewFrozen = true;
     document.body.classList.add('lvGanti');
@@ -88,7 +87,7 @@ async function runLiveView() {
   liveViewRunning = true;
   try {
     while (usingSony()) {
-      if (!liveViewNeeded() || !sonyState.tersambung || document.hidden) {
+      if (!liveViewNeeded() || !sonyState.connected || document.hidden) {
         await sleep(250);
         continue;
       }
@@ -122,25 +121,28 @@ async function runLiveView() {
 
 /* ---------- Camera status in Admin ---------- */
 function sonyStatusText(s) {
-  if (s.tersambung) {
+  if (s.connected) {
     const parts = [`${s.model || 'Sony camera'} connected`];
-    if (s.baterai >= 0) parts.push(`battery ${s.baterai}%`);
-    if (s.kartu > 0) parts.push('⚠️ SD card problem / no card');
-    else if (s.sisaDetik > 0)
-      parts.push(`±${Math.floor(s.sisaDetik / 3600)} h ${Math.floor((s.sisaDetik % 3600) / 60)} m recording left`);
-    if (s.mengunduh) parts.push('copying video');
+    if (s.battery >= 0) parts.push(`battery ${s.battery}%`);
+    if (s.cardError > 0) parts.push('⚠️ SD card problem / no card');
+    else if (s.recordSecondsLeft > 0)
+      parts.push(
+        `±${Math.floor(s.recordSecondsLeft / 3600)} h ${Math.floor((s.recordSecondsLeft % 3600) / 60)} m recording left`,
+      );
+    if (s.downloading) parts.push('copying video');
     return parts.join(' · ');
   }
-  return s.pesan || 'Looking for the Sony camera…';
+  return s.message || 'Looking for the Sony camera…';
 }
 function renderSonyStatus() {
   if (!$('sonyStatus')) return;
   $('sonyStatus').textContent = sonyStatusText(sonyState);
-  $('sonyDot').className = 'sony-dot ' + (sonyState.tersambung ? (sonyState.kartu > 0 ? 'kuning' : 'hijau') : 'merah');
+  $('sonyDot').className =
+    'sony-dot ' + (sonyState.connected ? (sonyState.cardError > 0 ? 'kuning' : 'hijau') : 'merah');
 }
 export function fillAdminCamera() {
   const sony = usingSony();
-  $('camSumber').value = state.cfg.kamera || 'webcam';
+  $('camSumber').value = state.cfg.camera || 'webcam';
   $('camSelRow').style.display = $('micSelRow').style.display = sony ? 'none' : '';
   $('sonyRow').style.display = sony ? '' : 'none';
   $('camHint').textContent = sony
@@ -149,11 +151,11 @@ export function fillAdminCamera() {
   renderSonyStatus();
 }
 function receiveSonyStatus(s) {
-  const wasConnected = sonyState.tersambung;
+  const wasConnected = sonyState.connected;
   sonyState = s || sonyState;
   renderSonyStatus();
   // Camera disconnected during a message/quiz recording: stop the session with a clear message
-  if (wasConnected && !sonyState.tersambung && state.rec && state.rec.sony)
+  if (wasConnected && !sonyState.connected && state.rec && state.rec.sony)
     abortSession('The Sony camera disconnected while recording. What was recorded is still on the camera SD card.');
 }
 
@@ -166,12 +168,12 @@ export async function setupSonyCamera() {
     /* camera status not readable yet: keep the last status */
   }
   $('camSumber').onchange = async e => {
-    const s = await api.saveSettings({ kamera: e.target.value });
+    const s = await api.saveSettings({ camera: e.target.value });
     applySettings(s);
     await applyCameraSource();
     fillAdminCamera();
     await fillDevices();
-    const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[state.cfg.kamera];
+    const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[state.cfg.camera];
     flash('camMsg', `Camera source: ${label}.`);
   };
   $('btnSonyUlang').onclick = async () => {
