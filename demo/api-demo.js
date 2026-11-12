@@ -320,7 +320,7 @@
   /* ---------- Pemutar hasil (pengganti "buka file" di Mac) ---------- */
   function putar(url, foto) {
     const lapis = document.createElement('div');
-    lapis.className = 'demo-putar';
+    lapis.className = 'demo-rotate';
     const isi = document.createElement(foto ? 'img' : 'video');
     isi.src = url;
     if (!foto) {
@@ -795,7 +795,7 @@
     r.setProperty('--skH', ukuran.h + 'px');
     r.setProperty('--vw', ukuran.w / 100 + 'px');
     r.setProperty('--vh', ukuran.h / 100 + 'px');
-    document.documentElement.classList.toggle('demo-kecil', skala < 1);
+    document.documentElement.classList.toggle('demo-small', skala < 1);
   }
   // Kode aplikasi yang membaca lebar/tinggi layar ikut memakai ukuran tampilan yang diperkecil
   try {

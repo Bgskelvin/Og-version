@@ -18,9 +18,9 @@ const QUIZ_COUNTDOWN = 3; // seconds of countdown before the first question
 
 const quizRounds = () => Math.min(state.cfg.quizRounds, state.cfg.quiz.length);
 function openQuiz() {
-  $('btnQuizMulai').disabled = !state.cfg.quiz.length;
+  $('btnQuizStart').disabled = !state.cfg.quiz.length;
   if (!state.cfg.quiz.length) {
-    $('quizInfo').textContent = t('quiz.kosong');
+    $('quizInfo').textContent = t('quiz.empty');
     $('quizPre').style.display = 'flex';
     $('quizRun').style.display = 'none';
     show('quiz');
@@ -63,13 +63,13 @@ function answerTimer(isLast) {
   $('qBarWrap').style.visibility = 'visible';
   $('qTime').style.visibility = 'visible';
   $('btnNext').style.visibility = 'visible';
-  $('btnNext').textContent = isLast ? t('quiz.selesai') : t('quiz.lanjut');
+  $('btnNext').textContent = isLast ? t('quiz.done') : t('quiz.next');
   return new Promise(resolve => {
     const t0 = Date.now();
     const iv = setInterval(() => {
       const remain = Math.max(0, secs - (Date.now() - t0) / 1000);
       $('qBar').style.width = (remain / secs) * 100 + '%';
-      $('qTime').textContent = t('quiz.sisa', { t: fmt(Math.ceil(remain)) });
+      $('qTime').textContent = t('quiz.timeLeft', { t: fmt(Math.ceil(remain)) });
       if (remain <= 0) done();
     }, 200);
     const done = () => {
@@ -136,7 +136,7 @@ export function drawCaption(text, i, n) {
   x.font = `700 30px ${FONT}`;
   x.fillStyle = accent;
   if (x.letterSpacing !== undefined) x.letterSpacing = '4px';
-  x.fillText(t('quiz.ronde', { i: i + 1, n }).toUpperCase(), W / 2, textTop - 4);
+  x.fillText(t('quiz.round', { i: i + 1, n }).toUpperCase(), W / 2, textTop - 4);
   if (x.letterSpacing !== undefined) x.letterSpacing = '0px';
   x.font = `700 ${fontSize}px ${FONT}`;
   x.fillStyle = '#FFFFFF';
@@ -164,7 +164,7 @@ async function startQuiz() {
     const captions = [];
     for (let r = 0; r < picks.length; r++) {
       if (token !== state.sessionToken) return;
-      $('qRound').textContent = t('quiz.ronde', { i: r + 1, n: picks.length });
+      $('qRound').textContent = t('quiz.round', { i: r + 1, n: picks.length });
       await shuffleTo(picks[r]);
       if (token !== state.sessionToken) return;
       const a = Math.max(0, recordingSeconds() - 0.5); // card stops & question shows (0.5 s before shuffleTo ends)
@@ -185,13 +185,13 @@ async function startQuiz() {
     });
   } catch (err) {
     console.log('Quiz could not run: ' + err.message);
-    if (token === state.sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
+    if (token === state.sessionToken) abortSession('Could not start the recording: ' + err.message);
   }
 }
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupQuiz() {
   $('btnToQuiz').onclick = openQuiz;
-  $('btnQuizBack').onclick = () => show('utama');
-  $('btnQuizMulai').onclick = startQuiz;
+  $('btnQuizBack').onclick = () => show('home');
+  $('btnQuizStart').onclick = startQuiz;
 }

@@ -56,7 +56,7 @@ html.demo body {
 }
 
 /* Pemutar foto/video dari Riwayat sesi */
-.demo-putar {
+.demo-rotate {
   position: fixed;
   inset: 0;
   z-index: 9500;
@@ -68,14 +68,14 @@ html.demo body {
   padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
   background: rgba(10, 10, 14, 0.88);
 }
-.demo-putar img,
-.demo-putar video {
+.demo-rotate img,
+.demo-rotate video {
   max-width: 100%;
   max-height: calc(100% - 90px);
   border-radius: 12px;
   background: #000;
 }
-.demo-putar .btn {
+.demo-rotate .btn {
   min-width: 160px;
   min-height: 52px;
   font-size: 18px;
@@ -84,38 +84,38 @@ html.demo body {
 /* ============ Layar HP (lebar ≤ 600px) ============ */
 @media (max-width: 600px) {
   /* Terima kasih: foto, QR, dan tombol muat dalam satu layar tanpa terpotong */
-  html.demo .tk-wrap {
+  html.demo .thanks-wrap {
     gap: 1.6vh;
   }
-  html.demo #thanks.tk-foto .tk-hasil,
+  html.demo #thanks.thanks-photo .thanks-result,
   html.demo #thanksPhoto {
     max-height: 36vh;
   }
-  html.demo #thanks.tk-foto .tk-sisi {
+  html.demo #thanks.thanks-photo .thanks-side {
     width: 100%;
     gap: 1.4vh;
   }
-  html.demo #thanks.tk-foto h1 {
+  html.demo #thanks.thanks-photo h1 {
     font-size: 26px;
   }
-  html.demo .tk-qr {
+  html.demo .thanks-qr {
     column-gap: 16px;
     padding: 12px 16px 12px 12px;
   } /* susunan grid dari photobooth.css (layar tegak) */
-  html.demo .tk-qr canvas {
+  html.demo .thanks-qr canvas {
     width: min(20vh, 150px);
   }
-  html.demo .tk-qr b {
+  html.demo .thanks-qr b {
     font-size: 17px;
     margin-top: 0;
   }
-  html.demo .tk-qr small {
+  html.demo .thanks-qr small {
     font-size: 13px;
   }
-  html.demo .tk-qr .tk-link {
+  html.demo .thanks-qr .thanks-link {
     display: none;
   }
-  html.demo .tk-menu {
+  html.demo .thanks-menu {
     min-height: 56px;
     font-size: 18px;
     margin-top: 0;
@@ -138,7 +138,7 @@ html.demo body {
   }
   html.demo #btnAdminBack,
   html.demo #btnRefresh,
-  html.demo #rwSegar {
+  html.demo #histRefresh {
     font-size: 0;
     gap: 0;
     width: 44px;
@@ -147,25 +147,25 @@ html.demo body {
   }
   html.demo #btnAdminBack svg.i,
   html.demo #btnRefresh svg.i,
-  html.demo #rwSegar svg.i {
+  html.demo #histRefresh svg.i {
     width: 20px;
     height: 20px;
   }
 
   /* Riwayat: baris lebih lega */
-  html.demo .rw-row {
+  html.demo .hist-row {
     gap: 10px;
   }
-  html.demo .rw-tag {
+  html.demo .hist-tag {
     display: none;
   }
-  html.demo .rw-teks b {
+  html.demo .hist-text b {
     font-size: 15px;
   }
-  html.demo .rw-ringkas {
+  html.demo .hist-summary {
     gap: 6px;
   }
-  html.demo .rw-ringkas div {
+  html.demo .hist-summary div {
     padding: 10px 4px;
   }
 }
@@ -176,18 +176,18 @@ html.demo #photo #pbPre {
   margin-top: auto;
 }
 /* Quiz: kartu pertanyaan & tombol Lanjut lebih ramping */
-html.demo-kecil #qCard,
-html.demo-kecil #quizRun .row {
+html.demo-small #qCard,
+html.demo-small #quizRun .row {
   width: 100%;
   max-width: 680px;
 }
-html.demo-kecil #qCard {
+html.demo-small #qCard {
   padding: 18px 28px;
 }
-html.demo-kecil #qText {
+html.demo-small #qText {
   font-size: 30px !important;
 }
-html.demo-kecil #btnNext {
+html.demo-small #btnNext {
   min-height: 56px;
   font-size: 20px;
 }

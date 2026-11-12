@@ -79,7 +79,7 @@ export function coupleMenu(c = state.activeCouple) {
 }
 export function applyMenu() {
   const m = coupleMenu();
-  $('btnToPesan').style.display = m.message ? '' : 'none';
+  $('btnToMessage').style.display = m.message ? '' : 'none';
   $('btnToQuiz').style.display = m.quiz && state.cfg.quiz && state.cfg.quiz.length ? '' : 'none';
   $('btnToPhoto').style.display = m.photo ? '' : 'none';
 }
@@ -100,8 +100,8 @@ export async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = state.cfg.askName;
-  $('setBahasa').value = s.language || 'en';
+  $('setAskName').checked = state.cfg.askName;
+  $('setGuestLanguage').value = s.language || 'en';
   $('setId').value = s.loginId;
   $('setOld').value = $('setNew').value = $('setNew2').value = '';
 }
@@ -111,7 +111,7 @@ async function saveSetting(patch, msg) {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
-  $('setTanyaNama').checked = state.cfg.askName;
+  $('setAskName').checked = state.cfg.askName;
   flash('setMsg', msg || 'Saved.');
 }
 async function saveLogin() {
@@ -130,12 +130,12 @@ export function setupSettings() {
       { kiosk: e.target.checked },
       e.target.checked ? 'Full screen is on. To leave it, turn it off here.' : 'Full screen is off.',
     );
-  $('setBahasa').onchange = e =>
+  $('setGuestLanguage').onchange = e =>
     saveSetting(
       { language: e.target.value },
       e.target.value === 'en' ? 'Guest screens are now in English.' : 'Guest screens are now in Indonesian.',
     );
-  $('setTanyaNama').onchange = e =>
+  $('setAskName').onchange = e =>
     saveSetting(
       { askName: e.target.checked },
       e.target.checked

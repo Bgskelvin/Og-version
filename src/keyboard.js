@@ -104,30 +104,30 @@ export function createKeyboard(container, input, options = {}) {
     container.classList.add('kb');
     for (const row of rows) {
       const r = document.createElement('div');
-      r.className = 'kb-baris';
+      r.className = 'kb-row';
       for (const k of row) {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'kb-tombol';
+        b.className = 'kb-key';
         b.dataset.k = k;
         if (k === 'spasi') {
-          b.classList.add('kb-spasi');
-          b.textContent = t('kb.spasi');
+          b.classList.add('kb-space');
+          b.textContent = t('kb.space');
         } else if (k === 'enter') {
           b.classList.add('kb-enter');
-          b.textContent = t('kb.lanjut');
+          b.textContent = t('kb.continue');
           b.disabled = !input.value.trim();
         } else if (k === '⌫') {
-          b.classList.add('kb-fungsi');
+          b.classList.add('kb-func');
           b.textContent = '⌫';
-          b.setAttribute('aria-label', t('kb.hapus'));
+          b.setAttribute('aria-label', t('kb.delete'));
         } else if (k === '⇧') {
-          b.classList.add('kb-fungsi');
-          b.classList.toggle('aktif', up);
+          b.classList.add('kb-func');
+          b.classList.toggle('active', up);
           b.textContent = '⇧';
           b.setAttribute('aria-label', 'Shift');
         } else if (k === '123' || k === 'ABC') {
-          b.classList.add('kb-fungsi');
+          b.classList.add('kb-func');
           b.textContent = k;
         } else b.textContent = up ? k.toUpperCase() : k;
         r.appendChild(b);
@@ -138,11 +138,11 @@ export function createKeyboard(container, input, options = {}) {
 
   // pointerdown: reacts immediately on touch screens, and the cursor stays in the name field
   container.addEventListener('pointerdown', e => {
-    const b = e.target.closest('.kb-tombol');
+    const b = e.target.closest('.kb-key');
     if (!b || b.disabled) return;
     e.preventDefault();
     input.focus({ preventScroll: true });
-    b.classList.add('ditekan');
+    b.classList.add('pressed');
     const k = b.dataset.k;
     press(k);
     if (k === '⌫') {
@@ -154,13 +154,13 @@ export function createKeyboard(container, input, options = {}) {
   const release = () => {
     const wasRepeating = !!repeatTimer;
     stopRepeat();
-    container.querySelectorAll('.ditekan').forEach(x => x.classList.remove('ditekan'));
+    container.querySelectorAll('.pressed').forEach(x => x.classList.remove('pressed'));
     if (wasRepeating) render();
   };
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => container.addEventListener(ev, release));
   // Typing on a physical keyboard: update capitals & the Continue button
   input.addEventListener('input', () => {
-    if (!container.querySelector('.ditekan')) render();
+    if (!container.querySelector('.pressed')) render();
     else {
       const en = container.querySelector('.kb-enter');
       if (en) en.disabled = !input.value.trim();

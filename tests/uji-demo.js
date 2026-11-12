@@ -108,20 +108,20 @@ async function main() {
 
   console.log('\n▶ Kirim pesan');
   await pg.click('#btnStart');
-  await tungguLayar('nama');
-  await pg.fill('#namaInput', 'Budi');
-  await pg.press('#namaInput', 'Enter');
-  await tungguLayar('utama');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await tungguLayar('name');
+  await pg.fill('#nameInput', 'Budi');
+  await pg.press('#nameInput', 'Enter');
+  await tungguLayar('home');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(5000);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  cek(/Budi/.test(await pg.textContent('#thanksNama')), 'Terima kasih menyapa nama tamu');
+  cek(/Budi/.test(await pg.textContent('#thanksName')), 'Terima kasih menyapa nama tamu');
 
   console.log('\n▶ Photo booth');
-  await pg.click('#btnCobaLagi');
-  await tungguLayar('utama');
+  await pg.click('#btnBackToMenu');
+  await tungguLayar('home');
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 45000 });
@@ -180,8 +180,8 @@ async function main() {
   );
 
   console.log('\n▶ Admin');
-  await pg.click('#btnCobaLagi');
-  await tungguLayar('utama');
+  await pg.click('#btnBackToMenu');
+  await tungguLayar('home');
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   cek(/leura/.test(await pg.textContent('.demo-petunjuk')), 'petunjuk login demo tampil');
@@ -194,29 +194,29 @@ async function main() {
   console.log('\n▶ Tersimpan setelah halaman dibuka ulang');
   await pg.reload();
   await tunggu(1500);
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   await pg.fill('#uid', 'leura');
   await pg.fill('#pw', '1234');
   await pg.click('#btnLogin');
   await tunggu(500);
-  await pg.click('#btnRiwayat');
-  await tungguLayar('riwayat');
+  await pg.click('#btnHistory');
+  await tungguLayar('history');
   await tunggu(800);
-  cek((await pg.locator('#rwList .rw-row').count()) === 2, 'Riwayat sesi berisi 2 sesi');
-  await pg.locator('#rwList .rw-row', { hasText: 'Message' }).click();
+  cek((await pg.locator('#histList .hist-row').count()) === 2, 'Riwayat sesi berisi 2 sesi');
+  await pg.locator('#histList .hist-row', { hasText: 'Message' }).click();
   await tunggu(300);
-  await pg.locator('#rwList button', { hasText: 'Play video' }).click();
+  await pg.locator('#histList button', { hasText: 'Play video' }).click();
   await tunggu(800);
   cek(
     await pg.evaluate(() => {
-      const v = document.querySelector('.demo-putar video');
+      const v = document.querySelector('.demo-rotate video');
       return !!v && v.src.startsWith('blob:');
     }),
     'video pesan bisa diputar dari Riwayat',
   );
-  await pg.click('.demo-putar .btn');
+  await pg.click('.demo-rotate .btn');
 
   console.log('\n▶ Data demo from an older version (Indonesian names) is updated');
   await pg.evaluate(async () => {

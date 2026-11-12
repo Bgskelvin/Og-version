@@ -16,7 +16,7 @@ export function applyCouples(d) {
   $('couple').textContent = state.activeCouple ? state.activeCouple.name : '';
   $('welcome').textContent = (state.activeCouple && state.activeCouple.welcome) || state.cfg.welcome || '';
   state.cfg.quiz = state.activeCouple ? state.activeCouple.questions.slice() : [];
-  if ($('btnToPesan')) applyMenu();
+  if ($('btnToMessage')) applyMenu();
 }
 // Couple list in Admin: tap a couple to open its page
 export async function fillCoupleSel() {
@@ -45,7 +45,7 @@ export async function fillCoupleSel() {
       `${menu} · ${templateCount} template${templateCount === 1 ? '' : 's'} · ${sessionCount} session${sessionCount === 1 ? '' : 's'}`;
     if (c.id === state.couplesData.activeId) {
       const badge = document.createElement('em');
-      badge.className = 'cp-aktif';
+      badge.className = 'cp-active';
       badge.textContent = 'Active';
       row.insertBefore(badge, row.lastElementChild);
     }
@@ -82,14 +82,14 @@ async function deleteCouple() {
 // Quiz questions are only required when Quick quiz is on
 function markQuizState() {
   const on = $('fMenuQuiz').checked;
-  $('qInputs').classList.toggle('mati', !on);
-  $('qWajib').textContent = on ? '' : ' · Quick quiz is off, questions are not used';
+  $('qInputs').classList.toggle('off', !on);
+  $('qRequired').textContent = on ? '' : ' · Quick quiz is off, questions are not used';
   const first = document.querySelector('.qIn');
   if (first) first.placeholder = on ? 'First question (required)' : 'Optional';
 }
 // Menu toggles: refuse to turn off the last option
 function onMenuToggle(e) {
-  const states = ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].map(id => $(id).checked);
+  const states = ['fMenuMessage', 'fMenuQuiz', 'fMenuPhoto'].map(id => $(id).checked);
   if (!states.some(Boolean)) {
     e.target.checked = true;
     flash('fMenuMsg', 'At least one option must be on.', true);
@@ -123,10 +123,10 @@ function updateQCount() {
 function openCouplePage(c, keepForm = false) {
   state.editingId = c ? c.id : null;
   disarmDelete();
-  $('tambahTitle').textContent = c ? c.name : 'Add couple';
-  $('cpTplBaru').style.display = c ? 'none' : '';
+  $('coupleFormTitle').textContent = c ? c.name : 'Add couple';
+  $('cpTplNew').style.display = c ? 'none' : '';
   $('cpTplBox').style.display = c ? '' : 'none';
-  $('cpLainBox').style.display = c ? '' : 'none';
+  $('cpOtherBox').style.display = c ? '' : 'none';
   if (c) listCoupleTemplates(c);
   else clearTemplateCouple();
   if (keepForm) return; // form content unchanged (after saving a new couple)
@@ -138,15 +138,15 @@ function openCouplePage(c, keepForm = false) {
   });
   $('fActive').checked = c ? c.id === state.couplesData.activeId : true;
   const m = coupleMenu(c);
-  $('fMenuPesan').checked = m.message;
+  $('fMenuMessage').checked = m.message;
   $('fMenuQuiz').checked = m.quiz;
   $('fMenuPhoto').checked = m.photo;
   markQuizState();
-  $('tambahErr').textContent = '';
+  $('coupleFormErr').textContent = '';
   $('cpMsg').textContent = '';
   updateQCount();
-  show('tambah');
-  $('tambah').querySelector('.sheet-body').scrollTop = 0;
+  show('coupleForm');
+  $('coupleForm').querySelector('.sheet-body').scrollTop = 0;
   setTimeout(() => $('fName').focus(), 50);
 }
 async function saveCouple() {
@@ -155,11 +155,11 @@ async function saveCouple() {
     name: $('fName').value,
     welcome: $('fWelcome').value,
     questions: [...document.querySelectorAll('.qIn')].map(i => i.value),
-    menu: { message: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked },
+    menu: { message: $('fMenuMessage').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked },
   };
   const showError = text => {
-    $('tambahErr').textContent = text;
-    $('tambahErr').scrollIntoView({ block: 'center', behavior: 'smooth' });
+    $('coupleFormErr').textContent = text;
+    $('coupleFormErr').scrollIntoView({ block: 'center', behavior: 'smooth' });
   };
   if (!Object.values(data.menu).some(Boolean))
     return showError('At least one option must be on: Send a message, Quick quiz or Photo booth.');
@@ -185,7 +185,7 @@ async function saveCouple() {
 // Wire up this feature's buttons (called once from start.js)
 export function setupCouples() {
   $('btnAddCouple').onclick = () => openCouplePage(null);
-  ['fMenuPesan', 'fMenuQuiz', 'fMenuPhoto'].forEach(id => {
+  ['fMenuMessage', 'fMenuQuiz', 'fMenuPhoto'].forEach(id => {
     $(id).onchange = onMenuToggle;
   });
   $('btnDelCouple').onclick = deleteCouple;
@@ -193,10 +193,10 @@ export function setupCouples() {
     const r = await api.openCoupleFolder(state.editingId);
     if (r) flash('cpMsg', r, true);
   };
-  $('btnTambahBatal').onclick = () => {
+  $('btnCoupleCancel').onclick = () => {
     disarmDelete();
     show('admin');
     fillCoupleSel();
   };
-  $('btnTambahSimpan').onclick = saveCouple;
+  $('btnCoupleSave').onclick = saveCouple;
 }

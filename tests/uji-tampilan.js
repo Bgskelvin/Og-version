@@ -153,37 +153,37 @@ async function main() {
   cek((await layar()) === 'start', 'aplikasi dibuka di halaman Start');
   await pg.click('#btnStart');
   cek(
-    (await layar()) === 'nama' && (await pg.isVisible('#namaKeyboard .kb-tombol')),
+    (await layar()) === 'name' && (await pg.isVisible('#nameKeyboard .kb-key')),
     'Start membuka halaman "Siapa namamu?" dengan keyboard layar',
   );
-  cek(await pg.isDisabled('#namaKeyboard [data-k="enter"]'), 'tombol Lanjut mati selama nama masih kosong');
+  cek(await pg.isDisabled('#nameKeyboard [data-k="enter"]'), 'tombol Lanjut mati selama nama masih kosong');
   const ketik = async ks => {
-    for (const k of ks) await pg.click(`#namaKeyboard [data-k="${k}"]`);
+    for (const k of ks) await pg.click(`#nameKeyboard [data-k="${k}"]`);
   };
   await ketik(['b', 'u', 'd', 'i', 'spasi', 's', '⌫', 'a', 'r', 'i']);
   cek(
-    (await pg.inputValue('#namaInput')) === 'Budi Ari',
+    (await pg.inputValue('#nameInput')) === 'Budi Ari',
     'keyboard layar: huruf besar otomatis di awal kata, spasi, hapus',
-    await pg.inputValue('#namaInput'),
+    await pg.inputValue('#nameInput'),
   );
   await ketik(['123', '2', 'ABC']);
-  cek((await pg.inputValue('#namaInput')) === 'Budi Ari2', 'keyboard layar: tombol 123 untuk angka');
+  cek((await pg.inputValue('#nameInput')) === 'Budi Ari2', 'keyboard layar: tombol 123 untuk angka');
   await ketik(['⌫']);
-  await pg.click('#namaKeyboard [data-k="enter"]');
+  await pg.click('#nameKeyboard [data-k="enter"]');
   cek(
-    (await layar()) === 'utama' && (await pg.textContent('#couple')) === 'Rina & Dimas',
+    (await layar()) === 'home' && (await pg.textContent('#couple')) === 'Rina & Dimas',
     'Halaman Utama menampilkan couple aktif',
   );
   cek(
-    (await pg.textContent('#sapaTamu')) === 'Hai, Budi Ari!' && (await pg.isVisible('#sapaTamu')),
+    (await pg.textContent('#guestGreeting')) === 'Hai, Budi Ari!' && (await pg.isVisible('#guestGreeting')),
     'Halaman Utama menyapa tamu dengan namanya',
   );
   cek(await pg.isVisible('#btnToPhoto'), 'tombol Photo booth ada di Halaman Utama');
 
   console.log('\n▶ Kirim pesan');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tunggu(500);
@@ -195,21 +195,21 @@ async function main() {
 
   console.log('\n▶ Rekaman gagal dimulai tidak membuat layar macet');
   await atur({ startFail: true });
-  await pg.click('#btnCobaLagi');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnBackToMenu');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(3600);
   cek(
-    (await layar()) === 'utama' && /not writable/.test(await pg.textContent('#notice')),
+    (await layar()) === 'home' && /not writable/.test(await pg.textContent('#notice')),
     'folder tidak bisa ditulisi: kembali ke Utama dengan pesan',
   );
   await atur({ startFail: false, mrThrow: true });
   await bersihkan();
   await pg.click('#btnToQuiz');
-  await pg.click('#btnQuizMulai');
+  await pg.click('#btnQuizStart');
   await tunggu(500);
   cek(
-    (await layar()) === 'utama' && (await log()).includes('abort 2'),
+    (await layar()) === 'home' && (await log()).includes('abort 2'),
     'perekam gagal dibuat: rekaman dibatalkan & kembali ke Utama',
     await log(),
   );
@@ -217,13 +217,13 @@ async function main() {
 
   console.log('\n▶ Disk penuh di tengah rekaman');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4500);
   await pg.evaluate(() => fireRecError(__leura.state.rec.id));
   await tunggu(600);
   cek(
-    (await layar()) === 'utama' && /disk/.test(await pg.textContent('#notice')),
+    (await layar()) === 'home' && /disk/.test(await pg.textContent('#notice')),
     'kembali ke Utama dengan pesan cek disk',
   );
   cek(
@@ -233,15 +233,15 @@ async function main() {
 
   console.log('\n▶ Quiz + Coba lagi cepat');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.click('#btnToQuiz');
   cek(/2 pertanyaan acak · 2 detik/.test(await pg.textContent('#quizInfo')), 'info quiz mengikuti pengaturan');
-  await pg.click('#btnQuizMulai');
+  await pg.click('#btnQuizStart');
   await tungguLayar('thanks', 30000);
   const L = await log();
   cek(
@@ -253,9 +253,9 @@ async function main() {
   console.log('\n▶ Quiz: hitung mundur, teks pertanyaan & QR video');
   await atur({ qrVideo: true });
   await bersihkan();
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.click('#btnToQuiz');
-  await pg.click('#btnQuizMulai');
+  await pg.click('#btnQuizStart');
   await tunggu(500);
   cek(
     (await pg.isVisible('#countOverlay')) && (await log()).includes('start quiz') && !(await pg.isVisible('#quizRun')),
@@ -303,9 +303,9 @@ async function main() {
     'Terima kasih: QR untuk mengunduh video tampil',
   );
   await atur({ qrVideo: false });
-  await pg.click('#btnCobaLagi');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnBackToMenu');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
@@ -316,9 +316,9 @@ async function main() {
 
   console.log('\n▶ Halaman Terima kasih mengikuti hasil penyimpanan');
   await atur({ endOk: false });
-  await pg.click('#btnCobaLagi');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnBackToMenu');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
@@ -326,7 +326,7 @@ async function main() {
   await atur({ endOk: true });
 
   console.log('\n▶ Admin: pengaturan langsung berlaku & panel bisa digulir');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.click('#btnAdminOpen');
   await pg.fill('#uid', 'leura');
   await pg.fill('#pw', '1234');
@@ -335,13 +335,13 @@ async function main() {
   await tunggu(300);
   cek(await pg.isVisible('#adminPanel'), 'login Admin berhasil');
   cek(
-    (await pg.textContent('#infoVersi')) === 'Version 1.0.0 · development (npm start, branch chore/mac-installer)',
+    (await pg.textContent('#infoVersion')) === 'Version 1.0.0 · development (npm start, branch chore/mac-installer)',
     'Admin → About: versi & branch',
-    await pg.textContent('#infoVersi'),
+    await pg.textContent('#infoVersion'),
   );
   await bersihkan();
-  await pg.locator('#btnLisensi').scrollIntoViewIfNeeded();
-  await pg.click('#btnLisensi');
+  await pg.locator('#btnLicenses').scrollIntoViewIfNeeded();
+  await pg.click('#btnLicenses');
   await tunggu(100);
   cek((await log()).includes('lisensi'), 'tombol "Open-source licenses"');
   cek(
@@ -369,7 +369,7 @@ async function main() {
   await atur({ disk: null });
   await pg.evaluate(() => __leura.refreshDiskSpace());
   await pg.evaluate(() => __leura.setNotice(''));
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   await pg.locator('#adminPanel').evaluate(e => {
@@ -403,7 +403,7 @@ async function main() {
   cek((await layar()) === 'setvideo', 'halaman Pengaturan videobooth terbuka dari Admin');
   await pg.selectOption('#setSeconds', '30');
   await tunggu(150);
-  await pg.selectOption('#setPesanCountdown', '0');
+  await pg.selectOption('#setMessageCountdown', '0');
   await tunggu(150);
   cek(/Message countdown: record right away/.test(await pg.textContent('#setVideoMsg')), 'konfirmasi tersimpan tampil');
   await pg.click('#btnSetVideoBack');
@@ -438,16 +438,16 @@ async function main() {
   await baris.nth(1).click();
   await tunggu(300);
   cek(
-    (await layar()) === 'tambah' &&
-      (await pg.textContent('#tambahTitle')) === 'Ayu & Budi' &&
+    (await layar()) === 'coupleForm' &&
+      (await pg.textContent('#coupleFormTitle')) === 'Ayu & Budi' &&
       (await pg.isVisible('#btnTplNew')),
     'ketuk couple membuka halaman couple itu, lengkap dengan bagian template',
   );
-  await pg.click('#btnTambahBatal');
+  await pg.click('#btnCoupleCancel');
   await baris.first().click();
   await tunggu(300);
   cek(
-    (await pg.textContent('#tambahTitle')) === 'Rina & Dimas' &&
+    (await pg.textContent('#coupleFormTitle')) === 'Rina & Dimas' &&
       /No templates yet/.test(await pg.textContent('#tplList')),
     'template couple Rina & Dimas masih kosong',
   );
@@ -463,21 +463,21 @@ async function main() {
       (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01),
     'template baru memakai rasio 3:2 (sama dengan foto kamera)',
   );
-  await pg.click('[data-tab="foto"]');
-  await pg.locator('#teRasio .pe-opt', { hasText: '1:1' }).click();
+  await pg.click('[data-tab="photo"]');
+  await pg.locator('#teRatio .pe-opt', { hasText: '1:1' }).click();
   await tunggu(150);
   cek(
-    (await rasioSlot()).every(r => Math.abs(r - 1) < 0.01) && /1:1 ratio/.test(await pg.textContent('#teRasioInfo')),
+    (await rasioSlot()).every(r => Math.abs(r - 1) < 0.01) && /1:1 ratio/.test(await pg.textContent('#teRatioInfo')),
     'pilih rasio 1:1: semua kotak foto jadi persegi',
     await rasioSlot(),
   );
-  await pg.click('[data-tab="desain"]');
+  await pg.click('[data-tab="design"]');
   cek(
     /Rina & Dimas/.test(await pg.textContent('#teTitle')),
     'judul editor menyebut couple-nya',
     await pg.textContent('#teTitle'),
   );
-  await pg.fill('#teNama', 'Rustic emas');
+  await pg.fill('#teName', 'Rustic emas');
   const slot = await pg.locator('.te-slot').first().boundingBox();
   const x0 = await pg.evaluate(() => __leura.te.tpl.slots[0].x);
   await pg.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2);
@@ -497,22 +497,22 @@ async function main() {
     'saat diubah ukurannya, rasio kotak foto tetap 1:1',
   );
   const posisi = await pg.evaluate(() => JSON.stringify(__leura.te.tpl.slots.slice(0, 2)));
-  await pg.click('[data-tab="foto"]');
-  await pg.locator('#teSlotPilih button').first().click();
-  await pg.click('#teSlotTukar');
+  await pg.click('[data-tab="photo"]');
+  await pg.locator('#teSlotChoose button').first().click();
+  await pg.click('#teSlotSwap');
   cek(
     await pg.evaluate(p => JSON.stringify([__leura.te.tpl.slots[1], __leura.te.tpl.slots[0]]) === p, posisi),
     'posisi foto 1 dan 2 bisa ditukar',
   );
-  await pg.locator('#teSusunan .pe-opt').nth(1).click();
+  await pg.locator('#teLayout .pe-opt').nth(1).click();
   cek(
     await pg.evaluate(() => __leura.te.tpl.slots.every(s => s.x === __leura.te.tpl.slots[0].x)),
     'susunan cepat "Kolom" dipakai',
   );
-  await pg.click('[data-tab="teks"]');
-  await pg.click('#teTeksTambah');
-  await pg.fill('#teTeksIsi', 'Terima kasih sudah datang');
-  await pg.locator('#teTeksFont button').nth(1).click();
+  await pg.click('[data-tab="text"]');
+  await pg.click('#teTextAdd');
+  await pg.fill('#teTextContent', 'Terima kasih sudah datang');
+  await pg.locator('#teTextFont button').nth(1).click();
   cek(
     await pg.evaluate(
       () =>
@@ -523,8 +523,8 @@ async function main() {
     'teks baru ditambahkan & hurufnya bisa diganti',
     await pg.evaluate(() => __leura.te.tpl.texts.map(t => t.text + '|' + t.font)),
   );
-  await pg.click('[data-tab="desain"]');
-  await pg.locator('#teUkuran .pe-opt').nth(2).click();
+  await pg.click('[data-tab="design"]');
+  await pg.locator('#teSize .pe-opt').nth(2).click();
   await tunggu(200);
   cek(
     await pg.evaluate(
@@ -535,23 +535,23 @@ async function main() {
     ),
     'ganti ukuran ke Strip: posisi menyesuaikan, rasio tetap',
   );
-  await pg.locator('#teUkuran .pe-opt').nth(0).click();
+  await pg.locator('#teSize .pe-opt').nth(0).click();
   await tunggu(200);
   const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     'base64',
   );
-  await pg.setInputFiles('#teBingkaiFile', { name: 'bingkai.png', mimeType: 'image/png', buffer: png });
+  await pg.setInputFiles('#teFrameFile', { name: 'bingkai.png', mimeType: 'image/png', buffer: png });
   await tunggu(300);
-  cek(/bingkai\.png/.test(await pg.textContent('#teBingkaiStatus')), 'bingkai PNG bisa diunggah');
-  await pg.setInputFiles('#teBingkaiFile', { name: 'foto.jpg', mimeType: 'image/jpeg', buffer: png });
+  cek(/bingkai\.png/.test(await pg.textContent('#teFrameStatus')), 'bingkai PNG bisa diunggah');
+  await pg.setInputFiles('#teFrameFile', { name: 'foto.jpg', mimeType: 'image/jpeg', buffer: png });
   await tunggu(200);
   cek(/must be a PNG/.test(await pg.textContent('#teMsg')), 'bingkai JPG ditolak dengan pesan jelas');
-  await pg.click('#teSimpan');
+  await pg.click('#teSave');
   await tunggu(400);
   const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
   cek(
-    (await layar()) === 'tambah' &&
+    (await layar()) === 'coupleForm' &&
       simpan.t.name === 'Rustic emas' &&
       simpan.t.coupleId === 'a' &&
       simpan.frame === png.length,
@@ -565,40 +565,40 @@ async function main() {
   await pg.locator('#tplList .tpl-row button', { hasText: 'Edit' }).click();
   await tunggu(300);
   cek(
-    (await pg.inputValue('#teNama')) === 'Rustic emas' && /frame/i.test(await pg.textContent('#teBingkaiStatus')),
+    (await pg.inputValue('#teName')) === 'Rustic emas' && /frame/i.test(await pg.textContent('#teFrameStatus')),
     'template bisa dibuka lagi untuk diedit',
   );
-  await pg.fill('#teNama', 'Rustic emas 2');
-  await pg.click('#teBatal');
+  await pg.fill('#teName', 'Rustic emas 2');
+  await pg.click('#teCancel');
   cek(
-    (await layar()) === 'tpleditor' && /Buang/.test(await pg.textContent('#teBatal')),
+    (await layar()) === 'tpleditor' && /Buang/.test(await pg.textContent('#teCancel')),
     'Batal dengan perubahan minta konfirmasi',
   );
-  await pg.click('#teBatal');
+  await pg.click('#teCancel');
   await tunggu(200);
   cek(
-    (await layar()) === 'tambah' && (await pg.evaluate(() => TPL[0].name)) === 'Rustic emas',
+    (await layar()) === 'coupleForm' && (await pg.evaluate(() => TPL[0].name)) === 'Rustic emas',
     'Batal tidak menyimpan perubahan',
   );
   cek((await pg.evaluate(() => TPL[0].ratio)) === '1:1', 'rasio foto ikut tersimpan di template');
   await pg.evaluate(() => __leura.openTemplateEditor({ ...TPL[0], id: 'lama', ratio: undefined }));
   await tunggu(300);
-  await pg.click('#teSimpan');
+  await pg.click('#teSave');
   await tunggu(200);
   cek(
     (await layar()) === 'tpleditor' &&
       /Choose a photo ratio first/.test(await pg.textContent('#teMsg')) &&
-      /no photo ratio yet/.test(await pg.textContent('#teRasioInfo')),
+      /no photo ratio yet/.test(await pg.textContent('#teRatioInfo')),
     'template lama tanpa rasio tidak bisa disimpan sebelum rasio dipilih',
   );
-  await pg.click('#teBatal');
+  await pg.click('#teCancel');
   await tunggu(200);
   console.log('\n▶ Menu per couple');
   cek(
-    (await pg.isChecked('#fMenuPesan')) && (await pg.isChecked('#fMenuQuiz')) && (await pg.isChecked('#fMenuPhoto')),
+    (await pg.isChecked('#fMenuMessage')) && (await pg.isChecked('#fMenuQuiz')) && (await pg.isChecked('#fMenuPhoto')),
     'halaman couple menampilkan saklar 3 menu',
   );
-  await pg.click('#fMenuPesan');
+  await pg.click('#fMenuMessage');
   await pg.click('#fMenuQuiz');
   await pg.click('#fMenuPhoto');
   await tunggu(100);
@@ -606,8 +606,8 @@ async function main() {
     (await pg.isChecked('#fMenuPhoto')) && /At least one option/.test(await pg.textContent('#fMenuMsg')),
     'menu terakhir tidak bisa dimatikan',
   );
-  await pg.click('#fMenuPesan');
-  await pg.click('#btnTambahSimpan');
+  await pg.click('#fMenuMessage');
+  await pg.click('#btnCoupleSave');
   await tunggu(300);
   const menuA = await pg.evaluate(() => CP.couples[0].menu);
   cek(
@@ -622,14 +622,14 @@ async function main() {
   );
   await pg.click('#btnAdminBack');
   cek(
-    !(await pg.isVisible('#btnToQuiz')) && (await pg.isVisible('#btnToPesan')) && (await pg.isVisible('#btnToPhoto')),
+    !(await pg.isVisible('#btnToQuiz')) && (await pg.isVisible('#btnToMessage')) && (await pg.isVisible('#btnToPhoto')),
     'Halaman Utama: Quick quiz tersembunyi, menu lain tetap tampil',
   );
 
   console.log('\n▶ Pengaturan dipakai saat sesi');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(400);
   cek(
     (await log()).includes('start message') && !(await pg.isVisible('#countOverlay')),
@@ -637,21 +637,21 @@ async function main() {
   );
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 2 }));
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(300);
   cek(
-    / \/ 0:02$/.test(await pg.textContent('#pesanTime')),
+    / \/ 0:02$/.test(await pg.textContent('#messageTime')),
     'durasi pesan menampilkan batasnya',
-    await pg.textContent('#pesanTime'),
+    await pg.textContent('#messageTime'),
   );
   await tungguLayar('saving', 5000);
   cek(true, 'batas durasi tercapai: rekaman berhenti sendiri');
   await tungguLayar('thanks');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.evaluate(() => {
     __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 0 });
     __leura.state.activeCouple.menu.quiz = true;
@@ -678,7 +678,7 @@ async function main() {
     new MutationObserver(() =>
       HITUNG.push(
         document.getElementById('pbCountNum').textContent +
-          (document.getElementById('pbCount').classList.contains('kecil') ? 'k' : 'B'),
+          (document.getElementById('pbCount').classList.contains('small') ? 'k' : 'B'),
       ),
     ).observe(document.getElementById('pbCountNum'), { childList: true });
   });
@@ -781,9 +781,9 @@ async function main() {
     (await pg.textContent('#thanksMsg')) === 'Fotomu sudah tersimpan.' && (await pg.isVisible('#thanksPhoto')),
     'Terima kasih menampilkan pratinjau foto',
   );
-  await pg.click('#btnCobaLagi');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnBackToMenu');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
@@ -802,7 +802,7 @@ async function main() {
   cek(
     (await pg.locator('#teFilter .pe-opt').count()) === 1 &&
       /No filters yet/.test(await pg.textContent('#teFilterInfo')) &&
-      !(await pg.isVisible('#teFilterAtur')),
+      !(await pg.isVisible('#teFilterManage')),
     'tab Filter: awalnya hanya "Tanpa filter" + ajakan menambah filter',
   );
   let kubus = 'TITLE "Kebalikan"\nLUT_3D_SIZE 2\n';
@@ -832,7 +832,7 @@ async function main() {
     (await pg.locator('#teFilter .pe-opt').count()) === 2 &&
       /Kebalikan/.test(await pg.textContent('#teFilter .pe-opt.on')) &&
       /All guest photos use the "Kebalikan" filter \(100%\)/.test(await pg.textContent('#teFilterInfo')) &&
-      (await pg.isVisible('#teFilterAtur')),
+      (await pg.isVisible('#teFilterManage')),
     'filter .cube ditambahkan, langsung terpilih untuk template ini',
   );
   const pratinjau = await pg.evaluate(() => {
@@ -842,17 +842,17 @@ async function main() {
     return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])];
   });
   cek(pratinjau[0] <= 2 && pratinjau[1] <= 2, 'pratinjau editor: foto contoh di kotak foto memakai filter', pratinjau);
-  await pg.fill('#teFilterKekuatan', '60');
-  await pg.dispatchEvent('#teFilterKekuatan', 'change');
+  await pg.fill('#teFilterStrength', '60');
+  await pg.dispatchEvent('#teFilterStrength', 'change');
   await tunggu(300);
   cek(/\(60%\)/.test(await pg.textContent('#teFilterInfo')), 'kekuatan filter bisa diatur');
-  await pg.click('label.switch:has(#teFilterTamu)');
+  await pg.click('label.switch:has(#teFilterGuest)');
   await tunggu(200);
   cek(
     /Guests can't change it/.test(await pg.textContent('#teFilterInfo')),
     'admin bisa mengunci filter (tamu tidak bisa menggantinya)',
   );
-  await pg.click('#teSimpan');
+  await pg.click('#teSave');
   await tunggu(400);
   const tplF = await pg.evaluate(() => TPL[0]);
   cek(
@@ -863,7 +863,7 @@ async function main() {
   cek(/with filter/.test(await pg.textContent('#tplList')), 'daftar template menandai template berfilter');
   await pg.evaluate(() => {
     __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 2, photoPreview: 0, photoFlash: false });
-    __leura.show('utama');
+    __leura.show('home');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -884,7 +884,7 @@ async function main() {
   await pg.evaluate(() => {
     TPL[0].guestPicksFilter = true;
   });
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 30000 });
@@ -903,7 +903,7 @@ async function main() {
   );
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
 
   console.log('\n▶ Hapus template');
   await pg.evaluate(() => {
@@ -925,7 +925,7 @@ async function main() {
   );
   await pg.evaluate(() => {
     __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0 });
-    __leura.show('utama');
+    __leura.show('home');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -940,35 +940,35 @@ async function main() {
   );
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
 
   console.log('\n▶ Tambah couple baru lalu langsung buat template');
   await pg.evaluate(() => __leura.show('admin'));
   await pg.click('#btnAddCouple');
   await tunggu(200);
   cek(
-    (await pg.isVisible('#cpTplBaru')) && !(await pg.isVisible('#btnTplNew')) && !(await pg.isVisible('#btnDelCouple')),
+    (await pg.isVisible('#cpTplNew')) && !(await pg.isVisible('#btnTplNew')) && !(await pg.isVisible('#btnDelCouple')),
     'couple baru: template muncul setelah disimpan',
   );
   await pg.fill('#fName', 'Sari & Andi');
   await pg.click('#fActive');
-  await pg.click('#btnTambahSimpan');
+  await pg.click('#btnCoupleSave');
   await tunggu(300);
   cek(
-    /Quick quiz is on: add at least 1 question/.test(await pg.textContent('#tambahErr')),
+    /Quick quiz is on: add at least 1 question/.test(await pg.textContent('#coupleFormErr')),
     'Quick quiz aktif tanpa pertanyaan ditolak',
   );
   await pg.click('#fMenuQuiz');
   cek(
-    /Quick quiz is off/.test(await pg.textContent('#qWajib')),
+    /Quick quiz is off/.test(await pg.textContent('#qRequired')),
     'pertanyaan ditandai tidak dipakai saat Quick quiz mati',
   );
-  await pg.click('#btnTambahSimpan');
+  await pg.click('#btnCoupleSave');
   await tunggu(300);
   cek(
-    (await layar()) === 'tambah' &&
+    (await layar()) === 'coupleForm' &&
       (await pg.isVisible('#btnTplNew')) &&
-      (await pg.textContent('#tambahTitle')) === 'Sari & Andi',
+      (await pg.textContent('#coupleFormTitle')) === 'Sari & Andi',
     'setelah disimpan tetap di halaman couple & tombol Buat template muncul',
   );
   cek((await pg.evaluate(() => CP.activeId)) === 'a', 'couple aktif tidak berubah saat menyiapkan couple lain');
@@ -979,7 +979,7 @@ async function main() {
       (await pg.evaluate(() => __leura.fillTemplateText('{couple}'))) === 'Sari & Andi',
     'pratinjau {couple} memakai nama couple yang diedit',
   );
-  await pg.click('#teSimpan');
+  await pg.click('#teSave');
   await tunggu(300);
   cek(
     await pg.evaluate(() => TPL.length === 1 && TPL[0].coupleId === 'n2'),
@@ -989,7 +989,7 @@ async function main() {
   cek((await log()).includes('folder n2'), 'Buka folder couple membuka folder couple yang diedit');
   await pg.click('#btnDelCouple');
   cek(
-    (await layar()) === 'tambah' && /for sure/.test(await pg.textContent('#delLabel')),
+    (await layar()) === 'coupleForm' && /for sure/.test(await pg.textContent('#delLabel')),
     'hapus couple minta ketuk dua kali',
   );
   await pg.click('#btnDelCouple');
@@ -1009,10 +1009,10 @@ async function main() {
   console.log('\n▶ Kamera Sony');
   await pg.evaluate(() => __leura.show('admin'));
   cek(
-    (await pg.inputValue('#camSumber')) === 'webcam' && !(await pg.isVisible('#sonyRow')),
+    (await pg.inputValue('#camSource')) === 'webcam' && !(await pg.isVisible('#sonyRow')),
     'Admin: sumber kamera bawaan Webcam / HP',
   );
-  await pg.selectOption('#camSumber', 'sony-sim');
+  await pg.selectOption('#camSource', 'sony-sim');
   await tunggu(400);
   cek(
     await pg.evaluate(() => document.body.classList.contains('sonyOn') && __leura.state.mediaStream === null),
@@ -1033,19 +1033,19 @@ async function main() {
   );
   await pg.evaluate(() => {
     __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0, messageCountdown: 0 });
-    __leura.show('utama');
+    __leura.show('home');
   });
   await tunggu(400);
   cek((await pg.isVisible('#camLv')) && !(await pg.isVisible('#cam')), 'live view Sony jadi latar Halaman Utama');
   await bersihkan();
-  await pg.click('#btnToPesan');
+  await pg.click('#btnToMessage');
   await tunggu(100);
   cek((await log()).includes('mode video'), 'buka Kirim pesan: kamera Sony dipindah ke mode VIDEO');
-  await pg.click('#btnPesanBack');
+  await pg.click('#btnMessageBack');
   await pg.evaluate(() => __leura.show('quiz'));
   await tunggu(100);
   cek((await log()).filter(x => x === 'mode video').length === 2, 'buka Quiz: kamera Sony ke mode VIDEO');
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnToPhoto');
   await tunggu(100);
   cek((await log()).includes('mode photo'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
@@ -1057,18 +1057,18 @@ async function main() {
     SONY.cb(SONY.st); // status update from the (fake) main process
     window.MODE_DELAY = 900;
   });
-  await pg.click('#btnToPesan');
+  await pg.click('#btnToMessage');
   await tunggu(150);
   const n1 = await pg.evaluate(() => __leura.liveViewFrameCount());
   await tunggu(400);
   const n2 = await pg.evaluate(() => __leura.liveViewFrameCount());
   cek(
-    (await pg.evaluate(() => document.body.classList.contains('lvGanti'))) && n1 === n2,
+    (await pg.evaluate(() => document.body.classList.contains('lvSwitching'))) && n1 === n2,
     'ganti mode: gambar kamera dibekukan + kabut (blur) selama berganti',
   );
   await tunggu(1800);
   cek(
-    !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))) &&
+    !(await pg.evaluate(() => document.body.classList.contains('lvSwitching'))) &&
       (await pg.evaluate(() => __leura.liveViewFrameCount())) > n2,
     'mode selesai: kabut hilang, gambar kamera jalan lagi',
   );
@@ -1077,14 +1077,14 @@ async function main() {
     SONY.cb(SONY.st);
     window.MODE_DELAY = 0;
   });
-  await pg.click('#btnPesanBack');
+  await pg.click('#btnMessageBack');
   await pg.evaluate(() => __leura.show('quiz'));
   await tunggu(100);
   cek(
-    !(await pg.evaluate(() => document.body.classList.contains('lvGanti'))),
+    !(await pg.evaluate(() => document.body.classList.contains('lvSwitching'))),
     'mode sudah benar (pesan → quiz): tanpa kabut',
   );
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1102,10 +1102,10 @@ async function main() {
     'foto asli kamera disimpan utuh (tidak diperkecil)',
     fs,
   );
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(400);
   cek((await log()).includes('start message sony'), 'Kirim pesan merekam lewat kamera Sony', await log());
   await pg.click('#btnFinish');
@@ -1114,28 +1114,28 @@ async function main() {
     (await log()).some(x => /^end /.test(x)),
     'rekaman Sony dihentikan & dicatat',
   );
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(400);
   await pg.evaluate(() => setSony({ ...SONY.st, connected: false, message: 'Kamera Sony terputus.' }));
   await tunggu(400);
   cek(
-    (await layar()) === 'utama' && /disconnected while recording/.test(await pg.textContent('#notice')),
+    (await layar()) === 'home' && /disconnected while recording/.test(await pg.textContent('#notice')),
     'kabel tercabut saat merekam: kembali ke Utama dengan pesan jelas',
   );
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(200);
   cek(
-    (await layar()) === 'pesan' && /belum tersambung/.test(await pg.textContent('#notice')),
+    (await layar()) === 'message' && /not connected/.test(await pg.textContent('#notice')),
     'kamera belum tersambung: rekaman tidak dimulai',
   );
   await pg.evaluate(() => {
     __leura.show('admin');
   });
-  await pg.selectOption('#camSumber', 'webcam');
+  await pg.selectOption('#camSource', 'webcam');
   await tunggu(500);
   cek(
     await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!__leura.state.mediaStream),
@@ -1180,78 +1180,78 @@ async function main() {
     return __leura.loadSessions();
   });
   cek(
-    /Rina & Dimas: 5 today · 6 total/.test(await pg.textContent('#riwayatRingkas')) &&
-      (await pg.textContent('#riwayatBadge')) === '⚠️ 2',
+    /Rina & Dimas: 5 today · 6 total/.test(await pg.textContent('#historySummary')) &&
+      (await pg.textContent('#historyBadge')) === '⚠️ 2',
     'Admin: ringkasan sesi couple aktif + jumlah yang perlu perhatian',
-    await pg.textContent('#riwayatRingkas'),
+    await pg.textContent('#historySummary'),
   );
-  await pg.click('#btnRiwayat');
+  await pg.click('#btnHistory');
   await tunggu(300);
   cek(
-    (await layar()) === 'riwayat' && (await pg.inputValue('#rwCouple')) === 'Rina & Dimas',
+    (await layar()) === 'history' && (await pg.inputValue('#histCouple')) === 'Rina & Dimas',
     'Riwayat sesi terbuka untuk couple aktif',
   );
   cek(
-    (await pg.textContent('#rwRingkas')).replace(/\s/g, '') === '4Messages1Quiz1Photos3Videominutes',
+    (await pg.textContent('#histSummary')).replace(/\s/g, '') === '4Messages1Quiz1Photos3Videominutes',
     'ringkasan jumlah pesan/quiz/foto & menit video',
-    await pg.textContent('#rwRingkas'),
+    await pg.textContent('#histSummary'),
   );
-  const judulHari = await pg.locator('#rwList .group-title').allTextContents();
+  const judulHari = await pg.locator('#histList .group-title').allTextContents();
   cek(
     judulHari.length === 2 && /^Today/.test(judulHari[0]) && /^Yesterday/.test(judulHari[1]),
     'sesi dikelompokkan per hari (Hari ini, Kemarin)',
     judulHari,
   );
   cek(
-    (await pg.locator('.rw-status.merah').count()) === 1 &&
-      (await pg.locator('.rw-status.oranye').count()) === 1 &&
-      (await pg.locator('.rw-status.hijau').count()) === 4,
+    (await pg.locator('.hist-status.red').count()) === 1 &&
+      (await pg.locator('.hist-status.orange').count()) === 1 &&
+      (await pg.locator('.hist-status.green').count()) === 4,
     'status berwarna: gagal merah, di kartu SD oranye, siap hijau',
   );
   cek(
-    /Too short/.test(await pg.locator('.rw-row', { hasText: '18:24' }).textContent()),
+    /Too short/.test(await pg.locator('.hist-row', { hasText: '18:24' }).textContent()),
     'rekaman 1 detik ditandai "Terlalu pendek"',
   );
-  await pg.click('#rwBanner');
+  await pg.click('#histBanner');
   await tunggu(150);
-  cek((await pg.locator('.rw-row').count()) === 2, 'banner peringatan menampilkan 2 sesi bermasalah saja');
-  await pg.locator('.rw-row', { hasText: 'Quiz' }).click();
+  cek((await pg.locator('.hist-row').count()) === 2, 'banner peringatan menampilkan 2 sesi bermasalah saja');
+  await pg.locator('.hist-row', { hasText: 'Quiz' }).click();
   await tunggu(150);
   cek(
-    /could not be converted to MP4/.test(await pg.textContent('.rw-detail')) &&
-      /Kapan pertama bertemu/.test(await pg.textContent('.rw-detail')),
+    /could not be converted to MP4/.test(await pg.textContent('.hist-detail')) &&
+      /Kapan pertama bertemu/.test(await pg.textContent('.hist-detail')),
     'detail sesi: keterangan & pertanyaan quiz',
   );
   await bersihkan();
-  await pg.locator('.rw-detail button', { hasText: 'Process again' }).click();
+  await pg.locator('.hist-detail button', { hasText: 'Process again' }).click();
   await tunggu(400);
   cek(
     (await log()).includes('ulang 4') &&
       (await pg.evaluate(() => SESI[3].status)) === 'processing' &&
-      (await pg.locator('.rw-row').count()) === 1,
+      (await pg.locator('.hist-row').count()) === 1,
     'Coba proses lagi: sesi diproses ulang & keluar dari daftar "perlu perhatian"',
   );
-  await pg.click('#rwBanner');
-  await pg.locator('.rw-chip', { hasText: 'Photos' }).click();
-  await pg.locator('.rw-row').first().click();
-  await pg.locator('.rw-detail button', { hasText: 'View photo' }).click();
-  await pg.locator('.rw-detail button', { hasText: 'Show in Finder' }).click();
+  await pg.click('#histBanner');
+  await pg.locator('.hist-chip', { hasText: 'Photos' }).click();
+  await pg.locator('.hist-row').first().click();
+  await pg.locator('.hist-detail button', { hasText: 'View photo' }).click();
+  await pg.locator('.hist-detail button', { hasText: 'Show in Finder' }).click();
   await tunggu(100);
   cek(
     (await log()).includes('buka 3') && (await log()).includes('finder 3'),
     'foto bisa dibuka & ditampilkan di Finder',
   );
-  await pg.selectOption('#rwCouple', '');
-  await pg.locator('.rw-chip', { hasText: 'All' }).click();
+  await pg.selectOption('#histCouple', '');
+  await pg.locator('.hist-chip', { hasText: 'All' }).click();
   await tunggu(100);
   cek(
-    (await pg.locator('.rw-row').count()) === 7 && /Ayu & Budi/.test(await pg.textContent('#rwList')),
+    (await pg.locator('.hist-row').count()) === 7 && /Ayu & Budi/.test(await pg.textContent('#histList')),
     'pilihan "Semua couple" menampilkan semua sesi dengan nama couple',
   );
   cek(
-    / · Photo$/.test(await pg.locator('.rw-row[data-id="3"] b').textContent()) &&
-      / · Message$/.test(await pg.locator('.rw-row[data-id="1"] b').textContent()) &&
-      !/undefined/.test(await pg.textContent('#rwList')),
+    / · Photo$/.test(await pg.locator('.hist-row[data-id="3"] b').textContent()) &&
+      / · Message$/.test(await pg.locator('.hist-row[data-id="1"] b').textContent()) &&
+      !/undefined/.test(await pg.textContent('#histList')),
     'each row shows its kind (Message / Quiz / Photo)',
   );
   await pg.evaluate(() => {
@@ -1266,7 +1266,7 @@ async function main() {
     });
   });
   await tunggu(3500);
-  cek((await pg.locator('.rw-row').count()) === 8, 'daftar diperbarui sendiri tanpa menekan Segarkan');
+  cek((await pg.locator('.hist-row').count()) === 8, 'daftar diperbarui sendiri tanpa menekan Segarkan');
   await pg.evaluate(() => {
     SESI.push({
       id: 9,
@@ -1279,30 +1279,30 @@ async function main() {
   });
   await tunggu(3500);
   cek(
-    /Adding questions/.test(await pg.locator('.rw-row[data-id="9"]').textContent()),
+    /Adding questions/.test(await pg.locator('.hist-row[data-id="9"]').textContent()),
     'quiz video getting its question texts shows "Adding questions"',
   );
-  await pg.click('#rwBack');
+  await pg.click('#histBack');
   cek((await layar()) === 'admin', 'tombol Admin kembali');
 
   console.log('\n▶ Bahasa layar tamu');
   await pg.evaluate(() => __leura.show('admin'));
-  cek((await pg.inputValue('#setBahasa')) === 'id', 'bahasa layar tamu dari pengaturan tampil di Admin');
+  cek((await pg.inputValue('#setGuestLanguage')) === 'id', 'bahasa layar tamu dari pengaturan tampil di Admin');
   // Ganti bahasa tamu ke English
-  await pg.selectOption('#setBahasa', 'en');
+  await pg.selectOption('#setGuestLanguage', 'en');
   await tunggu(300);
   cek(
     /now in English/.test(await pg.textContent('#setMsg')) &&
       /Add couple/.test(await pg.textContent('#btnAddCouple')) &&
-      /Session history/.test(await pg.textContent('#btnRiwayat')),
+      /Session history/.test(await pg.textContent('#btnHistory')),
     'halaman Admin berbahasa Inggris',
   );
   await pg.click('#btnAdminBack');
   await tunggu(200);
   cek(
-    /Leave a message/.test(await pg.textContent('#btnToPesan')) &&
+    /Leave a message/.test(await pg.textContent('#btnToMessage')) &&
       (await pg.textContent('#welcome')) === 'Tinggalkan pesan untuk kami' &&
-      (await pg.locator('#btnToPesan svg').count()) === 1,
+      (await pg.locator('#btnToMessage svg').count()) === 1,
     'Halaman Utama berbahasa Inggris (ikon tombol tetap ada); sambutan tampil seperti yang diketik',
   );
   await pg.evaluate(() => {
@@ -1312,7 +1312,7 @@ async function main() {
   await pg.click('#btnToQuiz');
   cek(
     /random questions/.test(await pg.textContent('#quizInfo')) &&
-      /Start quiz/.test(await pg.textContent('#btnQuizMulai')) &&
+      /Start quiz/.test(await pg.textContent('#btnQuizStart')) &&
       /Back/.test(await pg.textContent('#btnQuizBack')),
     'halaman Quiz berbahasa Inggris',
   );
@@ -1353,15 +1353,15 @@ async function main() {
   cek(
     /Thank you/.test(await pg.textContent('#thanks h1')) &&
       /Your photos have been saved/.test(await pg.textContent('#thanksMsg')) &&
-      /Back to menu/.test(await pg.textContent('#btnCobaLagi')),
+      /Back to menu/.test(await pg.textContent('#btnBackToMenu')),
     'halaman Terima kasih berbahasa Inggris',
   );
   await pg.evaluate(() => __leura.show('admin'));
-  await pg.selectOption('#setBahasa', 'id');
+  await pg.selectOption('#setGuestLanguage', 'id');
   await tunggu(300);
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   cek(
-    /Kirim pesan/.test(await pg.textContent('#btnToPesan')) &&
+    /Kirim pesan/.test(await pg.textContent('#btnToMessage')) &&
       (await pg.textContent('#welcome')) === 'Tinggalkan pesan untuk kami',
     'kembali ke bahasa Indonesia',
   );
@@ -1375,23 +1375,23 @@ async function main() {
   await pg.click('#btnSetPhoto');
   await tunggu(300);
   cek(
-    !(await pg.isChecked('#setQrAktif')) && /QR is off/.test(await pg.textContent('#qrStatus')),
+    !(await pg.isChecked('#setQrEnabled')) && /QR is off/.test(await pg.textContent('#qrStatus')),
     'Pengaturan photobooth: QR mati secara bawaan',
   );
-  await pg.click('#btnQrPasang');
+  await pg.click('#btnQrSetup');
   await tunggu(200);
   cek(
     (await pg.inputValue('#setQrUrl')) === 'https://leura-foto.uji.workers.dev' &&
-      /saved/.test(await pg.getAttribute('#setQrKunci', 'placeholder')),
+      /saved/.test(await pg.getAttribute('#setQrKey', 'placeholder')),
     '"Ambil dari hasil pasang" mengisi alamat & kunci',
   );
-  await pg.click('#btnQrTes');
+  await pg.click('#btnQrTest');
   await tunggu(200);
   cek(
     /Connected to the server. Photos are kept for 7 days/.test(await pg.textContent('#qrMsg')),
     'Tes sambungan menampilkan hasil',
   );
-  await pg.click('#setQrAktif');
+  await pg.click('#setQrEnabled');
   await tunggu(200);
   cek(
     (await pg.evaluate(() => UNG.st.enabled)) && /all photos sent/.test(await pg.textContent('#qrStatus')),
@@ -1399,12 +1399,12 @@ async function main() {
   );
   cek(
     (await pg.isChecked('#setQrVideo')) &&
-      (await pg.inputValue('#setQrKualitas')) === '720' &&
+      (await pg.inputValue('#setQrQuality')) === '720' &&
       !(await pg.isDisabled('#setQrVideo')),
     'QR video menyala & kualitas 720p secara bawaan',
   );
   await bersihkan();
-  await pg.selectOption('#setQrKualitas', '1080');
+  await pg.selectOption('#setQrQuality', '1080');
   await tunggu(150);
   cek(
     (await log()).includes('unggah {"videoQuality":"1080"}') && /1080p/.test(await pg.textContent('#qrMsg')),
@@ -1415,7 +1415,7 @@ async function main() {
   await tunggu(150);
   cek(
     (await log()).includes('unggah {"video":false}') &&
-      (await pg.isDisabled('#setQrKualitas')) &&
+      (await pg.isDisabled('#setQrQuality')) &&
       /Video QR is off/.test(await pg.textContent('#qrStatus')),
     'QR video bisa dimatikan',
   );
@@ -1458,13 +1458,13 @@ async function main() {
   await tunggu(100);
   cek(
     /2 photo\(s\) waiting to be sent · No internet/.test(await pg.textContent('#qrStatus')) &&
-      (await pg.isVisible('#btnQrUlang')),
+      (await pg.isVisible('#btnQrRetry')),
     'status antrean tampil langsung, ada tombol "Coba kirim sekarang"',
   );
   await bersihkan();
-  await pg.click('#btnQrUlang');
+  await pg.click('#btnQrRetry');
   cek((await log()).includes('unggah coba'), 'Coba kirim sekarang');
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1484,8 +1484,8 @@ async function main() {
         f = document.getElementById('thanksPhoto').getBoundingClientRect(),
         q = document.getElementById('qrCanvas').getBoundingClientRect();
       return (
-        th.classList.contains('tk-foto') &&
-        th.classList.contains('tk-ada-qr') &&
+        th.classList.contains('thanks-photo') &&
+        th.classList.contains('thanks-has-qr') &&
         f.height > innerHeight * 0.6 &&
         q.width >= 240 &&
         f.right < q.left
@@ -1496,9 +1496,9 @@ async function main() {
   await pg.evaluate(() => {
     window.QRPNG = document.getElementById('qrCanvas').toDataURL('image/png');
   });
-  await pg.click('#btnCobaLagi');
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnBackToMenu');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(400);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
@@ -1507,7 +1507,7 @@ async function main() {
     require('path').join(require('os').tmpdir(), 'uji-qr.png'),
     Buffer.from((await pg.evaluate(() => QRPNG)).split(',')[1], 'base64'),
   );
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
 
   console.log('\n▶ Link QR di Riwayat sesi');
   await pg.evaluate(() => {
@@ -1542,27 +1542,27 @@ async function main() {
     __leura.show('admin');
   });
   await bersihkan();
-  await pg.click('#btnRiwayat');
+  await pg.click('#btnHistory');
   await tunggu(400);
-  await pg.click('.rw-row[data-id="20"]');
+  await pg.click('.hist-row[data-id="20"]');
   await tunggu(200);
   cek(
-    (await pg.textContent('.rw-detail .rw-link')) === 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' &&
-      /guests can download the photos/.test(await pg.textContent('.rw-detail')),
+    (await pg.textContent('.hist-detail .hist-link')) === 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' &&
+      /guests can download the photos/.test(await pg.textContent('.hist-detail')),
     'detail sesi foto menampilkan link unduh + status QR',
   );
-  await pg.click('.rw-detail button:has-text("Copy link")');
+  await pg.click('.hist-detail button:has-text("Copy link")');
   await tunggu(100);
-  await pg.click('.rw-detail button:has-text("Open link")');
+  await pg.click('.hist-detail button:has-text("Open link")');
   await tunggu(100);
   const lg = await log();
   cek(
     lg.includes('salin https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
       lg.includes('buka https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
-      /Link copied/.test(await pg.textContent('#rwMsg')),
+      /Link copied/.test(await pg.textContent('#histMsg')),
     'tombol Salin link & Buka link',
   );
-  await pg.click('.rw-detail button:has-text("Show QR")');
+  await pg.click('.hist-detail button:has-text("Show QR")');
   await tunggu(200);
   cek(
     (await pg.isVisible('#rwQR canvas')) &&
@@ -1579,34 +1579,34 @@ async function main() {
   await pg.click('#rwQR button');
   await tunggu(100);
   cek((await pg.locator('#rwQR').count()) === 0, 'QR besar ditutup');
-  await pg.click('.rw-row[data-id="21"]');
+  await pg.click('.hist-row[data-id="21"]');
   await tunggu(200);
   cek(
-    (await pg.textContent('.rw-detail .rw-link')) === 'https://leura-foto.uji.workers.dev/f/LamaKode99',
+    (await pg.textContent('.hist-detail .hist-link')) === 'https://leura-foto.uji.workers.dev/f/LamaKode99',
     'sesi lama (hanya kode) tetap mendapat link dari alamat server',
   );
-  await pg.click('#rwBack');
+  await pg.click('#histBack');
   await tunggu(200);
 
   console.log('\n▶ Nama tamu');
   await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   cek(
-    (await layar()) === 'nama' && (await pg.inputValue('#namaInput')) === '',
+    (await layar()) === 'name' && (await pg.inputValue('#nameInput')) === '',
     'tamu berikutnya mulai dengan kolom nama kosong',
   );
-  await pg.click('#btnNamaBack');
+  await pg.click('#btnNameBack');
   cek((await layar()) === 'start', 'Kembali dari halaman nama ke halaman Start');
   await pg.click('#btnStart');
-  await pg.fill('#namaInput', 'Sari');
-  await pg.press('#namaInput', 'Enter');
+  await pg.fill('#nameInput', 'Sari');
+  await pg.press('#nameInput', 'Enter');
   cek(
-    (await layar()) === 'utama' && (await pg.textContent('#sapaTamu')) === 'Hai, Sari!',
+    (await layar()) === 'home' && (await pg.textContent('#guestGreeting')) === 'Hai, Sari!',
     'keyboard fisik juga bisa (Enter = Lanjut)',
   );
   await pg.evaluate(() => __leura.show('start'));
   cek(
-    (await pg.evaluate(() => __leura.state.guestName)) === '' && !(await pg.isVisible('#sapaTamu')),
+    (await pg.evaluate(() => __leura.state.guestName)) === '' && !(await pg.isVisible('#guestGreeting')),
     'kembali ke Start menghapus nama tamu sebelumnya',
   );
   await pg.evaluate(() => {
@@ -1614,8 +1614,8 @@ async function main() {
   });
   await pg.click('#btnStart');
   cek(
-    (await pg.textContent('#nama h1')) === "What's your name?" &&
-      (await pg.textContent('#namaKeyboard [data-k="enter"]')) === 'Continue',
+    (await pg.textContent('#name h1')) === "What's your name?" &&
+      (await pg.textContent('#nameKeyboard [data-k="enter"]')) === 'Continue',
     'halaman nama & keyboard ikut bahasa tamu',
   );
   await pg.evaluate(() => {
@@ -1624,71 +1624,68 @@ async function main() {
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
   });
-  await pg.locator('#setTanyaNama').scrollIntoViewIfNeeded();
-  cek(await pg.isChecked('#setTanyaNama'), 'Admin: "Tanya nama tamu" menyala sebagai bawaan');
-  await pg.click('#setTanyaNama');
+  await pg.locator('#setAskName').scrollIntoViewIfNeeded();
+  cek(await pg.isChecked('#setAskName'), 'Admin: "Tanya nama tamu" menyala sebagai bawaan');
+  await pg.click('#setAskName');
   await tunggu(200);
   cek(/"askName":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
   await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   cek(
-    (await layar()) === 'utama' && !(await pg.isVisible('#sapaTamu')),
+    (await layar()) === 'home' && !(await pg.isVisible('#guestGreeting')),
     'tanpa tanya nama: Start langsung ke Halaman Utama',
   );
   await pg.evaluate(() => __leura.show('admin'));
-  await pg.click('#setTanyaNama');
+  await pg.click('#setAskName');
   await tunggu(200);
 
   console.log('\n▶ Alur tamu: Terima kasih → menu → Selesai');
   await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
-  await pg.fill('#namaInput', 'Rani');
-  await pg.press('#namaInput', 'Enter');
+  await pg.fill('#nameInput', 'Rani');
+  await pg.press('#nameInput', 'Enter');
   cek(
-    (await layar()) === 'utama' && !(await pg.isVisible('#btnSelesaiTamu')),
+    (await layar()) === 'home' && !(await pg.isVisible('#btnGuestDone')),
     'belum ada kegiatan: tombol Selesai belum muncul',
   );
   await bersihkan();
-  await pg.click('#btnToPesan');
-  await pg.click('#btnPesanMulai');
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   cek(
-    /Kembali ke menu/.test(await pg.textContent('#btnCobaLagi')) &&
+    /Kembali ke menu/.test(await pg.textContent('#btnBackToMenu')) &&
       (await pg.locator('#thanks button:visible').count()) === 1,
     'Terima kasih: satu tombol "Kembali ke menu"',
   );
-  await pg.click('#btnCobaLagi');
+  await pg.click('#btnBackToMenu');
   cek(
-    (await layar()) === 'utama' && (await pg.textContent('#sapaTamu')) === 'Hai, Rani!',
+    (await layar()) === 'home' && (await pg.textContent('#guestGreeting')) === 'Hai, Rani!',
     'kembali ke menu: nama tamu tetap (tidak perlu mengetik ulang)',
   );
   cek(
-    (await pg.isVisible('#btnSelesaiTamu')) && (await pg.textContent('#btnSelesaiTamu')).trim() === 'Selesai',
+    (await pg.isVisible('#btnGuestDone')) && (await pg.textContent('#btnGuestDone')).trim() === 'Selesai',
     'setelah satu kegiatan: tombol Selesai muncul di menu',
   );
-  await pg.click('#btnSelesaiTamu');
+  await pg.click('#btnGuestDone');
   cek(
     (await layar()) === 'start' && (await pg.evaluate(() => __leura.state.guestName)) === '',
     'Selesai: kembali ke Start, nama tamu dihapus',
   );
   await pg.click('#btnStart');
-  await pg.fill('#namaInput', 'Tono');
-  await pg.press('#namaInput', 'Enter');
-  cek(!(await pg.isVisible('#btnSelesaiTamu')), 'tamu berikutnya: tombol Selesai tersembunyi lagi');
+  await pg.fill('#nameInput', 'Tono');
+  await pg.press('#nameInput', 'Enter');
+  cek(!(await pg.isVisible('#btnGuestDone')), 'tamu berikutnya: tombol Selesai tersembunyi lagi');
   await pg.evaluate(() => {
     __leura.state.guestActivity = 1;
     __leura.show('thanks');
     __leura.state.idleTimer && clearTimeout(__leura.state.idleTimer);
-    __leura.state.idleTimer = setTimeout(
-      () => __leura.show(__leura.state.current === 'thanks' ? 'utama' : 'start'),
-      50,
-    );
+    __leura.state.idleTimer = setTimeout(() => __leura.show(__leura.state.current === 'thanks' ? 'home' : 'start'), 50);
   });
   await tunggu(300);
   cek(
-    (await layar()) === 'utama' && (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
+    (await layar()) === 'home' && (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
     'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start',
   );
 
@@ -1710,30 +1707,32 @@ async function main() {
     window.THUMB_URL = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
     // count full redraws of the list (rows replaced in #rwList itself; thumbnails only change inside a row)
     window.NGAMBAR = 0;
-    new MutationObserver(() => window.NGAMBAR++).observe(document.getElementById('rwList'), { childList: true });
+    new MutationObserver(() => window.NGAMBAR++).observe(document.getElementById('histList'), { childList: true });
     __leura.show('admin');
   });
-  await pg.click('#btnRiwayat');
+  await pg.click('#btnHistory');
   await tunggu(800);
-  const nBaris = await pg.locator('#rwList .rw-row').count();
+  const nBaris = await pg.locator('#histList .hist-row').count();
   cek(
-    nBaris === 60 && (await pg.isVisible('#rwLagi')) && /\(\d+ more sessions\)/.test(await pg.textContent('#rwLagi')),
+    nBaris === 60 &&
+      (await pg.isVisible('#histMore')) &&
+      /\(\d+ more sessions\)/.test(await pg.textContent('#histMore')),
     'daftar ditampilkan per 60 sesi + tombol "Tampilkan lebih banyak"',
     nBaris,
   );
   const nThumb = await pg.evaluate(() => window.NTHUMB);
   cek(nThumb > 0 && nThumb < 40, 'gambar kecil hanya dimuat untuk baris yang terlihat (bukan 400)', nThumb);
   cek(
-    (await pg.locator('#rwList .rw-row .rw-ikon img').count()) === nThumb,
+    (await pg.locator('#histList .hist-row .hist-icon img').count()) === nThumb,
     'gambar kecil langsung dipasang ke barisnya',
   );
   const redraws = await pg.evaluate(() => window.NGAMBAR);
   cek(redraws >= 1 && redraws <= 2, 'daftar tidak digambar ulang setiap gambar kecil selesai', redraws);
-  await pg.click('#rwLagi');
+  await pg.click('#histMore');
   await tunggu(300);
-  cek((await pg.locator('#rwList .rw-row').count()) === 120, 'Tampilkan lebih banyak: 60 sesi berikutnya');
+  cek((await pg.locator('#histList .hist-row').count()) === 120, 'Tampilkan lebih banyak: 60 sesi berikutnya');
   await pg.evaluate(() => {
-    const b = document.getElementById('riwayat').querySelector('.sheet-body');
+    const b = document.getElementById('history').querySelector('.sheet-body');
     b.scrollTop = b.scrollHeight;
   });
   await tunggu(500);
@@ -1743,7 +1742,7 @@ async function main() {
     SESI.push(...window.SESI_LAMA);
     window.THUMB_URL = null;
   });
-  await pg.click('#rwBack');
+  await pg.click('#histBack');
   await tunggu(200);
 
   console.log('\n▶ Catatan aplikasi di Admin');
@@ -1752,34 +1751,34 @@ async function main() {
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
   });
-  await pg.locator('#btnLihatCatatan').scrollIntoViewIfNeeded();
-  await pg.click('#btnLihatCatatan');
+  await pg.locator('#btnViewLog').scrollIntoViewIfNeeded();
+  await pg.click('#btnViewLog');
   await tunggu(200);
   cek(
-    (await pg.isVisible('#dlgCatatan pre')) &&
-      /0x8208/.test(await pg.textContent('#dlgCatatan pre')) &&
-      /2026-11-06/.test(await pg.textContent('#dlgCatatan h2')),
+    (await pg.isVisible('#dlgLog pre')) &&
+      /0x8208/.test(await pg.textContent('#dlgLog pre')) &&
+      /2026-11-06/.test(await pg.textContent('#dlgLog h2')),
     'Lihat catatan: isi catatan hari ini tampil',
   );
-  await pg.click('#dlgCatatanSimpan');
+  await pg.click('#dlgLogSave');
   await tunggu(200);
   cek(
     (await log()).includes('simpan catatan') &&
       /Log saved: Leura-catatan-2026-11-06\.txt/.test(await pg.textContent('#notice')) &&
-      (await pg.locator('#dlgCatatan').count()) === 0,
+      (await pg.locator('#dlgLog').count()) === 0,
     'Simpan catatan: file tersimpan + pemberitahuan',
   );
 
   console.log('\n▶ Kunci Admin');
   await pg.evaluate(() => {
-    __leura.show('utama');
+    __leura.show('home');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(300);
-  await pg.locator('#btnKunciAdmin').scrollIntoViewIfNeeded();
-  await pg.click('#btnKunciAdmin');
+  await pg.locator('#btnLockAdmin').scrollIntoViewIfNeeded();
+  await pg.click('#btnLockAdmin');
   await tunggu(200);
-  cek((await layar()) === 'utama', 'Kunci Admin: kembali ke Halaman Utama');
+  cek((await layar()) === 'home', 'Kunci Admin: kembali ke Halaman Utama');
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(
@@ -1799,25 +1798,25 @@ async function main() {
     document.getElementById('adminPanel').style.display = 'flex';
   });
   await bersihkan();
-  await pg.locator('#btnTutupApp').scrollIntoViewIfNeeded();
-  await pg.click('#btnTutupApp');
+  await pg.locator('#btnQuitApp').scrollIntoViewIfNeeded();
+  await pg.click('#btnQuitApp');
   await tunggu(200);
   cek(
-    (await pg.isVisible('#dlgTutup')) && (await pg.locator('#dlgTutup li').count()) === 0,
+    (await pg.isVisible('#dlgQuit')) && (await pg.locator('#dlgQuit li').count()) === 0,
     'tombol Tutup aplikasi meminta konfirmasi',
   );
-  await pg.click('#dlgTutupBatal');
+  await pg.click('#dlgQuitCancel');
   await tunggu(100);
   cek(
-    (await pg.locator('#dlgTutup').count()) === 0 && !(await log()).includes('tutup aplikasi'),
+    (await pg.locator('#dlgQuit').count()) === 0 && !(await log()).includes('tutup aplikasi'),
     'Batal: aplikasi tidak ditutup',
   );
   await pg.evaluate(() => {
     window.TUTUP = { copying: 1, processing: 0, photos: 2 };
   });
-  await pg.click('#btnTutupApp');
+  await pg.click('#btnQuitApp');
   await tunggu(200);
-  const peringatan = await pg.textContent('#dlgTutup ul');
+  const peringatan = await pg.textContent('#dlgQuit ul');
   cek(
     /1 video\(s\) still copying/.test(peringatan) &&
       /2 QR photo\(s\) not sent yet/.test(peringatan) &&
@@ -1825,38 +1824,38 @@ async function main() {
     'peringatan video yang disalin & foto QR yang belum terkirim',
     peringatan,
   );
-  await pg.click('#dlgTutupYa');
+  await pg.click('#dlgQuitYes');
   await tunggu(200);
   cek(
-    (await log()).includes('tutup aplikasi') && /Closing the app/.test(await pg.textContent('#dlgTutup')),
+    (await log()).includes('tutup aplikasi') && /Closing the app/.test(await pg.textContent('#dlgQuit')),
     'Ya: aplikasi ditutup lewat jalur resmi',
   );
-  await pg.evaluate(() => document.getElementById('dlgTutup').remove());
+  await pg.evaluate(() => document.getElementById('dlgQuit').remove());
   await pg.evaluate(() => {
     window.TUTUP = null;
-    __leura.show('utama');
+    __leura.show('home');
     window.MINTA_TUTUP();
     window.MINTA_TUTUP();
   });
   await tunggu(300);
   cek(
-    (await pg.locator('#dlgTutup').count()) === 1 && /Quit the app\?/.test(await pg.textContent('#dlgTutup h2')),
+    (await pg.locator('#dlgQuit').count()) === 1 && /Quit the app\?/.test(await pg.textContent('#dlgQuit h2')),
     'tombol ✕ / ⌘Q: dialog Tutup aplikasi muncul (sekali, walau ditekan dua kali)',
   );
-  await pg.click('#dlgTutupBatal');
+  await pg.click('#dlgQuitCancel');
   await tunggu(100);
-  cek((await pg.locator('#dlgTutup').count()) === 0, 'tombol ✕ lalu Batal: aplikasi tetap terbuka');
+  cek((await pg.locator('#dlgQuit').count()) === 0, 'tombol ✕ lalu Batal: aplikasi tetap terbuka');
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => {
-    __leura.show('utama');
+    __leura.show('home');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(await pg.isVisible('#adminPanel'), 'sebelum ditutup: Admin masih terbuka tanpa login');
   await pg.reload();
   await tunggu(1200);
-  await pg.evaluate(() => __leura.show('utama'));
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(

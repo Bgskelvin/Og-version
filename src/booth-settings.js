@@ -41,13 +41,13 @@ const labelFor = key => v => (OPTIONS[key].find(([n]) => n === v) || [v, secLabe
 function fillBoothSettings(s) {
   // Videobooth
   fillSelect(
-    $('setPesanCountdown'),
+    $('setMessageCountdown'),
     OPTIONS.messageCountdown.map(p => p[0]),
     s.messageCountdown,
     labelFor('messageCountdown'),
   );
   fillSelect(
-    $('setPesanMax'),
+    $('setMessageMax'),
     OPTIONS.messageMaxSeconds.map(p => p[0]),
     s.messageMaxSeconds,
     labelFor('messageMaxSeconds'),
@@ -106,13 +106,13 @@ export function setupBoothSettings() {
     };
   };
   choice(
-    'setPesanCountdown',
+    'setMessageCountdown',
     'messageCountdown',
     'setVideoMsg',
     v => `Message countdown: ${labelFor('messageCountdown')(v).toLowerCase()}.`,
   );
   choice(
-    'setPesanMax',
+    'setMessageMax',
     'messageMaxSeconds',
     'setVideoMsg',
     v => `Message time limit: ${labelFor('messageMaxSeconds')(v).toLowerCase()}.`,

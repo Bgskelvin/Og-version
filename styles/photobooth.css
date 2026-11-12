@@ -1,28 +1,28 @@
-/* ============ Photo Booth (halamanPhoto & halamanEditPhoto) ============ */
+/* ============ Photo Booth (photo & editphoto screens) ============ */
 
-/* ---- Halaman Utama: tiga tombol sejajar ---- */
-/* Satu panel: nama couple di atas, tiga pilihan yang sama bentuk & warnanya di bawah */
-.menu-utama {
+/* ---- Main menu: three buttons side by side ---- */
+/* One panel: couple name on top, three options of the same shape & color below */
+.home-menu {
   width: 100%;
   max-width: 1040px;
   border-radius: var(--r-card);
   padding: 3.4vh 22px 22px;
   text-align: center;
 }
-.mu-kepala h1 {
+.menu-head h1 {
   font-size: clamp(34px, 5.6vh, 58px);
 }
-.mu-kepala p#welcome {
+.menu-head p#welcome {
   margin-top: 0.6vh;
   font-size: clamp(16px, 2.2vh, 21px);
   color: var(--text-2);
 }
-.mu-pilihan {
+.menu-options {
   display: flex;
   gap: 14px;
   margin-top: 3vh;
 }
-.mu-tombol {
+.menu-button {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
@@ -40,11 +40,11 @@
     transform 0.12s,
     background 0.12s;
 }
-.mu-tombol:active {
+.menu-button:active {
   transform: scale(0.97);
   background: #fff;
 }
-.mu-ikon {
+.menu-icon {
   width: clamp(48px, 7vh, 64px);
   height: clamp(48px, 7vh, 64px);
   border-radius: 50%;
@@ -55,27 +55,27 @@
   color: var(--accent);
   margin-bottom: 0.4vh;
 }
-.mu-ikon svg.i {
+.menu-icon svg.i {
   width: 48%;
   height: 48%;
 }
-.mu-tombol b {
+.menu-button b {
   font-size: clamp(20px, 3vh, 28px);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.mu-tombol small {
+.menu-button small {
   font-size: clamp(13px, 1.8vh, 16px);
   color: var(--text-2);
   line-height: 1.3;
 }
 @media (max-width: 640px) {
-  .mu-pilihan {
+  .menu-options {
     flex-direction: column;
   }
 }
 
-/* ---- Halaman Photo ---- */
+/* ---- Photo screen ---- */
 #photo {
   justify-content: flex-end;
 }
@@ -98,7 +98,7 @@
   align-items: center;
   gap: 2vh;
 }
-/* Deretan foto kecil tanpa kotak, langsung di atas gambar kamera */
+/* Row of small photos without a box, right on top of the camera image */
 .pb-strip {
   display: flex;
   justify-content: center;
@@ -162,11 +162,11 @@
     0 0 0 3px color-mix(in srgb, var(--accent) 75%, transparent),
     0 6px 18px rgba(0, 0, 0, 0.25);
 }
-/* Tombol Ulangi: kecil, menempel di bawah foto, hanya saat 4 foto sudah lengkap */
+/* Retake button: small, under the photo, only once all 4 photos are taken */
 .pb-slot {
   position: relative;
 }
-.pb-ulang {
+.pb-retake {
   display: none;
   position: absolute;
   left: 50%;
@@ -185,18 +185,18 @@
   backdrop-filter: blur(10px);
   white-space: nowrap;
 }
-.pb-ulang svg.i {
+.pb-retake svg.i {
   width: 15px;
   height: 15px;
 }
-.pb-ulang:active {
+.pb-retake:active {
   transform: translateX(-50%) scale(0.94);
 }
-.pb-strip.done .pb-ulang {
+.pb-strip.done .pb-retake {
   display: inline-flex;
 }
 
-/* Setelah 4 foto lengkap: foto tampil besar (sebesar muat 4 sejajar), tombol lanjut kecil di bawahnya */
+/* After all 4 photos: the photos show large (as large as 4 side by side fit), small next button below */
 .pb-strip.done {
   gap: 16px;
 }
@@ -236,8 +236,8 @@
   height: 20px;
 }
 
-/* Hitung mundur: besar di tengah hanya untuk foto pertama. Saat angka 3 ia
-   mengecil ke pojok kiri atas (.kecil) dan tetap di sana sampai foto ke-4. */
+/* Countdown: large in the middle for the first photo only. At 3 it
+   shrinks to the top left corner (.small) and stays there until the 4th photo. */
 .pb-count {
   position: absolute;
   inset: 0 0 14vh 0;
@@ -262,7 +262,7 @@
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
-.pb-count.kecil .glass {
+.pb-count.small .glass {
   left: 22px;
   top: 22px;
   transform: translate(0, 0) scale(0.42);
@@ -355,7 +355,7 @@
   transition: opacity 0.5s ease-out;
 }
 
-/* ---- Halaman Edit Photo ---- */
+/* ---- Edit photo screen ---- */
 #editphoto {
   padding: 3vh 3vw;
 }
@@ -645,14 +645,14 @@
   border-color: var(--accent);
   background: rgba(10, 132, 255, 0.08);
 }
-.te-kertas {
+.te-paper {
   display: block;
   background: #fff;
   border: 1px solid var(--hair);
   border-radius: 3px;
   margin: 4px auto;
 }
-.te-warna {
+.te-color {
   width: 40px;
   height: 40px;
   padding: 0;
@@ -661,23 +661,23 @@
   background: none;
   cursor: pointer;
 }
-.te-warna::-webkit-color-swatch-wrapper {
+.te-color::-webkit-color-swatch-wrapper {
   padding: 0;
 }
-.te-warna::-webkit-color-swatch {
+.te-color::-webkit-color-swatch {
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 50%;
 }
-.te-aktif {
+.te-active {
   background: var(--fill);
 }
-#teSlotPilih .btn.on,
-#teTeksFont .btn.on {
+#teSlotChoose .btn.on,
+#teTextFont .btn.on {
   background: var(--accent);
   color: #fff;
 }
-#teUkuran .pe-opt,
-#teSusunan .pe-opt {
+#teSize .pe-opt,
+#teLayout .pe-opt {
   font-size: 14px;
   text-align: center;
 }
@@ -707,7 +707,7 @@
   display: none;
 }
 
-/* Rasio foto di editor template */
+/* Photo ratio in the template editor */
 .te-rasio-opt {
   padding: 8px 4px;
   font-size: 14px;
@@ -725,7 +725,7 @@
   border-color: var(--accent);
 }
 
-/* Zona aman saat difoto: di luar area yang masuk ke template dibuat blur tipis */
+/* Safe zone while shooting: outside the area used in the template is slightly blurred */
 .pb-safe {
   position: absolute;
   inset: 0;
@@ -785,12 +785,12 @@ body.camOn .pb-safe.on {
   line-height: 1.25;
 }
 
-/* ============ Halaman Terima kasih ============
-   Tiga keadaan (kelas di #thanks, diatur recording.js / photobooth.js / download-qr.js):
-   - tanpa kelas  : video pesan / quiz → kartu kecil di tengah (centang + pesan)
-   - .tk-foto     : photo booth → hasil foto besar di kiri, ucapan + tombol di kanan
-   - .tk-ada-qr   : + QR besar di kanan, siap dipindai dari jarak satu lengan */
-.tk-wrap {
+/* ============ Thank you screen ============
+   Three states (classes on #thanks, set by recording.js / photobooth.js / download-qr.js):
+   - no class       : message / quiz video → small card in the middle (check mark + text)
+   - .thanks-photo  : photo booth → large result photo on the left, text + buttons on the right
+   - .thanks-has-qr : + large QR on the right, ready to scan from an arm's length */
+.thanks-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,10 +799,10 @@ body.camOn .pb-safe.on {
   max-width: 1500px;
   height: 100%;
 }
-.tk-hasil {
+.thanks-result {
   display: none;
 }
-.tk-sisi {
+.thanks-side {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -819,20 +819,20 @@ body.camOn .pb-safe.on {
     inset 0 1px 0 rgba(255, 255, 255, 0.75),
     0 24px 60px rgba(20, 20, 40, 0.14);
 }
-.tk-sisi .badge {
+.thanks-side .badge {
   margin: 0 auto 0.4vh;
 }
-.tk-sisi p {
+.thanks-side p {
   margin: 0;
 }
-.tk-menu {
+.thanks-menu {
   flex: none;
   width: 100%;
   min-height: 72px;
   margin-top: 1vh;
   font-size: 22px;
 }
-#thanksNama {
+#thanksName {
   display: block;
   max-width: 100%;
   margin-top: 0.15em;
@@ -844,15 +844,15 @@ body.camOn .pb-safe.on {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-#thanksNama:empty {
+#thanksName:empty {
   display: none;
 }
-#thanksJudul {
+#thanksTitle {
   max-width: 100%;
 }
 
-/* Photo booth: hasil foto jadi pusat perhatian */
-#thanks.tk-foto .tk-hasil {
+/* Photo booth: the result photo is the focus */
+#thanks.thanks-photo .thanks-result {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -871,10 +871,10 @@ body.camOn .pb-safe.on {
     0 2px 6px rgba(20, 20, 40, 0.08),
     0 28px 70px rgba(20, 20, 40, 0.24);
 }
-#thanks.tk-foto #thanksPhoto {
+#thanks.thanks-photo #thanksPhoto {
   display: block;
 }
-#thanks.tk-foto .tk-sisi {
+#thanks.thanks-photo .thanks-side {
   flex: none;
   width: min(400px, 36vw);
   padding: 0;
@@ -884,39 +884,39 @@ body.camOn .pb-safe.on {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-#thanks.tk-foto h1 {
+#thanks.thanks-photo h1 {
   font-size: clamp(30px, 3.2vw, 44px);
 }
-#thanks.tk-foto p {
+#thanks.thanks-photo p {
   font-size: clamp(16px, 1.5vw, 19px);
 }
-#thanks.tk-foto.tk-ada-qr p {
+#thanks.thanks-photo.thanks-has-qr p {
   display: none;
-} /* "Fotomu sudah tersimpan" — QR sudah menjelaskannya */
+} /* "Your photos have been saved" — the QR already says so */
 
-/* Pesan / quiz dengan QR video: tanpa foto, semuanya harus muat satu layar */
-#thanks.tk-ada-qr:not(.tk-foto) .tk-sisi {
+/* Message / quiz with a video QR: no photo, everything must fit one screen */
+#thanks.thanks-has-qr:not(.thanks-photo) .thanks-side {
   gap: 1.6vh;
   padding: 3vh 3vw;
 }
-#thanks.tk-ada-qr:not(.tk-foto) .badge {
+#thanks.thanks-has-qr:not(.thanks-photo) .badge {
   width: 64px;
   height: 64px;
   margin: 0 auto;
 }
-#thanks.tk-ada-qr:not(.tk-foto) .badge svg.i {
+#thanks.thanks-has-qr:not(.thanks-photo) .badge svg.i {
   width: 36px;
   height: 36px;
 }
-#thanks.tk-ada-qr:not(.tk-foto) #thanksMsg {
+#thanks.thanks-has-qr:not(.thanks-photo) #thanksMsg {
   display: none;
 }
-#thanks.tk-ada-qr:not(.tk-foto) .tk-qr canvas {
+#thanks.thanks-has-qr:not(.thanks-photo) .thanks-qr canvas {
   width: min(34vh, 100%, 330px);
 }
 
-/* QR: kartu putih, besar, kontras penuh */
-.tk-qr {
+/* QR: white card, large, full contrast */
+.thanks-qr {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -930,7 +930,7 @@ body.camOn .pb-safe.on {
     0 2px 6px rgba(20, 20, 40, 0.06),
     0 18px 44px rgba(20, 20, 40, 0.14);
 }
-.tk-qr canvas {
+.thanks-qr canvas {
   width: min(38vh, 100%, 330px);
   height: auto;
   aspect-ratio: 1;
@@ -938,16 +938,16 @@ body.camOn .pb-safe.on {
   image-rendering: pixelated;
   margin-bottom: 4px;
 }
-.tk-qr b {
+.thanks-qr b {
   font-size: 20px;
   line-height: 1.25;
   font-weight: 650;
 }
-.tk-qr small {
+.thanks-qr small {
   font-size: 15px;
   color: #6e6e73;
 }
-.tk-qr .tk-link {
+.thanks-qr .thanks-link {
   font-size: 12px;
   color: #a1a1a6;
   max-width: 100%;
@@ -956,23 +956,23 @@ body.camOn .pb-safe.on {
   white-space: nowrap;
 }
 
-/* Layar tegak: foto di atas, QR + teks berdampingan di bawah */
+/* Portrait screen: photo on top, QR + text side by side below */
 @media (orientation: portrait) {
-  .tk-wrap {
+  .thanks-wrap {
     flex-direction: column;
     gap: 3vh;
   }
-  #thanks.tk-foto .tk-hasil {
+  #thanks.thanks-photo .thanks-result {
     height: auto;
     max-height: 50vh;
   }
   #thanksPhoto {
     max-height: 50vh;
   }
-  #thanks.tk-foto .tk-sisi {
+  #thanks.thanks-photo .thanks-side {
     width: min(620px, 90vw);
   }
-  .tk-qr {
+  .thanks-qr {
     display: grid;
     grid-template-columns: auto 1fr;
     grid-template-rows: 1fr auto auto auto 1fr;
@@ -981,19 +981,19 @@ body.camOn .pb-safe.on {
     text-align: left;
     padding: 16px 24px 16px 16px;
   }
-  .tk-qr canvas {
+  .thanks-qr canvas {
     grid-row: 1 / 6;
     width: min(26vh, 280px);
     margin: 0;
   }
-  .tk-qr b {
+  .thanks-qr b {
     grid-row: 2;
     font-size: 22px;
   }
-  .tk-qr small {
+  .thanks-qr small {
     grid-row: 3;
   }
-  .tk-qr .tk-link {
+  .thanks-qr .thanks-link {
     grid-row: 4;
   }
 }
@@ -1002,8 +1002,8 @@ body.camOn .pb-safe.on {
   justify-content: center;
 }
 
-/* Tombol Selesai di Halaman Utama: sederhana, di bawah tiga pilihan */
-.mu-selesai {
+/* Done button on the main menu: simple, below the three options */
+.menu-done {
   margin: 18px auto 2px;
   display: block;
   min-height: 50px;
@@ -1015,7 +1015,7 @@ body.camOn .pb-safe.on {
   font-size: clamp(17px, 2.2vh, 20px);
   font-weight: 600;
 }
-.mu-selesai:active {
+.menu-done:active {
   transform: scale(0.97);
   background: rgba(255, 255, 255, 0.6);
 }

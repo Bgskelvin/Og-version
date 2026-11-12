@@ -61,42 +61,42 @@ async function refreshAdmin() {
 export function setupAdmin() {
   $('btnAdminOpen').onclick = openAdmin;
   $('btnLogin').onclick = doLogin;
-  $('btnLoginBack').onclick = () => show('utama');
+  $('btnLoginBack').onclick = () => show('home');
   $('pw').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
   $('uid').addEventListener('keydown', e => {
     if (e.key === 'Enter') $('pw').focus();
   });
-  $('btnAdminBack').onclick = () => show('utama');
-  $('btnTutupApp').onclick = confirmQuit;
+  $('btnAdminBack').onclick = () => show('home');
+  $('btnQuitApp').onclick = confirmQuit;
   // Window ✕ button / ⌘Q: the same dialog (only once even if pressed repeatedly)
   api.onQuitRequest(() => confirmQuit());
-  $('btnLihatCatatan').onclick = showAppLog;
+  $('btnViewLog').onclick = showAppLog;
   // About: version (Leura.app) or "development" + Git branch (npm start from the code folder)
   if (api.appInfo)
     api
       .appInfo()
       .then(info => {
         if (!info) return;
-        $('infoVersi').textContent = info.demo
+        $('infoVersion').textContent = info.demo
           ? 'Leura Demo for phones (photos stay on this phone)'
           : `Version ${info.version}` +
             (info.installed
               ? ' · installed app'
               : ` · development (npm start${info.branch ? ', branch ' + info.branch : ''})`);
-        $('btnLisensi').style.display = info.licenses ? '' : 'none';
+        $('btnLicenses').style.display = info.licenses ? '' : 'none';
       })
       .catch(e => console.warn('App info could not be read: ' + e.message));
-  $('btnLisensi').onclick = async () => {
+  $('btnLicenses').onclick = async () => {
     const r = await api.openLicenses();
-    if (r && r.error) $('infoVersi').textContent = r.error;
+    if (r && r.error) $('infoVersion').textContent = r.error;
   };
-  $('btnSimpanCatatan').onclick = saveAppLog;
+  $('btnSaveLog').onclick = saveAppLog;
   // Lock Admin again (e.g. booth left without an operator): next time a login is needed
-  $('btnKunciAdmin').onclick = () => {
+  $('btnLockAdmin').onclick = () => {
     adminUnlocked = false;
-    show('utama');
+    show('home');
   };
   $('camSel').onchange = async e => {
     store.set('camId', e.target.value);
@@ -127,7 +127,7 @@ export function setupAdmin() {
 /* ---------- Quit the app (from Admin) ---------- */
 let quitDialogOpening = false; // prevents two dialogs when ✕ / the button is pressed repeatedly
 async function confirmQuit() {
-  if (quitDialogOpening || $('dlgTutup')) return;
+  if (quitDialogOpening || $('dlgQuit')) return;
   quitDialogOpening = true;
   let counts = { copying: 0, processing: 0, photos: 0 };
   try {
@@ -150,10 +150,10 @@ async function confirmQuit() {
       `${counts.photos} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`,
     );
   const overlay = document.createElement('div');
-  overlay.className = 'dialog-lapis';
-  overlay.id = 'dlgTutup';
-  overlay.innerHTML = `<div class="dialog-kartu"><h2>Quit the app?</h2><p></p><ul></ul>
-    <div class="dialog-aksi"><button class="btn sm tint" id="dlgTutupBatal">Cancel</button><button class="btn sm primary" id="dlgTutupYa">Quit app</button></div></div>`;
+  overlay.className = 'dialog-overlay';
+  overlay.id = 'dlgQuit';
+  overlay.innerHTML = `<div class="dialog-card"><h2>Quit the app?</h2><p></p><ul></ul>
+    <div class="dialog-actions"><button class="btn sm tint" id="dlgQuitCancel">Cancel</button><button class="btn sm primary" id="dlgQuitYes">Quit app</button></div></div>`;
   overlay.querySelector('p').textContent = 'The Sony camera will be disconnected cleanly, then the app will close.';
   const ul = overlay.querySelector('ul');
   if (notes.length)
@@ -164,12 +164,12 @@ async function confirmQuit() {
     });
   else ul.remove();
   document.body.appendChild(overlay);
-  overlay.querySelector('#dlgTutupBatal').onclick = () => overlay.remove();
+  overlay.querySelector('#dlgQuitCancel').onclick = () => overlay.remove();
   overlay.onclick = e => {
     if (e.target === overlay) overlay.remove();
   };
-  overlay.querySelector('#dlgTutupYa').onclick = async () => {
-    overlay.querySelector('.dialog-kartu').innerHTML =
+  overlay.querySelector('#dlgQuitYes').onclick = async () => {
+    overlay.querySelector('.dialog-card').innerHTML =
       '<div class="spinner"></div><h2>Closing the app…</h2><p>Disconnecting the camera cleanly. One moment.</p>';
     overlay.onclick = null;
     await api.quitApp();
@@ -185,10 +185,10 @@ async function showAppLog() {
     console.warn('App log could not be read: ' + e.message);
   }
   const overlay = document.createElement('div');
-  overlay.className = 'dialog-lapis';
-  overlay.id = 'dlgCatatan';
-  overlay.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
-    <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Save to send</button><button class="btn sm primary" id="dlgCatatanTutup">Close</button></div></div>`;
+  overlay.className = 'dialog-overlay';
+  overlay.id = 'dlgLog';
+  overlay.innerHTML = `<div class="dialog-card log-card"><h2></h2><p></p><pre class="log-text"></pre>
+    <div class="dialog-actions"><button class="btn sm tint" id="dlgLogSave">Save to send</button><button class="btn sm primary" id="dlgLogClose">Close</button></div></div>`;
   overlay.querySelector('h2').textContent = 'App log' + (r.file ? ' · ' + r.file : '');
   overlay.querySelector('p').textContent = r.text
     ? '✗ = error, ⚠ = warning. Newest at the bottom.'
@@ -202,8 +202,8 @@ async function showAppLog() {
   overlay.onclick = e => {
     if (e.target === overlay) close();
   };
-  overlay.querySelector('#dlgCatatanTutup').onclick = close;
-  overlay.querySelector('#dlgCatatanSimpan').onclick = async () => {
+  overlay.querySelector('#dlgLogClose').onclick = close;
+  overlay.querySelector('#dlgLogSave').onclick = async () => {
     close();
     await saveAppLog();
   };
