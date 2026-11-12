@@ -2,9 +2,9 @@
    template-editor.js — template list & photo design template editor
    (Admin → Photo booth settings). Templates are saved per couple.
    Drawing uses template-render.js, the same as the guests' result.
-   Template data fields (nama, ukuran, rasio, latarWarna, …) and the image
-   keys 'latar' / 'bingkai' (also te.latar / te.bingkai, read as te[kind])
-   are shared with the main process and renamed with it in refactor/main-english.
+   Template data fields (name, size, ratio, backgroundColor, …) and the image
+   keys 'background' / 'frame' (also te.background / te.frame, read as te[kind])
+   are shared with the main process (main/template.js).
    Tab and kind values ('desain', 'slot', 'teks', …) match data-* attributes in index.html.
    ===================================================================== */
 import {
@@ -27,10 +27,10 @@ import { $, state } from './state.js';
 import { flash, resetIdle, show } from './app.js';
 
 const TEMPLATE_SIZES = {
-  '4r-tegak': { W: 1200, H: 1800, nama: '4R portrait (4×6)' },
-  '4r-datar': { W: 1800, H: 1200, nama: '4R landscape (6×4)' },
-  strip: { W: 600, H: 1800, nama: 'Strip 2×6' },
-  persegi: { W: 1200, H: 1200, nama: 'Square' },
+  '4r-portrait': { W: 1200, H: 1800, name: '4R portrait (4×6)' },
+  '4r-landscape': { W: 1800, H: 1200, name: '4R landscape (6×4)' },
+  strip: { W: 600, H: 1800, name: 'Strip 2×6' },
+  square: { W: 1200, H: 1200, name: 'Square' },
 };
 const ARRANGEMENTS = [
   ['kisi', 'Grid 2×2'],
@@ -45,8 +45,8 @@ const TEXT_COLORS = ['#1D1D1F', '#FFFFFF', '#6E6E73', '#8C6A4F', '#5B3A40', '#2F
 export const te = {
   tpl: null,
   images: {},
-  latar: null,
-  bingkai: null,
+  background: null,
+  frame: null,
   sel: { kind: 'slot', i: 0 },
   dirty: false,
   cancelArmed: null,
@@ -89,9 +89,9 @@ export async function listCoupleTemplates(couple = templateCouple) {
     const info = document.createElement('div');
     info.className = 'tpl-info';
     info.innerHTML = `<b></b><span class="muted"></span>`;
-    info.querySelector('b').textContent = t.nama;
+    info.querySelector('b').textContent = t.name;
     info.querySelector('span').textContent =
-      ((TEMPLATE_SIZES[t.ukuran] || {}).nama || t.ukuran) + (t.filter ? ' · with filter' : '');
+      ((TEMPLATE_SIZES[t.size] || {}).name || t.size) + (t.filter ? ' · with filter' : '');
     const edit = document.createElement('button');
     edit.className = 'btn sm tint';
     edit.textContent = 'Edit';
@@ -115,7 +115,7 @@ export async function listCoupleTemplates(couple = templateCouple) {
       deleteTemplateArmed = null;
       const r = await api.deleteTemplate(t.id);
       if (r.error) flash('tplMsg', r.error, true);
-      else flash('tplMsg', `Template "${t.nama}" deleted.`);
+      else flash('tplMsg', `Template "${t.name}" deleted.`);
       listCoupleTemplates();
     };
     row.append(mini, info, edit, deleteBtn);
@@ -125,39 +125,39 @@ export async function listCoupleTemplates(couple = templateCouple) {
 
 /* ---------------- Opening the editor ---------------- */
 function newTemplate() {
-  const { W, H } = TEMPLATE_SIZES['4r-tegak'];
+  const { W, H } = TEMPLATE_SIZES['4r-portrait'];
   return {
     id: 'tpl' + Date.now(),
     coupleId: templateCouple.id,
-    nama: '',
-    ukuran: '4r-tegak',
+    name: '',
+    size: '4r-portrait',
     W,
     H,
-    latarWarna: '#FFFFFF',
-    rasio: '3:2',
+    backgroundColor: '#FFFFFF',
+    ratio: '3:2',
     filter: null,
-    filterKekuatan: 100,
-    filterTamu: true,
+    filterStrength: 100,
+    guestPicksFilter: true,
     slots: photoArrangement('kisi', W, H, 3 / 2),
     texts: defaultTexts(W, H),
   };
 }
 export async function openTemplateEditor(tpl) {
   if (!templateCouple) return flash('tplMsg', 'Save this couple first.', true);
-  te.tpl = tpl ? JSON.parse(JSON.stringify({ ...tpl, latarUrl: undefined, bingkaiUrl: undefined })) : newTemplate();
+  te.tpl = tpl ? JSON.parse(JSON.stringify({ ...tpl, backgroundUrl: undefined, frameUrl: undefined })) : newTemplate();
   te.images = {};
-  te.latar = tpl ? await loadImage(tpl.latarUrl) : null;
-  te.bingkai = tpl ? await loadImage(tpl.bingkaiUrl) : null;
+  te.background = tpl ? await loadImage(tpl.backgroundUrl) : null;
+  te.frame = tpl ? await loadImage(tpl.frameUrl) : null;
   te.sel = { kind: 'slot', i: 0 };
   te.dirty = false;
   te.samplePhoto = null;
   disarmCancel();
-  if (te.tpl.filterKekuatan == null) te.tpl.filterKekuatan = 100;
-  if (te.tpl.filterTamu == null) te.tpl.filterTamu = true;
+  if (te.tpl.filterStrength == null) te.tpl.filterStrength = 100;
+  if (te.tpl.guestPicksFilter == null) te.tpl.guestPicksFilter = true;
   $('teTitle').textContent = (tpl ? 'Edit template' : 'New template') + ' · ' + templateCouple.name;
-  $('teNama').value = te.tpl.nama;
-  $('teLatarStatus').textContent = te.latar ? 'Image added' : 'None';
-  $('teBingkaiStatus').textContent = te.bingkai ? 'Frame added' : 'None';
+  $('teNama').value = te.tpl.name;
+  $('teLatarStatus').textContent = te.background ? 'Image added' : 'None';
+  $('teBingkaiStatus').textContent = te.frame ? 'Frame added' : 'None';
   show('tpleditor');
   setEditorTab('desain');
   fillEditorPanel();
@@ -186,7 +186,7 @@ function drawEditor() {
   const photos = te.tab === 'filter' ? Array(4).fill(te.samplePhoto || sampleFilterPhoto()) : [];
   drawTemplate(
     ctx,
-    { tpl: te.tpl, background: te.latar, frame: te.bingkai },
+    { tpl: te.tpl, background: te.background, frame: te.frame },
     { scale: c.width / te.tpl.W, placeholder: true, photos },
   );
   placeHandles();
@@ -270,7 +270,7 @@ function attachDrag(el, kind, i) {
     } else if (kind === 'resize') {
       const s = te.tpl.slots[i],
         o = start.obj,
-        r = ratioValue(te.tpl.rasio);
+        r = ratioValue(te.tpl.ratio);
       if (r) {
         // Ratio locked: follow the larger drag direction, the other side adjusts
         let w =
@@ -312,7 +312,7 @@ function setEditorTab(tab) {
 /* ---------------- Photo filter (LUT .cube) ---------------- */
 const templateFilterName = () => {
   const f = te.filterList.find(x => x.id === te.tpl.filter);
-  return f ? f.nama : '';
+  return f ? f.name : '';
 };
 // Preview: sample photo with the chosen filter (used in the editor's photo boxes)
 async function updateFilterSample() {
@@ -320,7 +320,7 @@ async function updateFilterSample() {
   if (!t) return;
   const item = t.filter ? await loadLut(t.filter) : null;
   if (te.tpl !== t) return;
-  te.samplePhoto = item ? applyLut(sampleFilterPhoto(), item.lut, (t.filterKekuatan ?? 100) / 100, 600) : null;
+  te.samplePhoto = item ? applyLut(sampleFilterPhoto(), item.lut, (t.filterStrength ?? 100) / 100, 600) : null;
   if (te.tab === 'filter') drawEditor();
 }
 let filterTurn = 0;
@@ -344,7 +344,7 @@ async function fillFilterPanel() {
   box.innerHTML = '';
   const sample = sampleFilterPhoto();
   const addOption = (lut, name, active, onPick) => {
-    const b = optionButton(box, applyLut(sample, lut, lut ? (t.filterKekuatan ?? 100) / 100 : 0, 150), active, onPick);
+    const b = optionButton(box, applyLut(sample, lut, lut ? (t.filterStrength ?? 100) / 100 : 0, 150), active, onPick);
     b.insertAdjacentText('beforeend', name);
     return b;
   };
@@ -352,21 +352,23 @@ async function fillFilterPanel() {
   for (const [i, f] of items.entries()) {
     const item = prepared[i];
     if (!item) continue;
-    addOption(item.lut, f.nama, t.filter === f.id, () => chooseTemplateFilter(f.id)).dataset.filter = f.id;
+    addOption(item.lut, f.name, t.filter === f.id, () => chooseTemplateFilter(f.id)).dataset.filter = f.id;
   }
   const exists = !!t.filter,
-    k = t.filterKekuatan ?? 100;
+    k = t.filterStrength ?? 100;
   $('teFilterAtur').style.display = exists ? '' : 'none';
   $('teFilterHapus').style.display = exists ? '' : 'none';
   $('teFilterKekuatan').value = k;
   $('teFilterKekuatanNilai').textContent = k + '%';
-  $('teFilterTamu').checked = t.filterTamu !== false;
+  $('teFilterTamu').checked = t.guestPicksFilter !== false;
   $('teFilterInfo').textContent = !exists
     ? te.filterList.length
       ? 'This template has no filter yet. Pick one above.'
       : 'No filters yet. Press "Add filter (.cube)" to upload a filter file.'
     : `All guest photos use the "${templateFilterName()}" filter (${k}%). ` +
-      (t.filterTamu !== false ? 'Guests can still choose another filter while editing.' : "Guests can't change it.");
+      (t.guestPicksFilter !== false
+        ? 'Guests can still choose another filter while editing.'
+        : "Guests can't change it.");
   deleteFilterArmed = null;
   $('teFilterHapus').lastChild.textContent = 'Delete this filter';
   updateFilterSample();
@@ -382,7 +384,7 @@ async function addFilter(file) {
   if (file.size > 20 * 1024 * 1024) return flash('teMsg', 'The filter file is too large (max 20 MB).', true);
   const r = await api.addFilter(file.name, new Uint8Array(await file.arrayBuffer()));
   if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not add the filter.', true);
-  flash('teMsg', `Filter "${r.filter.nama}" added and applied to this template.`);
+  flash('teMsg', `Filter "${r.filter.name}" added and applied to this template.`);
   te.tpl.filter = r.filter.id;
   te.dirty = true;
   fillFilterPanel();
@@ -434,8 +436,8 @@ function fillEditorPanel() {
     const k = 54 / Math.max(u.W, u.H);
     optionButton(
       sizeInfo,
-      `<span class="te-kertas" style="width:${u.W * k}px;height:${u.H * k}px"></span>${u.nama}`,
-      t.ukuran === key,
+      `<span class="te-kertas" style="width:${u.W * k}px;height:${u.H * k}px"></span>${u.name}`,
+      t.size === key,
       () => changeSize(key),
     );
   }
@@ -447,9 +449,9 @@ function fillEditorPanel() {
     const b = optionButton(
       wl,
       '',
-      t.latarWarna.toLowerCase() === w.toLowerCase(),
+      t.backgroundColor.toLowerCase() === w.toLowerCase(),
       () => {
-        t.latarWarna = w;
+        t.backgroundColor = w;
         markDirty();
       },
       'pe-dot',
@@ -460,9 +462,9 @@ function fillEditorPanel() {
   const cw = document.createElement('input');
   cw.type = 'color';
   cw.className = 'te-warna';
-  cw.value = t.latarWarna;
+  cw.value = t.backgroundColor;
   cw.oninput = e => {
-    t.latarWarna = e.target.value.toUpperCase();
+    t.backgroundColor = e.target.value.toUpperCase();
     te.dirty = true;
     drawEditor();
   };
@@ -476,14 +478,14 @@ function fillEditorPanel() {
     optionButton(
       ra,
       `<span class="te-rasio" style="width:${w}px;height:${h}px"></span>${key}`,
-      t.rasio === key,
+      t.ratio === key,
       () => chooseRatio(key),
       'pe-opt te-rasio-opt',
     );
   }
-  $('teRasioInfo').textContent = !t.rasio
+  $('teRasioInfo').textContent = !t.ratio
     ? '⚠️ This template has no photo ratio yet. Pick one so guest photos fit their boxes.'
-    : `All photos use a ${t.rasio} ratio. ${t.rasio === '3:2' ? 'Same as Sony camera photos, so nothing is cropped.' : 'Camera photos (3:2) will be cropped; guests see the safe area while shooting.'}`;
+    : `All photos use a ${t.ratio} ratio. ${t.ratio === '3:2' ? 'Same as Sony camera photos, so nothing is cropped.' : 'Camera photos (3:2) will be cropped; guests see the safe area while shooting.'}`;
   // Quick arrangements
   const su = $('teSusunan');
   su.innerHTML = '';
@@ -492,7 +494,7 @@ function fillEditorPanel() {
       k = 70 / Math.max(t.W, t.H);
     c.width = Math.round(t.W * k);
     c.height = Math.round(t.H * k);
-    const rs = ratioValue(t.rasio);
+    const rs = ratioValue(t.ratio);
     drawTemplate(
       c.getContext('2d'),
       { tpl: { ...t, slots: photoArrangement(key, t.W, t.H, rs), texts: [] }, background: null, frame: null },
@@ -604,7 +606,7 @@ function fillEditorPanel() {
 function chooseRatio(key) {
   const t = te.tpl,
     r = ratioValue(key);
-  t.rasio = key;
+  t.ratio = key;
   t.slots = t.slots.map(s => applyRatio(s, r, t.W, t.H));
   // If the boxes end up overlapping, tidy them into a 2×2 grid
   const stack = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
@@ -617,11 +619,11 @@ function chooseRatio(key) {
 function changeSize(key) {
   const t = te.tpl,
     u = TEMPLATE_SIZES[key];
-  if (t.ukuran === key) return;
+  if (t.size === key) return;
   const sx = u.W / t.W,
     sy = u.H / t.H,
     sm = Math.min(sx, sy),
-    r = ratioValue(t.rasio);
+    r = ratioValue(t.ratio);
   t.slots = t.slots.map(s => ({
     ...s,
     x: Math.round(s.x * sx),
@@ -636,7 +638,7 @@ function changeSize(key) {
     y: Math.round(x.y * sy),
     size: Math.max(10, Math.round(x.size * sm)),
   }));
-  Object.assign(t, { ukuran: key, W: u.W, H: u.H });
+  Object.assign(t, { size: key, W: u.W, H: u.H });
   te.dirty = true;
   fillEditorPanel();
   fitEditorCanvas();
@@ -645,13 +647,13 @@ function changeSize(key) {
 // Upload a background / frame image from Canva, Photoshop, etc.
 async function chooseImage(file, kind) {
   if (!file) return;
-  if (kind === 'bingkai' && file.type !== 'image/png')
+  if (kind === 'frame' && file.type !== 'image/png')
     return flash('teMsg', 'The frame must be a PNG so the photo areas can be transparent.', true);
   if (!/^image\/(png|jpeg)$/.test(file.type)) return flash('teMsg', 'Choose a PNG or JPG image.', true);
   if (file.size > 25 * 1024 * 1024) return flash('teMsg', 'The image is too large (max 25 MB).', true);
   te.images[kind] = new Uint8Array(await file.arrayBuffer());
   te[kind] = await loadImage(URL.createObjectURL(file));
-  $(kind === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = file.name;
+  $(kind === 'background' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = file.name;
   const img = te[kind];
   if (img && Math.abs(img.naturalWidth / img.naturalHeight - te.tpl.W / te.tpl.H) > 0.02)
     flash(
@@ -665,24 +667,24 @@ async function chooseImage(file, kind) {
 function removeTemplateImage(kind) {
   te.images[kind] = null;
   te[kind] = null;
-  $(kind === 'latar' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = 'None';
+  $(kind === 'background' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = 'None';
   te.dirty = true;
   drawEditor();
 }
 
 /* ---------------- Save / cancel ---------------- */
 async function saveTemplateEdits() {
-  if (!te.tpl.rasio) {
+  if (!te.tpl.ratio) {
     setEditorTab('foto');
     return flash('teMsg', 'Choose a photo ratio first (Photo layout tab).', true);
   }
-  te.tpl.nama = $('teNama').value.trim() || 'Template ' + new Date().toLocaleDateString('en-GB');
+  te.tpl.name = $('teNama').value.trim() || 'Template ' + new Date().toLocaleDateString('en-GB');
   const r = await api.saveTemplate(te.tpl, te.images);
   if (r.error) return flash('teMsg', r.error, true);
   te.dirty = false;
   show('tambah');
   await listCoupleTemplates();
-  flash('tplMsg', `Template "${r.template.nama}" saved.`);
+  flash('tplMsg', `Template "${r.template.name}" saved.`);
 }
 function disarmCancel() {
   clearTimeout(te.cancelArmed);
@@ -713,15 +715,15 @@ export function setupTemplateEditor() {
   $('teLatarPilih').onclick = () => $('teLatarFile').click();
   $('teBingkaiPilih').onclick = () => $('teBingkaiFile').click();
   $('teLatarFile').onchange = e => {
-    chooseImage(e.target.files[0], 'latar');
+    chooseImage(e.target.files[0], 'background');
     e.target.value = '';
   };
   $('teBingkaiFile').onchange = e => {
-    chooseImage(e.target.files[0], 'bingkai');
+    chooseImage(e.target.files[0], 'frame');
     e.target.value = '';
   };
-  $('teLatarHapus').onclick = () => removeTemplateImage('latar');
-  $('teBingkaiHapus').onclick = () => removeTemplateImage('bingkai');
+  $('teLatarHapus').onclick = () => removeTemplateImage('background');
+  $('teBingkaiHapus').onclick = () => removeTemplateImage('frame');
   $('teSudut').oninput = e => {
     te.tpl.slots.forEach(s => {
       s.r = Number(e.target.value);
@@ -800,15 +802,15 @@ export function setupTemplateEditor() {
   $('teFilterHapus').onclick = deleteSelectedFilter;
   let strengthTimer = null;
   $('teFilterKekuatan').oninput = e => {
-    te.tpl.filterKekuatan = Number(e.target.value);
+    te.tpl.filterStrength = Number(e.target.value);
     te.dirty = true;
-    $('teFilterKekuatanNilai').textContent = te.tpl.filterKekuatan + '%';
+    $('teFilterKekuatanNilai').textContent = te.tpl.filterStrength + '%';
     cancelAnimationFrame(strengthTimer);
     strengthTimer = requestAnimationFrame(updateFilterSample);
   };
   $('teFilterKekuatan').onchange = () => fillFilterPanel();
   $('teFilterTamu').onchange = e => {
-    te.tpl.filterTamu = e.target.checked;
+    te.tpl.guestPicksFilter = e.target.checked;
     te.dirty = true;
     fillFilterPanel();
   };

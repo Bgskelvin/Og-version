@@ -1,7 +1,7 @@
 /* =====================================================================
    log.js — the app's daily log, for tracking down problems after an
    event. One text file per day in the app data folder:
-       <data folder>/catatan/2026-11-06.txt
+       <data folder>/logs/2026-11-06.txt
    Contents: app opened/closed, camera connected/disconnected (+ error code),
    recordings & photos saved/failed, QR uploads, UI crashes, and every
    console.log/console.error from the main process & the UI.
@@ -14,7 +14,7 @@ const { app, ipcMain, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
-const LOG_DIR = path.join(app.getPath('userData'), 'catatan');
+const LOG_DIR = path.join(app.getPath('userData'), 'logs');
 const KEEP_DAYS = 30;
 const MAX_LINE = 2000; // a log line is cut if it is longer than this
 const MARK = { info: ' ', warn: '⚠', error: '✗' };
@@ -130,7 +130,7 @@ function register() {
   // Admin → "View log": the most recent day's log (at most the last ±400 lines)
   ipcMain.handle('read-log', () => {
     const files = listFiles();
-    if (!files.length) return { teks: '', file: '', hari: [] };
+    if (!files.length) return { text: '', file: '', days: [] };
     let text = '';
     try {
       text = fs.readFileSync(path.join(LOG_DIR, files[0]), 'utf8');
@@ -139,7 +139,7 @@ function register() {
     }
     const lines = text.split('\n');
     if (lines.length > 401) text = '… (earlier lines not shown)\n' + lines.slice(-401).join('\n');
-    return { teks: text, file: files[0].replace('.txt', ''), hari: files.map(f => f.replace('.txt', '')) };
+    return { text, file: files[0].replace('.txt', ''), days: files.map(f => f.replace('.txt', '')) };
   });
   // Admin → "Save log": the last 7 days combined in one file, to send to someone
   ipcMain.handle('save-log', async () => {
@@ -150,7 +150,7 @@ function register() {
       defaultPath: path.join(app.getPath('downloads'), `Leura-log-${dateStamp()}.txt`),
       filters: [{ name: 'Text', extensions: ['txt'] }],
     });
-    if (r.canceled || !r.filePath) return { batal: true };
+    if (r.canceled || !r.filePath) return { canceled: true };
     try {
       const content = [
         `Leura app log — saved ${dateStamp()} ${timeStamp()}`,

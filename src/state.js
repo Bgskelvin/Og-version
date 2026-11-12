@@ -4,8 +4,6 @@
    data lives in the single `state` object, so it's clear what is shared
    and every module can update it (modules can't reassign each other's
    variables).
-   Field names that are data from the main process (cfg keys such as
-   pesanCountdown, tanyaNama, kamera) are renamed in refactor/main-english.
    ===================================================================== */
 
 // ---------- Small helpers ----------

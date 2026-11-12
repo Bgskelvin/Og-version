@@ -37,10 +37,10 @@ function writeCouples(d) {
 
 /* Main-page menu, set per couple. Old couples that don't have this setting yet
    use the old menu settings (which used to apply to every couple). */
-const MENU = { pesan: 'Send a message', quiz: 'Quick quiz', photo: 'Photo booth' };
+const MENU = { message: 'Send a message', quiz: 'Quick quiz', photo: 'Photo booth' };
 function defaultMenu() {
   const s = readSettings();
-  return { pesan: s.enablePesan !== false, quiz: s.enableQuiz !== false, photo: s.enablePhoto !== false };
+  return { message: s.enableMessage !== false, quiz: s.enableQuiz !== false, photo: s.enablePhoto !== false };
 }
 function cleanMenu(m) {
   const fallback = defaultMenu();
@@ -100,7 +100,7 @@ function register() {
     if (d.activeId === id) d.activeId = d.couples[0].id;
     writeCouples(d);
     const templatesDeleted = deleteCoupleTemplates(id); // this couple's templates go too (recordings & photos stay)
-    return { ok: true, data: d, templateDihapus: templatesDeleted };
+    return { ok: true, data: d, templatesDeleted };
   });
   ipcMain.handle('set-active-couple', (e, id) => {
     const d = readCouples();

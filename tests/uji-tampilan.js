@@ -21,9 +21,9 @@ const { startStaticServer } = require('./static-server');
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
 window.LOG = []; window.TPL = [];
-window.UNG = { st: { aktif: false, url: '', adaKunci: false, video: true, videoKualitas: '720', menunggu: 0, menungguVideo: 0, terkirim: 0, errorTerakhir: '', adaHasilPasang: true }, cb: null };
+window.UNG = { st: { enabled: false, url: '', hasKey: false, video: true, videoQuality: '720', waiting: 0, waitingVideos: 0, sent: 0, lastError: '', hasSetupResult: true }, cb: null };
 // Kamera Sony tiruan (proses utama aslinya diuji di uji-utama.js)
-window.SONY = { st: { mode: 'webcam', tersambung: false, pesan: '' }, cb: null, foto: 0, besar: 0 };
+window.SONY = { st: { mode: 'webcam', connected: false, message: '' }, cb: null, photos: 0, besar: 0 };
 window.buatJpeg = async (w, h, warna) => { const c = new OffscreenCanvas(w, h); const g = c.getContext('2d');
   g.fillStyle = warna; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(w / 4, h / 4, w / 2, h / 2);
   return new Uint8Array(await (await c.convertToBlob({ type: 'image/jpeg', quality: 0.9 })).arrayBuffer()); };
@@ -33,8 +33,8 @@ window.CP = { activeId: 'a', couples: [
   { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
-const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', pesanCountdown: 3, pesanMaxSeconds: 0,
-  photoCountdown: 5, photoPreview: 2, photoFlash: true, enablePesan: true, enableQuiz: true, enablePhoto: true, bahasa: 'id' };
+const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', messageCountdown: 3, messageMaxSeconds: 0,
+  photoCountdown: 5, photoPreview: 2, photoFlash: true, enableMessage: true, enableQuiz: true, enablePhoto: true, language: 'id' };
 window.api = {
   getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),
   getCouples: async () => JSON.parse(JSON.stringify(CP)),
@@ -48,10 +48,10 @@ window.api = {
   setActiveCouple: async id => { CP.activeId = id; return { ok: true, data: JSON.parse(JSON.stringify(CP)) }; },
   deleteCouple: async id => { CP.couples = CP.couples.filter(c => c.id !== id); if (CP.activeId === id) CP.activeId = CP.couples[0].id;
     const n = TPL.filter(t => t.coupleId === id).length; TPL = TPL.filter(t => t.coupleId !== id);
-    return { ok: true, data: JSON.parse(JSON.stringify(CP)), templateDihapus: n }; },
+    return { ok: true, data: JSON.parse(JSON.stringify(CP)), templatesDeleted: n }; },
   countTemplates: async () => TPL.reduce((n, t) => (n[t.coupleId] = (n[t.coupleId] || 0) + 1, n), {}),
   login: async (id, pw) => pw === '1234',
-  getSessions: async () => window.SESI || [{ time: new Date().toISOString(), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
+  getSessions: async () => window.SESI || [{ time: new Date().toISOString(), label: 'message', couple: 'Rina & Dimas', seconds: 42, status: 'done' }],
   sessionOpen: async id => { LOG.push('buka ' + id); return { ok: true }; },
   sessionReveal: async id => { LOG.push('finder ' + id); return { ok: true }; },
   sessionThumb: async id => { window.NTHUMB = (window.NTHUMB || 0) + 1; return window.THUMB_URL || null; },
@@ -61,56 +61,56 @@ window.api = {
   sonyStatus: async () => SONY.st,
   onSonyStatus: cb => { SONY.cb = cb; },
   sonyReconnect: async () => SONY.st,
-  sonyLiveView: async () => SONY.st.tersambung ? buatJpeg(640, 424, '#336') : null,
-  sonyMode: async j => { LOG.push('mode ' + j); const beda = !!SONY.st.jenisMode && SONY.st.jenisMode !== j; if (beda) await new Promise(r => setTimeout(r, window.MODE_DELAY || 0)); SONY.st = { ...SONY.st, jenisMode: j }; return { ok: true, jenis: j, diubah: beda }; },
-  sonyPhoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
+  sonyLiveView: async () => SONY.st.connected ? buatJpeg(640, 424, '#336') : null,
+  sonyMode: async j => { LOG.push('mode ' + j); const beda = !!SONY.st.modeKind && SONY.st.modeKind !== j; if (beda) await new Promise(r => setTimeout(r, window.MODE_DELAY || 0)); SONY.st = { ...SONY.st, modeKind: j }; return { ok: true, kind: j, changed: beda }; },
+  sonyPhoto: async () => { SONY.photos++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
-    if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
-      : { mode: p.kamera, tersambung: true, model: 'ILCE-6700 (simulasi)', baterai: 100, kartu: 0, sisaDetik: 9000, pesan: '' });
+    if (p.camera) setSony(p.camera === 'webcam' ? { mode: 'webcam', connected: false, message: '' }
+      : { mode: p.camera, connected: true, model: 'ILCE-6700 (simulasi)', battery: 100, cardError: 0, recordSecondsLeft: 9000, message: '' });
     const next = { ...ST, ...p };   // sama seperti main/settings.js: minimal satu menu tetap tampil
-    if (!next.enablePesan && !next.enableQuiz && !next.enablePhoto) return { ...ST, error: 'At least one option must stay on the main menu.' };
+    if (!next.enableMessage && !next.enableQuiz && !next.enablePhoto) return { ...ST, error: 'At least one option must stay on the main menu.' };
     Object.assign(ST, p); return { ...ST }; },
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Current password is wrong.' },
   getStartupInfo: async () => ({ recovered: 0 }),
-  appInfo: async () => ({ versi: '1.0.0', terpasang: false, branch: 'chore/mac-installer', lisensi: true }),
+  appInfo: async () => ({ version: '1.0.0', installed: false, branch: 'chore/mac-installer', licenses: true }),
   openLicenses: async () => { LOG.push('lisensi'); return { ok: true }; },
-  recStart: async (label, o) => { window.TAMU_REC = o && o.tamu; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
+  recStart: async (label, o) => { window.TAMU_REC = o && o.guest; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
     return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://leura-foto.uji.workers.dev/v/Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
-  savePhotos: async p => { window.FOTO = { tamu: p.tamu, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
-    return { ok: true, link: UNG.st.aktif ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
+  savePhotos: async p => { window.FOTO = { guest: p.guest, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
+    return { ok: true, link: UNG.st.enabled ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
   uploadStatus: async () => ({ ...UNG.st }),
-  saveUploadSettings: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}, p.video != null ? { video: p.video } : {}, p.videoKualitas ? { videoKualitas: p.videoKualitas } : {}); return { ...UNG.st }; },
-  testUpload: async () => ({ ok: true, hari: 7 }),
-  uploadSetupResult: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
+  saveUploadSettings: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.key ? { hasKey: true } : {}, p.enabled != null ? { enabled: p.enabled } : {}, p.video != null ? { video: p.video } : {}, p.videoQuality ? { videoQuality: p.videoQuality } : {}); return { ...UNG.st }; },
+  testUpload: async () => ({ ok: true, days: 7 }),
+  uploadSetupResult: async () => ({ url: 'https://leura-foto.uji.workers.dev', key: 'abc123' }),
   retryUploadNow: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
   onUploadStatus: cb => { UNG.cb = cb; },
-  readLog: async () => ({ file: '2026-11-06', teks: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
+  readLog: async () => ({ file: '2026-11-06', text: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
   saveLog: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
   log: () => {},
   onQuitRequest: cb => { window.MINTA_TUTUP = cb; },
-  checkQuit: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
+  checkQuit: async () => (window.TUTUP || { copying: 0, processing: 0, photos: 0 }),
   quitApp: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
   openLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
   copyText: async t => { LOG.push('salin ' + t); return { ok: true }; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
-  saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
+  saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), frame: g.frame ? g.frame.length : g.frame };
     const lama = TPL.find(x => x.id === t.id) || {};
-    let bingkaiUrl = lama.bingkaiUrl || null;
-    if (g.bingkai) bingkaiUrl = 'data:image/png;base64,' + btoa(String.fromCharCode(...g.bingkai)); else if (g.bingkai === null) bingkaiUrl = null;
-    const baru = { ...t, latarUrl: null, bingkaiUrl, diubah: Date.now() };
+    let bingkaiUrl = lama.frameUrl || null;
+    if (g.frame) bingkaiUrl = 'data:image/png;base64,' + btoa(String.fromCharCode(...g.frame)); else if (g.frame === null) bingkaiUrl = null;
+    const baru = { ...t, backgroundUrl: null, frameUrl: bingkaiUrl, changed: Date.now() };
     const i = TPL.findIndex(x => x.id === t.id); if (i < 0) TPL.push(baru); else TPL[i] = baru;
     return { ok: true, template: baru }; },
   deleteTemplate: async id => { TPL.splice(TPL.findIndex(x => x.id === id), 1); return { ok: true }; },
-  listFilters: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
+  listFilters: async () => (window.FLT || []).map(f => ({ id: f.id, name: f.name, size: f.size })),
   addFilter: async (nama, bytes) => {
     const teks = new TextDecoder().decode(bytes);
     let lut; try { lut = window.__leura.parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
-    const f = { id: 'lut' + ((window.FLT || []).length + 1), nama: nama.replace(/\\.cube$/i, ''), size: lut.size, teks };
-    (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, nama: f.nama, size: f.size } };
+    const f = { id: 'lut' + ((window.FLT || []).length + 1), name: nama.replace(/\\.cube$/i, ''), size: lut.size, text: teks };
+    (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, name: f.name, size: f.size } };
   },
   getFilter: async id => { const f = (window.FLT || []).find(x => x.id === id); return f ? { ...f } : null; },
   renameFilter: async () => ({ ok: true }),
@@ -190,7 +190,7 @@ async function main() {
   cek((await pg.evaluate(() => window.TAMU_REC)) === 'Budi Ari', 'nama tamu ikut dikirim untuk nama file rekaman');
   await tungguLayar('thanks');
   cek((await pg.textContent('#thanksMsg')) === 'Rekamanmu sudah tersimpan.', 'Terima kasih: rekaman tersimpan');
-  cek(JSON.stringify(await log()) === '["start pesan","end 1"]', 'satu rekaman dimulai dan disimpan', await log());
+  cek(JSON.stringify(await log()) === '["start message","end 1"]', 'satu rekaman dimulai dan disimpan', await log());
 
   console.log('\n▶ Rekaman gagal dimulai tidak membuat layar macet');
   await atur({ startFail: true });
@@ -263,9 +263,9 @@ async function main() {
   );
   await tungguLayar('thanks', 30000);
   const mq = await pg.evaluate(() => ({
-    k: META_REC.kapsi,
+    k: META_REC.captions,
     q: META_REC.questions,
-    g: (META_REC.kapsiGambar || []).map(x => [x.length, x[0], x[1]]),
+    g: (META_REC.captionImages || []).map(x => [x.length, x[0], x[1]]),
   }));
   cek(
     mq.k &&
@@ -273,7 +273,7 @@ async function main() {
       mq.k[0].a >= 2.8 &&
       mq.k[0].b > mq.k[0].a &&
       mq.k[1].a >= mq.k[0].b &&
-      mq.k.every((k, i) => k.judul === mq.q[i]),
+      mq.k.every((k, i) => k.title === mq.q[i]),
     'waktu tampil tiap pertanyaan dicatat (setelah hitung mundur 3 detik)',
     mq.k,
   );
@@ -286,7 +286,7 @@ async function main() {
     require('path').join(require('os').tmpdir(), 'uji-kapsi.png'),
     Buffer.from(
       await pg.evaluate(async () => {
-        const b = new Uint8Array(META_REC.kapsiGambar[0]);
+        const b = new Uint8Array(META_REC.captionImages[0]);
         let s = '';
         for (const x of b) s += String.fromCharCode(x);
         return btoa(s);
@@ -309,7 +309,7 @@ async function main() {
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   cek(
-    !(await pg.isVisible('#thanksQR')) && !(await pg.evaluate(() => META_REC.kapsi)),
+    !(await pg.isVisible('#thanksQR')) && !(await pg.evaluate(() => META_REC.captions)),
     'pesan video tanpa QR (QR video mati): tidak ada QR, tidak ada teks pertanyaan',
   );
 
@@ -430,7 +430,7 @@ async function main() {
   );
   const rasioSlot = () => pg.evaluate(() => __leura.te.tpl.slots.map(s => s.w / s.h));
   cek(
-    (await pg.evaluate(() => __leura.te.tpl.rasio)) === '3:2' &&
+    (await pg.evaluate(() => __leura.te.tpl.ratio)) === '3:2' &&
       (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01),
     'template baru memakai rasio 3:2 (sama dengan foto kamera)',
   );
@@ -523,11 +523,11 @@ async function main() {
   const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
   cek(
     (await layar()) === 'tambah' &&
-      simpan.t.nama === 'Rustic emas' &&
+      simpan.t.name === 'Rustic emas' &&
       simpan.t.coupleId === 'a' &&
-      simpan.bingkai === png.length,
+      simpan.frame === png.length,
     'template tersimpan untuk couple aktif beserta bingkainya',
-    simpan && { nama: simpan.t.nama, bingkai: simpan.bingkai },
+    simpan && { name: simpan.t.name, frame: simpan.frame },
   );
   cek(
     (await pg.locator('#tplList .tpl-row').count()) === 1 && /Rustic emas/.test(await pg.textContent('#tplList')),
@@ -548,11 +548,11 @@ async function main() {
   await pg.click('#teBatal');
   await tunggu(200);
   cek(
-    (await layar()) === 'tambah' && (await pg.evaluate(() => TPL[0].nama)) === 'Rustic emas',
+    (await layar()) === 'tambah' && (await pg.evaluate(() => TPL[0].name)) === 'Rustic emas',
     'Batal tidak menyimpan perubahan',
   );
-  cek((await pg.evaluate(() => TPL[0].rasio)) === '1:1', 'rasio foto ikut tersimpan di template');
-  await pg.evaluate(() => __leura.openTemplateEditor({ ...TPL[0], id: 'lama', rasio: undefined }));
+  cek((await pg.evaluate(() => TPL[0].ratio)) === '1:1', 'rasio foto ikut tersimpan di template');
+  await pg.evaluate(() => __leura.openTemplateEditor({ ...TPL[0], id: 'lama', ratio: undefined }));
   await tunggu(300);
   await pg.click('#teSimpan');
   await tunggu(200);
@@ -582,7 +582,7 @@ async function main() {
   await tunggu(300);
   const menuA = await pg.evaluate(() => CP.couples[0].menu);
   cek(
-    (await layar()) === 'admin' && menuA.pesan && !menuA.quiz && menuA.photo,
+    (await layar()) === 'admin' && menuA.message && !menuA.quiz && menuA.photo,
     'menu couple tersimpan (Quick quiz mati)',
     menuA,
   );
@@ -603,13 +603,13 @@ async function main() {
   await pg.click('#btnPesanMulai');
   await tunggu(400);
   cek(
-    (await log()).includes('start pesan') && !(await pg.isVisible('#countOverlay')),
+    (await log()).includes('start message') && !(await pg.isVisible('#countOverlay')),
     'hitung mundur "langsung merekam": rekaman mulai tanpa menunggu',
   );
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   await pg.click('#btnCobaLagi');
-  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, pesanMaxSeconds: 2 }));
+  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 2 }));
   await bersihkan();
   await pg.click('#btnToPesan');
   await pg.click('#btnPesanMulai');
@@ -624,7 +624,7 @@ async function main() {
   await tungguLayar('thanks');
   await pg.click('#btnCobaLagi');
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, pesanMaxSeconds: 0 });
+    __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 0 });
     __leura.state.activeCouple.menu.quiz = true;
     __leura.applyMenu();
   });
@@ -827,9 +827,9 @@ async function main() {
   await tunggu(400);
   const tplF = await pg.evaluate(() => TPL[0]);
   cek(
-    tplF.filter === 'lut1' && tplF.filterKekuatan === 60 && tplF.filterTamu === false,
+    tplF.filter === 'lut1' && tplF.filterStrength === 60 && tplF.guestPicksFilter === false,
     'filter, kekuatan & kunci tersimpan di template',
-    [tplF.filter, tplF.filterKekuatan, tplF.filterTamu],
+    [tplF.filter, tplF.filterStrength, tplF.guestPicksFilter],
   );
   cek(/with filter/.test(await pg.textContent('#tplList')), 'daftar template menandai template berfilter');
   await pg.evaluate(() => {
@@ -853,7 +853,7 @@ async function main() {
     await pg.evaluate(() => window.FOTO.meta.filter),
   );
   await pg.evaluate(() => {
-    TPL[0].filterTamu = true;
+    TPL[0].guestPicksFilter = true;
   });
   await pg.click('#btnCobaLagi');
   await pg.click('#btnToPhoto');
@@ -1003,7 +1003,7 @@ async function main() {
     'live view tampil di pratinjau Admin',
   );
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0, pesanCountdown: 0 });
+    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0, messageCountdown: 0 });
     __leura.show('utama');
   });
   await tunggu(400);
@@ -1019,12 +1019,12 @@ async function main() {
   await pg.evaluate(() => __leura.show('utama'));
   await pg.click('#btnToPhoto');
   await tunggu(100);
-  cek((await log()).includes('mode foto'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
+  cek((await log()).includes('mode photo'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
   // Transisi halus saat kamera berganti mode
   await pg.click('#pbBack');
   await tunggu(100);
   await pg.evaluate(() => {
-    SONY.st = { ...SONY.st, jenisMode: 'foto' };
+    SONY.st = { ...SONY.st, modeKind: 'photo' };
     SONY.cb(SONY.st); // status update from the (fake) main process
     window.MODE_DELAY = 900;
   });
@@ -1044,7 +1044,7 @@ async function main() {
     'mode selesai: kabut hilang, gambar kamera jalan lagi',
   );
   await pg.evaluate(() => {
-    SONY.st = { ...SONY.st, jenisMode: 'video' };
+    SONY.st = { ...SONY.st, modeKind: 'video' };
     SONY.cb(SONY.st);
     window.MODE_DELAY = 0;
   });
@@ -1060,16 +1060,16 @@ async function main() {
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
   cek(
-    (await pg.evaluate(() => SONY.foto)) === 4 && (await pg.locator('.pb-thumb.filled').count()) === 4,
+    (await pg.evaluate(() => SONY.photos)) === 4 && (await pg.locator('.pb-thumb.filled').count()) === 4,
     'photobooth memakai jepretan kamera Sony (4 foto)',
   );
   await pg.click('#pbFinish');
   await tunggu(500);
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  const fs = await pg.evaluate(() => ({ foto: window.FOTO, besar: SONY.besar }));
+  const fs = await pg.evaluate(() => ({ photos: window.FOTO, besar: SONY.besar }));
   cek(
-    fs.foto.n === 4 && fs.foto.asli.every(n => n === fs.besar),
+    fs.photos.n === 4 && fs.photos.asli.every(n => n === fs.besar),
     'foto asli kamera disimpan utuh (tidak diperkecil)',
     fs,
   );
@@ -1078,7 +1078,7 @@ async function main() {
   await pg.click('#btnToPesan');
   await pg.click('#btnPesanMulai');
   await tunggu(400);
-  cek((await log()).includes('start pesan sony'), 'Kirim pesan merekam lewat kamera Sony', await log());
+  cek((await log()).includes('start message sony'), 'Kirim pesan merekam lewat kamera Sony', await log());
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   cek(
@@ -1090,7 +1090,7 @@ async function main() {
   await pg.click('#btnToPesan');
   await pg.click('#btnPesanMulai');
   await tunggu(400);
-  await pg.evaluate(() => setSony({ ...SONY.st, tersambung: false, pesan: 'Kamera Sony terputus.' }));
+  await pg.evaluate(() => setSony({ ...SONY.st, connected: false, message: 'Kamera Sony terputus.' }));
   await tunggu(400);
   cek(
     (await layar()) === 'utama' && /disconnected while recording/.test(await pg.textContent('#notice')),
@@ -1122,9 +1122,9 @@ async function main() {
       return d.toISOString();
     };
     window.SESI = [
-      { id: 1, time: t(1, 19, 2), label: 'pesan', couple: 'Ayu & Budi', seconds: 48, status: 'done' },
-      { id: 2, time: t(0, 18, 5), label: 'pesan', couple: 'Rina & Dimas', seconds: 42, status: 'done' },
-      { id: 3, time: t(0, 18, 7), label: 'foto', couple: 'Rina & Dimas', status: 'photo', photos: 4 },
+      { id: 1, time: t(1, 19, 2), label: 'message', couple: 'Ayu & Budi', seconds: 48, status: 'done' },
+      { id: 2, time: t(0, 18, 5), label: 'message', couple: 'Rina & Dimas', seconds: 42, status: 'done' },
+      { id: 3, time: t(0, 18, 7), label: 'photo', couple: 'Rina & Dimas', status: 'photo', photos: 4 },
       {
         id: 4,
         time: t(0, 18, 12),
@@ -1137,15 +1137,15 @@ async function main() {
       {
         id: 5,
         time: t(0, 18, 20),
-        label: 'pesan',
+        label: 'message',
         couple: 'Rina & Dimas',
         seconds: 75,
         status: 'card-only',
-        kamera: 'sony',
-        kartu: 'C0005.MP4',
+        camera: 'sony',
+        card: 'C0005.MP4',
       },
-      { id: 6, time: t(0, 18, 24), label: 'pesan', couple: 'Rina & Dimas', seconds: 1, status: 'done' },
-      { id: 7, time: t(1, 18, 30), label: 'pesan', couple: 'Rina & Dimas', seconds: 30, status: 'done' },
+      { id: 6, time: t(0, 18, 24), label: 'message', couple: 'Rina & Dimas', seconds: 1, status: 'done' },
+      { id: 7, time: t(1, 18, 30), label: 'message', couple: 'Rina & Dimas', seconds: 30, status: 'done' },
     ];
     __leura.show('admin');
     return __leura.loadSessions();
@@ -1219,19 +1219,40 @@ async function main() {
     (await pg.locator('.rw-row').count()) === 7 && /Ayu & Budi/.test(await pg.textContent('#rwList')),
     'pilihan "Semua couple" menampilkan semua sesi dengan nama couple',
   );
+  cek(
+    / · Photo$/.test(await pg.locator('.rw-row[data-id="3"] b').textContent()) &&
+      / · Message$/.test(await pg.locator('.rw-row[data-id="1"] b').textContent()) &&
+      !/undefined/.test(await pg.textContent('#rwList')),
+    'each row shows its kind (Message / Quiz / Photo)',
+  );
   await pg.evaluate(() => {
     SESI.push({
       id: 8,
       time: new Date().toISOString(),
-      label: 'pesan',
+      label: 'message',
       couple: 'Rina & Dimas',
       seconds: 20,
       status: 'transfer',
-      kamera: 'sony',
+      camera: 'sony',
     });
   });
   await tunggu(3500);
   cek((await pg.locator('.rw-row').count()) === 8, 'daftar diperbarui sendiri tanpa menekan Segarkan');
+  await pg.evaluate(() => {
+    SESI.push({
+      id: 9,
+      time: new Date().toISOString(),
+      label: 'quiz',
+      couple: 'Rina & Dimas',
+      seconds: 30,
+      status: 'captions',
+    });
+  });
+  await tunggu(3500);
+  cek(
+    /Adding questions/.test(await pg.locator('.rw-row[data-id="9"]').textContent()),
+    'quiz video getting its question texts shows "Adding questions"',
+  );
   await pg.click('#rwBack');
   cek((await layar()) === 'admin', 'tombol Admin kembali');
 
@@ -1344,7 +1365,7 @@ async function main() {
   await pg.click('#setQrAktif');
   await tunggu(200);
   cek(
-    (await pg.evaluate(() => UNG.st.aktif)) && /all photos sent/.test(await pg.textContent('#qrStatus')),
+    (await pg.evaluate(() => UNG.st.enabled)) && /all photos sent/.test(await pg.textContent('#qrStatus')),
     'QR dinyalakan dari Admin',
   );
   cek(
@@ -1357,7 +1378,7 @@ async function main() {
   await pg.selectOption('#setQrKualitas', '1080');
   await tunggu(150);
   cek(
-    (await log()).includes('unggah {"videoKualitas":"1080"}') && /1080p/.test(await pg.textContent('#qrMsg')),
+    (await log()).includes('unggah {"videoQuality":"1080"}') && /1080p/.test(await pg.textContent('#qrMsg')),
     'kualitas video untuk HP bisa diganti ke 1080p',
     await log(),
   );
@@ -1374,10 +1395,10 @@ async function main() {
   await pg.evaluate(() =>
     UNG.cb({
       ...UNG.st,
-      menungguVideo: 2,
-      videoDiolah: 0,
-      sedang: 'Vid3oKode1',
-      progres: { kode: 'Vid3oKode1', n: 2, total: 5 },
+      waitingVideos: 2,
+      videosProcessing: 0,
+      current: 'Vid3oKode1',
+      progress: { code: 'Vid3oKode1', n: 2, total: 5 },
     }),
   );
   await tunggu(100);
@@ -1386,25 +1407,25 @@ async function main() {
     'status: video dikirim per bagian',
     await pg.textContent('#qrStatus'),
   );
-  await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 1, videoDiolah: 1, sedang: null, progres: null }));
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, waitingVideos: 1, videosProcessing: 1, current: null, progress: null }));
   await tunggu(100);
   cek(/1 video\(s\) being prepared/.test(await pg.textContent('#qrStatus')), 'status: video sedang disiapkan');
-  await pg.evaluate(() => UNG.cb({ ...UNG.st, menungguVideo: 0, videoDiolah: 0 }));
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, waitingVideos: 0, videosProcessing: 0 }));
   cek(
     (await pg.evaluate(() => {
       // server address arrives through the normal upload-status update
       const u = UNG.st.url;
       UNG.cb({ ...UNG.st, url: 'https://x.workers.dev' });
       const r = [
-        __leura.sessionLink({ label: 'pesan', kode: 'K1' }),
-        __leura.sessionLink({ label: 'foto', kode: 'K2' }),
+        __leura.sessionLink({ label: 'message', code: 'K1' }),
+        __leura.sessionLink({ label: 'photo', code: 'K2' }),
       ];
       UNG.cb({ ...UNG.st, url: u });
       return r.join();
     })) === 'https://x.workers.dev/v/K1,https://x.workers.dev/f/K2',
     'Riwayat: link sesi video memakai /v/, foto /f/',
   );
-  await pg.evaluate(() => UNG.cb({ ...UNG.st, menunggu: 2, errorTerakhir: 'No internet / server unreachable' }));
+  await pg.evaluate(() => UNG.cb({ ...UNG.st, waiting: 2, lastError: 'No internet / server unreachable' }));
   await tunggu(100);
   cek(
     /2 photo\(s\) waiting to be sent · No internet/.test(await pg.textContent('#qrStatus')) &&
@@ -1470,23 +1491,23 @@ async function main() {
       {
         id: 20,
         time: jam(1),
-        label: 'foto',
+        label: 'photo',
         couple: 'Rina & Dimas',
         status: 'photo',
         photos: 4,
-        kode: 'Ab3dEf9hJk',
+        code: 'Ab3dEf9hJk',
         link: 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk',
-        unggah: 'terkirim',
+        upload: 'sent',
       },
       {
         id: 21,
         time: jam(2),
-        label: 'foto',
+        label: 'photo',
         couple: 'Rina & Dimas',
         status: 'photo',
         photos: 4,
-        kode: 'LamaKode99',
-        unggah: 'menunggu',
+        code: 'LamaKode99',
+        upload: 'waiting',
       },
     );
     __leura.show('admin');
@@ -1578,7 +1599,7 @@ async function main() {
   cek(await pg.isChecked('#setTanyaNama'), 'Admin: "Tanya nama tamu" menyala sebagai bawaan');
   await pg.click('#setTanyaNama');
   await tunggu(200);
-  cek(/"tanyaNama":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
+  cek(/"askName":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
   await pg.evaluate(() => __leura.show('start'));
   await pg.click('#btnStart');
   cek(
@@ -1650,7 +1671,7 @@ async function main() {
       SESI.push({
         id: 1000 + i,
         time: new Date(t0 - i * 60000).toISOString(),
-        label: 'foto',
+        label: 'photo',
         couple: 'Rina & Dimas',
         status: 'photo',
         photos: 4,
@@ -1763,7 +1784,7 @@ async function main() {
     'Batal: aplikasi tidak ditutup',
   );
   await pg.evaluate(() => {
-    window.TUTUP = { salin: 1, proses: 0, foto: 2 };
+    window.TUTUP = { copying: 1, processing: 0, photos: 2 };
   });
   await pg.click('#btnTutupApp');
   await tunggu(200);

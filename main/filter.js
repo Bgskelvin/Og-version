@@ -1,7 +1,7 @@
 /* =====================================================================
    filter.js — collection of photo filters (3D LUT .cube) for templates
    Stored in <data folder>/filter/:
-     daftar.json      [{ id, nama, size, dibuat }]
+     filters.json     [{ id, name, size, created }]
      <id>.cube        the original .cube file uploaded by the admin
    Admin → Edit template → Filter tab: upload a .cube, choose the filter for
    that template, set its strength. Guest photos use the template's filter.
@@ -14,7 +14,7 @@ const { parseCube } = require('../src/lut.js'); // ES module (require(esm), Node
 const log = require('./log');
 
 const FILTER_DIR = path.join(userData, 'filter');
-const listFile = path.join(FILTER_DIR, 'daftar.json');
+const listFile = path.join(FILTER_DIR, 'filters.json');
 const MAX_BYTES = 20 * 1024 * 1024; // a 65³ .cube is ±9 MB; limit 20 MB
 const MAX_FILTERS = 50;
 
@@ -57,16 +57,16 @@ function addFilter(name, bytes) {
   const id = 'lut' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const item = {
     id,
-    nama: cleanName(name, lut.judul || 'Filter ' + (d.length + 1)),
+    name: cleanName(name, lut.title || 'Filter ' + (d.length + 1)),
     size: lut.size,
-    dibuat: Date.now(),
+    created: Date.now(),
   };
   fs.mkdirSync(FILTER_DIR, { recursive: true });
   fs.writeFileSync(path.join(FILTER_DIR, id + '.cube'), text);
   d.push(item);
   saveList(d);
-  log.write(`Filter added: "${item.nama}" (LUT ${lut.size}³)`);
-  return { ok: true, filter: item, daftar: d };
+  log.write(`Filter added: "${item.name}" (LUT ${lut.size}³)`);
+  return { ok: true, filter: item, list: d };
 }
 
 function register() {
@@ -84,7 +84,7 @@ function register() {
       item = listFilters().find(x => x.id === clean);
     if (!item) return null;
     try {
-      return { ...item, teks: fs.readFileSync(path.join(FILTER_DIR, clean + '.cube'), 'utf8') };
+      return { ...item, text: fs.readFileSync(path.join(FILTER_DIR, clean + '.cube'), 'utf8') };
     } catch {
       return null;
     }
@@ -93,9 +93,9 @@ function register() {
     const d = listFilters(),
       item = d.find(x => x.id === safeId(id));
     if (!item) return { error: 'Filter not found.' };
-    item.nama = cleanName(name, item.nama);
+    item.name = cleanName(name, item.name);
     saveList(d);
-    return { ok: true, daftar: d };
+    return { ok: true, list: d };
   });
   // Remove from the collection. Templates that use it automatically go back to no filter.
   ipcMain.handle('delete-filter', (e, id) => {
@@ -110,8 +110,8 @@ function register() {
     }
     const rest = d.filter(x => x.id !== clean);
     saveList(rest);
-    log.write(`Filter deleted: "${item.nama}"`);
-    return { ok: true, daftar: rest };
+    log.write(`Filter deleted: "${item.name}"`);
+    return { ok: true, list: rest };
   });
 }
 

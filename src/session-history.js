@@ -7,9 +7,9 @@
    - the list shows 60 sessions at a time ("Show more" button);
    - photo thumbnails only load for rows visible on screen, and are put
      straight into their row without redrawing the list.
-   Session data fields (label 'pesan'/'quiz'/'foto', teks, unggah, kode,
-   kartu, …) come from the main process and are renamed with it in
-   refactor/main-english. Color names are CSS classes (hijau, biru, …).
+   Session data fields (label 'message'/'quiz'/'photo', captionStatus, upload,
+   code, cardFile, …) come from the main process. Color names are CSS classes
+   (hijau, biru, …).
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { getUploadStatus, refreshUploadStatus } from './download-qr.js';
@@ -22,7 +22,7 @@ const SESSION_STATUS = {
   done: ['Ready', 'hijau', false, 'MP4 video is ready in the couple folder.'],
   photo: ['Saved', 'hijau', false, ''],
   processing: ['Processing', 'biru', false, 'Converting to MP4. One moment.'],
-  teks: ['Adding questions', 'biru', false, 'Adding the question text to the quiz video. One moment.'],
+  captions: ['Adding questions', 'biru', false, 'Adding the question text to the quiz video. One moment.'],
   transfer: ['Copying from camera', 'biru', false, 'Copying from the camera SD card to the couple folder.'],
   recording: ['Recording', 'biru', false, 'Recording in progress.'],
   webm: ['Not MP4 yet', 'oranye', true, 'Saved as WebM because FFmpeg is not installed. It plays in VLC or Chrome.'],
@@ -44,9 +44,9 @@ const SESSION_STATUS = {
 const RETRYABLE = ['failed', 'webm', 'card-only'];
 const SESSION_KINDS = [
   ['semua', 'All'],
-  ['pesan', 'Messages'],
+  ['message', 'Messages'],
   ['quiz', 'Quiz'],
-  ['foto', 'Photos'],
+  ['photo', 'Photos'],
   ['perhatian', 'Needs attention'],
 ];
 
@@ -92,13 +92,13 @@ function loadThumb(id) {
     .catch(e => console.warn('Session thumbnail could not be loaded: ' + e.message));
 }
 
-const sessionKind = s => (s.label === 'foto' ? 'foto' : /^quiz/.test(s.label) ? 'quiz' : 'pesan');
+const sessionKind = s => (s.label === 'photo' ? 'photo' : /^quiz/.test(s.label) ? 'quiz' : 'message');
 const statusInfo = s => SESSION_STATUS[s.status] || ['—', 'abu', false, ''];
 // Question text / phone version for the QR failed: the video is safe, but needs "Process again"
-const processingFailed = s => s.status === 'done' && (s.teks === 'gagal' || s.unggah === 'gagal');
+const processingFailed = s => s.status === 'done' && (s.captionStatus === 'failed' || s.upload === 'failed');
 const needsAttention = s => statusInfo(s)[2] || processingFailed(s);
 const tooShort = s =>
-  sessionKind(s) !== 'foto' && (s.seconds || 0) < 3 && ['done', 'webm', 'failed'].includes(s.status);
+  sessionKind(s) !== 'photo' && (s.seconds || 0) < 3 && ['done', 'webm', 'failed'].includes(s.status);
 const sessionId = (s, i) => (s.id != null ? s.id : 'i' + i);
 function dayName(d) {
   const day = new Date(d);
@@ -191,12 +191,12 @@ function renderHistory() {
   // Summary
   const countKind = j => own.filter(s => sessionKind(s) === j).length;
   const minutes = Math.round(
-    own.filter(s => sessionKind(s) !== 'foto').reduce((sum, s) => sum + (s.seconds || 0), 0) / 60,
+    own.filter(s => sessionKind(s) !== 'photo').reduce((sum, s) => sum + (s.seconds || 0), 0) / 60,
   );
   $('rwRingkas').innerHTML = [
-    ['Messages', countKind('pesan')],
+    ['Messages', countKind('message')],
     ['Quiz', countKind('quiz')],
-    ['Photos', countKind('foto')],
+    ['Photos', countKind('photo')],
     ['Video minutes', minutes],
   ]
     .map(([label, n]) => `<div><b>${n}</b><span>${label}</span></div>`)
@@ -285,24 +285,24 @@ function sessionRow(s) {
   const b = document.createElement('button');
   b.className = 'item rw-row' + (historyView.openId === s._id ? ' buka' : '');
   b.dataset.id = s._id;
-  const icon = { pesan: 'i-mic', quiz: 'i-spark', foto: 'i-camera' }[kind];
-  const kindName = { pesan: 'Message', quiz: 'Quiz', foto: 'Photo' }[kind];
+  const icon = { message: 'i-mic', quiz: 'i-spark', photo: 'i-camera' }[kind];
+  const kindName = { message: 'Message', quiz: 'Quiz', photo: 'Photo' }[kind];
   const sub =
-    kind === 'foto'
+    kind === 'photo'
       ? `${s.photos || 4} photos${s.template ? ' · ' + s.template : ''}`
-      : fmt(s.seconds || 0) + (s.kamera === 'sony' ? ' · Sony camera' : '');
+      : fmt(s.seconds || 0) + (s.camera === 'sony' ? ' · Sony camera' : '');
   b.innerHTML = `<span class="rw-ikon"></span><span class="rw-teks"><b></b><small></small></span><span class="rw-tag"></span><em class="rw-status ${color}"></em>`;
-  if (kind === 'foto' && historyView.thumb.get(s._id))
+  if (kind === 'photo' && historyView.thumb.get(s._id))
     b.querySelector('.rw-ikon').innerHTML = `<img alt="" src="${historyView.thumb.get(s._id)}">`;
   else {
     b.querySelector('.rw-ikon').innerHTML = `<svg class="i"><use href="#${icon}"/></svg>`;
-    if (kind === 'foto' && !historyView.thumb.has(s._id) && typeof s._id === 'number') {
+    if (kind === 'photo' && !historyView.thumb.has(s._id) && typeof s._id === 'number') {
       const o = thumbObserver();
       if (o) o.observe(b);
       else loadThumb(s._id);
     }
   }
-  b.querySelector('b').textContent = `${sessionTime(s.time)} · ${kindName}${s.tamu ? ' · ' + s.tamu : ''}`;
+  b.querySelector('b').textContent = `${sessionTime(s.time)} · ${kindName}${s.guest ? ' · ' + s.guest : ''}`;
   b.querySelector('small').textContent = (historyView.couple ? '' : (s.couple || '-') + ' · ') + sub;
   b.querySelector('.rw-tag').textContent = tooShort(s) ? 'Too short' : s.recovered ? 'Recovered' : '';
   b.querySelector('.rw-status').textContent = label;
@@ -318,14 +318,14 @@ function sessionRow(s) {
 function sessionDetail(s) {
   const d = document.createElement('div');
   d.className = 'item rw-detail';
-  let note = statusInfo(s)[3] || (s.label === 'foto' ? `${s.photos || 4} original photos + 1 template photo.` : '');
-  if (s.teks === 'selesai')
+  let note = statusInfo(s)[3] || (s.label === 'photo' ? `${s.photos || 4} original photos + 1 template photo.` : '');
+  if (s.captionStatus === 'done')
     note +=
       ' The questions are shown at the bottom of the video; the version without text is in the "original" folder.';
-  if (s.teks === 'gagal')
+  if (s.captionStatus === 'failed')
     note += ' The question text could not be added (the video itself is fine). Press "Process again".';
   const p = document.createElement('p');
-  p.textContent = note + (s.error ? ` (${s.error})` : '') + (s.kartu ? ` File on card: ${s.kartu}.` : '');
+  p.textContent = note + (s.error ? ` (${s.error})` : '') + (s.cardFile ? ` File on card: ${s.cardFile}.` : '');
   d.appendChild(p);
   if (Array.isArray(s.questions) && s.questions.length) {
     const ol = document.createElement('ol');
@@ -340,26 +340,26 @@ function sessionDetail(s) {
     d.append(heading, ol);
   }
   const link = sessionLink(s);
-  if (s.kode) {
+  if (s.code) {
     // download via QR
     const q = document.createElement('div');
     q.className = 'muted';
-    const video = s.label !== 'foto';
+    const video = s.label !== 'photo';
     q.textContent =
       'QR: ' +
       ({
-        terkirim: video ? '✓ guests can download the video' : '✓ guests can download the photos',
-        antre: 'waiting to be sent to the server',
-        menunggu: 'waiting for internet / server',
-        hilang: `${video ? 'video' : 'photo'} file missing, cannot be sent`,
-        olah:
+        sent: video ? '✓ guests can download the video' : '✓ guests can download the photos',
+        queued: 'waiting to be sent to the server',
+        waiting: 'waiting for internet / server',
+        missing: `${video ? 'video' : 'photo'} file missing, cannot be sent`,
+        processing:
           s.status === 'transfer'
             ? 'waiting for the video to be copied from the camera'
             : 'preparing the phone version of the video',
-        gagal: 'the phone version could not be made. Press "Process again".',
-        'server-lama': 'the server is too old for videos. Run npm run cloud:pasang.',
-      }[s.unggah] ||
-        s.unggah ||
+        failed: 'the phone version could not be made. Press "Process again".',
+        'old-server': 'the server is too old for videos. Run npm run cloud:pasang.',
+      }[s.upload] ||
+        s.upload ||
         '-');
     d.appendChild(q);
     if (link) {
@@ -391,7 +391,9 @@ function sessionDetail(s) {
   };
   if (typeof s._id === 'number') {
     if (['done', 'photo', 'webm'].includes(s.status))
-      addButton(s.label === 'foto' ? 'View photo' : 'Play video', async () => showResult(await api.sessionOpen(s._id)));
+      addButton(s.label === 'photo' ? 'View photo' : 'Play video', async () =>
+        showResult(await api.sessionOpen(s._id)),
+      );
     addButton('Show in Finder', async () => showResult(await api.sessionReveal(s._id)));
     if (link) {
       addButton('Show QR', () => showSessionQr(s, link));
@@ -419,10 +421,10 @@ function sessionDetail(s) {
 
 // Download link for this session. Older sessions only store the code → the link is built from the current server address.
 export function sessionLink(s) {
-  if (!s.kode) return '';
+  if (!s.code) return '';
   if (s.link) return s.link;
   const url = String(getUploadStatus().url || '').replace(/\/+$/, '');
-  return url ? `${url}/${s.label === 'foto' ? 'f' : 'v'}/${s.kode}` : '';
+  return url ? `${url}/${s.label === 'photo' ? 'f' : 'v'}/${s.code}` : '';
 }
 // Large QR for an earlier session (e.g. the guest forgot to scan it)
 function showSessionQr(s, link) {
@@ -432,7 +434,7 @@ function showSessionQr(s, link) {
   overlay.id = 'rwQR';
   overlay.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Close</button></div>`;
   overlay.querySelector('b').textContent =
-    `${s.label === 'foto' ? 'Photo' : s.label === 'quiz' ? 'Quiz video' : 'Video message'} ${sessionTime(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
+    `${s.label === 'photo' ? 'Photo' : s.label === 'quiz' ? 'Quiz video' : 'Video message'} ${sessionTime(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
   overlay.querySelector('small').textContent = url.replace(/^https:\/\//, '');
   try {
     drawQr(overlay.querySelector('canvas'), url, 8);

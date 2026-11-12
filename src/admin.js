@@ -79,11 +79,11 @@ export function setupAdmin() {
         if (!info) return;
         $('infoVersi').textContent = info.demo
           ? 'Leura Demo for phones (photos stay on this phone)'
-          : `Version ${info.versi}` +
-            (info.terpasang
+          : `Version ${info.version}` +
+            (info.installed
               ? ' · installed app'
               : ` · development (npm start${info.branch ? ', branch ' + info.branch : ''})`);
-        $('btnLisensi').style.display = info.lisensi ? '' : 'none';
+        $('btnLisensi').style.display = info.licenses ? '' : 'none';
       })
       .catch(e => console.warn('App info could not be read: ' + e.message));
   $('btnLisensi').onclick = async () => {
@@ -127,7 +127,7 @@ let quitDialogOpening = false; // prevents two dialogs when ✕ / the button is 
 async function confirmQuit() {
   if (quitDialogOpening || $('dlgTutup')) return;
   quitDialogOpening = true;
-  let counts = { salin: 0, proses: 0, foto: 0 };
+  let counts = { copying: 0, processing: 0, photos: 0 };
   try {
     counts = await api.checkQuit();
   } catch {
@@ -135,17 +135,17 @@ async function confirmQuit() {
   }
   quitDialogOpening = false;
   const notes = [];
-  if (counts.salin)
+  if (counts.copying)
     notes.push(
-      `${counts.salin} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`,
+      `${counts.copying} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`,
     );
-  if (counts.proses)
+  if (counts.processing)
     notes.push(
-      `${counts.proses} video(s) still processing. Processing continues automatically when the app is opened again.`,
+      `${counts.processing} video(s) still processing. Processing continues automatically when the app is opened again.`,
     );
-  if (counts.foto)
+  if (counts.photos)
     notes.push(
-      `${counts.foto} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`,
+      `${counts.photos} QR photo(s) not sent yet. Sending continues automatically when the app is opened again (needs internet).`,
     );
   const overlay = document.createElement('div');
   overlay.className = 'dialog-lapis';
@@ -176,7 +176,7 @@ async function confirmQuit() {
 
 /* ---------- App log ---------- */
 async function showAppLog() {
-  let r = { teks: '', file: '' };
+  let r = { text: '', file: '' };
   try {
     r = await api.readLog();
   } catch (e) {
@@ -188,14 +188,14 @@ async function showAppLog() {
   overlay.innerHTML = `<div class="dialog-kartu catatan-kartu"><h2></h2><p></p><pre class="catatan-isi"></pre>
     <div class="dialog-aksi"><button class="btn sm tint" id="dlgCatatanSimpan">Save to send</button><button class="btn sm primary" id="dlgCatatanTutup">Close</button></div></div>`;
   overlay.querySelector('h2').textContent = 'App log' + (r.file ? ' · ' + r.file : '');
-  overlay.querySelector('p').textContent = r.teks
+  overlay.querySelector('p').textContent = r.text
     ? '✗ = error, ⚠ = warning. Newest at the bottom.'
     : 'No log entries yet.';
   const pre = overlay.querySelector('pre');
-  pre.textContent = r.teks || '';
-  if (!r.teks) pre.remove();
+  pre.textContent = r.text || '';
+  if (!r.text) pre.remove();
   document.body.appendChild(overlay);
-  if (r.teks) pre.scrollTop = pre.scrollHeight;
+  if (r.text) pre.scrollTop = pre.scrollHeight;
   const close = () => overlay.remove();
   overlay.onclick = e => {
     if (e.target === overlay) close();
@@ -208,7 +208,7 @@ async function showAppLog() {
 }
 async function saveAppLog() {
   const r = await api.saveLog();
-  if (r.batal) return;
+  if (r.canceled) return;
   if (r.error) setNotice(r.error, 5000);
   else setNotice('Log saved: ' + r.file.split('/').pop() + ' (shown in Finder)', 5000);
 }

@@ -105,6 +105,11 @@ function reserveQr(sid, label, couple) {
   return upload.queueVideo(sid, { couple, label });
 }
 
+// The label ('message' | 'quiz') is also the end of the file name. Message videos keep the
+// file names they always had ("Budi_pesan.mp4"), so the couple's folder looks the same as before.
+const FILE_LABELS = { message: 'pesan' };
+const fileLabel = label => FILE_LABELS[label] || label;
+
 const recs = new Map(); // every recording has its own ID, so two recordings can never get mixed up
 let recSeq = 0;
 
@@ -124,7 +129,7 @@ function recoverInterrupted() {
   // Sony camera videos not copied yet: the original file is safe on the camera's SD card
   let sonyFound = false;
   for (const s of list) {
-    if (s.kamera === 'sony' && (s.status === 'recording' || s.status === 'transfer')) {
+    if (s.camera === 'sony' && (s.status === 'recording' || s.status === 'transfer')) {
       s.status = 'card-only';
       s.recovered = true;
       sonyFound = true;
@@ -254,7 +259,7 @@ function register() {
       /* the saved small image is damaged: made again below */
     }
     const s = findSession(id);
-    if (!s || s.label !== 'foto' || !fs.existsSync(location(s))) return null;
+    if (!s || s.label !== 'photo' || !fs.existsSync(location(s))) return null;
     const { nativeImage } = require('electron');
     if (!nativeImage)
       return fs.statSync(location(s)).size < 3e6
@@ -298,23 +303,23 @@ function register() {
       return { ok: true };
     }
     if (s.status === 'card-only') {
-      if (!s.kartuInfo)
+      if (!s.cardInfo)
         return {
-          error: `The video is only on the camera SD card${s.kartu ? ' (' + s.kartu + ')' : ''}. Copy it from the card manually.`,
+          error: `The video is only on the camera SD card${s.cardFile ? ' (' + s.cardFile + ')' : ''}. Copy it from the card manually.`,
         };
       if (!sony.ready()) return { error: 'Connect the Sony camera first, then try again.' };
       updateSession(id, { status: 'transfer', error: undefined });
-      copySonyVideo(id, s.kartuInfo, location(s));
+      copySonyVideo(id, s.cardInfo, location(s));
       return { ok: true };
     }
     // Question texts / phone version for QR that failed: make them again
-    if (s.status === 'done' && (s.teks === 'gagal' || s.unggah === 'gagal')) {
+    if (s.status === 'done' && (s.captionStatus === 'failed' || s.upload === 'failed')) {
       if (!ffmpegPath) return { error: "FFmpeg is not installed, the video can't be processed." };
       const patch = {};
-      if (s.teks === 'gagal') patch.teks = undefined;
-      if (s.unggah === 'gagal') {
+      if (s.captionStatus === 'failed') patch.captionStatus = undefined;
+      if (s.upload === 'failed') {
         if (!upload.videoEnabled()) return { error: 'Turn on "QR for video" in Admin first.' };
-        patch.unggah = 'olah';
+        patch.upload = 'processing';
         upload.requeueVideo(s);
       }
       updateSession(id, patch);
@@ -345,20 +350,20 @@ function register() {
     const ext = useSony ? 'mp4' : 'webm';
     // File name: the guest's name (from the "What's your name?" screen), e.g. "Budi_pesan.mp4". No guest name: "<couple>_<time>_pesan".
     // Names already in use (.webm/.mp4 files or sessions whose video isn't copied yet) are not overwritten: "Budi_2_pesan".
-    const guest = guestFileName(options && options.tamu);
+    const guest = guestFileName(options && options.guest);
     const sessionsInFolder = new Set(
       readSessions()
         .filter(s => s.dir === dir)
         .map(s => String(s.file || '').replace(/\.(webm|mp4)$/i, '')),
     );
     const isTaken = b => {
-      const d = guest ? `${b}_${label}` : b;
+      const d = guest ? `${b}_${fileLabel(label)}` : b;
       return sessionsInFolder.has(d) || ['webm', 'mp4'].some(x => fs.existsSync(path.join(dir, `${d}.${x}`)));
     };
     const baseName = guest
       ? freeBaseName(guest, isTaken)
-      : freeBaseName(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${label}`, isTaken);
-    const file = path.join(dir, `${guest ? `${baseName}_${label}` : baseName}.${ext}`);
+      : freeBaseName(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${fileLabel(label)}`, isTaken);
+    const file = path.join(dir, `${guest ? `${baseName}_${fileLabel(label)}` : baseName}.${ext}`);
 
     const id = ++recSeq;
     const sid = Date.now() * 1000 + (id % 1000);
@@ -388,10 +393,10 @@ function register() {
         file: path.basename(file),
         dir,
         couple: name,
-        ...(guest ? { tamu: String(options.tamu).trim().slice(0, 40) } : {}),
+        ...(guest ? { guest: String(options.guest).trim().slice(0, 40) } : {}),
         seconds: 0,
         status: 'recording',
-        ...(useSony ? { kamera: 'sony' } : {}),
+        ...(useSony ? { camera: 'sony' } : {}),
       });
       writeSessions(list);
     } catch (err) {
@@ -424,9 +429,9 @@ function register() {
     recs.delete(id);
     const sid = rec.sid;
     // Quiz: time & text image of each question (the images are saved as files, not in sessions.json)
-    const { kapsi: captions, kapsiGambar: captionImages, ...meta } = incomingMeta || {};
+    const { captions, captionImages, ...meta } = incomingMeta || {};
     const cleanCaptions = !meta.aborted ? videoProcessing.saveCaptions(sid, captions, captionImages) : null;
-    if (cleanCaptions) meta.kapsi = cleanCaptions;
+    if (cleanCaptions) meta.captions = cleanCaptions;
     if (rec.sony) {
       // Stop recording on the camera. The guest doesn't have to wait for the video to be copied.
       const r = await sony.stopRecording();
@@ -434,20 +439,20 @@ function register() {
       const patch = {
         seconds,
         ...meta,
-        ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'olah' } : {}),
+        ...(qr ? { code: qr.code, link: qr.link, upload: 'processing' } : {}),
         ...(r.error
           ? { status: 'card-only', error: r.error }
           : {
               status: 'transfer',
-              kartu: r.nama,
-              kartuInfo: { slot: r.slot, contentId: r.contentId, fileId: r.fileId },
+              cardFile: r.cardFile,
+              cardInfo: { slot: r.slot, contentId: r.contentId, fileId: r.fileId },
             }),
       };
       updateSession(sid, patch);
       if (r.error) log.error(`Sony recording stopped with an error (${path.basename(rec.file)}): ${r.error}`);
       else
         log.write(
-          `Recording done (Sony, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.nama}${qr ? ', QR ' + qr.kode : ''}`,
+          `Recording done (Sony, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.cardFile}${qr ? ', QR ' + qr.code : ''}`,
         );
       if (!r.error) copySonyVideo(sid, r, rec.file);
       return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file, link: qr ? qr.link : null };
@@ -460,7 +465,7 @@ function register() {
       status: !ok ? 'write-error' : ffmpegPath ? 'processing' : 'webm',
       ...(rec.error ? { error: rec.error } : {}),
       ...meta,
-      ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'olah' } : {}),
+      ...(qr ? { code: qr.code, link: qr.link, upload: 'processing' } : {}),
     };
     try {
       const list = readSessions();
@@ -479,7 +484,7 @@ function register() {
     } catch (err) {
       console.log('Could not record the session: ' + err.message);
     }
-    if (ok) log.write(`Recording done (${seconds} s): ${path.basename(rec.file)}${qr ? ', QR ' + qr.kode : ''}`);
+    if (ok) log.write(`Recording done (${seconds} s): ${path.basename(rec.file)}${qr ? ', QR ' + qr.code : ''}`);
     else log.error(`Recording could not be saved (${path.basename(rec.file)}): ${rec.error}`);
     if (ok) convert(sid, rec.file);
     return { ok, file: rec.file, error: rec.error, link: qr ? qr.link : null };

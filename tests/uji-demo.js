@@ -172,7 +172,9 @@ async function main() {
   );
   const sesi = await pg.evaluate(() => api.getSessions());
   cek(
-    sesi.length === 2 && sesi.some(s => s.label === 'pesan' && s.tamu === 'Budi') && sesi.some(s => s.label === 'foto'),
+    sesi.length === 2 &&
+      sesi.some(s => s.label === 'message' && s.guest === 'Budi') &&
+      sesi.some(s => s.label === 'photo'),
     'pesan & foto tersimpan di HP',
     sesi.map(s => s.label),
   );
@@ -215,6 +217,42 @@ async function main() {
     'video pesan bisa diputar dari Riwayat',
   );
   await pg.click('.demo-putar .btn');
+
+  console.log('\n▶ Data demo from an older version (Indonesian names) is updated');
+  await pg.evaluate(async () => {
+    const d = await new Promise(ok => {
+      const r = indexedDB.open('leura-demo', 1);
+      r.onsuccess = () => ok(r.result);
+    });
+    const put = (k, v) =>
+      new Promise(ok => {
+        const t = d.transaction('kv', 'readwrite');
+        t.objectStore('kv').put(v, k);
+        t.oncomplete = ok;
+      });
+    const couples = await window.api.getCouples();
+    await put('settings', { tanyaNama: false, bahasa: 'id', pesanCountdown: 5 });
+    await put('templates', [
+      { id: 'tOld', coupleId: couples.activeId, nama: 'Lama', ukuran: 'persegi', slots: [], texts: [] },
+    ]);
+  });
+  await pg.reload();
+  await tunggu(1500);
+  const old = await pg.evaluate(async () => {
+    const s = await window.api.getSettings();
+    const t = (await window.api.listTemplates()).filter(x => x.id === 'tOld');
+    return { askName: s.askName, language: s.language, countdown: s.messageCountdown, tpl: t[0] };
+  });
+  cek(
+    old.askName === false && old.language === 'id' && old.countdown === 5,
+    'old demo settings kept under the new names',
+    old,
+  );
+  cek(
+    old.tpl && old.tpl.name === 'Lama' && old.tpl.size === 'square',
+    'old demo template kept under the new names',
+    old,
+  );
 
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);

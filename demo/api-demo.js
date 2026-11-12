@@ -61,34 +61,91 @@
   const ST_AWAL = {
     quizSeconds: 20,
     quizRounds: 2,
-    pesanCountdown: 3,
-    pesanMaxSeconds: 30,
+    messageCountdown: 3,
+    messageMaxSeconds: 30,
     photoCountdown: 3,
     photoPreview: 2,
-    enablePesan: true,
+    enableMessage: true,
     enableQuiz: true,
     enablePhoto: true,
     photoFlash: true,
-    tanyaNama: true,
+    askName: true,
     kiosk: false,
-    kamera: 'webcam',
-    bahasa: 'en',
+    camera: 'webcam',
+    language: 'en',
     accent: '#B08D57',
     loginId: 'leura',
   };
   const BATAS = {
     quizSeconds: [10, 300],
     quizRounds: [1, 10],
-    pesanCountdown: [0, 10],
-    pesanMaxSeconds: [0, 600],
+    messageCountdown: [0, 10],
+    messageMaxSeconds: [0, 600],
     photoCountdown: [2, 10],
     photoPreview: [0, 5],
   };
   const idBaru = p => p + Date.now() + Math.random().toString(36).slice(2, 6);
+  // Demo data saved on this phone by an older version (Indonesian names), same as main/migrate.js
+  const OLD_NAMES = {
+    settings: {
+      pesanCountdown: 'messageCountdown',
+      pesanMaxSeconds: 'messageMaxSeconds',
+      enablePesan: 'enableMessage',
+      tanyaNama: 'askName',
+      kamera: 'camera',
+      bahasa: 'language',
+    },
+    template: {
+      nama: 'name',
+      ukuran: 'size',
+      latarWarna: 'backgroundColor',
+      rasio: 'ratio',
+      filterKekuatan: 'filterStrength',
+      filterTamu: 'guestPicksFilter',
+      dibuat: 'created',
+      diubah: 'changed',
+      latarUrl: 'backgroundUrl',
+      bingkaiUrl: 'frameUrl',
+    },
+    session: { tamu: 'guest', kode: 'code', unggah: 'upload', bingkai: 'frame' },
+    filter: { nama: 'name', dibuat: 'created' },
+  };
+  const OLD_VALUES = {
+    size: { '4r-tegak': '4r-portrait', '4r-datar': '4r-landscape', persegi: 'square' },
+    label: { pesan: 'message', foto: 'photo' },
+    upload: { antre: 'queued', menunggu: 'waiting', terkirim: 'sent' },
+  };
+  function updateOldDemoData(obj, names) {
+    let changed = false;
+    if (!obj || typeof obj !== 'object') return false;
+    for (const [from, to] of Object.entries(names))
+      if (from in obj) {
+        obj[to] = obj[from];
+        delete obj[from];
+        changed = true;
+      }
+    for (const [key, map] of Object.entries(OLD_VALUES))
+      if (typeof obj[key] === 'string' && Object.hasOwn(map, obj[key])) {
+        obj[key] = map[obj[key]];
+        changed = true;
+      }
+    return changed;
+  }
+  async function updateOldDemoList(key, names) {
+    const list = await ambil(key, null);
+    if (!Array.isArray(list)) return list;
+    if (list.map(x => updateOldDemoData(x, names)).some(Boolean)) await simpan(key, list);
+    return list;
+  }
   let ST, CP, TPL, SESI;
   const siap = (async () => {
-    ST = { ...ST_AWAL, ...(await ambil('settings', {})) };
+    const savedSettings = await ambil('settings', {});
+    if (updateOldDemoData(savedSettings, OLD_NAMES.settings)) await simpan('settings', savedSettings);
+    ST = { ...ST_AWAL, ...savedSettings };
     CP = await ambil('couples', null);
+    if (CP && CP.couples && CP.couples.map(c => updateOldDemoData(c.menu, { pesan: 'message' })).some(Boolean))
+      await simpan('couples', CP);
+    await updateOldDemoList('filters', OLD_NAMES.filter);
     if (!CP) {
       const id = idBaru('c');
       CP = {
@@ -99,13 +156,13 @@
             name: 'Rina & Dimas',
             welcome: 'Leave us a message',
             questions: PERTANYAAN,
-            menu: { pesan: true, quiz: true, photo: true },
+            menu: { message: true, quiz: true, photo: true },
           },
         ],
       };
     }
-    TPL = await ambil('templates', []);
-    SESI = await ambil('sessions', []);
+    TPL = (await updateOldDemoList('templates', OLD_NAMES.template)) || [];
+    SESI = (await updateOldDemoList('sessions', OLD_NAMES.session)) || [];
   })();
   const coupleAktif = () => CP.couples.find(c => c.id === CP.activeId) || CP.couples[0];
 
@@ -156,10 +213,10 @@
 
   /* ---------- Template (sama seperti main/template.js) ---------- */
   const UKURAN = {
-    '4r-tegak': { W: 1200, H: 1800, nama: '4R tegak (4×6)' },
-    '4r-datar': { W: 1800, H: 1200, nama: '4R mendatar (6×4)' },
-    strip: { W: 600, H: 1800, nama: 'Strip 2×6' },
-    persegi: { W: 1200, H: 1200, nama: 'Persegi' },
+    '4r-portrait': { W: 1200, H: 1800, name: '4R tegak (4×6)' },
+    '4r-landscape': { W: 1800, H: 1200, name: '4R mendatar (6×4)' },
+    strip: { W: 600, H: 1800, name: 'Strip 2×6' },
+    square: { W: 1200, H: 1200, name: 'Persegi' },
   };
   const FONT = ['sans', 'serif', 'script'],
     RASIO = ['3:2', '4:3', '16:9', '1:1', '4:5', '3:4', '2:3'];
@@ -169,7 +226,7 @@
   };
   const warna = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : d);
   function bersihkanTpl(t) {
-    const ukuran = UKURAN[t.ukuran] ? t.ukuran : '4r-tegak';
+    const ukuran = UKURAN[t.size] ? t.size : '4r-portrait';
     const { W, H } = UKURAN[ukuran];
     const slots = (Array.isArray(t.slots) ? t.slots : []).slice(0, 4).map(s => {
       const w = angka(s.w, 40, W, W / 2),
@@ -199,21 +256,21 @@
           .replace(/[^a-z0-9_-]/gi, '')
           .slice(0, 40) || 'tpl' + Date.now(),
       coupleId: String(t.coupleId || ''),
-      nama:
-        String(t.nama || '')
+      name:
+        String(t.name || '')
           .trim()
           .slice(0, 60) || 'Untitled template',
-      ukuran,
+      size: ukuran,
       W,
       H,
-      latarWarna: warna(t.latarWarna, '#FFFFFF'),
-      rasio: RASIO.includes(t.rasio) ? t.rasio : null,
+      backgroundColor: warna(t.backgroundColor, '#FFFFFF'),
+      ratio: RASIO.includes(t.ratio) ? t.ratio : null,
       filter:
         String(t.filter || '')
           .replace(/[^a-z0-9_-]/gi, '')
           .slice(0, 40) || null,
-      filterKekuatan: Math.round(angka(t.filterKekuatan, 0, 100, 100)),
-      filterTamu: t.filterTamu !== false,
+      filterStrength: Math.round(angka(t.filterStrength, 0, 100, 100)),
+      guestPicksFilter: t.guestPicksFilter !== false,
       slots,
       texts,
     };
@@ -289,9 +346,9 @@
     return Array.from(acak, b => huruf[b % huruf.length]).join('');
   }
   async function tandaiUnggah(kode, st) {
-    const x = SESI.find(z => z.kode === kode);
-    if (x && x.unggah !== st) {
-      x.unggah = st;
+    const x = SESI.find(z => z.code === kode);
+    if (x && x.upload !== st) {
+      x.upload = st;
       await simpan('sessions', SESI);
     }
   }
@@ -305,14 +362,14 @@
         });
         if (r.ok) {
           catat(`QR ${kode}: foto terkirim`);
-          return tandaiUnggah(kode, 'terkirim');
+          return tandaiUnggah(kode, 'sent');
         }
         catat(`QR ${kode}: ditolak server (${r.status})`, 'peringatan');
-        if (r.status < 500) return tandaiUnggah(kode, 'ditolak server');
+        if (r.status < 500) return tandaiUnggah(kode, 'refused by server');
       } catch (e) {
         catat(`QR ${kode}: belum terkirim (${e.message}), coba lagi`, 'peringatan');
       }
-      await tandaiUnggah(kode, 'menunggu');
+      await tandaiUnggah(kode, 'waiting');
       await new Promise(ok => setTimeout(ok, coba * 3000));
     }
   }
@@ -349,14 +406,14 @@
           const x = Math.round(Number(v));
           if (Number.isFinite(x)) n[k] = Math.min(BATAS[k][1], Math.max(BATAS[k][0], x));
         } else if (typeof ST_AWAL[k] === 'boolean' && typeof v === 'boolean') n[k] = v;
-        else if (k === 'bahasa' && ['id', 'en'].includes(v)) n[k] = v;
+        else if (k === 'language' && ['id', 'en'].includes(v)) n[k] = v;
         else if (k === 'accent' && /^#[0-9a-f]{6}$/i.test(v)) n[k] = v;
       }
-      if (p && p.kamera && p.kamera !== 'webcam') {
+      if (p && p.camera && p.camera !== 'webcam') {
         pesanLayar('Kamera Sony hanya ada di aplikasi Mac. Demo memakai kamera HP.');
       }
-      n.kamera = 'webcam';
-      if (!n.enablePesan && !n.enableQuiz && !n.enablePhoto)
+      n.camera = 'webcam';
+      if (!n.enableMessage && !n.enableQuiz && !n.enablePhoto)
         return { ...ST, error: 'At least one option must stay on the main menu.' };
       ST = n;
       await simpan('settings', ST);
@@ -383,7 +440,7 @@
         .filter(Boolean)
         .slice(0, 10);
       const menu = {
-        pesan: !!(c.menu && c.menu.pesan),
+        message: !!(c.menu && c.menu.message),
         quiz: !!(c.menu && c.menu.quiz),
         photo: !!(c.menu && c.menu.photo),
       };
@@ -420,7 +477,7 @@
       TPL = TPL.filter(t => t.coupleId !== id);
       await simpan('couples', CP);
       await simpan('templates', TPL);
-      return { ok: true, data: salinan(CP), templateDihapus: n };
+      return { ok: true, data: salinan(CP), templatesDeleted: n };
     },
     setActiveCouple: async id => {
       await siap;
@@ -451,12 +508,12 @@
       const lama = TPL.find(x => x.id === t.id) || {};
       const baru = {
         ...t,
-        dibuat: lama.dibuat || Date.now(),
-        diubah: Date.now(),
-        latarUrl: lama.latarUrl || null,
-        bingkaiUrl: lama.bingkaiUrl || null,
+        created: lama.created || Date.now(),
+        changed: Date.now(),
+        backgroundUrl: lama.backgroundUrl || null,
+        frameUrl: lama.frameUrl || null,
       };
-      for (const dasar of ['latar', 'bingkai']) {
+      for (const dasar of ['background', 'frame']) {
         if (!(dasar in gambar)) continue;
         if (gambar[dasar] === null) {
           baru[dasar + 'Url'] = null;
@@ -466,7 +523,7 @@
         const png = b[0] === 0x89 && b[1] === 0x50,
           jpg = b[0] === 0xff && b[1] === 0xd8;
         if (!png && !jpg) return { error: 'The image must be a PNG or JPG.' };
-        if (dasar === 'bingkai' && !png)
+        if (dasar === 'frame' && !png)
           return { error: 'The frame must be a PNG so the photo areas can be transparent.' };
         if (b.length > 15 * 1024 * 1024) return { error: 'The image is too large for the demo (max 15 MB).' };
         baru[dasar + 'Url'] = await keDataUrl(b);
@@ -500,36 +557,36 @@
       }
       const item = {
         id: idBaru('lut'),
-        nama:
+        name:
           String(nama || '')
             .replace(/\.cube$/i, '')
             .trim()
             .slice(0, 40) ||
-          lut.judul ||
+          lut.title ||
           'Filter',
         size: lut.size,
-        dibuat: Date.now(),
+        created: Date.now(),
       };
       daftar.push(item);
       await simpan('filter:' + item.id, teks);
       await simpan('filters', daftar);
-      return { ok: true, filter: item, daftar };
+      return { ok: true, filter: item, list: daftar };
     },
     getFilter: async id => {
       const item = (await ambil('filters', [])).find(x => x.id === id);
       const teks = item && (await ambil('filter:' + id, null));
-      return teks ? { ...item, teks } : null;
+      return teks ? { ...item, text: teks } : null;
     },
     renameFilter: async (id, nama) => {
       const d = await ambil('filters', []),
         item = d.find(x => x.id === id);
       if (!item) return { error: 'Filter not found.' };
-      item.nama =
+      item.name =
         String(nama || '')
           .trim()
-          .slice(0, 40) || item.nama;
+          .slice(0, 40) || item.name;
       await simpan('filters', d);
-      return { ok: true, daftar: d };
+      return { ok: true, list: d };
     },
     deleteFilter: async id => {
       const d = await ambil('filters', []);
@@ -537,7 +594,7 @@
       const sisa = d.filter(x => x.id !== id);
       await simpan('filter:' + id, undefined);
       await simpan('filters', sisa);
-      return { ok: true, daftar: sisa };
+      return { ok: true, list: sisa };
     },
 
     getOutDir: async () => ({
@@ -557,20 +614,20 @@
       const s = SESI.find(x => x.id === id);
       const u = s && (await urlMedia(id));
       if (!u) return { error: 'File not found on this phone.' };
-      putar(u, s.label === 'foto');
+      putar(u, s.label === 'photo');
       return { ok: true };
     },
     sessionReveal: async () => ({ error: 'The demo has no Finder. Use "View photo" / "Play video".' }),
     sessionThumb: async id => {
       const s = SESI.find(x => x.id === id);
-      return s && s.label === 'foto' ? urlMedia(id) : null;
+      return s && s.label === 'photo' ? urlMedia(id) : null;
     },
     sessionRetry: async () => ({ error: "This session doesn't need a retry." }),
 
     recStart: async (label, opsi) => {
       await siap;
       const id = ++nomor;
-      rekam.set(id, { label, tamu: opsi && opsi.tamu, potongan: [], t0: Date.now() });
+      rekam.set(id, { label, guest: opsi && opsi.guest, potongan: [], t0: Date.now() });
       catat(`Rekam mulai: ${label}`);
       return { id };
     },
@@ -579,22 +636,22 @@
       if (r) r.potongan.push(buf);
     },
     recEnd: async (id, detik, metaMasuk = {}) => {
-      const { kapsi, kapsiGambar, ...meta } = metaMasuk || {}; // teks quiz di video hanya di aplikasi Mac (FFmpeg)
+      const { captions: kapsi, captionImages: kapsiGambar, ...meta } = metaMasuk || {}; // teks quiz di video hanya di aplikasi Mac (FFmpeg)
       const r = rekam.get(id);
       rekam.delete(id);
       if (!r) return { ok: false, error: 'Recording not found.' };
       if (meta.aborted || !r.potongan.length) return { ok: true };
       const jenis = (formatTerakhir || 'video/webm').split(';')[0];
       const ext = /mp4/.test(jenis) ? 'mp4' : 'webm';
-      const tamu = namaFile(r.tamu);
+      const tamu = namaFile(r.guest);
       const sesi = {
         id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         time: new Date(r.t0).toISOString(),
         label: r.label,
-        file: `${tamu || namaFile(coupleAktif().name) || 'Tamu'}_${r.label}.${ext}`,
+        file: `${tamu || namaFile(coupleAktif().name) || 'Tamu'}_${r.label === 'message' ? 'pesan' : r.label}.${ext}`,
         dir: 'HP ini',
         couple: coupleAktif().name,
-        ...(tamu ? { tamu } : {}),
+        ...(tamu ? { guest: tamu } : {}),
         seconds: detik,
         status: 'done',
         ...meta,
@@ -617,7 +674,7 @@
 
     savePhotos: async p => {
       await siap;
-      const { originals = [], result, meta = {}, tamu: t } = p || {};
+      const { originals = [], result, meta = {}, guest: t } = p || {};
       if (!result) return { ok: false, error: 'No photo data' };
       const tamu = namaFile(t);
       // QR sungguhan kalau demo dibuka dari internet (https); di komputer sendiri: halaman contoh
@@ -627,15 +684,15 @@
       const sesi = {
         id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         time: new Date().toISOString(),
-        label: 'foto',
+        label: 'photo',
         file: `${tamu || 'Tamu'}_hasil.jpg`,
         dir: 'HP ini',
         couple: coupleAktif().name,
-        ...(tamu ? { tamu } : {}),
+        ...(tamu ? { guest: tamu } : {}),
         seconds: 0,
         status: 'photo',
         photos: originals.length,
-        ...(qrAsli ? { kode, link, unggah: 'antre' } : {}),
+        ...(qrAsli ? { code: kode, link, upload: 'queued' } : {}),
         ...meta,
       };
       try {
@@ -648,31 +705,31 @@
       return { ok: true, link };
     },
 
-    appInfo: async () => ({ demo: true, versi: 'demo', terpasang: true, lisensi: false }),
+    appInfo: async () => ({ demo: true, version: 'demo', installed: true, licenses: false }),
     uploadStatus: async () => ({
-      aktif: false,
+      enabled: false,
       url: '',
-      adaKunci: false,
+      hasKey: false,
       video: false,
-      videoKualitas: '720',
-      menunggu: 0,
-      menungguVideo: 0,
-      terkirim: 0,
-      errorTerakhir: '',
-      adaHasilPasang: false,
+      videoQuality: '720',
+      waiting: 0,
+      waitingVideos: 0,
+      sent: 0,
+      lastError: '',
+      hasSetupResult: false,
     }),
     saveUploadSettings: async () => ({
-      aktif: false,
+      enabled: false,
       url: '',
-      adaKunci: false,
-      menunggu: 0,
-      terkirim: 0,
-      errorTerakhir: '',
+      hasKey: false,
+      waiting: 0,
+      sent: 0,
+      lastError: '',
       error: 'QR download is set up in the Mac app. In the demo, QR is always on (photos kept for 1 day).',
     }),
     testUpload: async () => ({ error: DEMO }),
     uploadSetupResult: async () => null,
-    retryUploadNow: async () => ({ aktif: false }),
+    retryUploadNow: async () => ({ enabled: false }),
     onUploadStatus: () => {},
 
     openLink: async u => {
@@ -688,7 +745,7 @@
       }
     },
 
-    readLog: async () => ({ teks: LOG.join('\n'), file: new Date().toISOString().slice(0, 10), hari: [] }),
+    readLog: async () => ({ text: LOG.join('\n'), file: new Date().toISOString().slice(0, 10), days: [] }),
     saveLog: async () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([LOG.join('\n')], { type: 'text/plain' }));
@@ -699,19 +756,19 @@
     log: (p, t) => catat('[ui] ' + p, t),
 
     onQuitRequest: () => {},
-    checkQuit: async () => ({ salin: 0, proses: 0, foto: 0 }),
+    checkQuit: async () => ({ copying: 0, processing: 0, photos: 0 }),
     quitApp: async () => {
       setTimeout(() => location.reload(), 300);
       return { ok: true };
     },
 
     // Kamera Sony tidak ada di HP: selalu kamera HP
-    sonyStatus: async () => ({ mode: 'webcam', tersambung: false, pesan: '' }),
+    sonyStatus: async () => ({ mode: 'webcam', connected: false, message: '' }),
     onSonyStatus: () => {},
-    sonyReconnect: async () => ({ mode: 'webcam', tersambung: false, pesan: '' }),
+    sonyReconnect: async () => ({ mode: 'webcam', connected: false, message: '' }),
     sonyLiveView: async () => null,
     sonyPhoto: async () => ({ ok: false, error: DEMO }),
-    sonyMode: async j => ({ ok: true, jenis: j, diubah: false }),
+    sonyMode: async j => ({ ok: true, kind: j, changed: false }),
   };
   void cbErrorRekam;
 

@@ -22,18 +22,18 @@ async function startMessage() {
   try {
     // A Sony camera needs ±0.5–1 s before it really records: start recording at the START of the countdown,
     // so the guest's first sentence isn't cut off. A webcam records immediately, so start after the countdown.
-    const recordEarly = usingSony() && state.cfg.pesanCountdown > 0;
+    const recordEarly = usingSony() && state.cfg.messageCountdown > 0;
     if (recordEarly) {
-      await startRecording('pesan');
+      await startRecording('message');
       if (token !== state.sessionToken) return;
     }
-    await countdown(state.cfg.pesanCountdown);
+    await countdown(state.cfg.messageCountdown);
     if (token !== state.sessionToken) return;
-    if (!recordEarly) await startRecording('pesan');
+    if (!recordEarly) await startRecording('message');
     if (token !== state.sessionToken) return;
     const t0 = Date.now();
     // Length limit (Videobooth settings): recording stops by itself if the guest forgets to press Done
-    const limit = state.cfg.pesanMaxSeconds;
+    const limit = state.cfg.messageMaxSeconds;
     const showTime = () => {
       const s = Math.floor((Date.now() - t0) / 1000);
       $('pesanTime').textContent = limit > 0 ? `${fmt(Math.min(s, limit))} / ${fmt(limit)}` : fmt(s);

@@ -38,7 +38,7 @@ export async function fillCoupleSel() {
     row.innerHTML = '<span><b></b><small></small></span><svg class="i chev"><use href="#i-next"/></svg>';
     row.querySelector('b').textContent = c.name;
     const m = coupleMenu(c);
-    const menu = [m.pesan && 'Message', m.quiz && `Quiz (${c.questions.length} questions)`, m.photo && 'Photo']
+    const menu = [m.message && 'Message', m.quiz && `Quiz (${c.questions.length} questions)`, m.photo && 'Photo']
       .filter(Boolean)
       .join(', ');
     row.querySelector('small').textContent =
@@ -74,7 +74,7 @@ async function deleteCouple() {
   show('admin');
   await fillCoupleSel();
   await loadSessions();
-  const tpl = r.templateDihapus ? ` and ${r.templateDihapus} template(s)` : '';
+  const tpl = r.templatesDeleted ? ` and ${r.templatesDeleted} template(s)` : '';
   flash('coupleMsg', `"${target.name}"${tpl} deleted. Their recordings and photos are still saved.`);
 }
 
@@ -138,7 +138,7 @@ function openCouplePage(c, keepForm = false) {
   });
   $('fActive').checked = c ? c.id === state.couplesData.activeId : true;
   const m = coupleMenu(c);
-  $('fMenuPesan').checked = m.pesan;
+  $('fMenuPesan').checked = m.message;
   $('fMenuQuiz').checked = m.quiz;
   $('fMenuPhoto').checked = m.photo;
   markQuizState();
@@ -155,7 +155,7 @@ async function saveCouple() {
     name: $('fName').value,
     welcome: $('fWelcome').value,
     questions: [...document.querySelectorAll('.qIn')].map(i => i.value),
-    menu: { pesan: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked },
+    menu: { message: $('fMenuPesan').checked, quiz: $('fMenuQuiz').checked, photo: $('fMenuPhoto').checked },
   };
   const showError = text => {
     $('tambahErr').textContent = text;

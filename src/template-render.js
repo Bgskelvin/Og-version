@@ -3,8 +3,8 @@
    Used by the template editor (Admin) and the Edit photo page (guests), so
    what Admin sees in the editor is exactly what the guest's photo looks like.
    Layer order: background color → background image → photos 1-4 → PNG frame → text
-   Template data fields (latarWarna, latarUrl, bingkaiUrl, diubah, …) come from
-   the main process and are renamed with it in refactor/main-english.
+   Template data fields (backgroundColor, backgroundUrl, frameUrl, changed, …)
+   come from main/template.js.
    ===================================================================== */
 import { todayDate } from './language.js';
 import { state } from './state.js';
@@ -53,9 +53,9 @@ export function loadImage(src) {
 // Prepare a template: load the background & frame images once, then cache them
 const templateCache = new Map();
 export async function prepareTemplate(tpl) {
-  const cacheKey = tpl.id + ':' + (tpl.diubah || 0);
+  const cacheKey = tpl.id + ':' + (tpl.changed || 0);
   if (templateCache.has(cacheKey)) return templateCache.get(cacheKey);
-  const prepared = { tpl, background: await loadImage(tpl.latarUrl), frame: await loadImage(tpl.bingkaiUrl) };
+  const prepared = { tpl, background: await loadImage(tpl.backgroundUrl), frame: await loadImage(tpl.frameUrl) };
   templateCache.set(cacheKey, prepared);
   return prepared;
 }
@@ -69,7 +69,7 @@ export function drawTemplate(ctx, prepared, options = {}) {
   const { scale = 1, photos = [], filter = 'none', placeholder = false } = options;
   ctx.save();
   ctx.scale(scale, scale);
-  ctx.fillStyle = tpl.latarWarna || '#FFFFFF';
+  ctx.fillStyle = tpl.backgroundColor || '#FFFFFF';
   ctx.fillRect(0, 0, tpl.W, tpl.H);
   if (background) drawCover(ctx, background, 0, 0, tpl.W, tpl.H);
 

@@ -25,7 +25,7 @@ function register() {
   // Location: <storage folder>/<couple name>/Foto/
   ipcMain.handle('save-photos', async (e, payload) => {
     try {
-      const { originals = [], result, satuan: singles = [], meta = {}, tamu: rawGuest } = payload || {};
+      const { originals = [], result, singles: singles = [], meta = {}, guest: rawGuest } = payload || {};
       if (!result || !originals.length) {
         log.error('Save photos refused: no photo data');
         return { ok: false, error: 'No photo data' };
@@ -61,27 +61,27 @@ function register() {
         const list = readSessions();
         // Single photos (without template) are uploaded too so guests can download them as well
         const singleFiles = upload.ready() ? await upload.saveSinglePhotos(sid, singles) : [];
-        qr = upload.queuePhoto(path.join(dir, resultFile), sid, { satuan: singleFiles, couple: name });
+        qr = upload.queuePhoto(path.join(dir, resultFile), sid, { singles: singleFiles, couple: name });
         list.push({
           id: sid,
           time: new Date().toISOString(),
-          label: 'foto',
+          label: 'photo',
           file: resultFile,
           dir,
           couple: name,
-          ...(guest ? { tamu: String(rawGuest).trim().slice(0, 40) } : {}),
+          ...(guest ? { guest: String(rawGuest).trim().slice(0, 40) } : {}),
           seconds: 0,
           status: 'photo',
           photos: originals.length,
           originalFiles: files,
-          ...(qr ? { kode: qr.kode, link: qr.link, unggah: 'antre' } : {}),
+          ...(qr ? { code: qr.code, link: qr.link, upload: 'queued' } : {}),
           ...meta,
         });
         writeSessions(list);
       } catch (err) {
         console.log('Could not record the photo session: ' + err.message);
       }
-      log.write(`Photos saved: ${resultFile} (+${originals.length} originals)${qr ? ', QR ' + qr.kode : ''}`);
+      log.write(`Photos saved: ${resultFile} (+${originals.length} originals)${qr ? ', QR ' + qr.code : ''}`);
       return { ok: true, file: path.join(dir, resultFile), link: qr ? qr.link : null };
     } catch (err) {
       log.error('Could not save the photos: ' + err.message);

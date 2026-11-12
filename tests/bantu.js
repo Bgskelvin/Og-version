@@ -24,7 +24,7 @@ const hasil = () => ({ lulus, gagal });
 const tunggu = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- Electron palsu ----------
-function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [], terpasang = false }) {
+function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [], installed: terpasang = false }) {
   const handlers = {},
     listeners = {},
     appEvents = {},
@@ -35,9 +35,9 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
       wcEvents[n] = f;
     },
     send: (...a) => {
-      wc.terkirim.push(a);
+      wc.sent.push(a);
     },
-    terkirim: [],
+    sent: [],
     setWindowOpenHandler: f => {
       wc.openHandler = f;
     },
