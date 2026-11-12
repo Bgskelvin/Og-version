@@ -14,6 +14,7 @@ import { loadSessions, sessionLink } from './session-history.js';
 import { applySettings, applyMenu } from './settings.js';
 import { te, openTemplateEditor } from './template-editor.js';
 import { liveViewFrameCount } from './sony-camera.js';
+import { refreshDiskSpace } from './disk-space.js';
 
 window.__leura = Object.freeze({
   state,
@@ -30,4 +31,5 @@ window.__leura = Object.freeze({
   te,
   openTemplateEditor,
   liveViewFrameCount,
+  refreshDiskSpace,
 });

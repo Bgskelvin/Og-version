@@ -51,6 +51,7 @@ log.register();
 const recording = require('./main/recording');
 const appWindow = require('./main/window');
 require('./main/settings').register();
+require('./main/disk-space').register();
 require('./main/couple').register();
 require('./main/photo').register();
 require('./main/template').register();

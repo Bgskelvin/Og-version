@@ -602,6 +602,7 @@
       isDefault: true,
       ok: true,
     }),
+    diskSpace: async () => ({ ok: false, unsupported: true }), // a phone has no storage folder to check
     chooseOutDir: async () => ({ error: DEMO }),
     resetOutDir: async () => ({}),
 

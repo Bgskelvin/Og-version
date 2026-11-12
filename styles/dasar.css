@@ -537,6 +537,20 @@ body.camOn .btn.glassy {
   color: var(--text-2);
   word-break: break-all;
 }
+.disk-free {
+  font-size: 15px;
+  margin-top: 4px;
+  color: var(--text-2);
+}
+.disk-free.low,
+.disk-free.critical {
+  color: var(--orange);
+  font-weight: 600;
+}
+.disk-free.full {
+  color: var(--red);
+  font-weight: 600;
+}
 .note {
   font-size: 15px;
   min-height: 20px;

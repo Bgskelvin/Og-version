@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('api', {
   getOutDir: () => ipcRenderer.invoke('get-outdir'),
   chooseOutDir: () => ipcRenderer.invoke('choose-outdir'),
   resetOutDir: () => ipcRenderer.invoke('reset-outdir'),
+  diskSpace: () => ipcRenderer.invoke('disk-space'),
   recStart: (label, options) => ipcRenderer.invoke('rec-start', label, options),
   recChunk: (id, buf) => ipcRenderer.send('rec-chunk', id, buf),
   recEnd: (id, seconds, meta) => ipcRenderer.invoke('rec-end', id, seconds, meta),

@@ -336,6 +336,11 @@ function register() {
 
   ipcMain.handle('rec-start', async (e, label, options) => {
     const useSony = !!(options && options.sony);
+    const full = require('./disk-space').refuseIfFull();
+    if (full) {
+      log.warn('Recording refused: ' + full);
+      return { error: full };
+    }
     const name = activeCoupleName();
     let base = getOutDir(),
       fallback = false;

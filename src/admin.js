@@ -9,6 +9,7 @@ import { openStream, fillDevices } from './camera.js';
 import { usingSony, fillAdminCamera } from './sony-camera.js';
 import { $, store } from './state.js';
 import { setNotice, show } from './app.js';
+import { refreshDiskSpace } from './disk-space.js';
 
 // Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
 // so after the app is closed and opened again, Admin must log in again.
@@ -44,6 +45,7 @@ async function loadOutDir() {
   const r = await api.getOutDir();
   $('outDir').textContent = r.dir + (r.isDefault ? '  (default)' : '');
   $('dirMsg').textContent = r.ok ? '' : 'This folder is not available. Recordings will be saved to the default folder.';
+  await refreshDiskSpace();
 }
 async function refreshAdmin() {
   applyCouples(await api.getCouples());

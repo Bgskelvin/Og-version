@@ -57,6 +57,7 @@ window.api = {
   sessionThumb: async id => { window.NTHUMB = (window.NTHUMB || 0) + 1; return window.THUMB_URL || null; },
   sessionRetry: async id => { LOG.push('ulang ' + id); const s = SESI.find(x => x.id === id); s.status = s.status === 'card-only' ? 'transfer' : 'processing'; return { ok: true }; },
   getOutDir: async () => ({ dir: '/Users/uji/Documents/VideoboothRecordings', isDefault: true, ok: true }),
+  diskSpace: async () => MODE.disk || { ok: true, dir: '/Users/uji/Documents/VideoboothRecordings', free: 200 * 1024 ** 3, total: 500 * 1024 ** 3, level: 'ok' },
   getSettings: async () => ({ ...ST }),
   sonyStatus: async () => SONY.st,
   onSonyStatus: cb => { SONY.cb = cb; },
@@ -343,6 +344,34 @@ async function main() {
   await pg.click('#btnLisensi');
   await tunggu(100);
   cek((await log()).includes('lisensi'), 'tombol "Open-source licenses"');
+  cek(
+    (await pg.textContent('#diskFree')) === 'Free space: 200 GB of 500 GB',
+    'Admin → Storage: sisa disk folder penyimpanan',
+    await pg.textContent('#diskFree'),
+  );
+  await atur({ disk: { ok: true, free: 0.5 * 1024 ** 3, total: 500 * 1024 ** 3, level: 'full' } });
+  await pg.evaluate(() => __leura.refreshDiskSpace());
+  cek(
+    /0\.5 GB of 500 GB/.test(await pg.textContent('#diskFree')) &&
+      (await pg.getAttribute('#diskFree', 'class')).includes('full'),
+    'disk penuh: tampil merah di Admin',
+  );
+  cek(/Storage is full/.test(await pg.textContent('#notice')), 'disk penuh: operator mendapat pemberitahuan');
+  await pg.click('#btnAdminBack');
+  await pg.evaluate(() => __leura.show('start'));
+  await pg.evaluate(() => __leura.setNotice(''));
+  await pg.click('#btnStart');
+  await tunggu(200);
+  cek(
+    (await layar()) === 'start' && /Storage is full/.test(await pg.textContent('#notice')),
+    'disk penuh: tombol Start tidak membuka sesi baru',
+  );
+  await atur({ disk: null });
+  await pg.evaluate(() => __leura.refreshDiskSpace());
+  await pg.evaluate(() => __leura.setNotice(''));
+  await pg.evaluate(() => __leura.show('utama'));
+  await pg.click('#btnAdminOpen');
+  await tunggu(300);
   await pg.locator('#adminPanel').evaluate(e => {
     e.scrollTop = 0;
   });

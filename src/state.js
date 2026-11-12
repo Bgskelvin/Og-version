@@ -56,6 +56,7 @@ export const state = {
   busy: false, // true while recording / shooting: buttons & idle timer locked
   idleTimer: null,
   noticeTimer: null,
+  disk: null, // free space of the storage folder's disk (disk-space.js)
   guestActivity: 0, // activities (message/quiz/photo) by this guest; > 0 = Done button shows
   guestName: '', // guest name from the "What's your name?" page (empty = not asked)
 
