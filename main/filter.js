@@ -70,8 +70,8 @@ function addFilter(name, bytes) {
 }
 
 function register() {
-  ipcMain.handle('filter-daftar', () => listFilters());
-  ipcMain.handle('filter-tambah', (e, name, bytes) => {
+  ipcMain.handle('list-filters', () => listFilters());
+  ipcMain.handle('add-filter', (e, name, bytes) => {
     try {
       return addFilter(name, bytes);
     } catch (err) {
@@ -79,7 +79,7 @@ function register() {
     }
   });
   // Contents of the .cube file (parsed in the UI with parseCube)
-  ipcMain.handle('filter-isi', (e, id) => {
+  ipcMain.handle('get-filter', (e, id) => {
     const clean = safeId(id),
       item = listFilters().find(x => x.id === clean);
     if (!item) return null;
@@ -89,7 +89,7 @@ function register() {
       return null;
     }
   });
-  ipcMain.handle('filter-ganti-nama', (e, id, name) => {
+  ipcMain.handle('rename-filter', (e, id, name) => {
     const d = listFilters(),
       item = d.find(x => x.id === safeId(id));
     if (!item) return { error: 'Filter not found.' };
@@ -98,7 +98,7 @@ function register() {
     return { ok: true, daftar: d };
   });
   // Remove from the collection. Templates that use it automatically go back to no filter.
-  ipcMain.handle('filter-hapus', (e, id) => {
+  ipcMain.handle('delete-filter', (e, id) => {
     const clean = safeId(id),
       d = listFilters(),
       item = d.find(x => x.id === clean);

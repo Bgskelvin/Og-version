@@ -48,12 +48,12 @@ function requestQuit(source) {
     return;
   }
   require('./log').write(`Close app requested (${source}) — waiting for confirmation`);
-  wc.send('minta-tutup');
+  wc.send('quit-request');
 }
 
 function register() {
-  ipcMain.handle('cek-tutup', () => pendingWork());
-  ipcMain.handle('tutup-aplikasi', () => {
+  ipcMain.handle('check-quit', () => pendingWork());
+  ipcMain.handle('quit-app', () => {
     require('./log').write('Close app confirmed');
     confirmed = true;
     setTimeout(() => app.quit(), 300);

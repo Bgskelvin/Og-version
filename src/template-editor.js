@@ -331,7 +331,7 @@ async function fillFilterPanel() {
   const stillCurrent = () => te.tpl === t && turn === filterTurn;
   let items = [];
   try {
-    items = (api.filterDaftar && (await api.filterDaftar())) || [];
+    items = (api.listFilters && (await api.listFilters())) || [];
   } catch (e) {
     console.warn('Filter list could not be loaded: ' + e.message);
   }
@@ -380,7 +380,7 @@ async function addFilter(file) {
   if (!file) return;
   if (!/\.cube$/i.test(file.name)) return flash('teMsg', 'Choose a filter file ending in .cube (3D LUT).', true);
   if (file.size > 20 * 1024 * 1024) return flash('teMsg', 'The filter file is too large (max 20 MB).', true);
-  const r = await api.filterTambah(file.name, new Uint8Array(await file.arrayBuffer()));
+  const r = await api.addFilter(file.name, new Uint8Array(await file.arrayBuffer()));
   if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not add the filter.', true);
   flash('teMsg', `Filter "${r.filter.nama}" added and applied to this template.`);
   te.tpl.filter = r.filter.id;
@@ -403,7 +403,7 @@ async function deleteSelectedFilter() {
     return;
   }
   const name = templateFilterName();
-  const r = await api.filterHapus(id);
+  const r = await api.deleteFilter(id);
   if (!r || r.error) return flash('teMsg', (r && r.error) || 'Could not delete the filter.', true);
   forgetLut(id);
   te.tpl.filter = null;

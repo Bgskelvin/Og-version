@@ -16,7 +16,7 @@ let uploadStatus = { aktif: false, menunggu: 0, terkirim: 0, errorTerakhir: '' }
 // Latest upload status (the server address is used for links in Session history)
 export const getUploadStatus = () => uploadStatus;
 export async function refreshUploadStatus() {
-  uploadStatus = await api.unggahStatus();
+  uploadStatus = await api.uploadStatus();
   return uploadStatus;
 }
 
@@ -96,7 +96,7 @@ export async function fillDownloadQrSettings() {
   renderUploadStatus();
 }
 async function saveDownloadQr(patch, message) {
-  const r = await api.unggahSimpan(patch);
+  const r = await api.saveUploadSettings(patch);
   uploadStatus = r;
   if (r.error) {
     flash('qrMsg', r.error, true);
@@ -113,7 +113,7 @@ async function saveDownloadQr(patch, message) {
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupDownloadQr() {
-  api.onUnggahStatus(s => {
+  api.onUploadStatus(s => {
     uploadStatus = s;
     renderUploadStatus();
     if (state.current === 'riwayat') refreshHistory();
@@ -146,12 +146,12 @@ export function setupDownloadQr() {
   };
   $('btnQrTes').onclick = async () => {
     $('qrMsg').textContent = 'Checking…';
-    const r = await api.unggahTes();
+    const r = await api.testUpload();
     if (r.error) flash('qrMsg', r.error, true);
     else flash('qrMsg', `Connected to the server. Photos are kept for ${r.hari} days.`);
   };
   $('btnQrPasang').onclick = async () => {
-    const h = await api.unggahHasilPasang();
+    const h = await api.uploadSetupResult();
     if (h.error) return flash('qrMsg', h.error, true);
     $('setQrUrl').value = h.url;
     if (
@@ -163,7 +163,7 @@ export function setupDownloadQr() {
       $('setQrUrl').value = h.url;
   };
   $('btnQrUlang').onclick = async () => {
-    uploadStatus = await api.unggahCobaSekarang();
+    uploadStatus = await api.retryUploadNow();
     renderUploadStatus();
   };
 }

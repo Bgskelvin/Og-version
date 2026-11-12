@@ -537,10 +537,10 @@ function download(info, target) {
 
 function register() {
   ipcMain.handle('sony-status', () => status());
-  ipcMain.handle('sony-lv', () => liveView());
-  ipcMain.handle('sony-foto', () => takePhoto());
+  ipcMain.handle('sony-live-view', () => liveView());
+  ipcMain.handle('sony-photo', () => takePhoto());
   ipcMain.handle('sony-mode', (e, kind) => setMode(kind));
-  ipcMain.handle('sony-sambung-ulang', () => {
+  ipcMain.handle('sony-reconnect', () => {
     if (!hub) {
       const m = mode;
       mode = 'webcam';

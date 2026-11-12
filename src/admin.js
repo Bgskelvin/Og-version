@@ -69,7 +69,7 @@ export function setupAdmin() {
   $('btnAdminBack').onclick = () => show('utama');
   $('btnTutupApp').onclick = confirmQuit;
   // Window ✕ button / ⌘Q: the same dialog (only once even if pressed repeatedly)
-  api.onMintaTutup(() => confirmQuit());
+  api.onQuitRequest(() => confirmQuit());
   $('btnLihatCatatan').onclick = showAppLog;
   // About: version (Leura.app) or "development" + Git branch (npm start from the code folder)
   if (api.appInfo)
@@ -87,7 +87,7 @@ export function setupAdmin() {
       })
       .catch(e => console.warn('App info could not be read: ' + e.message));
   $('btnLisensi').onclick = async () => {
-    const r = await api.bukaLisensi();
+    const r = await api.openLicenses();
     if (r && r.error) $('infoVersi').textContent = r.error;
   };
   $('btnSimpanCatatan').onclick = saveAppLog;
@@ -129,7 +129,7 @@ async function confirmQuit() {
   quitDialogOpening = true;
   let counts = { salin: 0, proses: 0, foto: 0 };
   try {
-    counts = await api.cekTutup();
+    counts = await api.checkQuit();
   } catch {
     /* no queue info: the Quit dialog still shows */
   }
@@ -170,7 +170,7 @@ async function confirmQuit() {
     overlay.querySelector('.dialog-kartu').innerHTML =
       '<div class="spinner"></div><h2>Closing the app…</h2><p>Disconnecting the camera cleanly. One moment.</p>';
     overlay.onclick = null;
-    await api.tutupAplikasi();
+    await api.quitApp();
   };
 }
 
@@ -178,7 +178,7 @@ async function confirmQuit() {
 async function showAppLog() {
   let r = { teks: '', file: '' };
   try {
-    r = await api.catatanBaca();
+    r = await api.readLog();
   } catch (e) {
     console.warn('App log could not be read: ' + e.message);
   }
@@ -207,7 +207,7 @@ async function showAppLog() {
   };
 }
 async function saveAppLog() {
-  const r = await api.catatanSimpan();
+  const r = await api.saveLog();
   if (r.batal) return;
   if (r.error) setNotice(r.error, 5000);
   else setNotice('Log saved: ' + r.file.split('/').pop() + ' (shown in Finder)', 5000);

@@ -60,10 +60,10 @@ window.api = {
   getSettings: async () => ({ ...ST }),
   sonyStatus: async () => SONY.st,
   onSonyStatus: cb => { SONY.cb = cb; },
-  sonySambungUlang: async () => SONY.st,
+  sonyReconnect: async () => SONY.st,
   sonyLiveView: async () => SONY.st.tersambung ? buatJpeg(640, 424, '#336') : null,
   sonyMode: async j => { LOG.push('mode ' + j); const beda = !!SONY.st.jenisMode && SONY.st.jenisMode !== j; if (beda) await new Promise(r => setTimeout(r, window.MODE_DELAY || 0)); SONY.st = { ...SONY.st, jenisMode: j }; return { ok: true, jenis: j, diubah: beda }; },
-  sonyFoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
+  sonyPhoto: async () => { SONY.foto++; const b = await buatJpeg(3600, 2400, '#a64'); SONY.besar = b.length; return { ok: true, bytes: b }; },
   saveSettings: async p => { LOG.push('setting ' + JSON.stringify(p));
     if (p.kamera) setSony(p.kamera === 'webcam' ? { mode: 'webcam', tersambung: false, pesan: '' }
       : { mode: p.kamera, tersambung: true, model: 'ILCE-6700 (simulasi)', baterai: 100, kartu: 0, sisaDetik: 9000, pesan: '' });
@@ -73,7 +73,7 @@ window.api = {
   changeLogin: async (o, id) => o === '1234' ? { ok: true, id } : { error: 'Current password is wrong.' },
   getStartupInfo: async () => ({ recovered: 0 }),
   appInfo: async () => ({ versi: '1.0.0', terpasang: false, branch: 'chore/mac-installer', lisensi: true }),
-  bukaLisensi: async () => { LOG.push('lisensi'); return { ok: true }; },
+  openLicenses: async () => { LOG.push('lisensi'); return { ok: true }; },
   recStart: async (label, o) => { window.TAMU_REC = o && o.tamu; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
@@ -82,20 +82,20 @@ window.api = {
   onRecError: cb => { errCb = cb; },
   savePhotos: async p => { window.FOTO = { tamu: p.tamu, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
     return { ok: true, link: UNG.st.aktif ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
-  unggahStatus: async () => ({ ...UNG.st }),
-  unggahSimpan: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}, p.video != null ? { video: p.video } : {}, p.videoKualitas ? { videoKualitas: p.videoKualitas } : {}); return { ...UNG.st }; },
-  unggahTes: async () => ({ ok: true, hari: 7 }),
-  unggahHasilPasang: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
-  unggahCobaSekarang: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
-  onUnggahStatus: cb => { UNG.cb = cb; },
-  catatanBaca: async () => ({ file: '2026-11-06', teks: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
-  catatanSimpan: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
-  catat: () => {},
-  onMintaTutup: cb => { window.MINTA_TUTUP = cb; },
-  cekTutup: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
-  tutupAplikasi: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
-  bukaLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
-  salinTeks: async t => { LOG.push('salin ' + t); return { ok: true }; },
+  uploadStatus: async () => ({ ...UNG.st }),
+  saveUploadSettings: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.kunci ? { adaKunci: true } : {}, p.aktif != null ? { aktif: p.aktif } : {}, p.video != null ? { video: p.video } : {}, p.videoKualitas ? { videoKualitas: p.videoKualitas } : {}); return { ...UNG.st }; },
+  testUpload: async () => ({ ok: true, hari: 7 }),
+  uploadSetupResult: async () => ({ url: 'https://leura-foto.uji.workers.dev', kunci: 'abc123' }),
+  retryUploadNow: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
+  onUploadStatus: cb => { UNG.cb = cb; },
+  readLog: async () => ({ file: '2026-11-06', teks: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
+  saveLog: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
+  log: () => {},
+  onQuitRequest: cb => { window.MINTA_TUTUP = cb; },
+  checkQuit: async () => (window.TUTUP || { salin: 0, proses: 0, foto: 0 }),
+  quitApp: async () => { LOG.push('tutup aplikasi'); return { ok: true }; },
+  openLink: async u => { LOG.push('buka ' + u); return { ok: true }; },
+  copyText: async t => { LOG.push('salin ' + t); return { ok: true }; },
   listTemplates: async id => TPL.filter(t => t.coupleId === id).map(t => ({ ...t })),
   saveTemplate: async (t, g) => { window.SIMPAN_TPL = { t: JSON.parse(JSON.stringify(t)), bingkai: g.bingkai ? g.bingkai.length : g.bingkai };
     const lama = TPL.find(x => x.id === t.id) || {};
@@ -105,16 +105,16 @@ window.api = {
     const i = TPL.findIndex(x => x.id === t.id); if (i < 0) TPL.push(baru); else TPL[i] = baru;
     return { ok: true, template: baru }; },
   deleteTemplate: async id => { TPL.splice(TPL.findIndex(x => x.id === id), 1); return { ok: true }; },
-  filterDaftar: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
-  filterTambah: async (nama, bytes) => {
+  listFilters: async () => (window.FLT || []).map(f => ({ id: f.id, nama: f.nama, size: f.size })),
+  addFilter: async (nama, bytes) => {
     const teks = new TextDecoder().decode(bytes);
     let lut; try { lut = window.__leura.parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
     const f = { id: 'lut' + ((window.FLT || []).length + 1), nama: nama.replace(/\\.cube$/i, ''), size: lut.size, teks };
     (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, nama: f.nama, size: f.size } };
   },
-  filterIsi: async id => { const f = (window.FLT || []).find(x => x.id === id); return f ? { ...f } : null; },
-  filterGantiNama: async () => ({ ok: true }),
-  filterHapus: async id => { window.FLT = (window.FLT || []).filter(x => x.id !== id); return { ok: true }; },
+  getFilter: async id => { const f = (window.FLT || []).find(x => x.id === id); return f ? { ...f } : null; },
+  renameFilter: async () => ({ ok: true }),
+  deleteFilter: async id => { window.FLT = (window.FLT || []).filter(x => x.id !== id); return { ok: true }; },
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
