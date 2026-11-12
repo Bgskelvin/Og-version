@@ -9,7 +9,7 @@
      straight into their row without redrawing the list.
    Session data fields (label 'message'/'quiz'/'photo', captionStatus, upload,
    code, cardFile, …) come from the main process. Color names are CSS classes
-   (hijau, biru, …).
+   (green, blue, …).
    ===================================================================== */
 import { drawQr } from './qr.js';
 import { getUploadStatus, refreshUploadStatus } from './download-qr.js';
@@ -19,27 +19,27 @@ import { language } from './language.js';
 
 // status → [label, color class, needs attention?, explanation]
 const SESSION_STATUS = {
-  done: ['Ready', 'hijau', false, 'MP4 video is ready in the couple folder.'],
-  photo: ['Saved', 'hijau', false, ''],
-  processing: ['Processing', 'biru', false, 'Converting to MP4. One moment.'],
-  captions: ['Adding questions', 'biru', false, 'Adding the question text to the quiz video. One moment.'],
-  transfer: ['Copying from camera', 'biru', false, 'Copying from the camera SD card to the couple folder.'],
-  recording: ['Recording', 'biru', false, 'Recording in progress.'],
-  webm: ['Not MP4 yet', 'oranye', true, 'Saved as WebM because FFmpeg is not installed. It plays in VLC or Chrome.'],
+  done: ['Ready', 'green', false, 'MP4 video is ready in the couple folder.'],
+  photo: ['Saved', 'green', false, ''],
+  processing: ['Processing', 'blue', false, 'Converting to MP4. One moment.'],
+  captions: ['Adding questions', 'blue', false, 'Adding the question text to the quiz video. One moment.'],
+  transfer: ['Copying from camera', 'blue', false, 'Copying from the camera SD card to the couple folder.'],
+  recording: ['Recording', 'blue', false, 'Recording in progress.'],
+  webm: ['Not MP4 yet', 'orange', true, 'Saved as WebM because FFmpeg is not installed. It plays in VLC or Chrome.'],
   'card-only': [
     'On SD card',
-    'oranye',
+    'orange',
     true,
     'The video is safe on the camera SD card but has not been copied to the computer.',
   ],
   failed: [
     'MP4 failed',
-    'merah',
+    'red',
     true,
     'The video could not be converted to MP4. The original file is still in the "original" folder.',
   ],
-  'write-error': ['Not saved', 'merah', true, 'The recording could not be written to disk.'],
-  lost: ['Lost', 'merah', true, 'Empty recording: the app stopped before it could record.'],
+  'write-error': ['Not saved', 'red', true, 'The recording could not be written to disk.'],
+  lost: ['Lost', 'red', true, 'Empty recording: the app stopped before it could record.'],
 };
 const RETRYABLE = ['failed', 'webm', 'card-only'];
 const SESSION_KINDS = [
@@ -74,7 +74,7 @@ function thumbObserver() {
         loadThumb(Number(en.target.dataset.id));
       }
     },
-    { root: $('riwayat').querySelector('.sheet-body'), rootMargin: '300px 0px' },
+    { root: $('history').querySelector('.sheet-body'), rootMargin: '300px 0px' },
   );
   return historyView.observer;
 }
@@ -86,14 +86,14 @@ function loadThumb(id) {
     .then(url => {
       if (!url) return;
       historyView.thumb.set(id, url);
-      const el = document.querySelector(`#rwList .rw-row[data-id="${id}"] .rw-ikon`); // put straight into its row
+      const el = document.querySelector(`#histList .hist-row[data-id="${id}"] .hist-icon`); // put straight into its row
       if (el) el.innerHTML = `<img alt="" src="${url}">`;
     })
     .catch(e => console.warn('Session thumbnail could not be loaded: ' + e.message));
 }
 
 const sessionKind = s => (s.label === 'photo' ? 'photo' : /^quiz/.test(s.label) ? 'quiz' : 'message');
-const statusInfo = s => SESSION_STATUS[s.status] || ['—', 'abu', false, ''];
+const statusInfo = s => SESSION_STATUS[s.status] || ['—', 'gray', false, ''];
 // Question text / phone version for the QR failed: the video is safe, but needs "Process again"
 const processingFailed = s => s.status === 'done' && (s.captionStatus === 'failed' || s.upload === 'failed');
 const needsAttention = s => statusInfo(s)[2] || processingFailed(s);
@@ -128,9 +128,9 @@ export async function loadSessions() {
   const list = await api.getSessions();
   const name = state.activeCouple ? state.activeCouple.name : null;
   const r = summarizeSessions(list, name);
-  $('riwayatRingkas').textContent = `${name || 'All couples'}: ${r.today} today · ${r.total} total`;
-  $('riwayatBadge').textContent = r.attention ? `⚠️ ${r.attention}` : '';
-  $('riwayatBadge').style.display = r.attention ? '' : 'none';
+  $('historySummary').textContent = `${name || 'All couples'}: ${r.today} today · ${r.total} total`;
+  $('historyBadge').textContent = r.attention ? `⚠️ ${r.attention}` : '';
+  $('historyBadge').style.display = r.attention ? '' : 'none';
 }
 
 /* ---------- Session history page ---------- */
@@ -140,8 +140,8 @@ async function openHistory() {
   historyView.openId = null;
   historyView.fingerprint = '';
   historyView.limit = PAGE_SIZE;
-  show('riwayat');
-  $('riwayat').querySelector('.sheet-body').scrollTop = 0;
+  show('history');
+  $('history').querySelector('.sheet-body').scrollTop = 0;
   try {
     await refreshUploadStatus();
   } catch {
@@ -150,7 +150,7 @@ async function openHistory() {
   await refreshHistory(true);
   clearInterval(historyView.timer);
   historyView.timer = setInterval(() => {
-    if (state.current === 'riwayat') refreshHistory();
+    if (state.current === 'history') refreshHistory();
     else clearInterval(historyView.timer);
   }, 3000);
 }
@@ -177,7 +177,7 @@ function renderHistory() {
       ...all.map(s => s.couple).filter(Boolean),
     ]),
   ];
-  const sel = $('rwCouple');
+  const sel = $('histCouple');
   sel.innerHTML = '';
   for (const [v, label] of [['', 'All couples'], ...names.map(n => [n, n])]) {
     const o = document.createElement('option');
@@ -193,7 +193,7 @@ function renderHistory() {
   const minutes = Math.round(
     own.filter(s => sessionKind(s) !== 'photo').reduce((sum, s) => sum + (s.seconds || 0), 0) / 60,
   );
-  $('rwRingkas').innerHTML = [
+  $('histSummary').innerHTML = [
     ['Messages', countKind('message')],
     ['Quiz', countKind('quiz')],
     ['Photos', countKind('photo')],
@@ -204,9 +204,9 @@ function renderHistory() {
 
   // Warning
   const problems = own.filter(needsAttention).length;
-  const banner = $('rwBanner');
+  const banner = $('histBanner');
   banner.style.display = problems || historyView.kind === 'perhatian' ? '' : 'none';
-  banner.className = 'rw-banner' + (historyView.kind === 'perhatian' ? ' aktif' : '');
+  banner.className = 'hist-banner' + (historyView.kind === 'perhatian' ? ' active' : '');
   banner.textContent =
     historyView.kind === 'perhatian'
       ? problems
@@ -215,11 +215,11 @@ function renderHistory() {
       : `⚠️ ${problems} session(s) need attention · tap to view`;
 
   // Kind choice
-  const chips = $('rwJenis');
+  const chips = $('histKind');
   chips.innerHTML = '';
   for (const [k, label] of SESSION_KINDS) {
     const b = document.createElement('button');
-    b.className = 'rw-chip' + (historyView.kind === k ? ' on' : '');
+    b.className = 'hist-chip' + (historyView.kind === k ? ' on' : '');
     b.textContent = label + (k === 'perhatian' && problems ? ` (${problems})` : '');
     b.onclick = () => {
       historyView.kind = k;
@@ -240,7 +240,7 @@ function renderHistory() {
           : sessionKind(s) === historyView.kind,
     )
     .sort((a, b) => new Date(b.time) - new Date(a.time));
-  const box = $('rwList');
+  const box = $('histList');
   box.innerHTML = '';
   if (!visible.length) {
     const k = document.createElement('div');
@@ -268,8 +268,8 @@ function renderHistory() {
   }
   if (visible.length > historyView.limit) {
     const more = document.createElement('button');
-    more.className = 'btn sm tint rw-lagi';
-    more.id = 'rwLagi';
+    more.className = 'btn sm tint hist-retry';
+    more.id = 'histMore';
     more.textContent = `Show more (${visible.length - historyView.limit} more sessions)`;
     more.onclick = () => {
       historyView.limit += PAGE_SIZE;
@@ -283,7 +283,7 @@ function sessionRow(s) {
   const [label, color] = statusInfo(s),
     kind = sessionKind(s);
   const b = document.createElement('button');
-  b.className = 'item rw-row' + (historyView.openId === s._id ? ' buka' : '');
+  b.className = 'item hist-row' + (historyView.openId === s._id ? ' open' : '');
   b.dataset.id = s._id;
   const icon = { message: 'i-mic', quiz: 'i-spark', photo: 'i-camera' }[kind];
   const kindName = { message: 'Message', quiz: 'Quiz', photo: 'Photo' }[kind];
@@ -291,11 +291,11 @@ function sessionRow(s) {
     kind === 'photo'
       ? `${s.photos || 4} photos${s.template ? ' · ' + s.template : ''}`
       : fmt(s.seconds || 0) + (s.camera === 'sony' ? ' · Sony camera' : '');
-  b.innerHTML = `<span class="rw-ikon"></span><span class="rw-teks"><b></b><small></small></span><span class="rw-tag"></span><em class="rw-status ${color}"></em>`;
+  b.innerHTML = `<span class="hist-icon"></span><span class="hist-text"><b></b><small></small></span><span class="hist-tag"></span><em class="hist-status ${color}"></em>`;
   if (kind === 'photo' && historyView.thumb.get(s._id))
-    b.querySelector('.rw-ikon').innerHTML = `<img alt="" src="${historyView.thumb.get(s._id)}">`;
+    b.querySelector('.hist-icon').innerHTML = `<img alt="" src="${historyView.thumb.get(s._id)}">`;
   else {
-    b.querySelector('.rw-ikon').innerHTML = `<svg class="i"><use href="#${icon}"/></svg>`;
+    b.querySelector('.hist-icon').innerHTML = `<svg class="i"><use href="#${icon}"/></svg>`;
     if (kind === 'photo' && !historyView.thumb.has(s._id) && typeof s._id === 'number') {
       const o = thumbObserver();
       if (o) o.observe(b);
@@ -304,12 +304,12 @@ function sessionRow(s) {
   }
   b.querySelector('b').textContent = `${sessionTime(s.time)} · ${kindName}${s.guest ? ' · ' + s.guest : ''}`;
   b.querySelector('small').textContent = (historyView.couple ? '' : (s.couple || '-') + ' · ') + sub;
-  b.querySelector('.rw-tag').textContent = tooShort(s) ? 'Too short' : s.recovered ? 'Recovered' : '';
-  b.querySelector('.rw-status').textContent = label;
+  b.querySelector('.hist-tag').textContent = tooShort(s) ? 'Too short' : s.recovered ? 'Recovered' : '';
+  b.querySelector('.hist-status').textContent = label;
   b.onclick = () => {
     historyView.openId = historyView.openId === s._id ? null : s._id;
     renderHistory();
-    const d = document.querySelector('#rwList .rw-detail');
+    const d = document.querySelector('#histList .hist-detail');
     if (d) d.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
   return b;
@@ -317,7 +317,7 @@ function sessionRow(s) {
 
 function sessionDetail(s) {
   const d = document.createElement('div');
-  d.className = 'item rw-detail';
+  d.className = 'item hist-detail';
   let note = statusInfo(s)[3] || (s.label === 'photo' ? `${s.photos || 4} original photos + 1 template photo.` : '');
   if (s.captionStatus === 'done')
     note +=
@@ -364,14 +364,14 @@ function sessionDetail(s) {
     d.appendChild(q);
     if (link) {
       const l = document.createElement('div');
-      l.className = 'rw-link';
+      l.className = 'hist-link';
       l.textContent = link;
       d.appendChild(l);
     }
   }
   if (s.file) {
     const f = document.createElement('div');
-    f.className = 'muted rw-file';
+    f.className = 'muted hist-file';
     f.textContent = s.file;
     d.appendChild(f);
   }
@@ -387,7 +387,7 @@ function sessionDetail(s) {
     actions.appendChild(b);
   };
   const showResult = r => {
-    if (r && r.error) flash('rwMsg', r.error, true);
+    if (r && r.error) flash('histMsg', r.error, true);
   };
   if (typeof s._id === 'number') {
     if (['done', 'photo', 'webm'].includes(s.status))
@@ -399,7 +399,7 @@ function sessionDetail(s) {
       addButton('Show QR', () => showSessionQr(s, link));
       addButton('Copy link', async () => {
         await api.copyText(link);
-        flash('rwMsg', 'Link copied. Paste it (⌘V) into WhatsApp or another message.');
+        flash('histMsg', 'Link copied. Paste it (⌘V) into WhatsApp or another message.');
       });
       addButton('Open link', async () => showResult(await api.openLink(link)));
     }
@@ -408,8 +408,8 @@ function sessionDetail(s) {
         s.status === 'card-only' ? 'Copy from camera again' : 'Process again',
         async () => {
           const r = await api.sessionRetry(s._id);
-          if (r && r.error) return flash('rwMsg', r.error, true);
-          flash('rwMsg', 'Trying again…');
+          if (r && r.error) return flash('histMsg', r.error, true);
+          flash('histMsg', 'Trying again…');
           refreshHistory(true);
         },
         'btn sm primary',
@@ -430,16 +430,16 @@ export function sessionLink(s) {
 function showSessionQr(s, link) {
   const url = link + (language === 'en' ? '?b=en' : '');
   const overlay = document.createElement('div');
-  overlay.className = 'rw-qr-lapis';
+  overlay.className = 'hist-qr-overlay';
   overlay.id = 'rwQR';
-  overlay.innerHTML = `<div class="rw-qr-kartu"><b></b><canvas></canvas><small></small><button class="btn sm primary">Close</button></div>`;
+  overlay.innerHTML = `<div class="hist-qr-card"><b></b><canvas></canvas><small></small><button class="btn sm primary">Close</button></div>`;
   overlay.querySelector('b').textContent =
     `${s.label === 'photo' ? 'Photo' : s.label === 'quiz' ? 'Quiz video' : 'Video message'} ${sessionTime(s.time)}${s.couple ? ' · ' + s.couple : ''}`;
   overlay.querySelector('small').textContent = url.replace(/^https:\/\//, '');
   try {
     drawQr(overlay.querySelector('canvas'), url, 8);
   } catch {
-    return flash('rwMsg', 'Could not create the QR code.', true);
+    return flash('histMsg', 'Could not create the QR code.', true);
   }
   const close = () => overlay.remove();
   overlay.onclick = e => {
@@ -451,19 +451,19 @@ function showSessionQr(s, link) {
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupHistory() {
-  $('btnRiwayat').onclick = openHistory;
-  $('rwBack').onclick = () => {
+  $('btnHistory').onclick = openHistory;
+  $('histBack').onclick = () => {
     clearInterval(historyView.timer);
     show('admin');
     loadSessions();
   };
-  $('rwSegar').onclick = () => refreshHistory(true);
-  $('rwCouple').onchange = e => {
+  $('histRefresh').onclick = () => refreshHistory(true);
+  $('histCouple').onchange = e => {
     historyView.couple = e.target.value;
     historyView.openId = null;
     renderHistory();
   };
-  $('rwBanner').onclick = () => {
+  $('histBanner').onclick = () => {
     historyView.kind = historyView.kind === 'perhatian' ? 'semua' : 'perhatian';
     historyView.openId = null;
     renderHistory();

@@ -45,22 +45,22 @@ export async function applyCameraSource() {
 // Light: the frozen image isn't redrawn, so the blur is only computed once.
 export function cameraModeForScreen(name) {
   if (!usingSony() || !api.sonyMode) return;
-  const kind = { pesan: 'video', quiz: 'video', photo: 'photo' }[name];
+  const kind = { message: 'video', quiz: 'video', photo: 'photo' }[name];
   if (!kind) return;
   const id = ++modeSwitchId;
   const needsSwitch = sonyState.connected && sonyState.modeKind && sonyState.modeKind !== kind;
   if (needsSwitch) {
     liveViewFrozen = true;
-    document.body.classList.add('lvGanti');
+    document.body.classList.add('lvSwitching');
   }
   const finish = async () => {
     if (id !== modeSwitchId) return; // a newer switch already started
     liveViewFrozen = false;
-    if (!document.body.classList.contains('lvGanti')) return;
+    if (!document.body.classList.contains('lvSwitching')) return;
     const n = liveViewFrames,
       t0 = performance.now(); // wait for 2 new frames (right shape), max 1.5 s
     while (liveViewFrames < n + 2 && performance.now() - t0 < 1500) await sleep(40);
-    if (id === modeSwitchId) document.body.classList.remove('lvGanti');
+    if (id === modeSwitchId) document.body.classList.remove('lvSwitching');
   };
   const safetyTimer = setTimeout(finish, 6000); // make sure the fog never stays
   api
@@ -137,12 +137,11 @@ function sonyStatusText(s) {
 function renderSonyStatus() {
   if (!$('sonyStatus')) return;
   $('sonyStatus').textContent = sonyStatusText(sonyState);
-  $('sonyDot').className =
-    'sony-dot ' + (sonyState.connected ? (sonyState.cardError > 0 ? 'kuning' : 'hijau') : 'merah');
+  $('sonyDot').className = 'sony-dot ' + (sonyState.connected ? (sonyState.cardError > 0 ? 'yellow' : 'green') : 'red');
 }
 export function fillAdminCamera() {
   const sony = usingSony();
-  $('camSumber').value = state.cfg.camera || 'webcam';
+  $('camSource').value = state.cfg.camera || 'webcam';
   $('camSelRow').style.display = $('micSelRow').style.display = sony ? 'none' : '';
   $('sonyRow').style.display = sony ? '' : 'none';
   $('camHint').textContent = sony
@@ -167,7 +166,7 @@ export async function setupSonyCamera() {
   } catch {
     /* camera status not readable yet: keep the last status */
   }
-  $('camSumber').onchange = async e => {
+  $('camSource').onchange = async e => {
     const s = await api.saveSettings({ camera: e.target.value });
     applySettings(s);
     await applyCameraSource();
@@ -176,7 +175,7 @@ export async function setupSonyCamera() {
     const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[state.cfg.camera];
     flash('camMsg', `Camera source: ${label}.`);
   };
-  $('btnSonyUlang').onclick = async () => {
+  $('btnSonyReconnect').onclick = async () => {
     $('sonyStatus').textContent = 'Looking for the Sony camera…';
     receiveSonyStatus(await api.sonyReconnect());
   };

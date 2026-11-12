@@ -1,12 +1,12 @@
 /* =====================================================================
-   dasar.css — tema kaca gaya Apple, tombol, kartu, halaman, Admin
+   base.css — Apple-style glass theme, buttons, cards, screens, Admin
    ===================================================================== */
 /* ============ Token ============ */
 :root {
-  --bg: #f5f5f7; /* putih khas Apple */
+  --bg: #f5f5f7; /* Apple white */
   --text: #1d1d1f;
   --text-2: #6e6e73;
-  --accent: #b08d57; /* bisa diganti lewat config.json -> colors.accent */
+  --accent: #b08d57; /* can be changed in config.json -> colors.accent */
   --green: #34c759;
   --red: #ff3b30;
   --orange: #ff9f0a;
@@ -14,7 +14,7 @@
   --glass-strong: rgba(255, 255, 255, 0.72);
   --glass-line: rgba(255, 255, 255, 0.7);
   --glass-dark: rgba(28, 28, 30, 0.42);
-  --fill: rgba(120, 120, 128, 0.12); /* latar kolom isian & grup */
+  --fill: rgba(120, 120, 128, 0.12); /* background of input fields & groups */
   --hair: rgba(60, 60, 67, 0.14);
   --blur: blur(30px) saturate(180%);
   --font:
@@ -52,7 +52,7 @@ svg.i {
   stroke-linejoin: round;
 }
 
-/* ============ Latar: cahaya lembut di belakang kaca ============ */
+/* ============ Background: soft light behind the glass ============ */
 .atmo {
   position: fixed;
   inset: 0;
@@ -95,7 +95,7 @@ svg.i {
   }
 }
 
-/* ============ Kamera ============ */
+/* ============ Camera ============ */
 #cam {
   position: absolute;
   inset: 0;
@@ -120,7 +120,7 @@ body.camOn .atmo {
   display: none;
 }
 
-/* ============ Halaman ============ */
+/* ============ Screens ============ */
 .screen {
   position: absolute;
   inset: 0;
@@ -146,7 +146,7 @@ body.camOn .atmo {
   width: 100%;
 }
 
-/* ============ Kaca ============ */
+/* ============ Glass ============ */
 .glass {
   background: var(--glass);
   -webkit-backdrop-filter: var(--blur);
@@ -188,7 +188,7 @@ p {
   letter-spacing: -0.01em;
 }
 
-/* ============ Tombol ============ */
+/* ============ Buttons ============ */
 .row {
   display: flex;
   gap: 16px;
@@ -271,7 +271,7 @@ body.camOn .btn.glassy {
   pointer-events: none;
 }
 
-/* chip kecil di pojok (gaya tombol kontrol di atas video) */
+/* small chip in the corner (like the control buttons over a video) */
 .chip {
   position: absolute;
   top: 22px;
@@ -300,7 +300,7 @@ body.camOn .btn.glassy {
   right: 22px;
 }
 
-/* ============ Halaman Start ============ */
+/* ============ Start screen ============ */
 #btnStart {
   position: relative;
   width: min(46vh, 380px);
@@ -346,7 +346,7 @@ body.camOn .btn.glassy {
   transform: scale(0.96);
 }
 
-/* ============ Rekaman & quiz ============ */
+/* ============ Recording & quiz ============ */
 .rec {
   position: absolute;
   top: 22px;
@@ -460,7 +460,7 @@ body.camOn .btn.glassy {
   }
 }
 
-/* ============ Lembar (Admin / Tambah) gaya Settings ============ */
+/* ============ Sheets (Admin / couple form) in the Settings style ============ */
 .sheet {
   width: min(820px, 100%);
   max-height: 88vh;
@@ -673,7 +673,7 @@ select {
     0 0 0 5px var(--c);
 }
 
-/* baris menu yang membuka halaman lain (gaya Settings iOS) */
+/* menu row that opens another screen (iOS Settings style) */
 .nav-row {
   display: flex;
   align-items: center;
@@ -706,7 +706,7 @@ select {
   height: 18px;
 }
 
-/* sakelar gaya iOS */
+/* iOS-style switch */
 .switch {
   position: relative;
   width: 51px;
@@ -758,7 +758,7 @@ select {
   text-align: left;
 }
 
-/* ============ Menyimpan & Terima kasih ============ */
+/* ============ Saving & Thank you ============ */
 .spinner {
   width: 64px;
   height: 64px;
@@ -811,7 +811,7 @@ select {
   stroke-width: 2.6;
 }
 
-/* ============ Notifikasi gaya Dynamic Island ============ */
+/* ============ Dynamic Island-style notice ============ */
 #notice {
   display: none;
   position: absolute;
@@ -848,7 +848,7 @@ select {
   }
 }
 
-/* Tanpa dukungan blur: kaca dibuat lebih pekat supaya tetap terbaca */
+/* No blur support: the glass is made more solid so it stays readable */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass,
   .btn.glassy {
@@ -872,7 +872,7 @@ select {
   }
 }
 
-/* Daftar couple di Admin */
+/* Couple list in Admin */
 .cp-row {
   text-align: left;
 }
@@ -893,7 +893,7 @@ select {
   color: var(--text-2);
   font-weight: 400;
 }
-.cp-aktif {
+.cp-active {
   flex: none;
   font-style: normal;
   font-size: 13px;
@@ -903,11 +903,11 @@ select {
   padding: 3px 10px;
   border-radius: 10px;
 }
-#qInputs.mati {
+#qInputs.off {
   opacity: 0.5;
 }
 
-/* Kamera Sony: live view menggantikan video webcam */
+/* Sony camera: live view replaces the webcam video */
 #camLv {
   position: absolute;
   inset: 0;
@@ -949,29 +949,29 @@ body.sonyOn #camPrevLv {
   flex: none;
   background: var(--text-2);
 }
-.sony-dot.hijau {
+.sony-dot.green {
   background: var(--green);
 }
-.sony-dot.merah {
+.sony-dot.red {
   background: var(--red);
 }
-.sony-dot.kuning {
+.sony-dot.yellow {
   background: var(--orange);
 }
 
-/* Riwayat sesi */
-.rw-nav {
+/* Session history */
+.hist-nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.rw-nav b {
+.hist-nav b {
   font-weight: 500;
 }
-.rw-nav small {
+.hist-nav small {
   font-size: 14px;
 }
-.rw-badge {
+.hist-badge {
   font-style: normal;
   font-size: 14px;
   font-weight: 600;
@@ -980,29 +980,29 @@ body.sonyOn #camPrevLv {
   padding: 3px 10px;
   border-radius: 10px;
 }
-.rw-ringkas {
+.hist-summary {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin: 16px 0 4px;
 }
-.rw-ringkas div {
+.hist-summary div {
   background: rgba(255, 255, 255, 0.6);
   border-radius: 16px;
   padding: 12px;
   text-align: center;
 }
-.rw-ringkas b {
+.hist-summary b {
   display: block;
   font-size: 26px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.rw-ringkas span {
+.hist-summary span {
   font-size: 13px;
   color: var(--text-2);
 }
-.rw-banner {
+.hist-banner {
   display: block;
   width: 100%;
   margin: 12px 0 0;
@@ -1017,17 +1017,17 @@ body.sonyOn #camPrevLv {
   font-weight: 600;
   cursor: pointer;
 }
-.rw-banner.aktif {
+.hist-banner.active {
   background: var(--fill);
   color: var(--text);
 }
-.rw-chips {
+.hist-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 14px 0 4px;
 }
-.rw-chip {
+.hist-chip {
   border: 0;
   border-radius: 999px;
   padding: 8px 14px;
@@ -1038,11 +1038,11 @@ body.sonyOn #camPrevLv {
   color: var(--text);
   cursor: pointer;
 }
-.rw-chip.on {
+.hist-chip.on {
   background: var(--text);
   color: #fff;
 }
-.rw-row {
+.hist-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1055,13 +1055,13 @@ body.sonyOn #camPrevLv {
   color: inherit;
   cursor: pointer;
 }
-.rw-row:last-child {
+.hist-row:last-child {
   border-bottom: 0;
 }
-.rw-row.buka {
+.hist-row.open {
   background: var(--fill);
 }
-.rw-ikon {
+.hist-icon {
   width: 44px;
   height: 44px;
   flex: none;
@@ -1073,36 +1073,36 @@ body.sonyOn #camPrevLv {
   overflow: hidden;
   color: var(--text-2);
 }
-.rw-ikon img {
+.hist-icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.rw-teks {
+.hist-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.rw-teks b {
+.hist-text b {
   font-weight: 600;
 }
-.rw-teks small {
+.hist-text small {
   font-size: 14px;
   color: var(--text-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rw-tag {
+.hist-tag {
   font-size: 13px;
   color: var(--text-2);
 }
-.rw-tag:empty {
+.hist-tag:empty {
   display: none;
 }
-.rw-status {
+.hist-status {
   flex: none;
   font-style: normal;
   font-size: 13px;
@@ -1110,15 +1110,15 @@ body.sonyOn #camPrevLv {
   padding: 4px 10px;
   border-radius: 999px;
 }
-.rw-status.hijau {
+.hist-status.green {
   background: rgba(52, 199, 89, 0.16);
   color: #1e7b3a;
 }
-.rw-status.biru {
+.hist-status.blue {
   background: rgba(10, 132, 255, 0.14);
   color: #0a5cc2;
 }
-.rw-status.biru::before {
+.hist-status.blue::before {
   content: '';
   display: inline-block;
   width: 8px;
@@ -1130,44 +1130,44 @@ body.sonyOn #camPrevLv {
   vertical-align: -1px;
   animation: spin 1s linear infinite;
 }
-.rw-status.oranye {
+.hist-status.orange {
   background: rgba(255, 159, 10, 0.18);
   color: #8a5300;
 }
-.rw-status.merah {
+.hist-status.red {
   background: rgba(255, 59, 48, 0.14);
   color: #b3261e;
 }
-.rw-status.abu {
+.hist-status.gray {
   background: var(--fill);
   color: var(--text-2);
 }
-.rw-detail {
+.hist-detail {
   background: var(--fill);
   font-size: 15px;
   line-height: 1.45;
 }
-.rw-detail p {
+.hist-detail p {
   margin: 0 0 6px;
   font-size: 15px;
   line-height: 1.45;
   color: var(--text);
   max-width: none;
 }
-.rw-detail ol {
+.hist-detail ol {
   margin: 4px 0 8px 20px;
   padding: 0;
 }
-.rw-file {
+.hist-file {
   font-size: 13px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .rw-status.biru::before {
+  .hist-status.blue::before {
     animation: none;
   }
 }
 
-.rw-link {
+.hist-link {
   font-size: 13px;
   color: var(--text-2);
   word-break: break-all;
@@ -1175,7 +1175,7 @@ body.sonyOn #camPrevLv {
   -webkit-user-select: text;
   cursor: text;
 }
-.rw-qr-lapis {
+.hist-qr-overlay {
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -1184,7 +1184,7 @@ body.sonyOn #camPrevLv {
   align-items: center;
   justify-content: center;
 }
-.rw-qr-kartu {
+.hist-qr-card {
   background: #fff;
   border-radius: 24px;
   padding: 24px 28px;
@@ -1195,23 +1195,23 @@ body.sonyOn #camPrevLv {
   max-width: 90vw;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
-.rw-qr-kartu b {
+.hist-qr-card b {
   font-size: 18px;
   color: #1d1d1f;
 }
-.rw-qr-kartu canvas {
+.hist-qr-card canvas {
   width: 300px;
   height: 300px;
   image-rendering: pixelated;
 }
-.rw-qr-kartu small {
+.hist-qr-card small {
   font-size: 13px;
   color: #6e6e73;
   word-break: break-all;
   text-align: center;
 }
 
-/* Layar pembuka Pesan / Quiz / Photo booth: satu bar ringkas di bawah, kamera tetap lega */
+/* Intro of Message / Quiz / Photo booth: one compact bar at the bottom, the camera stays clear */
 .dock {
   display: flex;
   align-items: center;
@@ -1222,7 +1222,7 @@ body.sonyOn #camPrevLv {
   border-radius: 999px;
   text-align: left;
 }
-.dock-teks {
+.dock-text {
   flex: 1;
   min-width: 0;
 }
@@ -1251,8 +1251,8 @@ body.sonyOn #camPrevLv {
   }
 }
 
-/* Dialog konfirmasi (Tutup aplikasi) */
-.dialog-lapis {
+/* Confirmation dialog (Quit app) */
+.dialog-overlay {
   position: fixed;
   inset: 0;
   z-index: 200;
@@ -1262,7 +1262,7 @@ body.sonyOn #camPrevLv {
   justify-content: center;
   padding: 16px;
 }
-.dialog-kartu {
+.dialog-card {
   background: #fff;
   color: #1d1d1f;
   border-radius: 24px;
@@ -1274,37 +1274,37 @@ body.sonyOn #camPrevLv {
   flex-direction: column;
   gap: 10px;
 }
-.dialog-kartu p {
+.dialog-card p {
   margin: 0;
   font-size: 16px;
   color: #6e6e73;
 }
-.dialog-kartu ul {
+.dialog-card ul {
   margin: 0;
   padding-left: 20px;
   font-size: 15px;
   line-height: 1.45;
   color: #8a5300;
 }
-.dialog-kartu .spinner {
+.dialog-card .spinner {
   margin: 6px auto 4px;
 }
-.dialog-kartu:has(.spinner) {
+.dialog-card:has(.spinner) {
   text-align: center;
   align-items: center;
 }
-.dialog-aksi {
+.dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 8px;
 }
-.baris-aksi {
+.action-row {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-.baris-aksi > span {
+.action-row > span {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1312,33 +1312,33 @@ body.sonyOn #camPrevLv {
   gap: 2px;
   text-align: left;
 }
-.baris-aksi b {
+.action-row b {
   font-weight: 500;
 }
-.baris-aksi small {
+.action-row small {
   font-size: 14px;
   color: var(--text-2);
 }
 
-/* ============ Halaman nama tamu + keyboard layar ============ */
-#nama {
+/* ============ Guest name screen + on-screen keyboard ============ */
+#name {
   gap: 3vh;
   padding-top: 9vh;
 }
-.nama-kartu {
+.name-card {
   width: 100%;
   max-width: 760px;
   border-radius: var(--r-card);
   padding: 3.2vh 36px 3.6vh;
 }
-.nama-kartu h1 {
+.name-card h1 {
   font-size: clamp(30px, 4.6vh, 48px);
 }
-.nama-kartu p {
+.name-card p {
   font-size: clamp(15px, 2vh, 19px);
   margin-bottom: 2.4vh;
 }
-.nama-input {
+.name-input {
   width: 100%;
   height: clamp(64px, 9vh, 84px);
   border-radius: 20px;
@@ -1354,10 +1354,10 @@ body.sonyOn #camPrevLv {
   outline: none;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
 }
-.nama-input:focus {
+.name-input:focus {
   border-color: var(--accent);
 }
-.sapa {
+.greeting {
   margin: 0 0 0.6vh;
   font-size: clamp(17px, 2.2vh, 22px);
   font-weight: 600;
@@ -1381,12 +1381,12 @@ body.sonyOn #camPrevLv {
   -webkit-user-select: none;
   touch-action: manipulation;
 }
-.kb-baris {
+.kb-row {
   display: flex;
   gap: 10px;
   justify-content: center;
 }
-.kb-tombol {
+.kb-key {
   flex: 1 1 0;
   max-width: 92px;
   height: clamp(54px, 8.2vh, 78px);
@@ -1400,23 +1400,23 @@ body.sonyOn #camPrevLv {
     transform 0.08s,
     background 0.08s;
 }
-.kb-tombol.ditekan {
+.kb-key.pressed {
   transform: scale(0.94);
   background: #e5e5ea;
 }
-.kb-fungsi {
+.kb-func {
   flex: 1.5 1 0;
   max-width: 140px;
   background: rgba(209, 209, 214, 0.92);
   font-size: clamp(18px, 2.6vh, 24px);
   font-weight: 600;
 }
-.kb-fungsi.aktif {
+.kb-func.active {
   background: #fff;
   color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
 }
-.kb-spasi {
+.kb-space {
   flex: 6 1 0;
   max-width: none;
   font-size: clamp(16px, 2.2vh, 20px);
@@ -1434,23 +1434,23 @@ body.sonyOn #camPrevLv {
   opacity: 0.4;
 }
 @media (max-height: 700px) {
-  #nama {
+  #name {
     padding-top: 5vh;
     gap: 2vh;
   }
-  .nama-kartu p {
+  .name-card p {
     display: none;
   }
 }
 
-/* Catatan aplikasi (Admin) */
-.baris-aksi .btn.sm + .btn.sm {
+/* App log (Admin) */
+.action-row .btn.sm + .btn.sm {
   margin-left: -8px;
 }
-.catatan-kartu {
+.log-card {
   width: min(980px, 100%);
 }
-.catatan-isi {
+.log-text {
   margin: 4px 0 0;
   max-height: 58vh;
   overflow: auto;
@@ -1468,19 +1468,19 @@ body.sonyOn #camPrevLv {
   user-select: text;
   -webkit-user-select: text;
 }
-.rw-lagi {
+.hist-retry {
   display: block;
   margin: 14px auto 4px;
 }
 
-/* Kamera Sony berganti mode foto ↔ video: kabut lembut di gambar kamera saja (tombol tetap tajam) */
+/* Sony camera switching photo ↔ video mode: soft haze over the camera image only (buttons stay sharp) */
 #camLv {
   transition:
     filter 0.45s ease,
     opacity 0.45s ease,
     transform 0.45s ease;
 }
-body.lvGanti #camLv {
+body.lvSwitching #camLv {
   filter: blur(22px) saturate(0.85);
   opacity: 0.6;
   transform: scaleX(-1) scale(1.08);

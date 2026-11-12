@@ -45,7 +45,7 @@ function grabFrame() {
   const v = $('cam');
   const w = v.videoWidth,
     h = v.videoHeight;
-  if (!w || !h) throw new Error('Gambar kamera belum siap');
+  if (!w || !h) throw new Error('The camera image is not ready yet');
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -69,7 +69,7 @@ async function captureSony() {
     flashEl.classList.add('go');
   }
   const r = await capture;
-  if (!r || r.error) throw new Error((r && r.error) || 'Kamera Sony tidak mengirim foto');
+  if (!r || r.error) throw new Error((r && r.error) || 'The Sony camera did not send a photo');
   const bmp = await createImageBitmap(new Blob([r.bytes], { type: 'image/jpeg' }), {
     imageOrientation: 'from-image',
   });
@@ -120,14 +120,14 @@ async function preview(i, token) {
 async function countdown(token, large = false) {
   const el = $('pbCount');
   el.classList.remove('anim');
-  el.classList.toggle('kecil', !large);
+  el.classList.toggle('small', !large);
   el.style.display = 'block';
   for (let i = COUNTDOWN(); i >= 1; i--) {
     $('pbCountNum').textContent = i;
     // Shrink at 3 (if the countdown is only 3 seconds: after the first number)
-    if (large && i <= 3 && i < COUNTDOWN() && !el.classList.contains('kecil')) {
+    if (large && i <= 3 && i < COUNTDOWN() && !el.classList.contains('small')) {
       void el.offsetWidth;
-      el.classList.add('anim', 'kecil');
+      el.classList.add('anim', 'small');
     }
     await sleep(1000);
     if (token !== photoToken) {
@@ -167,7 +167,7 @@ function buildStrip() {
     const slot = document.createElement('div');
     slot.className = 'pb-slot';
     slot.innerHTML = `<div class="pb-thumb" id="pbThumb${i}"><span class="empty">${i + 1}</span></div>
-        <button class="pb-ulang" data-redo="${i}" aria-label="${t('pb.ulangiKe', { i: i + 1 })}"><svg class="i"><use href="#i-retry"/></svg>${t('pb.ulangi')}</button>`;
+        <button class="pb-retake" data-redo="${i}" aria-label="${t('pb.retakeNth', { i: i + 1 })}"><svg class="i"><use href="#i-retry"/></svg>${t('pb.retake')}</button>`;
     s.appendChild(slot);
   }
   s.querySelectorAll('[data-redo]').forEach(b => (b.onclick = () => shoot([Number(b.dataset.redo)])));
@@ -189,7 +189,7 @@ function renderSlot(i) {
     return;
   }
   el.classList.add('filled');
-  el.innerHTML = `<img alt="Foto ${i + 1}" src="${cropToRatio(photos[i], photoRatio(i), 480)}"><span class="n">${i + 1}</span>`;
+  el.innerHTML = `<img alt="Photo ${i + 1}" src="${cropToRatio(photos[i], photoRatio(i), 480)}"><span class="n">${i + 1}</span>`;
 }
 function markNext(i) {
   for (let k = 0; k < SHOTS; k++) $('pbThumb' + k).classList.toggle('next', k === i);
@@ -255,7 +255,7 @@ async function shoot(indices) {
   if (running) return;
   if (!needStream()) return;
   if (state.noCam && !usingSony()) {
-    setNotice('Photo booth butuh kamera. Sambungkan kamera lalu pilih di Admin.', 8000);
+    setNotice('The photo booth needs a camera. Connect a camera, then choose it in Admin.', 8000);
     return;
   }
   const token = ++photoToken;
@@ -267,7 +267,7 @@ async function shoot(indices) {
   try {
     for (const i of indices) {
       $('pbPillText').textContent =
-        indices.length === 1 ? t('pb.ulangiKe', { i: i + 1 }) : t('pb.ke', { i: i + 1, n: SHOTS });
+        indices.length === 1 ? t('pb.retakeNth', { i: i + 1 }) : t('pb.photoOf', { i: i + 1, n: SHOTS });
       markNext(i);
       updateSafeZone(i);
       const large = indices.length === SHOTS && i === indices[0]; // only the first countdown of a session
@@ -278,7 +278,7 @@ async function shoot(indices) {
     }
   } catch (err) {
     console.log('Photo booth failed: ' + err.message);
-    setNotice('Foto gagal diambil: ' + err.message, 10000);
+    setNotice('Could not take the photo: ' + err.message, 10000);
   } finally {
     if (token === photoToken) {
       state.busy = false;
@@ -294,7 +294,7 @@ function showDone() {
   $('pbStrip').classList.toggle('done', all);
   $('pbActions').style.display = all ? 'flex' : 'none';
   $('pbBack').style.display = '';
-  $('pbBackLabel').textContent = photos.some(Boolean) ? t('pb.batal') : t('pb.kembali');
+  $('pbBackLabel').textContent = photos.some(Boolean) ? t('pb.cancel') : t('pb.back');
   markNext(-1);
   updateSafeZone(-1);
 }
@@ -317,7 +317,7 @@ function openPhoto() {
   $('pbBottom').style.display = 'none';
   $('pbPill').style.display = 'none';
   $('pbBack').style.display = '';
-  $('pbBackLabel').textContent = t('pb.kembali');
+  $('pbBackLabel').textContent = t('pb.back');
   disarmCancel();
   show('photo');
 }
@@ -334,7 +334,7 @@ function backFromPhoto() {
   if (photos.some(Boolean)) {
     // photos already taken: press twice to cancel
     if (!cancelArmed) {
-      $('pbBackLabel').textContent = t('pb.yakin');
+      $('pbBackLabel').textContent = t('pb.confirmCancel');
       cancelArmed = setTimeout(() => {
         disarmCancel();
         showDone();
@@ -345,7 +345,7 @@ function backFromPhoto() {
   }
   photoToken++;
   photos.fill(null);
-  show('utama');
+  show('home');
 }
 
 /* =====================================================================
@@ -682,7 +682,7 @@ function buildPanel() {
   const fr = $('peFrames');
   fr.innerHTML = '';
   FRAMES().forEach(([bg], i) =>
-    option(fr, editor.frame === i, `<span class="pe-sw" style="background:${bg}"></span>`, t('bingkai.' + i), () => {
+    option(fr, editor.frame === i, `<span class="pe-sw" style="background:${bg}"></span>`, t('frame.' + i), () => {
       editor.frame = i;
       redraw();
       buildPanel();
@@ -822,7 +822,7 @@ function attachGestures(el, s) {
 function tweakSticker(fn) {
   const s = selected();
   if (!s) {
-    setNotice(t('pb.pilihStiker'), 4000);
+    setNotice(t('pb.pickSticker'), 4000);
     return;
   }
   fn(s);
@@ -883,7 +883,7 @@ const toBytes = (c, q) =>
   new Promise((res, rej) =>
     c.toBlob(
       async b => {
-        if (!b) return rej(new Error('Gagal membuat file JPG'));
+        if (!b) return rej(new Error('Could not create the JPG file'));
         res(new Uint8Array(await b.arrayBuffer()));
       },
       'image/jpeg',
@@ -904,7 +904,7 @@ async function finishEdit() {
   renderStrokes(ctx, lay);
   renderStickers(ctx, lay);
 
-  $('savingTitle').textContent = t('simpan.foto');
+  $('savingTitle').textContent = t('saving.photo');
   const bar = $('saveBar');
   bar.classList.remove('run');
   void bar.offsetWidth;
@@ -941,17 +941,17 @@ async function finishEdit() {
     err = e.message;
   });
   await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
-  $('savingTitle').textContent = t('simpan.rekaman');
+  $('savingTitle').textContent = t('saving.recording');
 
   setThanks(ok);
-  $('thanksMsg').textContent = ok ? t('tk.fotoOk') : t('tk.fotoGagal');
-  if (!ok) setNotice('Foto gagal disimpan: ' + (err || 'waktu habis'), 15000);
+  $('thanksMsg').textContent = ok ? t('thanks.photoOk') : t('thanks.photoFailed');
+  if (!ok) setNotice('Photos could not be saved: ' + (err || 'timed out'), 15000);
   const tp = $('thanksPhoto');
   if (ok) {
     tp.src = out.toDataURL('image/jpeg', 0.85);
     tp.style.display = 'block';
     $('thanksBadge').style.display = 'none';
-    $('thanks').classList.add('tk-foto');
+    $('thanks').classList.add('thanks-photo');
   }
   if (ok && link) showDownloadQr(link);
   photos.fill(null);

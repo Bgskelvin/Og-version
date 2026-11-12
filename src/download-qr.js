@@ -24,16 +24,16 @@ export function showDownloadQr(link, kind = 'photo') {
   const url = link + (language === 'en' ? '?b=en' : '');
   try {
     drawQr($('qrCanvas'), url, 8);
-    const [title, info] = $('thanksQR').querySelectorAll('b, small:not(.tk-link)');
-    if (title) title.textContent = t(kind === 'video' ? 'tk.qrVideo' : 'tk.qrFoto');
-    if (info) info.textContent = t(kind === 'video' ? 'tk.qrVideoInfo' : 'tk.qrFotoInfo');
+    const [title, info] = $('thanksQR').querySelectorAll('b, small:not(.thanks-link)');
+    if (title) title.textContent = t(kind === 'video' ? 'thanks.qrVideo' : 'thanks.qrPhoto');
+    if (info) info.textContent = t(kind === 'video' ? 'thanks.qrVideoInfo' : 'thanks.qrPhotoInfo');
     $('qrLink').textContent = url.replace(/^https:\/\//, '');
     $('thanksQR').style.display = '';
-    $('thanks').classList.add('tk-ada-qr');
+    $('thanks').classList.add('thanks-has-qr');
   } catch (e) {
     console.log('QR could not be created: ' + e.message);
     $('thanksQR').style.display = 'none';
-    $('thanks').classList.remove('tk-ada-qr');
+    $('thanks').classList.remove('thanks-has-qr');
   }
 }
 
@@ -47,16 +47,16 @@ function renderUploadStatus() {
     color = '';
   } else if (s.current && s.progress && s.progress.code === s.current) {
     text = `Sending video… part ${s.progress.n} of ${s.progress.total}${s.waitingVideos > 1 ? ` · ${s.waitingVideos} video(s) in queue` : ''}`;
-    color = 'kuning';
+    color = 'yellow';
   } else if (s.current) {
     text = `Sending… · ${s.waiting + (s.waitingVideos || 0)} in queue`;
-    color = 'kuning';
+    color = 'yellow';
   } else if (s.waiting) {
     text = `${s.waiting} photo(s) waiting to be sent${s.lastError ? ' · ' + s.lastError : ''}`;
-    color = s.lastError ? 'merah' : 'kuning';
+    color = s.lastError ? 'red' : 'yellow';
   } else if (s.waitingVideos && s.lastError && s.waitingVideos > (s.videosProcessing || 0)) {
     text = `All photos sent · ${s.waitingVideos} video(s) waiting · ${s.lastError}`;
-    color = 'merah';
+    color = 'red';
   } else {
     text =
       `On · all photos sent${s.sent ? ` (${s.sent} since the app opened)` : ''}${s.waitingSingles ? ` · ${s.waitingSingles} single shot(s) still uploading` : ''}` +
@@ -65,16 +65,16 @@ function renderUploadStatus() {
         : s.sentVideos
           ? ` · ${s.sentVideos} video(s) sent`
           : '');
-    color = s.waitingVideos ? 'kuning' : 'hijau';
+    color = s.waitingVideos ? 'yellow' : 'green';
   }
   if (s.enabled && !s.video) text += ' · Video QR is off';
   $('qrStatus').textContent = text;
   $('qrDot').className = 'sony-dot ' + color;
-  $('btnQrUlang').style.display =
+  $('btnQrRetry').style.display =
     (s.waiting || s.waitingVideos > (s.videosProcessing || 0)) && !s.current ? '' : 'none';
   if ($('setQrVideo')) {
     $('setQrVideo').disabled = !s.enabled;
-    $('setQrKualitas').disabled = !s.enabled || !s.video;
+    $('setQrQuality').disabled = !s.enabled || !s.video;
   }
 }
 export async function fillDownloadQrSettings() {
@@ -83,15 +83,15 @@ export async function fillDownloadQrSettings() {
   } catch {
     return; // no status (main process not ready): leave the fields as they are
   }
-  $('setQrAktif').checked = uploadStatus.enabled;
+  $('setQrEnabled').checked = uploadStatus.enabled;
   if ($('setQrVideo')) {
     $('setQrVideo').checked = uploadStatus.video !== false;
-    $('setQrKualitas').value = uploadStatus.videoQuality === '1080' ? '1080' : '720';
+    $('setQrQuality').value = uploadStatus.videoQuality === '1080' ? '1080' : '720';
   }
   $('setQrUrl').value = uploadStatus.url || '';
-  $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = uploadStatus.hasKey ? '•••••••• (saved)' : 'From npm run cloud:pasang';
-  $('btnQrPasang').style.display = uploadStatus.hasSetupResult ? '' : 'none';
+  $('setQrKey').value = '';
+  $('setQrKey').placeholder = uploadStatus.hasKey ? '•••••••• (saved)' : 'From npm run cloud:pasang';
+  $('btnQrSetup').style.display = uploadStatus.hasSetupResult ? '' : 'none';
   renderUploadStatus();
 }
 async function saveDownloadQr(patch, message) {
@@ -99,12 +99,12 @@ async function saveDownloadQr(patch, message) {
   uploadStatus = r;
   if (r.error) {
     flash('qrMsg', r.error, true);
-    $('setQrAktif').checked = r.enabled;
+    $('setQrEnabled').checked = r.enabled;
     if ($('setQrVideo')) $('setQrVideo').checked = r.video !== false;
     return false;
   }
-  $('setQrKunci').value = '';
-  $('setQrKunci').placeholder = r.hasKey ? '•••••••• (saved)' : '';
+  $('setQrKey').value = '';
+  $('setQrKey').placeholder = r.hasKey ? '•••••••• (saved)' : '';
   renderUploadStatus();
   if (message) flash('qrMsg', message);
   return true;
@@ -115,9 +115,9 @@ export function setupDownloadQr() {
   api.onUploadStatus(s => {
     uploadStatus = s;
     renderUploadStatus();
-    if (state.current === 'riwayat') refreshHistory();
+    if (state.current === 'history') refreshHistory();
   });
-  $('setQrAktif').onchange = e =>
+  $('setQrEnabled').onchange = e =>
     saveDownloadQr(
       { enabled: e.target.checked },
       e.target.checked ? 'QR is on: photo booth guests will see a QR code on the Thank you page.' : 'QR turned off.',
@@ -130,7 +130,7 @@ export function setupDownloadQr() {
           ? 'Video QR is on: guests who record a message or quiz get a QR for their video.'
           : 'Video QR turned off. Photos still get a QR.',
       );
-    $('setQrKualitas').onchange = e =>
+    $('setQrQuality').onchange = e =>
       saveDownloadQr(
         { videoQuality: e.target.value },
         e.target.value === '1080'
@@ -138,18 +138,18 @@ export function setupDownloadQr() {
           : 'Phone videos: 720p (lighter, uploads faster).',
       );
   }
-  $('btnQrSimpan').onclick = () => {
+  $('btnQrSave').onclick = () => {
     const patch = { url: $('setQrUrl').value };
-    if ($('setQrKunci').value.trim()) patch.key = $('setQrKunci').value;
+    if ($('setQrKey').value.trim()) patch.key = $('setQrKey').value;
     saveDownloadQr(patch, 'Server settings saved.');
   };
-  $('btnQrTes').onclick = async () => {
+  $('btnQrTest').onclick = async () => {
     $('qrMsg').textContent = 'Checking…';
     const r = await api.testUpload();
     if (r.error) flash('qrMsg', r.error, true);
     else flash('qrMsg', `Connected to the server. Photos are kept for ${r.days} days.`);
   };
-  $('btnQrPasang').onclick = async () => {
+  $('btnQrSetup').onclick = async () => {
     const h = await api.uploadSetupResult();
     if (h.error) return flash('qrMsg', h.error, true);
     $('setQrUrl').value = h.url;
@@ -161,7 +161,7 @@ export function setupDownloadQr() {
     )
       $('setQrUrl').value = h.url;
   };
-  $('btnQrUlang').onclick = async () => {
+  $('btnQrRetry').onclick = async () => {
     uploadStatus = await api.retryUploadNow();
     renderUploadStatus();
   };

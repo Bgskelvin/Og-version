@@ -1,9 +1,8 @@
 /* =====================================================================
    recording.js — video recording, countdown, the Saving screen,
    the Thank you page, and aborting when something fails.
-   Shared session state (rec, recT0, lastSave, busy, sessionToken, …) still
-   lives in state.js as globals until that file becomes a module.
-   Operator notices (setNotice) keep their current text for now.
+   Shared session state (rec, recT0, lastSave, busy, sessionToken, …) lives
+   in state.js.
    ===================================================================== */
 import { usingSony, sonyState } from './sony-camera.js';
 import { showDownloadQr } from './download-qr.js';
@@ -18,8 +17,8 @@ export async function startRecording(label) {
   await Promise.race([state.lastSave.catch(() => false), sleep(15000)]);
   const sony = usingSony();
   const r = await api.recStart(label, { sony, guest: state.guestName });
-  if (!r || r.error) throw new Error((r && r.error) || 'Gagal memulai rekaman');
-  if (r.fallback) setNotice('Folder pilihan tidak tersedia, rekaman disimpan di folder default', 8000);
+  if (!r || r.error) throw new Error((r && r.error) || 'Could not start the recording');
+  if (r.fallback) setNotice('The chosen folder is not available, the recording is saved in the default folder', 8000);
   const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
   if (sony) {
     state.rec = cur;
@@ -44,7 +43,8 @@ export async function startRecording(label) {
       .catch(err => console.log('Recording chunk could not be sent: ' + err.message));
   };
   cur.recorder.onerror = () => {
-    if (state.rec === cur) abortSession('Perekaman berhenti karena kamera/mic bermasalah. Cek perangkat di Admin.');
+    if (state.rec === cur)
+      abortSession('Recording stopped because of a camera/mic problem. Check the devices in Admin.');
   };
   cur.recorder.start(1000);
   state.rec = cur;
@@ -67,9 +67,9 @@ function stopRecording(meta) {
         const res = await api.recEnd(cur.id, seconds, info);
         ok = !!(res && res.ok);
         if (ok && res.link && !info.aborted) lastVideoQrLink = res.link;
-        if (res && !res.ok) setNotice('Rekaman terakhir gagal disimpan: ' + res.error, 15000);
+        if (res && !res.ok) setNotice('The last recording could not be saved: ' + res.error, 15000);
       } catch (err) {
-        setNotice('Rekaman terakhir gagal disimpan: ' + err.message, 15000);
+        setNotice('The last recording could not be saved: ' + err.message, 15000);
       }
       resolve(ok);
     };
@@ -102,8 +102,8 @@ export function setThanks(result) {
   const ok = result === true,
     slow = result === 'slow';
   // The photo preview is only for the photo booth; photobooth.js shows it after calling this
-  $('thanks').classList.remove('tk-foto', 'tk-ada-qr');
-  $('thanksNama').textContent = state.guestName || '';
+  $('thanks').classList.remove('thanks-photo', 'thanks-has-qr');
+  $('thanksName').textContent = state.guestName || '';
   $('thanksPhoto').style.display = 'none';
   $('thanksQR').style.display = 'none';
   $('thanksBadge').style.display = '';
@@ -112,7 +112,7 @@ export function setThanks(result) {
     ok || slow
       ? '<svg class="i"><use href="#i-check"/></svg>'
       : '<span style="font-size:52px;font-weight:700">!</span>';
-  $('thanksMsg').textContent = ok ? t('tk.ok') : slow ? t('tk.lambat') : t('tk.gagal');
+  $('thanksMsg').textContent = ok ? t('thanks.ok') : slow ? t('thanks.slow') : t('thanks.failed');
 }
 export async function finishSession(meta) {
   if (finishing) return; // prevents Finish being pressed twice
@@ -124,7 +124,7 @@ export async function finishSession(meta) {
   bar.classList.remove('run');
   void bar.offsetWidth;
   bar.classList.add('run');
-  $('savingTitle').textContent = t('simpan.rekaman');
+  $('savingTitle').textContent = t('saving.recording');
   show('saving');
   const saved = stopRecording(meta);
   // 15 s upper limit so the screen never gets stuck; saving carries on in the background
@@ -149,17 +149,17 @@ export async function abortSession(msg) {
   const saving = stopRecording({ aborted: true });
   state.busy = false;
   setNotice(msg, 15000);
-  show('utama');
+  show('home');
   await saving;
 }
 export function needStream() {
   if (usingSony()) {
     if (sonyState.connected) return true;
-    setNotice('Kamera Sony belum tersambung. Cek kabel USB & kamera, atau lihat di Admin.', 8000);
+    setNotice('The Sony camera is not connected. Check the USB cable & camera, or look in Admin.', 8000);
     return false;
   }
   if (state.mediaStream) return true;
-  setNotice('Tidak ada kamera/mic. Atur di halaman Admin.', 8000);
+  setNotice('No camera/mic. Set it up in Admin.', 8000);
   return false;
 }
 
@@ -168,7 +168,7 @@ export function setupRecording() {
   // Saving failed mid-recording (disk full / SSD unplugged)
   api.onRecError((id, msg) => {
     if (state.rec && state.rec.id === id)
-      abortSession('Rekaman gagal disimpan: ' + msg + '. Cek ruang disk / folder penyimpanan di Admin.');
-    else setNotice('Rekaman gagal disimpan: ' + msg, 15000);
+      abortSession('The recording could not be saved: ' + msg + '. Check the disk space / storage folder in Admin.');
+    else setNotice('The recording could not be saved: ' + msg, 15000);
   });
 }

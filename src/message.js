@@ -1,7 +1,7 @@
 /* =====================================================================
    message.js — "Send a message" page (guest records a video message)
-   Shared session state (cfg, busy, sessionToken, recTick, pesanLimit) still
-   lives in state.js as globals until that file becomes a module.
+   Shared session state (cfg, busy, sessionToken, recTick, messageLimit) lives
+   in state.js.
    ===================================================================== */
 import { usingSony } from './sony-camera.js';
 import { startRecording, countdown, finishSession, abortSession, needStream } from './recording.js';
@@ -9,16 +9,16 @@ import { $, fmt, state } from './state.js';
 import { resetIdle, show } from './app.js';
 
 function openMessage() {
-  $('pesanPre').style.display = 'flex';
-  $('pesanRec').style.display = 'none';
-  show('pesan');
+  $('messagePre').style.display = 'flex';
+  $('messageRec').style.display = 'none';
+  show('message');
 }
 async function startMessage() {
   if (state.busy || !needStream()) return;
   state.busy = true;
   resetIdle();
   const token = ++state.sessionToken;
-  $('pesanPre').style.display = 'none';
+  $('messagePre').style.display = 'none';
   try {
     // A Sony camera needs ±0.5–1 s before it really records: start recording at the START of the countdown,
     // so the guest's first sentence isn't cut off. A webcam records immediately, so start after the countdown.
@@ -36,10 +36,10 @@ async function startMessage() {
     const limit = state.cfg.messageMaxSeconds;
     const showTime = () => {
       const s = Math.floor((Date.now() - t0) / 1000);
-      $('pesanTime').textContent = limit > 0 ? `${fmt(Math.min(s, limit))} / ${fmt(limit)}` : fmt(s);
+      $('messageTime').textContent = limit > 0 ? `${fmt(Math.min(s, limit))} / ${fmt(limit)}` : fmt(s);
     };
     showTime();
-    $('pesanRec').style.display = 'flex';
+    $('messageRec').style.display = 'flex';
     state.recTick = setInterval(showTime, 250);
     if (limit > 0)
       state.messageLimit = setTimeout(() => {
@@ -47,14 +47,14 @@ async function startMessage() {
       }, limit * 1000);
   } catch (err) {
     console.log('Message could not start: ' + err.message);
-    if (token === state.sessionToken) abortSession('Gagal memulai rekaman: ' + err.message);
+    if (token === state.sessionToken) abortSession('Could not start the recording: ' + err.message);
   }
 }
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupMessage() {
-  $('btnToPesan').onclick = openMessage;
-  $('btnPesanBack').onclick = () => show('utama');
-  $('btnPesanMulai').onclick = startMessage;
+  $('btnToMessage').onclick = openMessage;
+  $('btnMessageBack').onclick = () => show('home');
+  $('btnMessageStart').onclick = startMessage;
   $('btnFinish').onclick = () => finishSession();
 }

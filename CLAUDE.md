@@ -77,7 +77,7 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
 - Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.
 - Ganti nama fungsi/file → perbarui juga `src/debug-handle.js`, `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
-- Nama `api.*`, saluran IPC dan field data dari proses utama sudah bahasa Inggris. Yang belum: id/kelas di HTML/CSS, nama layar (`utama`, `pesan`, `nama`, …), kunci kamus `src/language.js`, dan teks pemberitahuan operator (`setNotice`) — langkah berikutnya.
+- Semua nama tampilan bahasa Inggris (v1.3.1): `api.*`, IPC, field data, id/kelas HTML/CSS, nama layar (`start`, `name`, `home`, `message`, `quiz`, `coupleForm`, `history`, …), kunci kamus `src/language.js` (`thanks.ok`, `home.message`, …) dan teks pemberitahuan operator. Teks tamu bahasa Indonesia tetap di HTML (atribut `data-t`) dan di `DICTIONARY.id`. Kode demo (`demo/`) masih memakai nama Indonesia.
 - Uji di `tests/uji-utama.js` memeriksa: setiap `import` punya `export` yang cocok, dan setiap file `src/*.js` benar-benar dimuat (file yang tidak dipakai lagi harus dihapus).
 
 ## Uji
@@ -89,9 +89,8 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 
 ## Status (12 Nov 2026)
 
-- `main` = v1.1.3: `src/` ES module + bahasa Inggris (v1.1.1), `main/` bahasa Inggris (v1.1.2), nama `api.*`/IPC bahasa Inggris (v1.1.3). Leura.app 1.1.0 terpasang di Applications. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- `refactor/main-english-data` (v1.2.0): nama data tersimpan bahasa Inggris + `main/migrate.js` (data lama diubah otomatis, cadangan disimpan). Setelah 1.2.0 dibuka, jangan kembali ke Leura.app lama tanpa memulihkan cadangan.
-- `feature/disk-space` (v1.3.0): sisa disk folder penyimpanan di Admin → Storage, pemberitahuan operator (< 20 GB, < 5 GB), sesi baru ditolak di bawah 1 GB (`main/disk-space.js`, `src/disk-space.js`).
-- Berikutnya: bahasa Inggris untuk tampilan (id/kelas HTML/CSS, nama layar, kunci kamus, teks pemberitahuan operator).
-- Sesudahnya: `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
+- `main` = v1.3.0: `src/`/`main/`/IPC/data bahasa Inggris (v1.1.1–v1.2.0, `main/migrate.js` mengubah data lama otomatis), sisa disk folder penyimpanan (v1.3.0, `main/disk-space.js`, `src/disk-space.js`). Leura.app 1.1.0 masih terpasang di Applications — setelah 1.2.0+ dibuka, jangan kembali ke Leura.app lama tanpa memulihkan cadangan. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
+- `refactor/ui-english` (v1.3.1): nama tampilan bahasa Inggris (id/kelas, nama layar, kunci kamus, pemberitahuan operator, `styles/base.css`).
+- Berikutnya: buat ulang Leura.app (`npm run build:mac`) dari `main`.
+- Nanti (didiskusikan dulu dengan Gusvin): `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
 - Sebelum acara pertama: `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

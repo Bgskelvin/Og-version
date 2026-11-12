@@ -32,18 +32,18 @@ export const store = {
 // Every page in index.html (div.screen) must be listed here.
 export const SCREENS = [
   'start',
-  'nama',
-  'utama',
-  'pesan',
+  'name',
+  'home',
+  'message',
   'quiz',
   'photo',
   'editphoto',
   'admin',
-  'riwayat',
+  'history',
   'setvideo',
   'setphoto',
   'tpleditor',
-  'tambah',
+  'coupleForm',
   'saving',
   'thanks',
 ];

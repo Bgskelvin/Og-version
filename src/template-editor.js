@@ -5,7 +5,7 @@
    Template data fields (name, size, ratio, backgroundColor, …) and the image
    keys 'background' / 'frame' (also te.background / te.frame, read as te[kind])
    are shared with the main process (main/template.js).
-   Tab and kind values ('desain', 'slot', 'teks', …) match data-* attributes in index.html.
+   Tab and kind values ('design', 'slot', 'text', …) match data-* attributes in index.html.
    ===================================================================== */
 import {
   setTemplateCoupleName,
@@ -50,7 +50,7 @@ export const te = {
   sel: { kind: 'slot', i: 0 },
   dirty: false,
   cancelArmed: null,
-  tab: 'desain',
+  tab: 'design',
   samplePhoto: null,
   filterList: [],
 };
@@ -65,7 +65,8 @@ export const clearTemplateCouple = () => {
 /* ---------------- Template list on the couple page ---------------- */
 export async function listCoupleTemplates(couple = templateCouple) {
   templateCouple = couple;
-  if (state.current === 'tambah' || state.current === 'tpleditor') setTemplateCoupleName(couple ? couple.name : null);
+  if (state.current === 'coupleForm' || state.current === 'tpleditor')
+    setTemplateCoupleName(couple ? couple.name : null);
   const box = $('tplList');
   box.innerHTML = '';
   const list = couple ? await api.listTemplates(couple.id) : [];
@@ -155,11 +156,11 @@ export async function openTemplateEditor(tpl) {
   if (te.tpl.filterStrength == null) te.tpl.filterStrength = 100;
   if (te.tpl.guestPicksFilter == null) te.tpl.guestPicksFilter = true;
   $('teTitle').textContent = (tpl ? 'Edit template' : 'New template') + ' · ' + templateCouple.name;
-  $('teNama').value = te.tpl.name;
-  $('teLatarStatus').textContent = te.background ? 'Image added' : 'None';
-  $('teBingkaiStatus').textContent = te.frame ? 'Frame added' : 'None';
+  $('teName').value = te.tpl.name;
+  $('teBgStatus').textContent = te.background ? 'Image added' : 'None';
+  $('teFrameStatus').textContent = te.frame ? 'Frame added' : 'None';
   show('tpleditor');
-  setEditorTab('desain');
+  setEditorTab('design');
   fillEditorPanel();
   fillFilterPanel();
   requestAnimationFrame(fitEditorCanvas);
@@ -212,7 +213,7 @@ function placeHandles() {
     te.tpl.texts.forEach((t, i) => {
       const el = document.createElement('div');
       el.className = 'te-text';
-      attachDrag(el, 'teks', i);
+      attachDrag(el, 'text', i);
       box.appendChild(el);
     });
     return placeHandles();
@@ -226,7 +227,7 @@ function placeHandles() {
     const el = texts[i],
       w = textWidth(t) + t.size * 0.4,
       h = t.size * 1.3;
-    el.classList.toggle('sel', te.sel.kind === 'teks' && te.sel.i === i);
+    el.classList.toggle('sel', te.sel.kind === 'text' && te.sel.i === i);
     Object.assign(el.style, {
       left: pct(t.x - w / 2, W),
       top: pct(t.y - h / 2, H),
@@ -246,14 +247,14 @@ function attachDrag(el, kind, i) {
   el.addEventListener('pointerdown', e => {
     e.stopPropagation();
     el.setPointerCapture(e.pointerId);
-    const obj = kind === 'teks' ? te.tpl.texts[i] : te.tpl.slots[i];
+    const obj = kind === 'text' ? te.tpl.texts[i] : te.tpl.slots[i];
     start = { x: e.clientX, y: e.clientY, obj: { ...obj } };
-    te.sel = { kind: kind === 'teks' ? 'teks' : 'slot', i };
+    te.sel = { kind: kind === 'text' ? 'text' : 'slot', i };
     fillEditorPanel();
     placeHandles();
     resetIdle();
-    if (kind !== 'teks') setEditorTab('foto');
-    else setEditorTab('teks');
+    if (kind !== 'text') setEditorTab('photo');
+    else setEditorTab('text');
   });
   el.addEventListener('pointermove', e => {
     if (!start) return;
@@ -356,11 +357,11 @@ async function fillFilterPanel() {
   }
   const exists = !!t.filter,
     k = t.filterStrength ?? 100;
-  $('teFilterAtur').style.display = exists ? '' : 'none';
-  $('teFilterHapus').style.display = exists ? '' : 'none';
-  $('teFilterKekuatan').value = k;
-  $('teFilterKekuatanNilai').textContent = k + '%';
-  $('teFilterTamu').checked = t.guestPicksFilter !== false;
+  $('teFilterManage').style.display = exists ? '' : 'none';
+  $('teFilterDelete').style.display = exists ? '' : 'none';
+  $('teFilterStrength').value = k;
+  $('teFilterStrengthValue').textContent = k + '%';
+  $('teFilterGuest').checked = t.guestPicksFilter !== false;
   $('teFilterInfo').textContent = !exists
     ? te.filterList.length
       ? 'This template has no filter yet. Pick one above.'
@@ -370,7 +371,7 @@ async function fillFilterPanel() {
         ? 'Guests can still choose another filter while editing.'
         : "Guests can't change it.");
   deleteFilterArmed = null;
-  $('teFilterHapus').lastChild.textContent = 'Delete this filter';
+  $('teFilterDelete').lastChild.textContent = 'Delete this filter';
   updateFilterSample();
 }
 function chooseTemplateFilter(id) {
@@ -395,11 +396,11 @@ async function deleteSelectedFilter() {
   if (deleteFilterArmed !== id) {
     // press twice: the filter is removed from ALL templates
     deleteFilterArmed = id;
-    $('teFilterHapus').lastChild.textContent = 'Sure? Removes it from every template';
+    $('teFilterDelete').lastChild.textContent = 'Sure? Removes it from every template';
     setTimeout(() => {
       if (deleteFilterArmed === id) {
         deleteFilterArmed = null;
-        $('teFilterHapus').lastChild.textContent = 'Delete this filter';
+        $('teFilterDelete').lastChild.textContent = 'Delete this filter';
       }
     }, 3000);
     return;
@@ -430,20 +431,20 @@ function markDirty() {
 function fillEditorPanel() {
   const t = te.tpl;
   // Size
-  const sizeInfo = $('teUkuran');
+  const sizeInfo = $('teSize');
   sizeInfo.innerHTML = '';
   for (const [key, u] of Object.entries(TEMPLATE_SIZES)) {
     const k = 54 / Math.max(u.W, u.H);
     optionButton(
       sizeInfo,
-      `<span class="te-kertas" style="width:${u.W * k}px;height:${u.H * k}px"></span>${u.name}`,
+      `<span class="te-paper" style="width:${u.W * k}px;height:${u.H * k}px"></span>${u.name}`,
       t.size === key,
       () => changeSize(key),
     );
   }
-  $('teUkuranInfo').textContent = `(${t.W}×${t.H} piksel)`;
+  $('teSizeInfo').textContent = `(${t.W}×${t.H} piksel)`;
   // Background color
-  const wl = $('teWarnaLatar');
+  const wl = $('teBgColor');
   wl.innerHTML = '';
   for (const w of BACKGROUND_COLORS) {
     const b = optionButton(
@@ -461,7 +462,7 @@ function fillEditorPanel() {
   }
   const cw = document.createElement('input');
   cw.type = 'color';
-  cw.className = 'te-warna';
+  cw.className = 'te-color';
   cw.value = t.backgroundColor;
   cw.oninput = e => {
     t.backgroundColor = e.target.value.toUpperCase();
@@ -471,7 +472,7 @@ function fillEditorPanel() {
   cw.onchange = () => fillEditorPanel();
   wl.appendChild(cw);
   // Photo ratio (required; photo boxes keep this ratio when resized)
-  const ra = $('teRasio');
+  const ra = $('teRatio');
   ra.innerHTML = '';
   for (const [key, value] of PHOTO_RATIOS) {
     const [w, h] = fitRatio(30, 30, value);
@@ -483,11 +484,11 @@ function fillEditorPanel() {
       'pe-opt te-rasio-opt',
     );
   }
-  $('teRasioInfo').textContent = !t.ratio
+  $('teRatioInfo').textContent = !t.ratio
     ? '⚠️ This template has no photo ratio yet. Pick one so guest photos fit their boxes.'
     : `All photos use a ${t.ratio} ratio. ${t.ratio === '3:2' ? 'Same as Sony camera photos, so nothing is cropped.' : 'Camera photos (3:2) will be cropped; guests see the safe area while shooting.'}`;
   // Quick arrangements
-  const su = $('teSusunan');
+  const su = $('teLayout');
   su.innerHTML = '';
   for (const [key, name] of ARRANGEMENTS) {
     const c = document.createElement('canvas'),
@@ -507,7 +508,7 @@ function fillEditorPanel() {
     b.insertAdjacentText('beforeend', name);
   }
   // Selected photo
-  const sp = $('teSlotPilih');
+  const sp = $('teSlotChoose');
   sp.innerHTML = '';
   t.slots.forEach((s, i) =>
     optionButton(
@@ -522,9 +523,9 @@ function fillEditorPanel() {
       'btn sm tint',
     ),
   );
-  $('teSudut').value = t.slots[0] ? t.slots[0].r : 8;
+  $('teRadius').value = t.slots[0] ? t.slots[0].r : 8;
   // Text
-  const tl = $('teTeksList');
+  const tl = $('teTextList');
   tl.innerHTML = '';
   if (!t.texts.length) {
     const k = document.createElement('div');
@@ -534,22 +535,22 @@ function fillEditorPanel() {
   }
   t.texts.forEach((x, i) => {
     const b = document.createElement('button');
-    b.className = 'item nav-row' + (te.sel.kind === 'teks' && te.sel.i === i ? ' te-aktif' : '');
+    b.className = 'item nav-row' + (te.sel.kind === 'text' && te.sel.i === i ? ' te-active' : '');
     b.innerHTML = '<span></span><svg class="i chev"><use href="#i-next"/></svg>';
     b.querySelector('span').textContent = x.text || '(empty)';
     b.onclick = () => {
-      te.sel = { kind: 'teks', i };
+      te.sel = { kind: 'text', i };
       fillEditorPanel();
       placeHandles();
     };
     tl.appendChild(b);
   });
-  const tx = te.sel.kind === 'teks' ? t.texts[te.sel.i] : null;
-  $('teTeksEdit').style.display = tx ? '' : 'none';
+  const tx = te.sel.kind === 'text' ? t.texts[te.sel.i] : null;
+  $('teTextEdit').style.display = tx ? '' : 'none';
   if (tx) {
-    if (document.activeElement !== $('teTeksIsi')) $('teTeksIsi').value = tx.text;
-    $('teTeksUkuran').value = tx.size;
-    const fo = $('teTeksFont');
+    if (document.activeElement !== $('teTextContent')) $('teTextContent').value = tx.text;
+    $('teTextSize').value = tx.size;
+    const fo = $('teTextFont');
     fo.innerHTML = '';
     for (const [key, name] of Object.entries(FONT_NAMES)) {
       const b = optionButton(
@@ -565,7 +566,7 @@ function fillEditorPanel() {
       b.textContent = name;
       b.style.fontFamily = TEMPLATE_FONTS[key];
     }
-    const wt = $('teTeksWarna');
+    const wt = $('teTextColor');
     wt.innerHTML = '';
     const items = [
       ...new Set([
@@ -589,7 +590,7 @@ function fillEditorPanel() {
     }
     const ci = document.createElement('input');
     ci.type = 'color';
-    ci.className = 'te-warna';
+    ci.className = 'te-color';
     ci.value = tx.color;
     ci.oninput = e => {
       tx.color = e.target.value.toUpperCase();
@@ -598,8 +599,8 @@ function fillEditorPanel() {
     };
     ci.onchange = () => fillEditorPanel();
     wt.appendChild(ci);
-    $('teTeksTebal').classList.toggle('primary', !!tx.bold);
-    $('teTeksTebal').classList.toggle('tint', !tx.bold);
+    $('teTextBold').classList.toggle('primary', !!tx.bold);
+    $('teTextBold').classList.toggle('tint', !tx.bold);
   }
 }
 // Change ratio: every photo box is adjusted (center & area stay the same)
@@ -653,7 +654,7 @@ async function chooseImage(file, kind) {
   if (file.size > 25 * 1024 * 1024) return flash('teMsg', 'The image is too large (max 25 MB).', true);
   te.images[kind] = new Uint8Array(await file.arrayBuffer());
   te[kind] = await loadImage(URL.createObjectURL(file));
-  $(kind === 'background' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = file.name;
+  $(kind === 'background' ? 'teBgStatus' : 'teFrameStatus').textContent = file.name;
   const img = te[kind];
   if (img && Math.abs(img.naturalWidth / img.naturalHeight - te.tpl.W / te.tpl.H) > 0.02)
     flash(
@@ -667,7 +668,7 @@ async function chooseImage(file, kind) {
 function removeTemplateImage(kind) {
   te.images[kind] = null;
   te[kind] = null;
-  $(kind === 'background' ? 'teLatarStatus' : 'teBingkaiStatus').textContent = 'None';
+  $(kind === 'background' ? 'teBgStatus' : 'teFrameStatus').textContent = 'None';
   te.dirty = true;
   drawEditor();
 }
@@ -675,63 +676,63 @@ function removeTemplateImage(kind) {
 /* ---------------- Save / cancel ---------------- */
 async function saveTemplateEdits() {
   if (!te.tpl.ratio) {
-    setEditorTab('foto');
+    setEditorTab('photo');
     return flash('teMsg', 'Choose a photo ratio first (Photo layout tab).', true);
   }
-  te.tpl.name = $('teNama').value.trim() || 'Template ' + new Date().toLocaleDateString('en-GB');
+  te.tpl.name = $('teName').value.trim() || 'Template ' + new Date().toLocaleDateString('en-GB');
   const r = await api.saveTemplate(te.tpl, te.images);
   if (r.error) return flash('teMsg', r.error, true);
   te.dirty = false;
-  show('tambah');
+  show('coupleForm');
   await listCoupleTemplates();
   flash('tplMsg', `Template "${r.template.name}" saved.`);
 }
 function disarmCancel() {
   clearTimeout(te.cancelArmed);
   te.cancelArmed = null;
-  $('teBatal').textContent = 'Cancel';
+  $('teCancel').textContent = 'Cancel';
 }
 function cancelEditor() {
   if (te.dirty && !te.cancelArmed) {
     // unsaved changes: press twice
-    $('teBatal').textContent = 'Buang perubahan?';
+    $('teCancel').textContent = 'Buang perubahan?';
     te.cancelArmed = setTimeout(disarmCancel, 3000);
     return;
   }
   disarmCancel();
   te.tpl = null;
-  show('tambah');
+  show('coupleForm');
 }
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupTemplateEditor() {
   $('btnTplNew').onclick = () => openTemplateEditor(null);
-  $('teBatal').onclick = cancelEditor;
-  $('teSimpan').onclick = saveTemplateEdits;
+  $('teCancel').onclick = cancelEditor;
+  $('teSave').onclick = saveTemplateEdits;
   document.querySelectorAll('.te-tab').forEach(t => (t.onclick = () => setEditorTab(t.dataset.tab)));
-  $('teNama').oninput = () => {
+  $('teName').oninput = () => {
     te.dirty = true;
   };
-  $('teLatarPilih').onclick = () => $('teLatarFile').click();
-  $('teBingkaiPilih').onclick = () => $('teBingkaiFile').click();
-  $('teLatarFile').onchange = e => {
+  $('teBgChoose').onclick = () => $('teBgFile').click();
+  $('teFrameChoose').onclick = () => $('teFrameFile').click();
+  $('teBgFile').onchange = e => {
     chooseImage(e.target.files[0], 'background');
     e.target.value = '';
   };
-  $('teBingkaiFile').onchange = e => {
+  $('teFrameFile').onchange = e => {
     chooseImage(e.target.files[0], 'frame');
     e.target.value = '';
   };
-  $('teLatarHapus').onclick = () => removeTemplateImage('background');
-  $('teBingkaiHapus').onclick = () => removeTemplateImage('frame');
-  $('teSudut').oninput = e => {
+  $('teBgDelete').onclick = () => removeTemplateImage('background');
+  $('teFrameDelete').onclick = () => removeTemplateImage('frame');
+  $('teRadius').oninput = e => {
     te.tpl.slots.forEach(s => {
       s.r = Number(e.target.value);
     });
     te.dirty = true;
     drawEditor();
   };
-  $('teSlotTukar').onclick = () => {
+  $('teSlotSwap').onclick = () => {
     const i = te.sel.kind === 'slot' ? te.sel.i : 0,
       j = (i + 1) % 4,
       s = te.tpl.slots;
@@ -740,7 +741,7 @@ export function setupTemplateEditor() {
     flash('teMsg', `Photos ${i + 1} and ${j + 1} swapped.`);
     markDirty();
   };
-  $('teTeksTambah').onclick = () => {
+  $('teTextAdd').onclick = () => {
     const { W, H } = te.tpl;
     te.tpl.texts.push({
       id: 't' + Date.now(),
@@ -752,64 +753,64 @@ export function setupTemplateEditor() {
       font: 'sans',
       bold: false,
     });
-    te.sel = { kind: 'teks', i: te.tpl.texts.length - 1 };
+    te.sel = { kind: 'text', i: te.tpl.texts.length - 1 };
     markDirty();
-    $('teTeksIsi').focus();
-    $('teTeksIsi').select();
+    $('teTextContent').focus();
+    $('teTextContent').select();
   };
-  const selectedText = () => (te.sel.kind === 'teks' ? te.tpl.texts[te.sel.i] : null);
-  $('teTeksIsi').oninput = e => {
+  const selectedText = () => (te.sel.kind === 'text' ? te.tpl.texts[te.sel.i] : null);
+  $('teTextContent').oninput = e => {
     const t = selectedText();
     if (!t) return;
     t.text = e.target.value;
     te.dirty = true;
     drawEditor();
-    const label = $('teTeksList').children[te.sel.i]; // update the name in the list without rebuilding the panel
+    const label = $('teTextList').children[te.sel.i]; // update the name in the list without rebuilding the panel
     if (label && label.querySelector('span')) label.querySelector('span').textContent = t.text || '(empty)';
   };
-  $('teTeksUkuran').oninput = e => {
+  $('teTextSize').oninput = e => {
     const t = selectedText();
     if (!t) return;
     t.size = Number(e.target.value);
     te.dirty = true;
     drawEditor();
   };
-  $('teTeksTebal').onclick = () => {
+  $('teTextBold').onclick = () => {
     const t = selectedText();
     if (t) {
       t.bold = !t.bold;
       markDirty();
     }
   };
-  $('teTeksTengah').onclick = () => {
+  $('teTextCenter').onclick = () => {
     const t = selectedText();
     if (t) {
       t.x = te.tpl.W / 2;
       markDirty();
     }
   };
-  $('teTeksHapus').onclick = () => {
-    if (te.sel.kind !== 'teks') return;
+  $('teTextDelete').onclick = () => {
+    if (te.sel.kind !== 'text') return;
     te.tpl.texts.splice(te.sel.i, 1);
     te.sel = { kind: 'slot', i: 0 };
     markDirty();
   };
-  $('teFilterTambah').onclick = () => $('teFilterFile').click();
+  $('teFilterAdd').onclick = () => $('teFilterFile').click();
   $('teFilterFile').onchange = e => {
     addFilter(e.target.files[0]);
     e.target.value = '';
   };
-  $('teFilterHapus').onclick = deleteSelectedFilter;
+  $('teFilterDelete').onclick = deleteSelectedFilter;
   let strengthTimer = null;
-  $('teFilterKekuatan').oninput = e => {
+  $('teFilterStrength').oninput = e => {
     te.tpl.filterStrength = Number(e.target.value);
     te.dirty = true;
-    $('teFilterKekuatanNilai').textContent = te.tpl.filterStrength + '%';
+    $('teFilterStrengthValue').textContent = te.tpl.filterStrength + '%';
     cancelAnimationFrame(strengthTimer);
     strengthTimer = requestAnimationFrame(updateFilterSample);
   };
-  $('teFilterKekuatan').onchange = () => fillFilterPanel();
-  $('teFilterTamu').onchange = e => {
+  $('teFilterStrength').onchange = () => fillFilterPanel();
+  $('teFilterGuest').onchange = e => {
     te.tpl.guestPicksFilter = e.target.checked;
     te.dirty = true;
     fillFilterPanel();

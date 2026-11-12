@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Pengaman: tampilan hanya boleh memuat skrip & gaya dari folder aplikasi sendiri -->
+    <!-- Security: the UI may only load scripts & styles from the app's own folder -->
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob: mediastream:; connect-src 'self' data: blob:; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <title>Videobooth</title>
-    <link rel="stylesheet" href="styles/dasar.css" />
+    <link rel="stylesheet" href="styles/base.css" />
     <link rel="stylesheet" href="styles/photobooth.css" />
   </head>
   <body>
-    <!-- Ikon garis (gaya SF Symbols) -->
+    <!-- Line icons (SF Symbols style) -->
     <svg width="0" height="0" style="position: absolute" aria-hidden="true">
       <symbol id="i-msg" viewBox="0 0 24 24">
         <path
@@ -110,101 +110,101 @@
       <div class="glass"><span id="countNum">3</span></div>
     </div>
 
-    <!-- 1. HALAMAN START -->
+    <!-- 1. START SCREEN (start) -->
     <div class="screen mid on" id="start">
       <button id="btnStart" class="glass">
-        <span class="t">Start</span><span class="s" data-t="start.sentuh">Sentuh untuk mulai</span>
+        <span class="t">Start</span><span class="s" data-t="start.touch">Sentuh untuk mulai</span>
       </button>
     </div>
 
-    <!-- 1b. HALAMAN NAMA TAMU (Admin → Tampilan → Tanya nama tamu) -->
-    <div class="screen mid" id="nama">
-      <button class="chip left" id="btnNamaBack" data-t="kembali">
+    <!-- 1b. GUEST NAME SCREEN (name) — Admin → Display → Ask guest name -->
+    <div class="screen mid" id="name">
+      <button class="chip left" id="btnNameBack" data-t="back">
         <svg class="i"><use href="#i-back" /></svg>Kembali
       </button>
-      <div class="nama-kartu glass">
-        <h1 data-t="nama.judul">Siapa namamu?</h1>
-        <p data-t="nama.info">Namamu disimpan bersama video dan fotomu untuk mempelai.</p>
-        <input id="namaInput" class="nama-input" type="text" aria-label="Nama" />
+      <div class="name-card glass">
+        <h1 data-t="name.title">Siapa namamu?</h1>
+        <p data-t="name.info">Namamu disimpan bersama video dan fotomu untuk mempelai.</p>
+        <input id="nameInput" class="name-input" type="text" aria-label="Nama" />
       </div>
-      <div id="namaKeyboard"></div>
+      <div id="nameKeyboard"></div>
     </div>
 
-    <!-- 2. HALAMAN UTAMA -->
-    <div class="screen" id="utama">
+    <!-- 2. MAIN MENU (home) -->
+    <div class="screen" id="home">
       <button class="chip right" id="btnAdminOpen">
         <svg class="i"><use href="#i-sliders" /></svg>Admin
       </button>
-      <div class="menu-utama glass">
-        <div class="mu-kepala">
-          <p id="sapaTamu" class="sapa" style="display: none"></p>
+      <div class="home-menu glass">
+        <div class="menu-head">
+          <p id="guestGreeting" class="greeting" style="display: none"></p>
           <h1 id="couple"></h1>
           <p id="welcome"></p>
         </div>
-        <div class="mu-pilihan">
-          <button id="btnToPesan" class="mu-tombol">
-            <span class="mu-ikon"
+        <div class="menu-options">
+          <button id="btnToMessage" class="menu-button">
+            <span class="menu-icon"
               ><svg class="i"><use href="#i-msg" /></svg
             ></span>
-            <b data-t="utama.pesan">Kirim pesan</b><small data-t="utama.pesanInfo">Rekam ucapan untuk mempelai</small>
+            <b data-t="home.message">Kirim pesan</b><small data-t="home.messageInfo">Rekam ucapan untuk mempelai</small>
           </button>
-          <button id="btnToQuiz" class="mu-tombol">
-            <span class="mu-ikon"
+          <button id="btnToQuiz" class="menu-button">
+            <span class="menu-icon"
               ><svg class="i"><use href="#i-spark" /></svg
             ></span>
-            <b data-t="utama.quiz">Quick quiz</b><small data-t="utama.quizInfo">Jawab pertanyaan seru</small>
+            <b data-t="home.quiz">Quick quiz</b><small data-t="home.quizInfo">Jawab pertanyaan seru</small>
           </button>
-          <button id="btnToPhoto" class="mu-tombol">
-            <span class="mu-ikon"
+          <button id="btnToPhoto" class="menu-button">
+            <span class="menu-icon"
               ><svg class="i"><use href="#i-camera" /></svg
             ></span>
-            <b data-t="utama.foto">Photo booth</b
-            ><small data-t="utama.fotoInfo">Ambil 4 foto, lalu hias hasilnya</small>
+            <b data-t="home.photo">Photo booth</b
+            ><small data-t="home.photoInfo">Ambil 4 foto, lalu hias hasilnya</small>
           </button>
         </div>
-        <!-- Muncul setelah tamu melakukan minimal satu kegiatan; kembali ke halaman Start untuk tamu berikutnya -->
-        <button id="btnSelesaiTamu" class="mu-selesai" data-t="selesai" style="display: none">Selesai</button>
+        <!-- Shown after the guest did at least one activity; back to Start for the next guest -->
+        <button id="btnGuestDone" class="menu-done" data-t="done" style="display: none">Selesai</button>
       </div>
     </div>
 
-    <!-- 3. HALAMAN PESAN -->
-    <div class="screen" id="pesan">
-      <div class="part" id="pesanPre">
-        <button class="chip left" id="btnPesanBack" data-t="kembali">
+    <!-- 3. MESSAGE SCREEN (message) -->
+    <div class="screen" id="message">
+      <div class="part" id="messagePre">
+        <button class="chip left" id="btnMessageBack" data-t="back">
           <svg class="i"><use href="#i-back" /></svg>Kembali
         </button>
         <div class="dock glass">
-          <div class="dock-teks">
-            <h2 data-t="pesan.judul">Kirim pesan</h2>
-            <p data-t="pesan.petunjuk">Tekan Mulai, sampaikan pesanmu, lalu tekan Selesai.</p>
+          <div class="dock-text">
+            <h2 data-t="message.title">Kirim pesan</h2>
+            <p data-t="message.hint">Tekan Mulai, sampaikan pesanmu, lalu tekan Selesai.</p>
           </div>
-          <button id="btnPesanMulai" class="btn primary" data-t="mulai">
+          <button id="btnMessageStart" class="btn primary" data-t="start">
             <svg class="i"><use href="#i-mic" /></svg>Mulai
           </button>
         </div>
       </div>
-      <div class="part" id="pesanRec" style="display: none">
-        <div class="rec"><span class="dot"></span><span id="pesanTime">0:00</span></div>
+      <div class="part" id="messageRec" style="display: none">
+        <div class="rec"><span class="dot"></span><span id="messageTime">0:00</span></div>
         <div class="row">
-          <button id="btnFinish" class="btn go" data-t="selesai">
+          <button id="btnFinish" class="btn go" data-t="done">
             <svg class="i"><use href="#i-check" /></svg>Selesai
           </button>
         </div>
       </div>
     </div>
 
-    <!-- 4. HALAMAN QUIZ -->
+    <!-- 4. QUIZ SCREEN (quiz) -->
     <div class="screen" id="quiz">
       <div class="part" id="quizPre">
-        <button class="chip left" id="btnQuizBack" data-t="kembali">
+        <button class="chip left" id="btnQuizBack" data-t="back">
           <svg class="i"><use href="#i-back" /></svg>Kembali
         </button>
         <div class="dock glass">
-          <div class="dock-teks">
+          <div class="dock-text">
             <h2>Quick quiz</h2>
             <p id="quizInfo"></p>
           </div>
-          <button id="btnQuizMulai" class="btn primary" data-t="quiz.mulai">
+          <button id="btnQuizStart" class="btn primary" data-t="quiz.start">
             <svg class="i"><use href="#i-shuffle" /></svg>Mulai quiz
           </button>
         </div>
@@ -220,7 +220,7 @@
       </div>
     </div>
 
-    <!-- 5. HALAMAN ADMIN -->
+    <!-- 5. ADMIN (admin) -->
     <div class="screen mid" id="admin">
       <div class="card glass" id="adminLogin">
         <h1 style="font-size: clamp(30px, 3.6vw, 42px)">Admin</h1>
@@ -263,10 +263,10 @@
 
           <div class="group-title">Sessions</div>
           <div class="group">
-            <button class="item nav-row" id="btnRiwayat">
+            <button class="item nav-row" id="btnHistory">
               <svg class="i"><use href="#i-video" /></svg>
-              <span class="rw-nav"><b>Session history</b><small class="muted" id="riwayatRingkas"></small></span>
-              <em class="rw-badge" id="riwayatBadge" style="display: none"></em
+              <span class="hist-nav"><b>Session history</b><small class="muted" id="historySummary"></small></span>
+              <em class="hist-badge" id="historyBadge" style="display: none"></em
               ><svg class="i chev"><use href="#i-next" /></svg>
             </button>
           </div>
@@ -274,7 +274,7 @@
           <div class="group">
             <div class="item split">
               <span>Source</span
-              ><select id="camSumber" aria-label="Camera source">
+              ><select id="camSource" aria-label="Camera source">
                 <option value="webcam">Webcam / phone</option>
                 <option value="sony">Sony (USB)</option>
                 <option value="sony-sim">Sony – simulation (no camera)</option>
@@ -293,9 +293,9 @@
               ><select id="micSel"></select>
             </div>
             <div class="item split sony-row" id="sonyRow" style="display: none">
-              <i class="sony-dot merah" id="sonyDot"></i
+              <i class="sony-dot red" id="sonyDot"></i
               ><span class="muted" id="sonyStatus" style="width: auto; flex: 1"></span>
-              <button class="btn sm tint" id="btnSonyUlang">Reconnect</button>
+              <button class="btn sm tint" id="btnSonyReconnect">Reconnect</button>
             </div>
           </div>
           <p class="pe-hint" style="margin: 8px 6px 0" id="camHint"></p>
@@ -337,14 +337,14 @@
             </div>
             <div class="item split">
               <span>Guest language</span
-              ><select id="setBahasa" aria-label="Guest screen language">
+              ><select id="setGuestLanguage" aria-label="Guest screen language">
                 <option value="en">English</option>
                 <option value="id">Bahasa Indonesia</option>
               </select>
             </div>
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">Ask the guest's name after Start</span>
-              <label class="switch"><input type="checkbox" id="setTanyaNama" /><i></i></label>
+              <label class="switch"><input type="checkbox" id="setAskName" /><i></i></label>
             </div>
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">Locked full screen (kiosk)</span>
@@ -383,7 +383,7 @@
 
           <div class="group-title">App</div>
           <div class="group">
-            <div class="item baris-aksi">
+            <div class="item action-row">
               <span
                 ><b>App log</b
                 ><small
@@ -391,10 +391,10 @@
                   to Claude.</small
                 ></span
               >
-              <button id="btnLihatCatatan" class="btn sm tint">View</button
-              ><button id="btnSimpanCatatan" class="btn sm tint">Save</button>
+              <button id="btnViewLog" class="btn sm tint">View</button
+              ><button id="btnSaveLog" class="btn sm tint">Save</button>
             </div>
-            <div class="item baris-aksi">
+            <div class="item action-row">
               <span
                 ><b>Lock Admin</b
                 ><small
@@ -402,31 +402,31 @@
                   operator.</small
                 ></span
               >
-              <button id="btnKunciAdmin" class="btn sm tint">Lock Admin</button>
+              <button id="btnLockAdmin" class="btn sm tint">Lock Admin</button>
             </div>
-            <div class="item baris-aksi">
+            <div class="item action-row">
               <span
                 ><b>Quit app</b
                 ><small>Disconnects the Sony camera cleanly first. Use this at the end of every event.</small></span
               >
-              <button id="btnTutupApp" class="btn sm tint danger">Quit app</button>
+              <button id="btnQuitApp" class="btn sm tint danger">Quit app</button>
             </div>
-            <div class="item baris-aksi">
-              <span><b>About Leura</b><small id="infoVersi">Version …</small></span>
-              <button id="btnLisensi" class="btn sm tint" style="display: none">Open-source licenses</button>
+            <div class="item action-row">
+              <span><b>About Leura</b><small id="infoVersion">Version …</small></span>
+              <button id="btnLicenses" class="btn sm tint" style="display: none">Open-source licenses</button>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 7. HALAMAN TAMBAH (tambah / edit couple) -->
-    <div class="screen mid" id="tambah">
+    <!-- 7. COUPLE FORM (coupleForm): add / edit a couple -->
+    <div class="screen mid" id="coupleForm">
       <div class="sheet glass">
         <div class="sheet-head">
-          <button id="btnTambahBatal" class="btn sm tint">Cancel</button>
-          <h2 id="tambahTitle">Add couple</h2>
-          <button id="btnTambahSimpan" class="btn sm primary">Save</button>
+          <button id="btnCoupleCancel" class="btn sm tint">Cancel</button>
+          <h2 id="coupleFormTitle">Add couple</h2>
+          <button id="btnCoupleSave" class="btn sm primary">Save</button>
         </div>
         <div class="sheet-body">
           <div class="group-title">Couple</div>
@@ -448,7 +448,7 @@
           <div class="group">
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">Send a message</span>
-              <label class="switch"><input type="checkbox" id="fMenuPesan" /><i></i></label>
+              <label class="switch"><input type="checkbox" id="fMenuMessage" /><i></i></label>
             </div>
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">Quick quiz</span>
@@ -465,12 +465,12 @@
           <div class="note err" id="fMenuMsg"></div>
           <div class="group-title">
             Quiz questions <span id="qCount" style="font-weight: 500"></span
-            ><span id="qWajib" style="font-weight: 500"></span>
+            ><span id="qRequired" style="font-weight: 500"></span>
           </div>
           <div class="group" id="qInputs"></div>
-          <div class="note err" id="tambahErr"></div>
+          <div class="note err" id="coupleFormErr"></div>
           <div class="group-title">Photo templates <span id="tplCouple" style="display: none"></span></div>
-          <div id="cpTplBaru" class="group">
+          <div id="cpTplNew" class="group">
             <div class="item muted">Save this couple first, then you can add photo templates here.</div>
           </div>
           <div id="cpTplBox">
@@ -486,7 +486,7 @@
             </p>
             <div class="note ok" id="tplMsg"></div>
           </div>
-          <div id="cpLainBox">
+          <div id="cpOtherBox">
             <div class="group-title">More</div>
             <div class="group">
               <div class="item actions">
@@ -506,46 +506,46 @@
       </div>
     </div>
 
-    <!-- HALAMAN MENYIMPAN (loading setelah pesan / quiz) -->
+    <!-- SAVING SCREEN (saving): after a message / quiz -->
     <div class="screen mid" id="saving">
       <div class="card glass" style="max-width: 560px">
         <div class="spinner"></div>
         <h1 id="savingTitle" style="font-size: clamp(26px, 3.4vw, 40px)">Menyimpan rekamanmu</h1>
-        <p data-t="simpan.tunggu">Mohon tunggu sebentar</p>
+        <p data-t="saving.wait">Mohon tunggu sebentar</p>
         <div id="saveBar"><div></div></div>
       </div>
     </div>
 
-    <!-- 6. HALAMAN THANK YOU -->
+    <!-- 6. THANK YOU SCREEN (thanks) -->
     <div class="screen mid" id="thanks">
-      <div class="tk-wrap">
-        <div class="tk-hasil"><img id="thanksPhoto" alt="Hasil foto" /></div>
-        <div class="tk-sisi">
+      <div class="thanks-wrap">
+        <div class="thanks-result"><img id="thanksPhoto" alt="Hasil foto" /></div>
+        <div class="thanks-side">
           <div class="badge" id="thanksBadge">
             <svg class="i"><use href="#i-check" /></svg>
           </div>
-          <h1 id="thanksJudul"><span data-t="tk.judul">Terima kasih</span><span id="thanksNama"></span></h1>
+          <h1 id="thanksTitle"><span data-t="thanks.title">Terima kasih</span><span id="thanksName"></span></h1>
           <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
-          <div class="tk-qr" id="thanksQR" style="display: none">
+          <div class="thanks-qr" id="thanksQR" style="display: none">
             <canvas id="qrCanvas" aria-label="Kode QR untuk mengunduh foto"></canvas>
-            <b data-t="tk.qr">Pindai untuk mengunduh fotomu</b>
-            <small data-t="tk.qrInfo">Foto tersedia selama 7 hari.</small>
-            <small class="tk-link" id="qrLink"></small>
+            <b data-t="thanks.qr">Pindai untuk mengunduh fotomu</b>
+            <small data-t="thanks.qrInfo">Foto tersedia selama 7 hari.</small>
+            <small class="thanks-link" id="qrLink"></small>
           </div>
-          <button id="btnCobaLagi" class="btn primary tk-menu" data-t="tk.menu">
+          <button id="btnBackToMenu" class="btn primary thanks-menu" data-t="thanks.menu">
             <svg class="i"><use href="#i-back" /></svg>Kembali ke menu
           </button>
         </div>
       </div>
     </div>
 
-    <!-- RIWAYAT SESI (dibuka dari Admin) -->
-    <div class="screen mid" id="riwayat">
+    <!-- SESSION HISTORY (history), opened from Admin -->
+    <div class="screen mid" id="history">
       <div class="sheet glass">
         <div class="sheet-head">
-          <button id="rwBack" class="btn sm tint">Admin</button>
+          <button id="histBack" class="btn sm tint">Admin</button>
           <h2>Session history</h2>
-          <button id="rwSegar" class="btn sm tint">
+          <button id="histRefresh" class="btn sm tint">
             <svg class="i"><use href="#i-retry" /></svg>Refresh
           </button>
         </div>
@@ -553,19 +553,19 @@
           <div class="group">
             <div class="item split">
               <span>Couple</span
-              ><select id="rwCouple" aria-label="Choose couple"></select>
+              ><select id="histCouple" aria-label="Choose couple"></select>
             </div>
           </div>
-          <div class="rw-ringkas" id="rwRingkas"></div>
-          <button class="rw-banner" id="rwBanner" style="display: none"></button>
-          <div class="rw-chips" id="rwJenis"></div>
-          <div class="note ok" id="rwMsg"></div>
-          <div id="rwList"></div>
+          <div class="hist-summary" id="histSummary"></div>
+          <button class="hist-banner" id="histBanner" style="display: none"></button>
+          <div class="hist-chips" id="histKind"></div>
+          <div class="note ok" id="histMsg"></div>
+          <div id="histList"></div>
         </div>
       </div>
     </div>
 
-    <!-- PENGATURAN VIDEOBOOTH (dibuka dari Admin) -->
+    <!-- VIDEO BOOTH SETTINGS (setvideo), opened from Admin -->
     <div class="screen mid" id="setvideo">
       <div class="sheet glass">
         <div class="sheet-head">
@@ -584,11 +584,11 @@
           <div class="group">
             <div class="item split">
               <span>Countdown</span
-              ><select id="setPesanCountdown" aria-label="Countdown before recording a message"></select>
+              ><select id="setMessageCountdown" aria-label="Countdown before recording a message"></select>
             </div>
             <div class="item split">
               <span>Time limit</span
-              ><select id="setPesanMax" aria-label="Message time limit"></select>
+              ><select id="setMessageMax" aria-label="Message time limit"></select>
             </div>
           </div>
           <p class="pe-hint" style="margin: 8px 6px 0">
@@ -611,7 +611,7 @@
       </div>
     </div>
 
-    <!-- PENGATURAN PHOTOBOOTH (dibuka dari Admin) -->
+    <!-- PHOTO BOOTH SETTINGS (setphoto), opened from Admin -->
     <div class="screen mid" id="setphoto">
       <div class="sheet glass">
         <div class="sheet-head">
@@ -653,7 +653,7 @@
           <div class="group">
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">Show a QR code on the Thank you page</span>
-              <label class="switch"><input type="checkbox" id="setQrAktif" /><i></i></label>
+              <label class="switch"><input type="checkbox" id="setQrEnabled" /><i></i></label>
             </div>
             <div class="item split" style="justify-content: space-between">
               <span style="width: auto">QR for video messages &amp; quiz</span>
@@ -661,7 +661,7 @@
             </div>
             <div class="item split">
               <span>Video quality for phones</span
-              ><select id="setQrKualitas" class="field" aria-label="Video quality for phones">
+              ><select id="setQrQuality" class="field" aria-label="Video quality for phones">
                 <option value="720">720p · lighter, uploads faster (recommended)</option>
                 <option value="1080">1080p · sharper, about 2× larger</option>
               </select>
@@ -671,16 +671,16 @@
               ><input id="setQrUrl" class="field" placeholder="https://leura-foto.xxx.workers.dev" autocomplete="off" />
             </div>
             <div class="item split">
-              <span>Booth key</span><input id="setQrKunci" class="field" type="password" autocomplete="off" />
+              <span>Booth key</span><input id="setQrKey" class="field" type="password" autocomplete="off" />
             </div>
             <div class="item actions">
-              <button id="btnQrSimpan" class="btn sm primary">Save</button>
-              <button id="btnQrTes" class="btn sm tint">Test connection</button>
-              <button id="btnQrPasang" class="btn sm tint">Load from setup</button>
+              <button id="btnQrSave" class="btn sm primary">Save</button>
+              <button id="btnQrTest" class="btn sm tint">Test connection</button>
+              <button id="btnQrSetup" class="btn sm tint">Load from setup</button>
             </div>
             <div class="item split sony-row">
               <i class="sony-dot" id="qrDot"></i><span class="muted" id="qrStatus" style="width: auto; flex: 1"></span>
-              <button id="btnQrUlang" class="btn sm tint" style="display: none">Send now</button>
+              <button id="btnQrRetry" class="btn sm tint" style="display: none">Send now</button>
             </div>
           </div>
           <p class="pe-hint" style="margin: 8px 6px 0">
@@ -702,7 +702,7 @@
       </div>
     </div>
 
-    <!-- EDITOR TEMPLATE DESAIN FOTO (Admin → Pengaturan photobooth) -->
+    <!-- PHOTO DESIGN TEMPLATE EDITOR (tpleditor) — Admin → Photo booth settings -->
     <div class="screen mid" id="tpleditor">
       <div class="pe-wrap">
         <div class="pe-stage glass" id="teStage">
@@ -713,18 +713,18 @@
         </div>
         <div class="sheet glass pe-panel">
           <div class="sheet-head">
-            <button id="teBatal" class="btn sm tint">Cancel</button>
+            <button id="teCancel" class="btn sm tint">Cancel</button>
             <h2 id="teTitle">New template</h2>
-            <button id="teSimpan" class="btn sm primary">Save</button>
+            <button id="teSave" class="btn sm primary">Save</button>
           </div>
           <div class="pe-tabs">
-            <button class="pe-tab te-tab on" data-tab="desain">
+            <button class="pe-tab te-tab on" data-tab="design">
               <svg class="i"><use href="#i-frame" /></svg>Design
             </button>
-            <button class="pe-tab te-tab" data-tab="foto">
+            <button class="pe-tab te-tab" data-tab="photo">
               <svg class="i"><use href="#i-layout" /></svg>Photo layout
             </button>
-            <button class="pe-tab te-tab" data-tab="teks">
+            <button class="pe-tab te-tab" data-tab="text">
               <svg class="i"><use href="#i-pen" /></svg>Text
             </button>
             <button class="pe-tab te-tab" data-tab="filter">
@@ -732,85 +732,85 @@
             </button>
           </div>
           <div class="sheet-body">
-            <div class="pe-pane te-pane on" data-pane="desain">
+            <div class="pe-pane te-pane on" data-pane="design">
               <div class="pe-sec">Template name</div>
               <div class="group">
                 <div class="item">
-                  <input id="teNama" class="field" maxlength="60" placeholder="e.g. Rustic gold" autocomplete="off" />
+                  <input id="teName" class="field" maxlength="60" placeholder="e.g. Rustic gold" autocomplete="off" />
                 </div>
               </div>
               <div class="pe-sec">Size</div>
-              <div class="pe-grid" id="teUkuran" style="grid-template-columns: repeat(2, 1fr)"></div>
+              <div class="pe-grid" id="teSize" style="grid-template-columns: repeat(2, 1fr)"></div>
               <div class="pe-sec">Background color</div>
-              <div class="pe-row" id="teWarnaLatar"></div>
-              <div class="pe-sec">Background image <span class="muted" id="teUkuranInfo"></span></div>
+              <div class="pe-row" id="teBgColor"></div>
+              <div class="pe-sec">Background image <span class="muted" id="teSizeInfo"></span></div>
               <div class="pe-row">
-                <button class="btn sm tint" id="teLatarPilih">
+                <button class="btn sm tint" id="teBgChoose">
                   <svg class="i"><use href="#i-folder" /></svg>Upload image
                 </button>
-                <button class="btn sm tint danger" id="teLatarHapus">Remove</button>
-                <span class="muted" id="teLatarStatus"></span>
+                <button class="btn sm tint danger" id="teBgDelete">Remove</button>
+                <span class="muted" id="teBgStatus"></span>
               </div>
               <div class="pe-sec">PNG frame (over the photos)</div>
               <div class="pe-row">
-                <button class="btn sm tint" id="teBingkaiPilih">
+                <button class="btn sm tint" id="teFrameChoose">
                   <svg class="i"><use href="#i-folder" /></svg>Upload PNG
                 </button>
-                <button class="btn sm tint danger" id="teBingkaiHapus">Remove</button>
-                <span class="muted" id="teBingkaiStatus"></span>
+                <button class="btn sm tint danger" id="teFrameDelete">Remove</button>
+                <span class="muted" id="teFrameStatus"></span>
               </div>
               <p class="pe-hint">
                 Make your design in Canva or Photoshop at the size above. The <b>background image</b> sits behind the
                 photos. The <b>frame</b> sits in front of them: leave the photo areas empty (transparent) and save it as
                 PNG.
               </p>
-              <input type="file" id="teLatarFile" accept="image/png,image/jpeg" hidden />
-              <input type="file" id="teBingkaiFile" accept="image/png" hidden />
+              <input type="file" id="teBgFile" accept="image/png,image/jpeg" hidden />
+              <input type="file" id="teFrameFile" accept="image/png" hidden />
             </div>
-            <div class="pe-pane te-pane" data-pane="foto">
+            <div class="pe-pane te-pane" data-pane="photo">
               <div class="pe-sec">Photo ratio</div>
-              <div class="pe-grid" id="teRasio" style="grid-template-columns: repeat(4, 1fr)"></div>
-              <p class="pe-hint" id="teRasioInfo" style="margin-top: 8px"></p>
+              <div class="pe-grid" id="teRatio" style="grid-template-columns: repeat(4, 1fr)"></div>
+              <p class="pe-hint" id="teRatioInfo" style="margin-top: 8px"></p>
               <div class="pe-sec">Quick layouts</div>
-              <div class="pe-grid" id="teSusunan" style="grid-template-columns: repeat(4, 1fr)"></div>
+              <div class="pe-grid" id="teLayout" style="grid-template-columns: repeat(4, 1fr)"></div>
               <div class="pe-sec">Selected photo</div>
-              <div class="pe-row" id="teSlotPilih"></div>
+              <div class="pe-row" id="teSlotChoose"></div>
               <div class="pe-row" style="margin-top: 10px">
-                <button class="btn sm tint" id="teSlotTukar">Swap with next photo</button>
+                <button class="btn sm tint" id="teSlotSwap">Swap with next photo</button>
               </div>
               <div class="pe-sec">Rounded corners</div>
-              <input type="range" id="teSudut" min="0" max="120" step="2" style="width: 100%" />
+              <input type="range" id="teRadius" min="0" max="120" step="2" style="width: 100%" />
               <p class="pe-hint">
                 Drag a photo box to move it. Drag the dot in its bottom-right corner to resize it; the ratio stays the
                 same. Boxes snap to the center and edges.
               </p>
             </div>
-            <div class="pe-pane te-pane" data-pane="teks">
+            <div class="pe-pane te-pane" data-pane="text">
               <div class="pe-row">
-                <button class="btn sm primary" id="teTeksTambah">
+                <button class="btn sm primary" id="teTextAdd">
                   <svg class="i"><use href="#i-plus" /></svg>Add text
                 </button>
               </div>
               <div class="pe-sec">Text items</div>
-              <div class="group" id="teTeksList"></div>
-              <div id="teTeksEdit">
+              <div class="group" id="teTextList"></div>
+              <div id="teTextEdit">
                 <div class="pe-sec">Text</div>
                 <div class="group">
-                  <div class="item"><input id="teTeksIsi" class="field" maxlength="120" autocomplete="off" /></div>
+                  <div class="item"><input id="teTextContent" class="field" maxlength="120" autocomplete="off" /></div>
                 </div>
                 <p class="pe-hint" style="margin-top: 6px">
                   Type <b>{couple}</b> for the couple's name and <b>{tanggal}</b> for today's date.
                 </p>
                 <div class="pe-sec">Font</div>
-                <div class="pe-row" id="teTeksFont"></div>
+                <div class="pe-row" id="teTextFont"></div>
                 <div class="pe-sec">Size</div>
-                <input type="range" id="teTeksUkuran" min="10" max="300" step="1" style="width: 100%" />
+                <input type="range" id="teTextSize" min="10" max="300" step="1" style="width: 100%" />
                 <div class="pe-sec">Color</div>
-                <div class="pe-row" id="teTeksWarna"></div>
+                <div class="pe-row" id="teTextColor"></div>
                 <div class="pe-row" style="margin-top: 14px">
-                  <button class="btn sm tint" id="teTeksTebal">Bold</button>
-                  <button class="btn sm tint" id="teTeksTengah">Center</button>
-                  <button class="btn sm tint danger" id="teTeksHapus">
+                  <button class="btn sm tint" id="teTextBold">Bold</button>
+                  <button class="btn sm tint" id="teTextCenter">Center</button>
+                  <button class="btn sm tint danger" id="teTextDelete">
                     <svg class="i"><use href="#i-trash" /></svg>Delete text
                   </button>
                 </div>
@@ -820,20 +820,20 @@
               <div class="pe-sec">Photo filter for this template</div>
               <div class="pe-grid" id="teFilter" style="grid-template-columns: repeat(3, 1fr)"></div>
               <div class="pe-row" style="margin-top: 10px">
-                <button class="btn sm tint" id="teFilterTambah">
+                <button class="btn sm tint" id="teFilterAdd">
                   <svg class="i"><use href="#i-plus" /></svg>Add filter (.cube)
                 </button>
-                <button class="btn sm tint danger" id="teFilterHapus">
+                <button class="btn sm tint danger" id="teFilterDelete">
                   <svg class="i"><use href="#i-trash" /></svg>Delete this filter
                 </button>
               </div>
-              <div id="teFilterAtur">
-                <div class="pe-sec">Strength <span class="muted" id="teFilterKekuatanNilai"></span></div>
-                <input type="range" id="teFilterKekuatan" min="0" max="100" step="5" style="width: 100%" />
+              <div id="teFilterManage">
+                <div class="pe-sec">Strength <span class="muted" id="teFilterStrengthValue"></span></div>
+                <input type="range" id="teFilterStrength" min="0" max="100" step="5" style="width: 100%" />
                 <div class="group" style="margin-top: 12px">
                   <div class="item split" style="justify-content: space-between">
                     <span style="width: auto">Guests may choose another filter</span>
-                    <label class="switch"><input type="checkbox" id="teFilterTamu" /><i></i></label>
+                    <label class="switch"><input type="checkbox" id="teFilterGuest" /><i></i></label>
                   </div>
                 </div>
               </div>
@@ -851,7 +851,7 @@
       </div>
     </div>
 
-    <!-- PHOTO BOOTH: halamanPhoto, halamanEditPhoto, hitung mundur & kilat -->
+    <!-- PHOTO BOOTH: photo & editphoto screens, countdown & flash -->
     <div class="screen" id="photo">
       <button class="chip left" id="pbBack">
         <svg class="i"><use href="#i-back" /></svg><span id="pbBackLabel">Kembali</span>
@@ -861,11 +861,11 @@
       </div>
       <div class="part" id="pbPre">
         <div class="dock glass">
-          <div class="dock-teks">
+          <div class="dock-text">
             <h2>Photo booth</h2>
             <p id="pbIntro"></p>
           </div>
-          <button id="pbStart" class="btn primary" data-t="mulai">
+          <button id="pbStart" class="btn primary" data-t="start">
             <svg class="i"><use href="#i-camera" /></svg>Mulai
           </button>
         </div>
@@ -873,7 +873,7 @@
       <div class="pb-bottom" id="pbBottom" style="display: none">
         <div class="pb-strip" id="pbStrip"></div>
         <div class="pb-actions" id="pbActions" style="display: none">
-          <button id="pbFinish" class="btn primary" data-t="pb.selesaiEdit">
+          <button id="pbFinish" class="btn primary" data-t="pb.finishEdit">
             Finish &amp; edit<svg class="i"><use href="#i-next" /></svg>
           </button>
         </div>
@@ -890,11 +890,11 @@
         </div>
         <div class="sheet glass pe-panel">
           <div class="sheet-head">
-            <button id="peBack" class="btn sm tint" data-t="pe.foto">
+            <button id="peBack" class="btn sm tint" data-t="pe.photos">
               <svg class="i"><use href="#i-back" /></svg>Foto
             </button>
-            <h2 data-t="pe.judul">Edit foto</h2>
-            <button id="peDone" class="btn sm primary" data-t="selesai">Selesai</button>
+            <h2 data-t="pe.title">Edit foto</h2>
+            <button id="peDone" class="btn sm primary" data-t="done">Selesai</button>
           </div>
           <div class="pe-tabs" id="peTabs">
             <button class="pe-tab on" data-tab="layout">
@@ -903,19 +903,19 @@
             <button class="pe-tab" data-tab="filter">
               <svg class="i"><use href="#i-drop" /></svg>Filter
             </button>
-            <button class="pe-tab" data-tab="frame" data-t="pe.tab.bingkai">
+            <button class="pe-tab" data-tab="frame" data-t="pe.tab.frame">
               <svg class="i"><use href="#i-frame" /></svg>Bingkai
             </button>
-            <button class="pe-tab" data-tab="sticker" data-t="pe.tab.stiker">
+            <button class="pe-tab" data-tab="sticker" data-t="pe.tab.stickers">
               <svg class="i"><use href="#i-smile" /></svg>Stiker
             </button>
-            <button class="pe-tab" data-tab="draw" data-t="pe.tab.coret">
+            <button class="pe-tab" data-tab="draw" data-t="pe.tab.draw">
               <svg class="i"><use href="#i-pen" /></svg>Coret
             </button>
           </div>
           <div class="sheet-body">
             <div class="pe-pane on" data-pane="layout">
-              <div class="pe-sec" data-t="pe.susunan">Susunan foto</div>
+              <div class="pe-sec" data-t="pe.layout">Susunan foto</div>
               <div class="pe-grid" id="peLayouts"></div>
             </div>
             <div class="pe-pane" data-pane="filter">
@@ -924,11 +924,11 @@
             </div>
             <div class="pe-pane" data-pane="frame">
               <div id="peFrameNormal">
-                <div class="pe-sec" data-t="pe.warnaBingkai">Warna bingkai</div>
+                <div class="pe-sec" data-t="pe.frameColor">Warna bingkai</div>
                 <div class="pe-grid" id="peFrames"></div>
                 <div class="group" style="margin-top: 16px">
                   <div class="item split" style="justify-content: space-between">
-                    <span style="width: auto" data-t="pe.namaTanggal">Nama couple &amp; tanggal</span>
+                    <span style="width: auto" data-t="pe.nameDate">Nama couple &amp; tanggal</span>
                     <label class="switch"><input type="checkbox" id="peShowText" checked /><i></i></label>
                   </div>
                 </div>
@@ -938,33 +938,33 @@
               </p>
             </div>
             <div class="pe-pane" data-pane="sticker">
-              <div class="pe-sec" data-t="pe.ketuk">Ketuk untuk menambahkan</div>
+              <div class="pe-sec" data-t="pe.tapToAdd">Ketuk untuk menambahkan</div>
               <div class="pe-grid" id="peStickerList" style="grid-template-columns: repeat(4, 1fr)"></div>
-              <div class="pe-sec" data-t="pe.stikerPilih">Stiker terpilih</div>
+              <div class="pe-sec" data-t="pe.selectedSticker">Stiker terpilih</div>
               <div class="pe-row">
-                <button class="btn sm tint" id="peStkSmaller" data-t="pe.perkecil">Perkecil</button>
-                <button class="btn sm tint" id="peStkBigger" data-t="pe.perbesar">Perbesar</button>
-                <button class="btn sm tint" id="peStkRotate" data-t="pe.putar">Putar</button>
-                <button class="btn sm tint danger" id="peStkDelete" data-t="hapus">
+                <button class="btn sm tint" id="peStkSmaller" data-t="pe.smaller">Perkecil</button>
+                <button class="btn sm tint" id="peStkBigger" data-t="pe.bigger">Perbesar</button>
+                <button class="btn sm tint" id="peStkRotate" data-t="pe.rotate">Putar</button>
+                <button class="btn sm tint danger" id="peStkDelete" data-t="delete">
                   <svg class="i"><use href="#i-trash" /></svg>Hapus
                 </button>
               </div>
-              <p class="pe-hint" data-t="pe.hintStiker">
+              <p class="pe-hint" data-t="pe.hintSticker">
                 Geser stiker dengan jari. Pakai dua jari untuk memperbesar dan memutar.
               </p>
             </div>
             <div class="pe-pane" data-pane="draw">
-              <div class="pe-sec" data-t="pe.warna">Warna</div>
+              <div class="pe-sec" data-t="pe.color">Warna</div>
               <div class="pe-row" id="peColors"></div>
-              <div class="pe-sec" data-t="pe.ukuran">Ukuran</div>
+              <div class="pe-sec" data-t="pe.size">Ukuran</div>
               <div class="pe-row" id="peSizes"></div>
               <div class="pe-row" style="margin-top: 16px">
-                <button class="btn sm tint" id="peUndo" data-t="pe.urungkan">
+                <button class="btn sm tint" id="peUndo" data-t="pe.undo">
                   <svg class="i"><use href="#i-undo" /></svg>Urungkan
                 </button>
-                <button class="btn sm tint danger" id="peClear" data-t="pe.hapusSemua">Hapus semua</button>
+                <button class="btn sm tint danger" id="peClear" data-t="pe.clearAll">Hapus semua</button>
               </div>
-              <p class="pe-hint" data-t="pe.hintCoret">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
+              <p class="pe-hint" data-t="pe.hintDraw">Tulis ucapan atau tanda tangan langsung di foto dengan jari.</p>
             </div>
           </div>
         </div>

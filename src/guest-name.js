@@ -16,29 +16,29 @@ let nameKeyboard = null;
 export function startGuest() {
   if (diskIsFull()) return setNotice(diskFullNotice(), 15000);
   state.guestName = '';
-  if (!state.cfg.askName) return show('utama');
-  $('namaInput').value = '';
+  if (!state.cfg.askName) return show('home');
+  $('nameInput').value = '';
   if (nameKeyboard) nameKeyboard.reset();
-  show('nama');
-  setTimeout(() => $('namaInput').focus({ preventScroll: true }), 50);
+  show('name');
+  setTimeout(() => $('nameInput').focus({ preventScroll: true }), 50);
 }
 function submitName() {
-  const n = $('namaInput').value.replace(/\s+/g, ' ').trim();
+  const n = $('nameInput').value.replace(/\s+/g, ' ').trim();
   if (!n) return;
   state.guestName = n;
   renderGreeting();
-  show('utama');
+  show('home');
 }
 // "Hi, Budi!" on the main menu
 export function renderGreeting() {
-  const el = $('sapaTamu');
-  el.textContent = state.guestName ? t('nama.hai', { name: state.guestName }) : '';
+  const el = $('guestGreeting');
+  el.textContent = state.guestName ? t('name.hi', { name: state.guestName }) : '';
   el.style.display = state.guestName ? '' : 'none';
 }
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupGuestName() {
-  nameKeyboard = createKeyboard($('namaKeyboard'), $('namaInput'), { onEnter: submitName, maxLength: 40 });
+  nameKeyboard = createKeyboard($('nameKeyboard'), $('nameInput'), { onEnter: submitName, maxLength: 40 });
   onLanguageChange(() => nameKeyboard.redraw()); // key labels follow the guest screen language
-  $('btnNamaBack').onclick = () => show('start');
+  $('btnNameBack').onclick = () => show('start');
 }
