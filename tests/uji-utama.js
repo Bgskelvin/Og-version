@@ -2233,6 +2233,31 @@ const KASUS = {
       'value saved by an older version is taken over',
     );
   },
+  async 'free space of the storage folder (disk-space)'() {
+    const { panggil, dataDir } = nyalakanAplikasi();
+    const r = await panggil('disk-space');
+    cek(r.ok && r.free > 0 && r.total >= r.free && r.level, 'sisa disk terbaca untuk folder penyimpanan', r);
+    const disk = require(path.join(__dirname, '..', 'main', 'disk-space.js'));
+    const GB = disk.GB;
+    cek(
+      disk.levelFor(100 * GB) === 'ok' &&
+        disk.levelFor(19 * GB) === 'low' &&
+        disk.levelFor(4 * GB) === 'critical' &&
+        disk.levelFor(0.5 * GB) === 'full',
+      'batas: di bawah 20 GB kurang, 5 GB hampir penuh, 1 GB penuh',
+    );
+    cek(disk.formatGB(123.4 * GB) === '123 GB' && disk.formatGB(4.26 * GB) === '4.3 GB', 'angka GB mudah dibaca');
+    // The chosen folder is on another disk: the space shown is for that folder
+    const other = path.join(dataDir, 'external-ssd');
+    fs.mkdirSync(other, { recursive: true });
+    const settingsFile = path.join(dataDir, 'settings.json');
+    const s = JSON.parse(fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile, 'utf8') : '{}');
+    fs.writeFileSync(settingsFile, JSON.stringify({ ...s, outDir: other }));
+    const r2 = await panggil('disk-space');
+    cek(r2.ok && r2.dir === other && !r2.fallback, 'sisa disk dihitung dari folder yang dipilih', r2);
+    cek(disk.refuseIfFull() === null, 'disk cukup: rekaman boleh dimulai');
+  },
+
   async 'satu jendela: aplikasi kedua langsung keluar'() {
     process.on('exit', () => {
       cek(true, 'aplikasi kedua keluar sebelum membuka apa pun');

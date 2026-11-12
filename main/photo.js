@@ -30,6 +30,11 @@ function register() {
         log.error('Save photos refused: no photo data');
         return { ok: false, error: 'No photo data' };
       }
+      const full = require('./disk-space').refuseIfFull();
+      if (full) {
+        log.error('Save photos refused: ' + full);
+        return { ok: false, error: full };
+      }
       const name = activeCoupleName();
       let base = getOutDir();
       if (!usableDir(base)) {

@@ -4,7 +4,8 @@
    folder (e.g. "Budi_pesan.mp4", "Budi_hasil.jpg"). Can be turned off in
    Admin → Display → "Ask guest name". The on-screen keyboard is keyboard.js.
    ===================================================================== */
-import { show } from './app.js';
+import { setNotice, show } from './app.js';
+import { diskFullNotice, diskIsFull } from './disk-space.js';
 import { $, state } from './state.js';
 import { onLanguageChange, t } from './language.js';
 import { createKeyboard } from './keyboard.js';
@@ -13,6 +14,7 @@ let nameKeyboard = null;
 
 // Start button: to the name page (if turned on), or straight to the main menu
 export function startGuest() {
+  if (diskIsFull()) return setNotice(diskFullNotice(), 15000);
   state.guestName = '';
   if (!state.cfg.askName) return show('utama');
   $('namaInput').value = '';
