@@ -331,20 +331,20 @@ const KASUS = {
       /✗ \[ui\] Uncaught TypeError: x is undefined \(photobooth\.js:12\)/.test(isi()),
       'error di tampilan masuk catatan beserta file & baris',
     );
-    kirim('catat', 'baris\ndua', 'peringatan');
+    kirim('log', 'baris\ndua', 'peringatan');
     cek(/⚠ \[ui\] baris ⏎ dua/.test(isi()), 'baris dari tampilan: satu baris per kejadian');
-    await panggil('unggah-simpan', { url: 'http://127.0.0.1:9', kunci: 'RAHASIA-KUNCI-123', aktif: true });
+    await panggil('save-upload-settings', { url: 'http://127.0.0.1:9', kunci: 'RAHASIA-KUNCI-123', aktif: true });
     cek(
       /QR settings saved: on/.test(isi()) && !/RAHASIA-KUNCI-123/.test(isi()),
       'kunci booth QR tidak pernah ditulis ke catatan',
     );
-    const baca = await panggil('catatan-baca');
+    const baca = await panggil('read-log');
     cek(
       baca.file === hariIni.replace('.txt', '') && /Recording done/.test(baca.teks),
       'Admin "Lihat catatan": isi catatan hari ini',
     );
     electron.__simpanKe = path.join(akar, 'kirim.txt');
-    const simpan = await panggil('catatan-simpan');
+    const simpan = await panggil('save-log');
     const kirimIsi = fs.readFileSync(electron.__simpanKe, 'utf8');
     cek(
       simpan.ok &&
@@ -355,7 +355,7 @@ const KASUS = {
       'Admin "Simpan catatan": file gabungan tersimpan & ditunjukkan di Finder',
     );
     electron.__simpanKe = null;
-    cek((await panggil('catatan-simpan')).batal === true, 'Simpan catatan dibatalkan: tidak ada yang ditulis');
+    cek((await panggil('save-log')).batal === true, 'Simpan catatan dibatalkan: tidak ada yang ditulis');
   },
 
   async 'template desain foto per couple'() {
@@ -439,9 +439,9 @@ const KASUS = {
           for (let r = 0; r < n; r++) t += fn(r / (n - 1), g / (n - 1), b / (n - 1)).join(' ') + '\n';
       return new TextEncoder().encode(t);
     };
-    cek((await panggil('filter-daftar')).length === 0, 'awalnya belum ada filter');
+    cek((await panggil('list-filters')).length === 0, 'awalnya belum ada filter');
     const r = await panggil(
-      'filter-tambah',
+      'add-filter',
       'Hangat Sore.cube',
       kubus((r, g, b) => [Math.min(1, r * 1.1), g, b * 0.9], 3),
     );
@@ -453,35 +453,32 @@ const KASUS = {
     const id = r.filter.id;
     cek(fs.existsSync(path.join(dataDir, 'filter', id + '.cube')), 'file .cube asli tersimpan di folder data/filter');
     cek(
-      /not a \.cube LUT file/.test(
-        (await panggil('filter-tambah', 'foto.cube', new TextEncoder().encode('halo'))).error,
-      ),
+      /not a \.cube LUT file/.test((await panggil('add-filter', 'foto.cube', new TextEncoder().encode('halo'))).error),
       'file yang bukan .cube ditolak',
     );
     cek(
-      /1D LUT/.test((await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_1D_SIZE 4\n0 0 0'))).error),
+      /1D LUT/.test((await panggil('add-filter', 'x.cube', new TextEncoder().encode('LUT_1D_SIZE 4\n0 0 0'))).error),
       'LUT 1D ditolak dengan pesan jelas',
     );
     cek(
       /Missing color data/.test(
-        (await panggil('filter-tambah', 'x.cube', new TextEncoder().encode('LUT_3D_SIZE 2\n0 0 0\n1 1 1'))).error,
+        (await panggil('add-filter', 'x.cube', new TextEncoder().encode('LUT_3D_SIZE 2\n0 0 0\n1 1 1'))).error,
       ),
       'data warna yang tidak lengkap ditolak',
     );
     cek(
-      (await panggil('filter-tambah', 'x.cube', new Uint8Array(21 * 1024 * 1024))).error ===
+      (await panggil('add-filter', 'x.cube', new Uint8Array(21 * 1024 * 1024))).error ===
         'The filter file is too large (max 20 MB).',
       'file lebih dari 20 MB ditolak',
     );
-    const isi = await panggil('filter-isi', id);
+    const isi = await panggil('get-filter', id);
     cek(
       isi && /LUT_3D_SIZE 3/.test(isi.teks) && isi.nama === 'Hangat Sore',
       'isi filter bisa diambil untuk diterapkan ke foto',
     );
-    cek((await panggil('filter-isi', '../settings')) === null, 'nama filter aneh tidak bisa membaca file lain');
+    cek((await panggil('get-filter', '../settings')) === null, 'nama filter aneh tidak bisa membaca file lain');
     cek(
-      (await panggil('filter-ganti-nama', id, 'Sore Emas')).ok &&
-        (await panggil('filter-daftar'))[0].nama === 'Sore Emas',
+      (await panggil('rename-filter', id, 'Sore Emas')).ok && (await panggil('list-filters'))[0].nama === 'Sore Emas',
       'nama filter bisa diganti',
     );
     // Template menyimpan filter pilihan
@@ -503,13 +500,13 @@ const KASUS = {
       'id filter dibersihkan; bawaan: kekuatan 100%, tamu boleh memilih',
     );
     cek(
-      (await panggil('filter-hapus', id)).ok &&
+      (await panggil('delete-filter', id)).ok &&
         !fs.existsSync(path.join(dataDir, 'filter', id + '.cube')) &&
-        (await panggil('filter-daftar')).length === 0,
+        (await panggil('list-filters')).length === 0,
       'filter bisa dihapus dari koleksi',
     );
     cek(
-      (await panggil('filter-isi', id)) === null,
+      (await panggil('get-filter', id)) === null,
       'filter yang sudah dihapus tidak bisa diambil (template kembali tanpa filter)',
     );
   },
@@ -637,13 +634,13 @@ const KASUS = {
       electron.__jendela.webContents.terkirim.some(([n, x]) => n === 'sony-status' && x.tersambung),
       'layar diberi kabar status kamera',
     );
-    const lv = await panggil('sony-lv');
+    const lv = await panggil('sony-live-view');
     cek(Buffer.isBuffer(lv) && lv[0] === 0xff && lv[1] === 0xd8, 'live view berupa gambar JPEG');
     // Mode foto/video tanpa memutar tombol kamera
     const mv = await panggil('sony-mode', 'video');
     cek(mv.ok && mv.jenis === 'video' && mv.diubah, 'mode kamera pindah ke VIDEO dari aplikasi');
     cek((await panggil('sony-mode', 'video')).diubah === false, 'sudah video: tidak dikirim ulang ke kamera');
-    const f = await panggil('sony-foto');
+    const f = await panggil('sony-photo');
     cek(
       f.ok && f.bytes.length > 50000 && f.bytes[0] === 0xff,
       'jepret: foto resolusi penuh masuk',
@@ -684,7 +681,7 @@ const KASUS = {
     );
     await panggil('save-settings', { kamera: 'webcam' });
     cek(
-      (await panggil('sony-status')).mode === 'webcam' && (await panggil('sony-lv')) === null,
+      (await panggil('sony-status')).mode === 'webcam' && (await panggil('sony-live-view')) === null,
       'kembali ke webcam: kamera Sony dilepas',
     );
   },
@@ -920,7 +917,7 @@ const KASUS = {
     const { panggil, kirim, electron, sesi, dataDir } = nyalakanAplikasi();
     electron.__siap();
     await tunggu(200);
-    const st0 = await panggil('unggah-simpan', {
+    const st0 = await panggil('save-upload-settings', {
       url: `http://127.0.0.1:${port}`,
       kunci: env.KUNCI_BOOTH,
       aktif: true,
@@ -1117,7 +1114,7 @@ const KASUS = {
       x => x.kode === kodeP,
       x => x.unggah === 'menunggu',
     );
-    const stP = await panggil('unggah-status');
+    const stP = await panggil('upload-status');
     cek(
       sP1 && sP1.unggah === 'menunggu' && stP.menungguVideo === 1 && /internet/.test(stP.errorTerakhir),
       'internet putus: QR video tetap ada, video menunggu',
@@ -1128,7 +1125,7 @@ const KASUS = {
       'pesan video tanpa pertanyaan: tidak dibuat versi tanpa teks',
     );
     await nyalakan();
-    await panggil('unggah-coba-sekarang');
+    await panggil('retry-upload-now');
     const sP = await tungguSesi(
       x => x.kode === kodeP,
       x => x.unggah === 'terkirim',
@@ -1155,7 +1152,7 @@ const KASUS = {
     const f2 = (await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} })).link.split('/f/')[1];
     toko.clear();
     await nyalakan();
-    await panggil('unggah-coba-sekarang');
+    await panggil('retry-upload-now');
     await tungguSesi(
       x => x.kode === v2,
       x => x.unggah === 'terkirim',
@@ -1166,12 +1163,12 @@ const KASUS = {
     ]);
 
     // ---- QR video dimatikan / kualitas 1080p ----
-    const st1 = await panggil('unggah-simpan', { videoKualitas: '1080' });
+    const st1 = await panggil('save-upload-settings', { videoKualitas: '1080' });
     cek(
       st1.videoKualitas === '1080' && st1.video === true && st1.aktif === true,
       'kualitas bisa diganti ke 1080p tanpa mengubah pengaturan lain',
     );
-    const st2 = await panggil('unggah-simpan', { video: false });
+    const st2 = await panggil('save-upload-settings', { video: false });
     cek(st2.video === false && st2.videoKualitas === '1080', 'QR video bisa dimatikan');
     const tanpa = await rekam('pesan', 'Dodi', {});
     cek(tanpa.ok && !tanpa.link, 'QR video mati: rekaman tidak mendapat link QR');
@@ -1453,17 +1450,17 @@ const KASUS = {
       'QR mati: tidak ada link',
     );
     cek(
-      /Enter the server address/.test((await panggil('unggah-simpan', { aktif: true })).error),
+      /Enter the server address/.test((await panggil('save-upload-settings', { aktif: true })).error),
       'QR tidak bisa dinyalakan tanpa alamat & kunci',
     );
     cek(
-      /https:\/\//.test((await panggil('unggah-simpan', { url: 'http://contoh.com', kunci: 'x' })).error),
+      /https:\/\//.test((await panggil('save-upload-settings', { url: 'http://contoh.com', kunci: 'x' })).error),
       'alamat selain https ditolak',
     );
-    await panggil('unggah-simpan', { url: `http://127.0.0.1:${port}/`, kunci: 'kunci-salah' });
-    cek((await panggil('unggah-tes')).error === 'Wrong booth key.', 'tes sambungan: kunci salah terdeteksi');
-    await panggil('unggah-simpan', { kunci: env.KUNCI_BOOTH, aktif: true });
-    const tes = await panggil('unggah-tes');
+    await panggil('save-upload-settings', { url: `http://127.0.0.1:${port}/`, kunci: 'kunci-salah' });
+    cek((await panggil('test-upload')).error === 'Wrong booth key.', 'tes sambungan: kunci salah terdeteksi');
+    await panggil('save-upload-settings', { kunci: env.KUNCI_BOOTH, aktif: true });
+    const tes = await panggil('test-upload');
     cek(tes.ok && tes.hari === 7, 'tes sambungan berhasil, server menyimpan 7 hari', tes);
 
     const r = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
@@ -1480,7 +1477,7 @@ const KASUS = {
       toko.has(`foto/${kode}.jpg`) && sesi().find(x => x.kode === kode).unggah === 'terkirim',
       'foto terunggah ke server di belakang layar',
     );
-    const st = await panggil('unggah-status');
+    const st = await panggil('upload-status');
     cek(st.menunggu === 0 && st.terkirim === 1, 'status antrean: kosong, 1 terkirim', st);
 
     const hal = await (await ambil(`/f/${kode}`)).text();
@@ -1532,7 +1529,7 @@ const KASUS = {
     const r2 = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
     const kode2 = r2.link.split('/f/')[1];
     await tunggu(1500);
-    const st2 = await panggil('unggah-status');
+    const st2 = await panggil('upload-status');
     cek(
       r2.link &&
         st2.menunggu === 1 &&
@@ -1544,10 +1541,10 @@ const KASUS = {
     const simpan = JSON.parse(fs.readFileSync(path.join(dataDir, 'antrean-unggah.json'), 'utf8'));
     cek(simpan.length === 1 && simpan[0].kode === kode2, 'antrean tersimpan di disk (aman kalau aplikasi ditutup)');
     await nyalakan();
-    await panggil('unggah-coba-sekarang');
+    await panggil('retry-upload-now');
     await tunggu(800);
     cek(
-      toko.has(`foto/${kode2}.jpg`) && (await panggil('unggah-status')).menunggu === 0,
+      toko.has(`foto/${kode2}.jpg`) && (await panggil('upload-status')).menunggu === 0,
       'internet kembali: foto yang tertunda ikut terkirim',
     );
 
@@ -1619,7 +1616,7 @@ const KASUS = {
     )[1];
     await nyalakan();
     toko.clear();
-    await panggil('unggah-coba-sekarang');
+    await panggil('retry-upload-now');
     await tunggu(1500);
     const urutan = [...toko.keys()].map(k => k.replace('foto/', '').replace(a, 'A').replace(b, 'B'));
     cek(
@@ -1629,7 +1626,7 @@ const KASUS = {
     );
     // Server versi lama: foto satuan TIDAK dikirim (akan menimpa foto hasil)
     serverLama.aktif = true;
-    await panggil('unggah-simpan', {});
+    await panggil('save-upload-settings', {});
     toko.clear();
     const c = (await panggil('save-photos', { originals: [jpg], result: jpg, satuan: [s1b], meta: {} })).link.split(
       '/f/',
@@ -1638,7 +1635,7 @@ const KASUS = {
     cek(
       toko.has(`foto/${c}.jpg`) &&
         !toko.has(`foto/${c}-1.jpg`) &&
-        (await panggil('unggah-status')).menungguSatuan === 0 &&
+        (await panggil('upload-status')).menungguSatuan === 0 &&
         fs.readdirSync(path.join(dataDir, 'qr-satuan')).length === 0,
       'server QR lama: foto satuan dilewati, foto hasil tetap aman',
     );
@@ -1747,7 +1744,7 @@ const KASUS = {
       info,
     );
     cek(
-      (await panggil('buka-lisensi')).ok && electron.__dibuka === path.join(res, 'THIRD-PARTY-NOTICES.txt'),
+      (await panggil('open-licenses')).ok && electron.__dibuka === path.join(res, 'THIRD-PARTY-NOTICES.txt'),
       'tombol lisensi membuka THIRD-PARTY-NOTICES.txt dari Resources',
     );
   },
@@ -1779,7 +1776,7 @@ const KASUS = {
     await tunggu(100);
     const st = (await panggil('save-settings', { kamera: 'sony' })) && (await panggil('sony-status'));
     cek(!st.tersambung && /npm run build:sony/.test(st.pesan), 'pesan jelas cara membuat program kamera', st.pesan);
-    const f = await panggil('sony-foto');
+    const f = await panggil('sony-photo');
     cek(/npm run build:sony/.test(f.error), 'jepret ditolak dengan pesan yang sama');
     const r = await panggil('rec-start', 'pesan', { sony: true });
     const fileSesi = path.join(dataDir, 'sessions.json');
@@ -1804,9 +1801,9 @@ const KASUS = {
     await tunggu(1500);
     const st = await panggil('sony-status');
     cek(st.tersambung && st.model === 'ILCE-6700' && st.baterai === 87, 'program penghubung tersambung lewat SDK', st);
-    const lv = await panggil('sony-lv');
+    const lv = await panggil('sony-live-view');
     cek(lv && lv[0] === 0xff && lv[1] === 0xd8, 'live view dari SDK terbaca');
-    const f = await panggil('sony-foto');
+    const f = await panggil('sony-photo');
     cek(f.ok && f.bytes[0] === 0xff, 'jepret lewat SDK berhasil', f.error);
     const r = await panggil('rec-start', 'pesan', { sony: true });
     await tunggu(500);
@@ -1819,7 +1816,7 @@ const KASUS = {
       sesi()[0],
     );
     // Tombol "Tutup aplikasi" di Admin
-    const c = await panggil('cek-tutup');
+    const c = await panggil('check-quit');
     cek(c.salin === 0 && c.proses === 0 && c.foto === 0, 'cek sebelum tutup: tidak ada yang tertunda', c);
     // Tombol ✕ jendela / ⌘Q: belum ditutup, tampilan diminta menampilkan dialog konfirmasi
     const tutupJendela = {
@@ -1831,7 +1828,7 @@ const KASUS = {
     electron.__wc.terkirim.length = 0;
     electron.__jendela.ev.close(tutupJendela);
     cek(
-      tutupJendela.dicegah && electron.__wc.terkirim.some(a => a[0] === 'minta-tutup'),
+      tutupJendela.dicegah && electron.__wc.terkirim.some(a => a[0] === 'quit-request'),
       'tombol ✕: jendela tidak langsung tertutup, muncul dialog konfirmasi',
     );
     const cmdQ = {
@@ -1843,10 +1840,10 @@ const KASUS = {
     electron.__appEvents['before-quit'](cmdQ);
     await tunggu(300);
     cek(
-      cmdQ.dicegah && !electron.__keluar && electron.__wc.terkirim.filter(a => a[0] === 'minta-tutup').length === 2,
+      cmdQ.dicegah && !electron.__keluar && electron.__wc.terkirim.filter(a => a[0] === 'quit-request').length === 2,
       '⌘Q: tanya dulu, kamera belum diputus',
     );
-    await panggil('tutup-aplikasi');
+    await panggil('quit-app');
     await tunggu(400);
     cek(electron.__keluar === true, 'Tutup aplikasi memakai jalur resmi (app.quit)');
     const tutupLagi = {

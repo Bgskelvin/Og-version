@@ -37,7 +37,7 @@ function info() {
 
 function register() {
   ipcMain.handle('app-info', () => info());
-  ipcMain.handle('buka-lisensi', async () => {
+  ipcMain.handle('open-licenses', async () => {
     const f = licenseFile();
     if (!fs.existsSync(f)) return { error: 'License file not found.' };
     const err = await shell.openPath(f);

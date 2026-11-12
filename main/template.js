@@ -172,7 +172,7 @@ function deleteCoupleTemplates(coupleId) {
 }
 
 function register() {
-  ipcMain.handle('template-ukuran', () => SIZES);
+  ipcMain.handle('template-sizes', () => SIZES);
   ipcMain.handle('count-templates', () => countTemplates());
   ipcMain.handle('list-templates', (e, coupleId) => listTemplates(coupleId));
 

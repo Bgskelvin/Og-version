@@ -63,7 +63,7 @@ async function captureSony() {
     flashEl.classList.add('on');
     await sleep(90);
   }
-  const capture = api.sonyFoto();
+  const capture = api.sonyPhoto();
   if (state.cfg.photoFlash) {
     await sleep(250);
     flashEl.classList.remove('on');

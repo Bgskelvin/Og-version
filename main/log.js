@@ -123,12 +123,12 @@ function listFiles() {
 function register() {
   // Lines from the UI (JavaScript errors, small crashes on the guest screen).
   // 'peringatan' is the old name of 'warn' and is still accepted.
-  ipcMain.on('catat', (e, message, level) => {
+  ipcMain.on('log', (e, message, level) => {
     const lv = level === 'peringatan' ? 'warn' : level;
     write('[ui] ' + String(message).slice(0, MAX_LINE), LEVELS.includes(lv) ? lv : 'info');
   });
   // Admin → "View log": the most recent day's log (at most the last ±400 lines)
-  ipcMain.handle('catatan-baca', () => {
+  ipcMain.handle('read-log', () => {
     const files = listFiles();
     if (!files.length) return { teks: '', file: '', hari: [] };
     let text = '';
@@ -142,7 +142,7 @@ function register() {
     return { teks: text, file: files[0].replace('.txt', ''), hari: files.map(f => f.replace('.txt', '')) };
   });
   // Admin → "Save log": the last 7 days combined in one file, to send to someone
-  ipcMain.handle('catatan-simpan', async () => {
+  ipcMain.handle('save-log', async () => {
     const files = listFiles().slice(0, 7).reverse();
     if (!files.length) return { error: 'No log entries yet.' };
     const r = await dialog.showSaveDialog({

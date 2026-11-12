@@ -396,10 +396,10 @@ function sessionDetail(s) {
     if (link) {
       addButton('Show QR', () => showSessionQr(s, link));
       addButton('Copy link', async () => {
-        await api.salinTeks(link);
+        await api.copyText(link);
         flash('rwMsg', 'Link copied. Paste it (⌘V) into WhatsApp or another message.');
       });
-      addButton('Open link', async () => showResult(await api.bukaLink(link)));
+      addButton('Open link', async () => showResult(await api.openLink(link)));
     }
     if (RETRYABLE.includes(s.status) || processingFailed(s))
       addButton(

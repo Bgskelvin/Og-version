@@ -74,7 +74,7 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - `main/filter.js` memakai `src/lut.js` lewat `require()` (require(esm), Electron 45 / Node 24).
 - Uji tampilan membuka aplikasi lewat `tests/static-server.js` (http), karena browser menolak modul dari `file://`. Electron sendiri tetap `loadFile`.
 - Ganti nama fungsi/file → perbarui juga `src/debug-handle.js`, `tests/uji-tampilan.js` (PALSU) dan `demo/api-demo.js`.
-- Nama field data dari proses utama (`judul`, `nama`, `aktif`, `satuan`, `tamu`, kunci `cfg` seperti `tanyaNama`, …), nama `api.*`, id/kelas di HTML/CSS, dan teks pemberitahuan operator belum diganti — itu bagian `refactor/main-english`.
+- Nama field data dari proses utama (`judul`, `nama`, `aktif`, `satuan`, `tamu`, kunci `cfg` seperti `tanyaNama`, …), id/kelas di HTML/CSS, dan teks pemberitahuan operator belum diganti — itu bagian 3 (`refactor/main-english-data`). Nama `api.*` dan saluran IPC sudah bahasa Inggris (bagian 2).
 - Uji di `tests/uji-utama.js` memeriksa: setiap `import` punya `export` yang cocok, dan setiap file `src/*.js` benar-benar dimuat (file yang tidak dipakai lagi harus dihapus).
 
 ## Uji
@@ -87,6 +87,7 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 ## Status (12 Nov 2026)
 
 - `main` = v1.1.1: `src/` seluruhnya ES module + bahasa Inggris (PR #4). Leura.app 1.1.0 terpasang di Applications. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- `refactor/main-english` bagian 1 (v1.1.2): file, fungsi, komentar dan log di `main/` bahasa Inggris. Belum diubah: nama `api.*`/saluran IPC (bagian 2) dan nama data tersimpan + migrasi data lama (bagian 3), masing-masing branch sendiri.
+- `main` v1.1.2 = bagian 1 (PR #5): file, fungsi, komentar dan log di `main/` bahasa Inggris.
+- `refactor/main-english-ipc` (v1.1.3) = bagian 2: nama `api.*` dan saluran IPC bahasa Inggris. Berikutnya bagian 3: nama data tersimpan + migrasi data lama.
 - Sesudahnya: `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
 - Sebelum acara pertama: `feature/guest-consent` (UU PDP), `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), cek sisa disk, `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

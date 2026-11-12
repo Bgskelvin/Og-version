@@ -435,7 +435,7 @@
     },
     openCoupleFolder: async () => 'In the demo, results can only be viewed in Session history.',
 
-    templateUkuran: async () => UKURAN,
+    templateSizes: async () => UKURAN,
     countTemplates: async () => {
       await siap;
       return TPL.reduce((n, t) => ((n[t.coupleId] = (n[t.coupleId] || 0) + 1), n), {});
@@ -485,8 +485,8 @@
     },
 
     // Filter foto (LUT .cube) — disimpan di HP ini
-    filterDaftar: async () => ambil('filters', []),
-    filterTambah: async (nama, bytes) => {
+    listFilters: async () => ambil('filters', []),
+    addFilter: async (nama, bytes) => {
       const daftar = await ambil('filters', []);
       if (!bytes || !bytes.length) return { error: 'The filter file is empty.' };
       if (bytes.length > 20 * 1024 * 1024) return { error: 'The filter file is too large (max 20 MB).' };
@@ -515,12 +515,12 @@
       await simpan('filters', daftar);
       return { ok: true, filter: item, daftar };
     },
-    filterIsi: async id => {
+    getFilter: async id => {
       const item = (await ambil('filters', [])).find(x => x.id === id);
       const teks = item && (await ambil('filter:' + id, null));
       return teks ? { ...item, teks } : null;
     },
-    filterGantiNama: async (id, nama) => {
+    renameFilter: async (id, nama) => {
       const d = await ambil('filters', []),
         item = d.find(x => x.id === id);
       if (!item) return { error: 'Filter not found.' };
@@ -531,7 +531,7 @@
       await simpan('filters', d);
       return { ok: true, daftar: d };
     },
-    filterHapus: async id => {
+    deleteFilter: async id => {
       const d = await ambil('filters', []);
       if (!d.some(x => x.id === id)) return { error: 'Filter not found.' };
       const sisa = d.filter(x => x.id !== id);
@@ -649,7 +649,7 @@
     },
 
     appInfo: async () => ({ demo: true, versi: 'demo', terpasang: true, lisensi: false }),
-    unggahStatus: async () => ({
+    uploadStatus: async () => ({
       aktif: false,
       url: '',
       adaKunci: false,
@@ -661,7 +661,7 @@
       errorTerakhir: '',
       adaHasilPasang: false,
     }),
-    unggahSimpan: async () => ({
+    saveUploadSettings: async () => ({
       aktif: false,
       url: '',
       adaKunci: false,
@@ -670,16 +670,16 @@
       errorTerakhir: '',
       error: 'QR download is set up in the Mac app. In the demo, QR is always on (photos kept for 1 day).',
     }),
-    unggahTes: async () => ({ error: DEMO }),
-    unggahHasilPasang: async () => null,
-    unggahCobaSekarang: async () => ({ aktif: false }),
-    onUnggahStatus: () => {},
+    testUpload: async () => ({ error: DEMO }),
+    uploadSetupResult: async () => null,
+    retryUploadNow: async () => ({ aktif: false }),
+    onUploadStatus: () => {},
 
-    bukaLink: async u => {
+    openLink: async u => {
       if (/^https:\/\//.test(u)) window.open(u, '_blank', 'noopener');
       return { ok: true };
     },
-    salinTeks: async t => {
+    copyText: async t => {
       try {
         await navigator.clipboard.writeText(t);
         return { ok: true };
@@ -688,19 +688,19 @@
       }
     },
 
-    catatanBaca: async () => ({ teks: LOG.join('\n'), file: new Date().toISOString().slice(0, 10), hari: [] }),
-    catatanSimpan: async () => {
+    readLog: async () => ({ teks: LOG.join('\n'), file: new Date().toISOString().slice(0, 10), hari: [] }),
+    saveLog: async () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([LOG.join('\n')], { type: 'text/plain' }));
       a.download = `Leura-demo-catatan-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       return { ok: true, file: a.download };
     },
-    catat: (p, t) => catat('[tampilan] ' + p, t),
+    log: (p, t) => catat('[ui] ' + p, t),
 
-    onMintaTutup: () => {},
-    cekTutup: async () => ({ salin: 0, proses: 0, foto: 0 }),
-    tutupAplikasi: async () => {
+    onQuitRequest: () => {},
+    checkQuit: async () => ({ salin: 0, proses: 0, foto: 0 }),
+    quitApp: async () => {
       setTimeout(() => location.reload(), 300);
       return { ok: true };
     },
@@ -708,9 +708,9 @@
     // Kamera Sony tidak ada di HP: selalu kamera HP
     sonyStatus: async () => ({ mode: 'webcam', tersambung: false, pesan: '' }),
     onSonyStatus: () => {},
-    sonySambungUlang: async () => ({ mode: 'webcam', tersambung: false, pesan: '' }),
+    sonyReconnect: async () => ({ mode: 'webcam', tersambung: false, pesan: '' }),
     sonyLiveView: async () => null,
-    sonyFoto: async () => ({ ok: false, error: DEMO }),
+    sonyPhoto: async () => ({ ok: false, error: DEMO }),
     sonyMode: async j => ({ ok: true, jenis: j, diubah: false }),
   };
   void cbErrorRekam;

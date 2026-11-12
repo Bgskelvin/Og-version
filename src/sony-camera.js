@@ -176,6 +176,6 @@ export async function setupSonyCamera() {
   };
   $('btnSonyUlang').onclick = async () => {
     $('sonyStatus').textContent = 'Looking for the Sony camera…';
-    receiveSonyStatus(await api.sonySambungUlang());
+    receiveSonyStatus(await api.sonyReconnect());
   };
 }

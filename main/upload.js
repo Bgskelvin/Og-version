@@ -100,7 +100,7 @@ function status() {
 }
 function broadcast() {
   const win = getWin();
-  if (win && !win.isDestroyed()) win.webContents.send('unggah-status', status());
+  if (win && !win.isDestroyed()) win.webContents.send('upload-status', status());
 }
 
 // Save single photos temporarily (for upload). Returns: list of file paths.
@@ -554,8 +554,8 @@ async function testConnection(p = settings()) {
 }
 
 function register() {
-  ipcMain.handle('unggah-status', () => status());
-  ipcMain.handle('unggah-simpan', (e, input) => {
+  ipcMain.handle('upload-status', () => status());
+  ipcMain.handle('save-upload-settings', (e, input) => {
     const s = readSettings(),
       old = s.unggah || {};
     const url = baseUrl(input.url != null ? input.url : old.url);
@@ -576,24 +576,24 @@ function register() {
     setImmediate(runQueue);
     return status();
   });
-  ipcMain.handle('unggah-tes', () => testConnection());
+  ipcMain.handle('test-upload', () => testConnection());
   // Fill in the address & key from the result of "npm run cloud:pasang"
-  ipcMain.handle('unggah-hasil-pasang', () => {
+  ipcMain.handle('upload-setup-result', () => {
     const h = readJSON(SETUP_RESULT, null);
     if (!h || !h.url || !h.kunci) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
     return { url: h.url, kunci: h.kunci };
   });
   // From Session history: open the photo link in the browser / copy the link
-  ipcMain.handle('buka-link', (e, url) => {
+  ipcMain.handle('open-link', (e, url) => {
     if (!/^https:\/\/[^\s]+$/.test(String(url || ''))) return { error: 'Invalid link.' };
     shell.openExternal(url);
     return { ok: true };
   });
-  ipcMain.handle('salin-teks', (e, text) => {
+  ipcMain.handle('copy-text', (e, text) => {
     clipboard.writeText(String(text || ''));
     return { ok: true };
   });
-  ipcMain.handle('unggah-coba-sekarang', () => {
+  ipcMain.handle('retry-upload-now', () => {
     queue.forEach(x => {
       x.berikut = 0;
     });

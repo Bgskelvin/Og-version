@@ -184,12 +184,12 @@ export function sampleFilterPhoto() {
 // Fetch & parse a filter from the Admin collection (once per filter, then cached)
 const lutCache = new Map();
 export function loadLut(id) {
-  if (!id || typeof window === 'undefined' || !window.api || !window.api.filterIsi) return Promise.resolve(null);
+  if (!id || typeof window === 'undefined' || !window.api || !window.api.getFilter) return Promise.resolve(null);
   if (!lutCache.has(id)) {
     lutCache.set(
       id,
       window.api
-        .filterIsi(id)
+        .getFilter(id)
         .then(r => (r ? { id, nama: r.nama, lut: parseCube(r.teks) } : null))
         .catch(e => {
           console.log('Filter could not be loaded: ' + (e && e.message));
