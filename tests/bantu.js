@@ -159,7 +159,12 @@ function nyalakanAplikasi(opsi = {}) {
     akar,
     dataDir,
     docsDir,
-    sesi: () => JSON.parse(fs.readFileSync(path.join(dataDir, 'sessions.json'), 'utf8')),
+    // Database aplikasi (main/database.js) — koneksi yang sama dengan yang dipakai aplikasi
+    db: () => require(path.join(__dirname, '..', 'main', 'database.js')).openDatabase(dataDir),
+    sesi: () =>
+      require(path.join(__dirname, '..', 'main', 'database.js'))
+        .openDatabase(dataDir)
+        .readSessions(),
   };
 }
 

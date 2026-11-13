@@ -8,7 +8,7 @@
      Admin) + a cover image, kept temporarily in <data folder>/qr-video/
      and then handed to the upload queue (upload.js).
    Order per session:  (webm → MP4)  →  overlay text (quiz)  →  phone version (if QR video is on)
-   Every step is recorded in sessions.json, so if the app is closed halfway,
+   Every step is recorded in the session history (database), so if the app is closed halfway,
    the work continues when the app is opened again.
    Session fields set here: captions, captionStatus ('processing' | 'done' |
    'failed'), originalFile, upload ('processing' | 'queued' | 'failed').
@@ -16,7 +16,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { userData, defaultDir, readSessions, updateSession } = require('./storage');
+const { userData, defaultDir, readSessions, getSession, updateSession } = require('./storage');
 const log = require('./log');
 
 /* ---------- FFmpeg ---------- */
@@ -105,7 +105,7 @@ const removeFile = f => {
   }
 };
 const location = s => path.join(s.dir || defaultDir, s.file || '');
-const findSession = sid => readSessions().find(s => s.id === sid);
+const findSession = sid => getSession(sid);
 
 /* ---------- Question text images (made in the UI, stored here) ---------- */
 // captions: [{ a, b, judul }] start & end second of each question; images: one PNG (Uint8Array) per question

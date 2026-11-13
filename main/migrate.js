@@ -13,10 +13,15 @@
      its .bak copy is refreshed too, so a fallback never brings old names back.
    - If something goes wrong, the app still opens; the step is tried again
      the next time. Recordings and photos in the couple folders are never touched.
+   From 1.4.0 settings, couples, session history and the QR upload queue are
+   kept in the database (database.js). The last step moves them from the JSON
+   files into it, then moves the JSON files to
+   <data folder>/backup/before-database-<time>/.
    ===================================================================== */
 const fs = require('fs');
 const path = require('path');
-const { userData, readJSON, writeJSON, stamp } = require('./storage');
+const { userData, defaultDir, readJSON, writeJSON, stamp } = require('./storage');
+const { openDatabase } = require('./database');
 
 /* ---------- Old name → new name ---------- */
 const SETTINGS_KEYS = {
@@ -310,9 +315,95 @@ function run({ dataDir = userData } = {}) {
     return old.length;
   });
 
+  // 9. settings, couples, session history and QR upload queue → database (Leura 1.4.0)
+  step('moved into the database', () => moveIntoDatabase(dataDir, notes));
+
   if (backupDir)
     notes.unshift({ level: 'info', text: 'Data from an older version updated; old files kept in ' + backupDir });
   return notes;
+}
+
+/* ---------- JSON files → database ---------- */
+const DATA_FILES = ['settings.json', 'couples.json', 'sessions.json', 'upload-queue.json'];
+
+function moveIntoDatabase(dataDir, notes) {
+  const store = openDatabase(dataDir);
+  const firstTime = !store.getState('movedFromJson', null);
+  const has = f => [f, f + '.bak'].some(x => fs.existsSync(path.join(dataDir, x)));
+  const present = DATA_FILES.filter(has);
+  // Session history of very old versions lived in the recordings folder (only taken over once)
+  const veryOld = path.join(defaultDir, 'sessions.json');
+  const takeVeryOld = firstTime && !present.includes('sessions.json') && fs.existsSync(veryOld);
+  if (!present.length && !takeVeryOld) {
+    if (firstTime) store.setState('movedFromJson', new Date().toISOString());
+    return 0;
+  }
+  const read = f => (present.includes(f) ? readJSON(path.join(dataDir, f), null) : null);
+  const settings = read('settings.json');
+  const couples = read('couples.json');
+  const sessions = takeVeryOld
+    ? (readJSON(veryOld, null) || []).map(x => (isObject(x) ? { ...x, dir: x.dir || defaultDir } : x))
+    : read('sessions.json');
+  const queue = read('upload-queue.json');
+
+  let n = 0;
+  store.transaction(() => {
+    if (firstTime) {
+      if (isObject(settings)) {
+        store.writeSettings(settings);
+        n++;
+      }
+      if (isObject(couples) && Array.isArray(couples.couples) && couples.couples.length) {
+        store.writeCouples({ activeId: couples.activeId, couples: couples.couples.filter(isObject) });
+        n++;
+      }
+    } else if (settings || couples) {
+      // An older Leura version was opened again after this one and saved its own files.
+      // The database has the real data: keep it; the files stay in the backup.
+      notes.push({
+        level: 'warn',
+        text: 'Settings/couples saved by an older Leura version were not taken over (the database is kept); the files are in the backup folder',
+      });
+    }
+    if (Array.isArray(sessions)) {
+      const used = new Set(store.readSessions().map(x => x.id));
+      let nextId = Math.max(Date.now() * 1000, ...used) + 1;
+      for (const x of sessions) {
+        if (!isObject(x)) continue;
+        if (!firstTime && used.has(x.id)) continue; // already in the database
+        let id = Number.isSafeInteger(x.id) ? x.id : Date.parse(x.time) || 0;
+        if (!Number.isSafeInteger(id) || id <= 0 || used.has(id)) id = nextId++; // missing or double id
+        store.saveSession({ ...x, id });
+        used.add(id);
+        n++;
+      }
+    }
+    if (Array.isArray(queue)) {
+      const current = store.readUploadQueue();
+      const codes = new Set(current.map(x => x.code));
+      const added = queue.filter(x => isObject(x) && !(x.code && codes.has(x.code)));
+      if (added.length) store.writeUploadQueue([...current, ...added]);
+      n += added.length;
+    }
+    store.setState('movedFromJson', store.getState('movedFromJson', null) || new Date().toISOString());
+  });
+
+  // Only after the database has everything: move the files out of the way (never deleted)
+  const dir = path.join(dataDir, 'backup', 'before-database-' + stamp());
+  for (const f of DATA_FILES)
+    for (const extra of ['', '.bak', '.tmp']) {
+      const from = path.join(dataDir, f + extra);
+      if (!fs.existsSync(from)) continue;
+      fs.mkdirSync(dir, { recursive: true });
+      fs.renameSync(from, path.join(dir, f + extra));
+    }
+  if (takeVeryOld) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(veryOld, path.join(dir, 'sessions-from-recordings-folder.json'));
+  }
+  if (fs.existsSync(dir))
+    notes.push({ level: 'info', text: 'Data moved into the database; the JSON files are kept in ' + dir });
+  return n;
 }
 
 module.exports = { run };

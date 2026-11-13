@@ -7,8 +7,7 @@ const path = require('path');
 const log = require('./log');
 const {
   defaultDir,
-  readSessions,
-  writeSessions,
+  saveSession,
   getOutDir,
   usableDir,
   safeName,
@@ -63,11 +62,10 @@ function register() {
       const sid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
       let qr = null;
       try {
-        const list = readSessions();
         // Single photos (without template) are uploaded too so guests can download them as well
         const singleFiles = upload.ready() ? await upload.saveSinglePhotos(sid, singles) : [];
         qr = upload.queuePhoto(path.join(dir, resultFile), sid, { singles: singleFiles, couple: name });
-        list.push({
+        saveSession({
           id: sid,
           time: new Date().toISOString(),
           label: 'photo',
@@ -82,7 +80,6 @@ function register() {
           ...(qr ? { code: qr.code, link: qr.link, upload: 'queued' } : {}),
           ...meta,
         });
-        writeSessions(list);
       } catch (err) {
         console.log('Could not record the photo session: ' + err.message);
       }

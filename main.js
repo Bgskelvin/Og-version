@@ -2,6 +2,7 @@
    main.js — starting point of the app (Electron main process)
    It only holds the start-up order. The features live in main/:
      storage.js          data locations, config.json, safe JSON read/write
+     database.js         the database (settings, couples, session history, QR queue)
      migrate.js          brings data from older versions up to date
      settings.js         Admin settings, login, storage folder
      couple.js           couple data & the active couple
@@ -41,7 +42,20 @@ const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> Re
 
 // Data saved by older versions (Indonesian field & folder names) is brought up to date
 // before any module reads it. Its notes go into the log once the log is ready.
-const migrationNotes = require('./main/migrate').run();
+let migrationNotes;
+try {
+  migrationNotes = [...require('./main/migrate').run(), ...require('./main/database').takeNotes()];
+} catch (e) {
+  // The database was made by a newer Leura: don't touch it, tell the operator what to do
+  require('electron').dialog.showErrorBox(
+    'Leura',
+    /newer Leura/.test(e.message)
+      ? 'This data was saved by a newer version of Leura. Please install the newest Leura to open it.'
+      : 'Leura could not open its data: ' + e.message,
+  );
+  app.exit(1);
+  process.exit(1);
+}
 
 // The daily log is set up first, so every message & error after it is recorded too
 const log = require('./main/log');
@@ -74,6 +88,8 @@ app.whenReady().then(async () => {
 
   log.start(); // "App opened" + delete old logs
   migrationNotes.forEach(n => log.write(n.text, n.level));
+  dailyDatabaseBackup();
+  setInterval(dailyDatabaseBackup, 60 * 60 * 1000).unref(); // the app can stay open for days
   recording.start(); // recover interrupted recordings & continue conversions
   appWindow.createWindow(DEV);
   sonyCamera.start(); // connect the Sony camera if chosen in Admin
@@ -98,3 +114,13 @@ app.on('before-quit', e => {
       app.quit();
     });
 });
+
+// A copy of the database once a day (backup/database/, last 7 days kept)
+function dailyDatabaseBackup() {
+  try {
+    const file = require('./main/storage').db.dailyBackup();
+    if (file) log.write('Database copy saved: ' + path.basename(file));
+  } catch (e) {
+    log.warn('Database copy could not be saved: ' + e.message);
+  }
+}

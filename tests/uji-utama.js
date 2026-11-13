@@ -45,7 +45,7 @@ const KASUS = {
   },
 
   async 'pengaturan & login'() {
-    const { panggil, dataDir } = nyalakanAplikasi();
+    const { panggil, dataDir, db } = nyalakanAplikasi();
     const awal = await panggil('get-settings');
     cek(awal.quizSeconds === 60 && awal.quizRounds === 3 && awal.kiosk === false, 'nilai awal dari config.json', awal);
     cek(await panggil('login', 'leura', '1234'), 'login awal leura/1234 berhasil');
@@ -72,8 +72,13 @@ const KASUS = {
       !(await panggil('login', 'leura', '1234')) && (await panggil('login', 'BOS', 'rahasia')),
       'login lama tidak berlaku, login baru berlaku',
     );
+    const isiDb = ['leura.db', 'leura.db-wal']
+      .map(f => path.join(dataDir, f))
+      .filter(f => fs.existsSync(f))
+      .map(f => fs.readFileSync(f, 'latin1'))
+      .join('');
     cek(
-      !fs.readFileSync(path.join(dataDir, 'settings.json'), 'utf8').includes('rahasia'),
+      isiDb.length > 0 && !isiDb.includes('rahasia') && !JSON.stringify(db().readSettings()).includes('rahasia'),
       'password tidak tersimpan sebagai teks biasa',
     );
   },
@@ -129,25 +134,92 @@ const KASUS = {
     );
   },
 
-  async 'file data rusak tidak menghapus data'() {
-    const { panggil, dataDir } = nyalakanAplikasi();
+  async 'database: tersimpan di leura.db, cadangan harian, file rusak dipulihkan'() {
+    const { panggil, dataDir, db } = nyalakanAplikasi();
     await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] });
-    await panggil('save-couple', { name: 'Citra & Doni', questions: ['b'] });
-    const f = path.join(dataDir, 'couples.json');
-    fs.writeFileSync(f, '{"activeId":"c1","coup'); // simulasi listrik mati saat menulis
-    const d = await panggil('get-couples');
+    cek(fs.existsSync(path.join(dataDir, 'leura.db')), 'data tersimpan di leura.db');
     cek(
-      d.couples.some(c => c.name === 'Ayu & Budi'),
-      'file rusak: data dibaca dari cadangan .bak',
+      !['settings.json', 'couples.json', 'sessions.json', 'upload-queue.json'].some(f =>
+        fs.existsSync(path.join(dataDir, f)),
+      ),
+      'tidak ada file data JSON lagi',
     );
-    fs.writeFileSync(f, 'RUSAK');
-    fs.unlinkSync(f + '.bak');
-    await panggil('get-couples');
     cek(
-      fs.readdirSync(dataDir).some(n => n.includes('.corrupt-')),
-      'rusak tanpa cadangan: salinan file rusak disimpan',
+      db()
+        .readCouples()
+        .couples.some(c => c.name === 'Ayu & Budi'),
+      'couple ada di database',
     );
-    cek(!fs.readdirSync(dataDir).some(n => n.endsWith('.tmp')), 'tidak ada file sementara tertinggal');
+    const salinan = db().dailyBackup();
+    cek(fs.existsSync(salinan) && db().dailyBackup() === null, 'cadangan harian dibuat sekali sehari', salinan);
+
+    // Database di folder lain: isi, buat cadangan, rusakkan, buka lagi
+    const database = require('../main/database');
+    const lain = path.join(dataDir, 'lain');
+    let d = database.openDatabase(lain);
+    d.writeCouples({ activeId: 'c1', couples: [{ id: 'c1', name: 'Citra & Doni' }] });
+    d.saveSession({ id: 7, time: '2026-01-01T00:00:00.000Z', label: 'photo', status: 'photo' });
+    d.dailyBackup();
+    d.saveSession({ id: 8, time: '2026-01-01T00:00:00.000Z', label: 'photo', status: 'photo' });
+    d.close();
+    fs.writeFileSync(path.join(lain, 'leura.db'), 'RUSAK'); // simulasi disk rusak
+    database.takeNotes();
+    d = database.openDatabase(lain);
+    cek(
+      d.readCouples().couples[0].name === 'Citra & Doni' && d.readSessions().length === 1,
+      'file rusak: data dipulihkan dari cadangan harian',
+      d.readSessions(),
+    );
+    cek(
+      fs.readdirSync(lain).some(n => n.startsWith('leura.db.corrupt-')),
+      'file rusak tidak dibuang (disimpan sebagai leura.db.corrupt-…)',
+    );
+    cek(/copy of leura-/.test(JSON.stringify(database.takeNotes())), 'pemulihan dicatat untuk log');
+    d.close();
+    fs.rmSync(path.join(lain, 'backup'), { recursive: true });
+    fs.writeFileSync(path.join(lain, 'leura.db'), 'RUSAK');
+    d = database.openDatabase(lain);
+    cek(d.readCouples() === null, 'rusak tanpa cadangan: aplikasi tetap terbuka (mulai kosong)');
+    d.close();
+
+    // Satu perubahan = satu transaksi: kalau gagal di tengah, tidak ada yang tersimpan setengah
+    try {
+      db().transaction(() => {
+        db().saveSession({ id: 99, time: 'x', status: 'done' });
+        db().saveSession({ id: 'bukan angka' });
+      });
+    } catch {
+      /* memang sengaja gagal */
+    }
+    cek(!db().getSession(99), 'transaksi gagal dibatalkan seluruhnya');
+    cek(db().updateSession(12345, { status: 'x' }) === false, 'ubah sesi yang tidak ada: tidak membuat sesi baru');
+
+    // Database dari Leura yang lebih baru tidak disentuh
+    const baru = path.join(dataDir, 'baru');
+    d = database.openDatabase(baru);
+    d.close();
+    const { DatabaseSync } = require('node:sqlite');
+    const raw = new DatabaseSync(path.join(baru, 'leura.db'));
+    raw.exec('PRAGMA user_version = 99');
+    raw.close();
+    let pesan = '';
+    try {
+      database.openDatabase(baru);
+    } catch (e) {
+      pesan = e.message;
+    }
+    cek(
+      /newer Leura/.test(pesan) && !fs.readdirSync(baru).some(n => n.includes('corrupt')),
+      'database versi lebih baru: ditolak, tidak dianggap rusak',
+    );
+
+    // File JSON lain (template, filter) tetap disimpan dengan cara aman (.bak)
+    const { readJSON, writeJSON } = require('../main/storage');
+    const f = path.join(dataDir, 'contoh.json');
+    writeJSON(f, { a: 1 });
+    writeJSON(f, { a: 2 });
+    fs.writeFileSync(f, '{"a":'); // simulasi listrik mati saat menulis
+    cek(readJSON(f, null).a === 1, 'file JSON rusak: dibaca dari cadangan .bak');
   },
 
   async 'rekaman: dua rekaman tumpang tindih tidak tercampur'() {
@@ -702,7 +774,7 @@ const KASUS = {
   },
 
   async 'riwayat sesi: buka, Finder, coba lagi'() {
-    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi();
+    const { db, panggil, electron, sesi, dataDir } = nyalakanAplikasi();
     electron.__siap();
     await tunggu(200);
     const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
@@ -764,8 +836,7 @@ const KASUS = {
       v,
     );
     fs.unlinkSync(r.file);
-    list.find(x => x.id === v.id).status = 'card-only';
-    fs.writeFileSync(path.join(dataDir, 'sessions.json'), JSON.stringify(list));
+    db().updateSession(v.id, { status: 'card-only' });
     const u = await panggil('session-retry', v.id);
     cek(u.ok && sesi().find(x => x.id === v.id).status === 'transfer', 'Coba salin lagi: status jadi Menyalin', u);
     await tunggu(1500);
@@ -1452,7 +1523,7 @@ const KASUS = {
     const ambil = (jalur, o) => fetch(`http://127.0.0.1:${port}${jalur}`, o);
     await nyalakan();
 
-    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi();
+    const { db, panggil, electron, sesi, dataDir } = nyalakanAplikasi();
     electron.__siap();
     await tunggu(200);
     const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]);
@@ -1549,8 +1620,8 @@ const KASUS = {
       'internet putus: QR tetap ada, foto menunggu dengan pesan jelas',
       st2,
     );
-    const simpan = JSON.parse(fs.readFileSync(path.join(dataDir, 'upload-queue.json'), 'utf8'));
-    cek(simpan.length === 1 && simpan[0].code === kode2, 'antrean tersimpan di disk (aman kalau aplikasi ditutup)');
+    const simpan = db().readUploadQueue();
+    cek(simpan.length === 1 && simpan[0].code === kode2, 'antrean tersimpan di database (aman kalau aplikasi ditutup)');
     await nyalakan();
     await panggil('retry-upload-now');
     await tunggu(800);
@@ -1782,7 +1853,7 @@ const KASUS = {
 
   async 'kamera sony: program penghubung belum dibuat'() {
     process.env.SONY_HELPER = path.join(require('os').tmpdir(), 'tidak-ada', 'sony-helper');
-    const { panggil, electron, dataDir } = nyalakanAplikasi();
+    const { panggil, electron, sesi } = nyalakanAplikasi();
     electron.__siap();
     await tunggu(100);
     const st = (await panggil('save-settings', { camera: 'sony' })) && (await panggil('sony-status'));
@@ -1790,12 +1861,7 @@ const KASUS = {
     const f = await panggil('sony-photo');
     cek(/npm run build:sony/.test(f.error), 'jepret ditolak dengan pesan yang sama');
     const r = await panggil('rec-start', 'message', { sony: true });
-    const fileSesi = path.join(dataDir, 'sessions.json');
-    cek(
-      r.error && (!fs.existsSync(fileSesi) || JSON.parse(fs.readFileSync(fileSesi, 'utf8')).length === 0),
-      'rekam Sony ditolak, tidak ada sesi kosong',
-      r,
-    );
+    cek(r.error && sesi().length === 0, 'rekam Sony ditolak, tidak ada sesi kosong', r);
   },
 
   async 'kamera sony: program penghubung asli (SDK palsu)'() {
@@ -2085,10 +2151,11 @@ const KASUS = {
     write('kapsi/3-1.png', png);
     write('kapsi/3-bab.txt', ';FFMETADATA1\n');
 
-    const { electron, panggil, dataDir } = nyalakanAplikasi({ akar });
+    const { electron, panggil, dataDir, db } = nyalakanAplikasi({ akar });
     electron.__siap();
     await tunggu(300);
-    const read = rel => JSON.parse(fs.readFileSync(path.join(dataDir, rel), 'utf8'));
+    const backupOf = prefix =>
+      path.join(dataDir, 'backup', fs.readdirSync(path.join(dataDir, 'backup')).find(x => x.startsWith(prefix)) || '-');
 
     const s = await panggil('get-settings');
     cek(
@@ -2107,10 +2174,7 @@ const KASUS = {
       'QR settings & booth key kept',
       u,
     );
-    cek(
-      !JSON.stringify(read('settings.json')).match(/kunci|unggah|tanyaNama|kamera/),
-      'settings.json has no old names left',
-    );
+    cek(!JSON.stringify(db().readSettings()).match(/kunci|unggah|tanyaNama|kamera/), 'settings have no old names left');
     cek((await panggil('get-couples')).couples[0].menu.message === false, 'couple menu: "Send a message" stays off');
     const [t] = await panggil('list-templates', 'c1');
     cek(
@@ -2138,7 +2202,7 @@ const KASUS = {
       f,
     );
 
-    const ss = read('sessions.json');
+    const ss = db().readSessions();
     const byId = id => ss.find(x => x.id === id);
     cek(
       byId(1).label === 'message' &&
@@ -2164,14 +2228,14 @@ const KASUS = {
       'Sony session: card file info kept (Copy again still works)',
       byId(4),
     );
-    const q = read('upload-queue.json');
+    const q = db().readUploadQueue();
     cek(
       q.length === 1 &&
         q[0].code === 'K2' &&
         q[0].attempts === 2 &&
         q[0].singles[0] === path.join(dataDir, 'qr-singles', '2-1.jpg') &&
         fs.existsSync(q[0].singles[0]),
-      'QR upload queue moved to upload-queue.json, single photos to qr-singles/',
+      'QR upload queue kept, single photos moved to qr-singles/',
       q,
     );
     cek(
@@ -2184,9 +2248,9 @@ const KASUS = {
       'question text images moved to captions/, old temporary file removed',
     );
     const backups = fs.readdirSync(path.join(dataDir, 'backup'));
-    const backup = path.join(dataDir, 'backup', backups[0] || '-');
+    const backup = backupOf('before-english-data-');
     cek(
-      backups.length === 1 &&
+      backups.filter(x => x.startsWith('before-english-data-')).length === 1 &&
         JSON.stringify(JSON.parse(fs.readFileSync(path.join(backup, 'settings.json'), 'utf8'))) ===
           JSON.stringify(oldSettings) &&
         fs.existsSync(path.join(backup, 'sessions.json')) &&
@@ -2196,9 +2260,15 @@ const KASUS = {
       'old files kept unchanged in backup/before-english-data-…',
       backups,
     );
+    const moved = backupOf('before-database-');
+    const movedSettings = JSON.parse(fs.readFileSync(path.join(moved, 'settings.json'), 'utf8'));
     cek(
-      read('settings.json.bak').askName === false && !('tanyaNama' in read('settings.json.bak')),
-      '.bak copies have the new names too (a fallback never brings old names back)',
+      movedSettings.askName === false &&
+        !('tanyaNama' in movedSettings) &&
+        ['settings.json', 'couples.json', 'sessions.json', 'upload-queue.json'].every(
+          x => fs.existsSync(path.join(moved, x)) && !fs.existsSync(path.join(dataDir, x)),
+        ),
+      'JSON files moved into the database, kept in backup/before-database-… (with the new names)',
     );
     const log = fs.readFileSync(
       path.join(
@@ -2209,32 +2279,49 @@ const KASUS = {
       'utf8',
     );
     cek(
-      /Data from an older version updated/.test(log) && !/RAHASIA/.test(log),
+      /Data from an older version updated/.test(log) &&
+        /Data moved into the database/.test(log) &&
+        !/RAHASIA/.test(log),
       'update written to the log (without the booth key)',
     );
 
     // Running again changes nothing (it runs every time the app opens)
     const migrate = require('../main/migrate');
-    const before = fs.readFileSync(path.join(dataDir, 'sessions.json'), 'utf8');
+    const before = JSON.stringify(db().readSessions());
+    const backupCount = fs.readdirSync(path.join(dataDir, 'backup')).length;
     cek(
       migrate.run().length === 0 &&
-        fs.readFileSync(path.join(dataDir, 'sessions.json'), 'utf8') === before &&
-        fs.readdirSync(path.join(dataDir, 'backup')).length === 1,
+        JSON.stringify(db().readSessions()) === before &&
+        fs.readdirSync(path.join(dataDir, 'backup')).length === backupCount,
       'second run: nothing changed, no new backup',
     );
-    // An older Leura version was opened again and saved a setting under the old name: that value wins
+    // An older Leura version was opened again and saved its own files: its new session is taken over,
+    // but its settings don't replace the ones in the database
+    fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({ tanyaNama: true }));
     fs.writeFileSync(
-      path.join(dataDir, 'settings.json'),
-      JSON.stringify({ ...read('settings.json'), tanyaNama: true }),
+      path.join(dataDir, 'sessions.json'),
+      JSON.stringify([
+        { ...ss[0], tamu: 'ignored' },
+        { id: 5, time: '2026-11-02T10:00:00Z', label: 'pesan', file: 'Cici_pesan.mp4', tamu: 'Cici', status: 'done' },
+      ]),
     );
-    migrate.run();
+    const again = migrate.run();
+    const s5 = db().getSession(5);
     cek(
-      read('settings.json').askName === true && !('tanyaNama' in read('settings.json')),
-      'value saved by an older version is taken over',
+      s5 && s5.guest === 'Cici' && s5.label === 'message' && db().getSession(1).guest === 'Budi',
+      'older version opened again: its new session is added, existing ones are kept',
+      s5,
+    );
+    cek(
+      db().readSettings().askName === false &&
+        !fs.existsSync(path.join(dataDir, 'settings.json')) &&
+        again.some(n => /not taken over/.test(n.text)),
+      'older version opened again: database settings kept, its files go to the backup',
+      again,
     );
   },
   async 'free space of the storage folder (disk-space)'() {
-    const { panggil, dataDir } = nyalakanAplikasi();
+    const { db, panggil, dataDir } = nyalakanAplikasi();
     const r = await panggil('disk-space');
     cek(r.ok && r.free > 0 && r.total >= r.free && r.level, 'sisa disk terbaca untuk folder penyimpanan', r);
     const disk = require(path.join(__dirname, '..', 'main', 'disk-space.js'));
@@ -2250,9 +2337,7 @@ const KASUS = {
     // The chosen folder is on another disk: the space shown is for that folder
     const other = path.join(dataDir, 'external-ssd');
     fs.mkdirSync(other, { recursive: true });
-    const settingsFile = path.join(dataDir, 'settings.json');
-    const s = JSON.parse(fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile, 'utf8') : '{}');
-    fs.writeFileSync(settingsFile, JSON.stringify({ ...s, outDir: other }));
+    db().writeSettings({ ...db().readSettings(), outDir: other });
     const r2 = await panggil('disk-space');
     cek(r2.ok && r2.dir === other && !r2.fallback, 'sisa disk dihitung dari folder yang dipilih', r2);
     cek(disk.refuseIfFull() === null, 'disk cukup: rekaman boleh dimulai');

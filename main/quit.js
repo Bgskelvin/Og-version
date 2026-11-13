@@ -25,7 +25,7 @@ function pendingWork() {
       else if (s.status === 'processing') processing++;
     }
   } catch {
-    /* sessions.json unreadable: assume no video is being processed */
+    /* session history unreadable: assume no video is being processed */
   }
   let photos = 0;
   try {

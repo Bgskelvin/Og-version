@@ -1,19 +1,17 @@
 /* =====================================================================
-   couple.js — couple data (couples.json) and the active couple
+   couple.js — couple data (database: couples) and the active couple
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
-const path = require('path');
 const fs = require('fs');
-const { config, userData, readJSON, writeJSON, readSettings, getOutDir, usableDir, coupleDir } = require('./storage');
+const { config, db, readSettings, getOutDir, usableDir, coupleDir } = require('./storage');
 const { deleteCoupleTemplates } = require('./template');
 
 /* ---------- Couple data ---------- */
-const couplesPath = path.join(userData, 'couples.json');
 const MAX_Q = 10;
 // Unique ID: time + random, so two couples created at the same moment are never the same
 const newId = () => 'c' + Date.now() + Math.random().toString(36).slice(2, 6);
 function readCouples() {
-  let d = readJSON(couplesPath, null);
+  let d = db.readCouples();
   if (!d || !Array.isArray(d.couples)) {
     // First run: take the couple from config.json as starting data
     const first = {
@@ -32,7 +30,7 @@ function readCouples() {
   return d;
 }
 function writeCouples(d) {
-  writeJSON(couplesPath, d);
+  db.writeCouples(d);
 }
 
 /* Main-page menu, set per couple. Old couples that don't have this setting yet
