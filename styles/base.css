@@ -299,6 +299,22 @@ body.camOn .btn.glassy {
 .chip.right {
   right: 22px;
 }
+/* Admin button on the home screen: only a small, faint icon, so guests don't notice it.
+   44 px stays easy to tap with a finger (Apple's minimum touch size). */
+.chip.icon-only {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  opacity: 0.45;
+}
+.chip.icon-only .i {
+  width: 20px;
+  height: 20px;
+}
+.chip.icon-only:active {
+  opacity: 0.9;
+}
 
 /* ============ Start screen ============ */
 #btnStart {

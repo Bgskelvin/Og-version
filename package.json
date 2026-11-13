@@ -1,7 +1,7 @@
 {
   "name": "leura",
   "productName": "Leura",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Leura — wedding videobooth & photobooth",
   "main": "main.js",
   "scripts": {
