@@ -14,6 +14,11 @@
   const DEMO = 'Not available in the demo.';
   const MAKS_SESI = 20; // sesi terlama dihapus supaya memori HP tidak penuh
 
+  // QR sungguhan kalau demo dibuka dari internet (https); di komputer sendiri: halaman contoh
+  const qrAsli = () => location.protocol === 'https:' || window.DEMO_QR_UJI === true; // DEMO_QR_UJI: dipakai tests/uji-demo.js
+  const linkFoto = kode =>
+    qrAsli() && kode ? `${location.origin}/f/${kode}` : new URL('contoh-unduh.html', location.href).href;
+
   /* ---------- Penyimpanan kecil di HP (IndexedDB) ---------- */
   let dbJanji = null;
   function db() {
@@ -678,10 +683,9 @@
       const { originals = [], result, meta = {}, guest: t } = p || {};
       if (!result) return { ok: false, error: 'No photo data' };
       const tamu = namaFile(t);
-      // QR sungguhan kalau demo dibuka dari internet (https); di komputer sendiri: halaman contoh
-      const qrAsli = location.protocol === 'https:' || window.DEMO_QR_UJI === true; // DEMO_QR_UJI: dipakai tests/uji-demo.js
-      const kode = qrAsli ? kodeBaru() : null;
-      const link = qrAsli ? `${location.origin}/f/${kode}` : new URL('contoh-unduh.html', location.href).href;
+      const asli = qrAsli();
+      const kode = asli ? kodeBaru() : null;
+      const link = linkFoto(kode);
       const sesi = {
         id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
         time: new Date().toISOString(),
@@ -693,7 +697,7 @@
         seconds: 0,
         status: 'photo',
         photos: originals.length,
-        ...(qrAsli ? { code: kode, link, upload: 'queued' } : {}),
+        ...(asli ? { code: kode, link, upload: 'queued' } : {}),
         ...meta,
       };
       try {
@@ -702,8 +706,15 @@
         return { ok: false, error: 'Phone storage is full.' };
       }
       catat(`Foto tersimpan: ${sesi.file}`);
-      if (qrAsli) unggahFoto(kode, result); // dikirim di belakang; halaman unduh menunggu sampai fotonya sampai
-      return { ok: true, link };
+      if (asli) unggahFoto(kode, result); // dikirim di belakang; halaman unduh menunggu sampai fotonya sampai
+      return { ok: true, link, code: kode || 'contoh' + Date.now() }; // "contoh…": halaman contoh (tanpa server)
+    },
+    // "Selesai & ambil QR": di demo hanya foto yang dikirim ke server (video tetap di HP), jadi QR = foto terakhir
+    guestQr: async items => {
+      const foto = (items || []).filter(x => x.kind === 'photo');
+      if (!foto.length) return null;
+      const kode = foto[foto.length - 1].code;
+      return { link: linkFoto(/^contoh/.test(kode) ? null : kode), count: foto.length };
     },
 
     appInfo: async () => ({ demo: true, version: 'demo', installed: true, licenses: false }),

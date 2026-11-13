@@ -8,7 +8,7 @@
    ===================================================================== */
 import { prepareTemplate, drawTemplate } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
-import { showDownloadQr } from './download-qr.js';
+import { addGuestResult } from './guest-qr.js';
 import { usingSony } from './sony-camera.js';
 import { setThanks, needStream } from './recording.js';
 import { $, sleep, state } from './state.js';
@@ -911,8 +911,8 @@ async function finishEdit() {
   bar.classList.add('run');
   show('saving');
   let ok = false,
-    err = '',
-    link = null;
+    err = '';
+  const results = state.guestResults; // this guest's list, even if the save finishes after they left
   const work = (async () => {
     const originals = [];
     for (const p of photos) originals.push(p._original || (await toBytes(p, 0.95))); // Sony: the camera's original file
@@ -936,7 +936,8 @@ async function finishEdit() {
     });
     ok = !!(r && r.ok);
     err = r && r.error;
-    link = r && r.link;
+    // The download code goes into the guest's one QR ("Finish & get QR" on the main menu)
+    if (ok && r.code) addGuestResult(results, { kind: 'photo', code: r.code });
   })().catch(e => {
     err = e.message;
   });
@@ -953,7 +954,6 @@ async function finishEdit() {
     $('thanksBadge').style.display = 'none';
     $('thanks').classList.add('thanks-photo');
   }
-  if (ok && link) showDownloadQr(link);
   photos.fill(null);
   saving = false;
   state.busy = false;

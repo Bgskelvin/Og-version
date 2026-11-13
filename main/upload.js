@@ -12,6 +12,10 @@
      the "phone version" is made by video-processing.js, then uploaded IN 8 MB
      PARTS (can resume if the internet drops). Photos always go first:
      new photos are sent between the video parts.
+   - One QR per guest (v1.5.0): when a guest presses "Finish & get QR", the codes
+     of everything they made (photos, message, quiz) go to the server as one small
+     list (kind 'guest' in the queue, sent before anything else). The guest page
+     /t/<code> shows them all. A guest with only one result gets that result's own link.
    The server protocol (cloud/worker.mjs: paths, x-leura-* headers, JSON fields
    such as satuan, bagian, hari) keeps its Indonesian words, so a server that
    is already installed keeps working without npm run cloud:pasang.
@@ -61,7 +65,12 @@ const baseUrl = url =>
 const newCode = () => Array.from({ length: 10 }, () => LETTERS[crypto.randomInt(LETTERS.length)]).join('');
 const photoLink = code => baseUrl(settings().url) + '/f/' + code;
 const videoLink = code => baseUrl(settings().url) + '/v/' + code;
+const guestLink = code => baseUrl(settings().url) + '/t/' + code;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const isVideo = x => x.kind === 'video';
+const isGuest = x => x.kind === 'guest';
+const isPhoto = x => !isVideo(x) && !isGuest(x);
+const CODE = /^[A-Za-z0-9]{8,16}$/;
 
 // The queue is read from disk once (also if video-processing.js hands over a video before start() is called)
 function load() {
@@ -86,7 +95,7 @@ function status() {
     hasKey: !!p.key,
     video: p.video,
     videoQuality: p.videoQuality,
-    waiting: queue.filter(x => !isVideo(x) && !x.resultSent).length,
+    waiting: queue.filter(x => isPhoto(x) && !x.resultSent).length,
     waitingSingles: queue.reduce((n, x) => n + singlesLeft(x).length, 0),
     waitingVideos: queue.filter(isVideo).length,
     videosProcessing: queue.filter(x => isVideo(x) && !x.file).length,
@@ -143,11 +152,13 @@ async function serverSupports(p, feature) {
       });
       if (!r.ok) return null; // unknown yet (internet?) — try again later
       const j = await r.json();
-      serverFeatures = { singles: !!j.satuan, video: !!j.video }; // server answers in its own words
+      serverFeatures = { singles: !!j.satuan, video: !!j.video, guest: !!j.tamu }; // server answers in its own words
       if (!serverFeatures.singles)
         log.warn('Old QR server: single photos are not uploaded. Run "npm run cloud:pasang" to update the server.');
       if (!serverFeatures.video)
         log.warn('Old QR server: videos cannot be uploaded. Run "npm run cloud:pasang" to update the server.');
+      if (!serverFeatures.guest)
+        log.warn('Old QR server: no combined guest QR. Run "npm run cloud:pasang" to update the server.');
     } catch {
       return null;
     }
@@ -226,6 +237,24 @@ async function request(p, route, options = {}, limitMs = 120000) {
   } finally {
     clearTimeout(limit);
   }
+}
+// Send a guest's list of results (one small JSON). Returns '' on success, or an error text.
+async function sendGuest(item, p) {
+  const list = item.items.map(x => ({
+    jenis: x.kind === 'video' ? 'video' : 'foto', // server protocol keeps its Indonesian words
+    kode: x.code,
+    ...(x.kind === 'video' ? { label: x.label === 'quiz' ? 'quiz' : 'pesan' } : {}),
+  }));
+  const headers = { 'content-type': 'application/json' };
+  if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
+  const { r, j, fault } = await request(
+    p,
+    `/ut/${item.code}`,
+    { method: 'PUT', body: JSON.stringify({ isi: list }), headers },
+    30000,
+  );
+  if (fault) return fault;
+  return r.ok ? '' : refused(r, j);
 }
 const refused = (r, j) => `Server refused (${r.status}${j && j.error ? ': ' + j.error : ''})`;
 async function sendVideo(item, p) {
@@ -324,7 +353,33 @@ async function runQueue() {
     while (queue.length && ready()) {
       const now = Date.now(),
         due = x => (x.nextTry || 0) <= now;
-      const photos = queue.filter(x => !isVideo(x));
+      // A guest's list first: it is tiny, and the guest may be scanning the QR right now
+      const guest = queue.find(x => isGuest(x) && due(x));
+      if (guest) {
+        const supported = await serverSupports(settings(), 'guest');
+        if (supported === null) {
+          guest.nextTry = Date.now() + 15000;
+          saveQueue();
+          continue;
+        }
+        const err = supported ? await sendGuest(guest, settings()) : 'old server';
+        if (!err || supported === false) {
+          if (err) log.warn(`QR ${guest.code}: guest list not sent — old QR server (run npm run cloud:pasang)`);
+          else log.write(`QR ${guest.code}: guest list sent (${guest.items.length} results)`);
+          finishItem(guest);
+          st.lastError = err ? st.lastError : '';
+        } else {
+          guest.attempts = (guest.attempts || 0) + 1;
+          if (err !== st.lastError)
+            log.warn(`QR ${guest.code}: guest list not sent yet — ${err} (retrying automatically)`);
+          guest.nextTry = Date.now() + Math.min(60000, 3000 * 2 ** Math.min(guest.attempts, 5));
+          st.lastError = err;
+        }
+        saveQueue();
+        broadcast();
+        continue;
+      }
+      const photos = queue.filter(isPhoto);
       let item = photos.find(x => !x.resultSent && due(x)),
         n = 0;
       if (!item && !photos.some(x => !x.resultSent)) {
@@ -473,6 +528,43 @@ function queuePhoto(file, sid, options = {}) {
   return { code, link: photoLink(code) };
 }
 
+// Called when a guest presses "Finish & get QR". items: [{ kind: 'photo' | 'video', code, label }].
+// Returns { link, count } — one result: its own link; several: one guest page for all — or null when QR is off.
+async function guestQr(items, couple) {
+  if (!ready()) return null;
+  const seen = new Set();
+  const list = (Array.isArray(items) ? items : [])
+    .filter(x => x && (x.kind === 'photo' || x.kind === 'video') && CODE.test(String(x.code || '')))
+    .filter(x => !seen.has(x.code) && seen.add(x.code))
+    .slice(0, 20)
+    .map(x => ({
+      kind: x.kind,
+      code: x.code,
+      ...(x.kind === 'video' ? { label: x.label === 'quiz' ? 'quiz' : 'message' } : {}),
+    }));
+  if (!list.length) return null;
+  const own = x => (x.kind === 'video' ? videoLink(x.code) : photoLink(x.code));
+  if (list.length === 1) return { link: own(list[0]), count: 1 };
+  // An old server has no guest page: show the first result's own link (the others stay in Session history).
+  // Usually already known (asked when the app opens); otherwise ask now, waiting at most 3 s (offline = assume new).
+  if (serverFeatures === null) await Promise.race([serverSupports(settings(), 'guest'), sleep(3000)]);
+  if (serverFeatures && serverFeatures.guest === false) return { link: own(list[0]), count: 1 };
+  load();
+  const code = newCode();
+  queue.push({
+    kind: 'guest',
+    code,
+    items: list,
+    couple: String(couple || '').slice(0, 80),
+    attempts: 0,
+    nextTry: 0,
+    created: Date.now(),
+  });
+  saveQueue();
+  setImmediate(runQueue);
+  return { link: guestLink(code), count: list.length };
+}
+
 // A new video queue item (its file follows later through videoFileReady())
 const videoItem = (code, sid, label, couple) => ({
   kind: 'video',
@@ -578,6 +670,7 @@ function register() {
     return status();
   });
   ipcMain.handle('test-upload', () => testConnection());
+  ipcMain.handle('guest-qr', (e, items, couple) => guestQr(items, couple));
   // Fill in the address & key from the result of "npm run cloud:pasang"
   ipcMain.handle('upload-setup-result', () => {
     const h = readJSON(SETUP_RESULT, null);
@@ -637,12 +730,15 @@ function start() {
     /* the phone version folder doesn't exist yet */
   }
   setTimeout(runQueue, 2000);
+  // Ask the server once what it supports, so "Finish & get QR" already knows (old server = no guest page)
+  setTimeout(() => ready() && serverSupports(settings(), 'guest'), 3000).unref?.();
 }
 
 module.exports = {
   register,
   start,
   queuePhoto,
+  guestQr,
   saveSinglePhotos,
   ready,
   status,

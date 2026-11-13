@@ -78,11 +78,16 @@ window.api = {
   recStart: async (label, o) => { window.TAMU_REC = o && o.guest; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
-    return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://leura-foto.uji.workers.dev/v/Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
+    return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://leura-foto.uji.workers.dev/v/Vid3oKode1', code: 'Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
   savePhotos: async p => { window.FOTO = { guest: p.guest, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
-    return { ok: true, link: UNG.st.enabled ? 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' : null }; },
+    return UNG.st.enabled ? { ok: true, link: 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk', code: 'Ab3dEf9hJk' } : { ok: true, link: null }; },
+  // One QR per guest (main/upload.js → guestQr): one result = its own link, several = the guest page
+  guestQr: async (items, couple) => { window.GQ = { items, couple }; if (!items.length) return null;
+    const u = 'https://leura-foto.uji.workers.dev/';
+    if (items.length === 1) return { link: u + (items[0].kind === 'video' ? 'v/' : 'f/') + items[0].code, count: 1 };
+    return { link: u + 't/Gu3stKode1', count: items.length }; },
   uploadStatus: async () => ({ ...UNG.st }),
   saveUploadSettings: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.key ? { hasKey: true } : {}, p.enabled != null ? { enabled: p.enabled } : {}, p.video != null ? { video: p.video } : {}, p.videoQuality ? { videoQuality: p.videoQuality } : {}); return { ...UNG.st }; },
   testUpload: async () => ({ ok: true, days: 7 }),
@@ -148,6 +153,11 @@ async function main() {
   const atur = m => pg.evaluate(m => Object.assign(MODE, m), m);
   const tunggu = ms => pg.waitForTimeout(ms);
   const tungguLayar = (id, ms = 20000) => pg.waitForSelector('#' + id + '.on', { timeout: ms });
+  // Terima kasih kembali sendiri ke menu; ketuk layarnya supaya langsung kembali (dengan animasi keluar)
+  const keMenu = async () => {
+    await pg.click('#thanks');
+    await tungguLayar('home');
+  };
 
   console.log('\n▶ Halaman awal');
   cek((await layar()) === 'start', 'aplikasi dibuka di halaman Start');
@@ -192,10 +202,43 @@ async function main() {
   await tungguLayar('thanks');
   cek((await pg.textContent('#thanksMsg')) === 'Rekamanmu sudah tersimpan.', 'Terima kasih: rekaman tersimpan');
   cek(JSON.stringify(await log()) === '["start message","end 1"]', 'satu rekaman dimulai dan disimpan', await log());
+  cek(
+    (await pg.locator('#thanks button').count()) === 0 && (await pg.locator('#thanks canvas').count()) === 0,
+    'Terima kasih: tanpa tombol dan tanpa QR',
+  );
+  const animasi = await pg.evaluate(() => {
+    const side = getComputedStyle(document.querySelector('#thanks .thanks-side')).animationName;
+    const bar = getComputedStyle(document.querySelector('#thanks .thanks-timer i')).animationName;
+    return side + ' ' + bar + ' ' + getComputedStyle(document.getElementById('thanks')).getPropertyValue('--thanks-ms');
+  });
+  cek(
+    /thanksIn thanksTimer 4500ms/.test(animasi),
+    'Terima kasih masuk dengan animasi + garis waktu 4,5 detik',
+    animasi,
+  );
+  await tunggu(4200);
+  cek((await layar()) === 'thanks', 'Terima kasih masih tampil sebelum 4,5 detik');
+  await pg.waitForSelector('#thanks.leaving', { timeout: 2000 });
+  await tungguLayar('home', 3000);
+  cek(
+    await pg.evaluate(
+      () =>
+        document.getElementById('home').classList.contains('enter') &&
+        getComputedStyle(document.querySelector('#home .home-menu')).animationName === 'homeIn',
+    ),
+    'Terima kasih kembali sendiri ke menu dengan animasi (keluar lalu menu naik)',
+  );
+  await pg.click('#btnToMessage');
+  await pg.click('#btnMessageBack');
+  cek(
+    !(await pg.evaluate(() => document.getElementById('home').classList.contains('enter'))),
+    'animasi menu hanya setelah Terima kasih',
+  );
+  await pg.evaluate(() => __leura.show('thanks'));
 
   console.log('\n▶ Rekaman gagal dimulai tidak membuat layar macet');
   await atur({ startFail: true });
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(3600);
@@ -238,7 +281,7 @@ async function main() {
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToQuiz');
   cek(/2 pertanyaan acak · 2 detik/.test(await pg.textContent('#quizInfo')), 'info quiz mengikuti pengaturan');
   await pg.click('#btnQuizStart');
@@ -253,7 +296,7 @@ async function main() {
   console.log('\n▶ Quiz: hitung mundur, teks pertanyaan & QR video');
   await atur({ qrVideo: true });
   await bersihkan();
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToQuiz');
   await pg.click('#btnQuizStart');
   await tunggu(500);
@@ -296,27 +339,48 @@ async function main() {
     ),
   );
   cek(
-    (await pg.isVisible('#thanksQR')) &&
-      /mengunduh videomu/.test(await pg.textContent('#thanksQR')) &&
-      /Siap dalam beberapa menit/.test(await pg.textContent('#thanksQR')) &&
-      /\/v\/Vid3oKode1/.test(await pg.textContent('#qrLink')),
-    'Terima kasih: QR untuk mengunduh video tampil',
+    !(await pg.isVisible('#qrCanvas')) &&
+      JSON.stringify(await pg.evaluate(() => __leura.state.guestResults)) ===
+        '[{"kind":"video","code":"Vid3oKode1","label":"quiz"}]',
+    'Terima kasih tanpa QR; kode video quiz disimpan untuk QR tamu',
+  );
+  await keMenu();
+  cek(
+    await pg.evaluate(() => {
+      const b = document.getElementById('btnGuestDone');
+      const r = b.getBoundingClientRect();
+      return b.classList.contains('with-qr') && b.textContent.trim() === 'Selesai & ambil QR' && r.height >= 70;
+    }),
+    'menu: tombol besar "Selesai & ambil QR"',
+  );
+  await pg.click('#btnGuestDone');
+  await tungguLayar('guestQr');
+  cek(
+    (await pg.textContent('#qrLink')) === 'leura-foto.uji.workers.dev/v/Vid3oKode1' &&
+      (await pg.textContent('#gqSummary')) === '1 video quiz' &&
+      (await pg.evaluate(() => document.getElementById('qrCanvas').width)) > 200,
+    'satu hasil: QR langsung ke halaman videonya',
+  );
+  await pg.click('#btnGuestQrDone');
+  cek(
+    (await layar()) === 'start' && (await pg.evaluate(() => __leura.state.guestResults.length)) === 0,
+    'Selesai di halaman QR: kembali ke Start, daftar hasil tamu kosong lagi',
   );
   await atur({ qrVideo: false });
-  await pg.click('#btnBackToMenu');
+  await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   cek(
-    !(await pg.isVisible('#thanksQR')) && !(await pg.evaluate(() => META_REC.captions)),
-    'pesan video tanpa QR (QR video mati): tidak ada QR, tidak ada teks pertanyaan',
+    (await pg.evaluate(() => __leura.state.guestResults.length)) === 0 && !(await pg.evaluate(() => META_REC.captions)),
+    'pesan video tanpa QR (QR video mati): tidak ada kode QR, tidak ada teks pertanyaan',
   );
 
   console.log('\n▶ Halaman Terima kasih mengikuti hasil penyimpanan');
   await atur({ endOk: false });
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(4300);
@@ -326,7 +390,7 @@ async function main() {
   await atur({ endOk: true });
 
   console.log('\n▶ Admin: pengaturan langsung berlaku & panel bisa digulir');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   const tombolAdmin = await pg.evaluate(() => {
     const b = document.getElementById('btnAdminOpen');
     const r = b.getBoundingClientRect();
@@ -647,7 +711,7 @@ async function main() {
   );
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 2 }));
   await bersihkan();
   await pg.click('#btnToMessage');
@@ -661,7 +725,7 @@ async function main() {
   await tungguLayar('saving', 5000);
   cek(true, 'batas durasi tercapai: rekaman berhenti sendiri');
   await tungguLayar('thanks');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.evaluate(() => {
     __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 0 });
     __leura.state.activeCouple.menu.quiz = true;
@@ -791,7 +855,7 @@ async function main() {
     (await pg.textContent('#thanksMsg')) === 'Fotomu sudah tersimpan.' && (await pg.isVisible('#thanksPhoto')),
     'Terima kasih menampilkan pratinjau foto',
   );
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(4300);
@@ -894,7 +958,7 @@ async function main() {
   await pg.evaluate(() => {
     TPL[0].guestPicksFilter = true;
   });
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 30000 });
@@ -913,7 +977,7 @@ async function main() {
   );
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
 
   console.log('\n▶ Hapus template');
   await pg.evaluate(() => {
@@ -950,7 +1014,7 @@ async function main() {
   );
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  await pg.click('#btnBackToMenu');
+  await keMenu();
 
   console.log('\n▶ Tambah couple baru lalu langsung buat template');
   await pg.evaluate(() => __leura.show('admin'));
@@ -1112,7 +1176,7 @@ async function main() {
     'foto asli kamera disimpan utuh (tidak diperkecil)',
     fs,
   );
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await bersihkan();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
@@ -1124,7 +1188,7 @@ async function main() {
     (await log()).some(x => /^end /.test(x)),
     'rekaman Sony dihentikan & dicatat',
   );
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   await bersihkan();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
@@ -1362,9 +1426,20 @@ async function main() {
   await tungguLayar('thanks');
   cek(
     /Thank you/.test(await pg.textContent('#thanks h1')) &&
-      /Your photos have been saved/.test(await pg.textContent('#thanksMsg')) &&
-      /Back to menu/.test(await pg.textContent('#btnBackToMenu')),
+      /Your photos have been saved/.test(await pg.textContent('#thanksMsg')),
     'halaman Terima kasih berbahasa Inggris',
+  );
+  cek((await pg.evaluate(() => __leura.state.guestResults.length)) === 0, 'QR mati: foto tidak memberi kode QR');
+  await pg.evaluate(() => __leura.state.guestResults.push({ kind: 'photo', code: 'Ab3dEf9hJk' })); // as if QR were on
+  await keMenu();
+  cek((await pg.textContent('#guestDoneText')) === 'Finish & get QR', 'tombol "Finish & get QR" berbahasa Inggris');
+  await pg.click('#btnGuestDone');
+  await tungguLayar('guestQr');
+  cek(
+    /All your moments, one QR/.test(await pg.textContent('#guestQr h1')) &&
+      (await pg.textContent('#gqSummary')) === '1 photo session' &&
+      /\?b=en$/.test(await pg.textContent('#qrLink')),
+    'halaman QR tamu berbahasa Inggris (link membuka halaman bahasa Inggris)',
   );
   await pg.evaluate(() => __leura.show('admin'));
   await pg.selectOption('#setGuestLanguage', 'id');
@@ -1483,41 +1558,64 @@ async function main() {
   await pg.click('#peDone');
   await tungguLayar('thanks');
   cek(
-    (await pg.isVisible('#thanksQR')) &&
-      (await pg.evaluate(() => document.getElementById('qrCanvas').width)) > 200 &&
-      (await pg.textContent('#qrLink')) === 'leura-foto.uji.workers.dev/f/Ab3dEf9hJk',
-    'halaman Terima kasih menampilkan QR + link',
-  );
-  cek(
     await pg.evaluate(() => {
       const th = document.getElementById('thanks'),
-        f = document.getElementById('thanksPhoto').getBoundingClientRect(),
-        q = document.getElementById('qrCanvas').getBoundingClientRect();
-      return (
-        th.classList.contains('thanks-photo') &&
-        th.classList.contains('thanks-has-qr') &&
-        f.height > innerHeight * 0.6 &&
-        q.width >= 240 &&
-        f.right < q.left
-      );
+        f = document.getElementById('thanksPhoto').getBoundingClientRect();
+      return th.classList.contains('thanks-photo') && f.height > innerHeight * 0.6;
     }),
-    'Terima kasih: hasil foto besar di kiri, QR besar di kanan',
+    'Terima kasih: hasil foto besar',
   );
-  await pg.evaluate(() => {
-    window.QRPNG = document.getElementById('qrCanvas').toDataURL('image/png');
-  });
-  await pg.click('#btnBackToMenu');
+  cek(
+    (await pg.evaluate(() => getComputedStyle(document.getElementById('thanks')).getPropertyValue('--thanks-ms'))) ===
+      '6500ms',
+    'Terima kasih foto tampil lebih lama (6,5 detik)',
+  );
+  await keMenu();
+  await atur({ qrVideo: true });
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(400);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  cek(!(await pg.isVisible('#thanksQR')), 'setelah sesi video, QR foto tidak ikut tampil');
+  await atur({ qrVideo: false });
+  await keMenu();
+  await pg.click('#btnGuestDone');
+  await tungguLayar('guestQr');
+  cek(
+    (await pg.textContent('#qrLink')) === 'leura-foto.uji.workers.dev/t/Gu3stKode1' &&
+      (await pg.textContent('#gqSummary')) === '1 pesan video · 1 sesi foto' &&
+      JSON.stringify((await pg.evaluate(() => GQ)).items.map(x => x.kind + ':' + x.code)) ===
+        '["photo:Ab3dEf9hJk","video:Vid3oKode1"]' &&
+      (await pg.evaluate(() => GQ.couple)) === 'Rina & Dimas',
+    'foto + pesan: SATU QR ke halaman tamu, berisi keduanya',
+  );
+  await tunggu(1000); // the QR pops in with an animation
+  cek(
+    await pg.evaluate(() => {
+      const q = document.getElementById('qrCanvas').getBoundingClientRect();
+      return q.width >= 300 && q.bottom <= innerHeight;
+    }),
+    'QR tamu besar dan muat di layar',
+  );
+  await pg.evaluate(() => {
+    window.QRPNG = document.getElementById('qrCanvas').toDataURL('image/png');
+  });
   require('fs').writeFileSync(
     require('path').join(require('os').tmpdir(), 'uji-qr.png'),
     Buffer.from((await pg.evaluate(() => QRPNG)).split(',')[1], 'base64'),
   );
-  await pg.click('#btnBackToMenu');
+
+  console.log('\n▶ Tamu pergi tanpa menekan "Selesai & ambil QR"');
+  await pg.evaluate(() => {
+    __leura.state.guestResults = [{ kind: 'photo', code: 'Ab3dEf9hJk' }];
+    __leura.state.guestActivity = 1;
+    __leura.show('home');
+    clearTimeout(__leura.state.idleTimer);
+  });
+  // Idle on the menu: the real timer is 60 s; call what it calls
+  await pg.evaluate(() => __leura.openGuestQr());
+  cek((await layar()) === 'guestQr', 'menu dibiarkan dengan hasil: QR tamu tampil dulu, bukan langsung Start');
+  await pg.click('#btnGuestQrDone');
 
   console.log('\n▶ Link QR di Riwayat sesi');
   await pg.evaluate(() => {
@@ -1664,12 +1762,7 @@ async function main() {
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
-  cek(
-    /Kembali ke menu/.test(await pg.textContent('#btnBackToMenu')) &&
-      (await pg.locator('#thanks button:visible').count()) === 1,
-    'Terima kasih: satu tombol "Kembali ke menu"',
-  );
-  await pg.click('#btnBackToMenu');
+  await keMenu();
   cek(
     (await layar()) === 'home' && (await pg.textContent('#guestGreeting')) === 'Hai, Rani!',
     'kembali ke menu: nama tamu tetap (tidak perlu mengetik ulang)',
@@ -1690,12 +1783,10 @@ async function main() {
   await pg.evaluate(() => {
     __leura.state.guestActivity = 1;
     __leura.show('thanks');
-    __leura.state.idleTimer && clearTimeout(__leura.state.idleTimer);
-    __leura.state.idleTimer = setTimeout(() => __leura.show(__leura.state.current === 'thanks' ? 'home' : 'start'), 50);
   });
-  await tunggu(300);
+  await tungguLayar('home', 8000);
   cek(
-    (await layar()) === 'home' && (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
+    (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
     'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start',
   );
 

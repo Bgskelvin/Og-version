@@ -34,6 +34,9 @@
         <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
       </symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></symbol>
+      <symbol id="i-qr" viewBox="0 0 24 24">
+        <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2.5v2.5H14zM17.5 17.5H20V20h-2.5zM14 20h1M20 14v1" />
+      </symbol>
       <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5" /></symbol>
       <symbol id="i-retry" viewBox="0 0 24 24">
         <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
@@ -162,8 +165,11 @@
             ><small data-t="home.photoInfo">Ambil 4 foto, lalu hias hasilnya</small>
           </button>
         </div>
-        <!-- Shown after the guest did at least one activity; back to Start for the next guest -->
-        <button id="btnGuestDone" class="menu-done" data-t="done" style="display: none">Selesai</button>
+        <!-- Shown after the guest did at least one activity: "Finish & get QR" (one QR for everything),
+             or just "Done" when QR is off. Its text is set by guest-qr.js -->
+        <button id="btnGuestDone" class="menu-done" style="display: none">
+          <svg class="i"><use href="#i-qr" /></svg><span id="guestDoneText">Selesai</span>
+        </button>
       </div>
     </div>
 
@@ -517,7 +523,12 @@
     </div>
 
     <!-- 6. THANK YOU SCREEN (thanks) -->
+    <!-- Shows a few seconds after a message / quiz / photo, then goes back to the main menu by itself
+         (tapping anywhere goes back right away). Animations: styles/photobooth.css "Thank you screen" -->
     <div class="screen mid" id="thanks">
+      <div class="thanks-burst" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
       <div class="thanks-wrap">
         <div class="thanks-result"><img id="thanksPhoto" alt="Hasil foto" /></div>
         <div class="thanks-side">
@@ -526,15 +537,29 @@
           </div>
           <h1 id="thanksTitle"><span data-t="thanks.title">Terima kasih</span><span id="thanksName"></span></h1>
           <p id="thanksMsg">Rekamanmu sudah tersimpan.</p>
-          <div class="thanks-qr" id="thanksQR" style="display: none">
-            <canvas id="qrCanvas" aria-label="Kode QR untuk mengunduh foto"></canvas>
-            <b data-t="thanks.qr">Pindai untuk mengunduh fotomu</b>
-            <small data-t="thanks.qrInfo">Foto tersedia selama 7 hari.</small>
-            <small class="thanks-link" id="qrLink"></small>
-          </div>
-          <button id="btnBackToMenu" class="btn primary thanks-menu" data-t="thanks.menu">
-            <svg class="i"><use href="#i-back" /></svg>Kembali ke menu
-          </button>
+          <div class="thanks-timer" aria-hidden="true"><i></i></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUEST QR (guestQr): one QR for everything this guest made. Opened by "Finish & get QR" on the
+         main menu, or by itself when a guest leaves without pressing it (guest-qr.js) -->
+    <div class="screen mid" id="guestQr">
+      <div class="gq-card glass">
+        <div class="gq-text">
+          <h1 data-t="gq.title">Semua hasilmu, satu QR</h1>
+          <p id="gqSummary"></p>
+          <ol class="gq-steps">
+            <li data-t="gq.step1">Buka kamera HP-mu</li>
+            <li data-t="gq.step2">Arahkan ke kode QR</li>
+            <li data-t="gq.step3">Simpan foto & videomu</li>
+          </ol>
+          <button id="btnGuestQrDone" class="btn primary gq-done" data-t="done">Selesai</button>
+        </div>
+        <div class="gq-qr">
+          <canvas id="qrCanvas" aria-label="Kode QR"></canvas>
+          <small data-t="gq.days">Tersedia selama 7 hari</small>
+          <small class="gq-link" id="qrLink"></small>
         </div>
       </div>
     </div>

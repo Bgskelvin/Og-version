@@ -5,7 +5,7 @@
    in state.js.
    ===================================================================== */
 import { usingSony, sonyState } from './sony-camera.js';
-import { showDownloadQr } from './download-qr.js';
+import { addGuestResult } from './guest-qr.js';
 import { $, sleep, state } from './state.js';
 import { setNotice, show } from './app.js';
 import { t } from './language.js';
@@ -19,7 +19,7 @@ export async function startRecording(label) {
   const r = await api.recStart(label, { sony, guest: state.guestName });
   if (!r || r.error) throw new Error((r && r.error) || 'Could not start the recording');
   if (r.fallback) setNotice('The chosen folder is not available, the recording is saved in the default folder', 8000);
-  const cur = { id: r.id, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
+  const cur = { id: r.id, label, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };
   if (sony) {
     state.rec = cur;
     state.recT0 = cur.t0;
@@ -50,13 +50,11 @@ export async function startRecording(label) {
   state.rec = cur;
   state.recT0 = cur.t0;
 }
-// QR download link for the last recording's video (set when the recording has been saved)
-let lastVideoQrLink = null;
 function stopRecording(meta) {
   const cur = state.rec;
   state.rec = null;
-  lastVideoQrLink = null;
   if (!cur) return Promise.resolve(false);
+  const results = state.guestResults; // this guest's list, even if the save finishes after they left
   const seconds = Math.round((Date.now() - cur.t0) / 1000);
   const info = { couple: state.activeCouple ? state.activeCouple.name : '', ...(meta || {}) };
   const p = new Promise(resolve => {
@@ -66,7 +64,9 @@ function stopRecording(meta) {
         await cur.pending;
         const res = await api.recEnd(cur.id, seconds, info);
         ok = !!(res && res.ok);
-        if (ok && res.link && !info.aborted) lastVideoQrLink = res.link;
+        // The video's download code goes into the guest's one QR ("Finish & get QR" on the main menu)
+        if (ok && res.code && !info.aborted)
+          addGuestResult(results, { kind: 'video', code: res.code, label: cur.label === 'quiz' ? 'quiz' : 'message' });
         if (res && !res.ok) setNotice('The last recording could not be saved: ' + res.error, 15000);
       } catch (err) {
         setNotice('The last recording could not be saved: ' + err.message, 15000);
@@ -102,10 +102,10 @@ export function setThanks(result) {
   const ok = result === true,
     slow = result === 'slow';
   // The photo preview is only for the photo booth; photobooth.js shows it after calling this
-  $('thanks').classList.remove('thanks-photo', 'thanks-has-qr');
+  $('thanks').classList.remove('thanks-photo');
+  $('thanks').classList.toggle('thanks-failed', !ok && !slow);
   $('thanksName').textContent = state.guestName || '';
   $('thanksPhoto').style.display = 'none';
-  $('thanksQR').style.display = 'none';
   $('thanksBadge').style.display = '';
   $('thanksBadge').style.background = ok || slow ? '' : 'var(--orange)';
   $('thanksBadge').innerHTML =
@@ -135,7 +135,6 @@ export async function finishSession(meta) {
   finishing = false;
   state.busy = false;
   setThanks(result);
-  if (result === true && lastVideoQrLink) showDownloadQr(lastVideoQrLink, 'video');
   show('thanks');
 }
 // Called when something fails: save what was recorded, then go back to the main menu.

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('api', {
   recAbort: id => ipcRenderer.invoke('rec-abort', id),
   onRecError: cb => ipcRenderer.on('rec-error', (e, id, msg) => cb(id, msg)),
   uploadStatus: () => ipcRenderer.invoke('upload-status'),
+  guestQr: (items, couple) => ipcRenderer.invoke('guest-qr', items, couple),
   saveUploadSettings: cfg => ipcRenderer.invoke('save-upload-settings', cfg),
   testUpload: () => ipcRenderer.invoke('test-upload'),
   uploadSetupResult: () => ipcRenderer.invoke('upload-setup-result'),

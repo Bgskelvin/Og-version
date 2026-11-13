@@ -46,6 +46,7 @@ export const SCREENS = [
   'coupleForm',
   'saving',
   'thanks',
+  'guestQr',
 ];
 export const MAX_Q = 10; // max quiz questions per couple
 
@@ -59,6 +60,8 @@ export const state = {
   disk: null, // free space of the storage folder's disk (disk-space.js)
   guestActivity: 0, // activities (message/quiz/photo) by this guest; > 0 = Done button shows
   guestName: '', // guest name from the "What's your name?" page (empty = not asked)
+  guestResults: [], // this guest's results with a QR code: [{ kind: 'photo' | 'video', code, label }]
+  thanksTimer: null, // Thank you → back to the main menu by itself
 
   // Camera & mic
   mediaStream: null, // the open camera + mic stream

@@ -1,11 +1,9 @@
 /* =====================================================================
-   download-qr.js — photo/video download QR on the Thank you page, and its
-   settings in Admin → Photo booth settings → "Photo download via QR".
+   download-qr.js — settings of the photo/video download QR in Admin →
+   Photo booth settings → "Download via QR". The guest's QR itself: guest-qr.js.
    The upload queue lives in main/upload.js, the server in cloud/worker.mjs.
    ===================================================================== */
-import { drawQr } from './qr.js';
 import { refreshHistory } from './session-history.js';
-import { language, t } from './language.js';
 import { $, state } from './state.js';
 import { flash } from './app.js';
 
@@ -16,25 +14,6 @@ export const getUploadStatus = () => uploadStatus;
 export async function refreshUploadStatus() {
   uploadStatus = await api.uploadStatus();
   return uploadStatus;
-}
-
-// Show the QR + link on the Thank you page (the link exists even before the photo/video is uploaded)
-// kind: 'photo' (photo booth) or 'video' (message / quiz)
-export function showDownloadQr(link, kind = 'photo') {
-  const url = link + (language === 'en' ? '?b=en' : '');
-  try {
-    drawQr($('qrCanvas'), url, 8);
-    const [title, info] = $('thanksQR').querySelectorAll('b, small:not(.thanks-link)');
-    if (title) title.textContent = t(kind === 'video' ? 'thanks.qrVideo' : 'thanks.qrPhoto');
-    if (info) info.textContent = t(kind === 'video' ? 'thanks.qrVideoInfo' : 'thanks.qrPhotoInfo');
-    $('qrLink').textContent = url.replace(/^https:\/\//, '');
-    $('thanksQR').style.display = '';
-    $('thanks').classList.add('thanks-has-qr');
-  } catch (e) {
-    console.log('QR could not be created: ' + e.message);
-    $('thanksQR').style.display = 'none';
-    $('thanks').classList.remove('thanks-has-qr');
-  }
 }
 
 /* ---------- Admin ---------- */
