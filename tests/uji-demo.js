@@ -120,7 +120,7 @@ async function main() {
   cek(/Budi/.test(await pg.textContent('#thanksName')), 'Terima kasih menyapa nama tamu');
 
   console.log('\n▶ Photo booth');
-  await pg.click('#btnBackToMenu');
+  await pg.click('#thanks');
   await tungguLayar('home');
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -129,7 +129,25 @@ async function main() {
   await tunggu(600);
   await pg.click('#peDone');
   await tungguLayar('thanks');
-  cek((await pg.isVisible('#thanksPhoto')) && (await pg.isVisible('#thanksQR')), 'hasil foto + QR contoh tampil');
+  cek(await pg.isVisible('#thanksPhoto'), 'hasil foto tampil');
+  cek(
+    await pg.evaluate(() => {
+      const r = document.getElementById('thanksPhoto').getBoundingClientRect();
+      return r.width > 0 && r.right <= innerWidth + 1;
+    }),
+    'hasil foto muat di layar HP',
+  );
+  await pg.click('#thanks');
+  await tungguLayar('home');
+  await pg.click('#btnGuestDone');
+  await tungguLayar('guestQr');
+  cek(
+    await pg.evaluate(() => {
+      const q = document.getElementById('qrCanvas').getBoundingClientRect();
+      return q.width > 150 && q.right <= innerWidth + 1;
+    }),
+    '"Selesai & ambil QR" membuka QR yang muat di layar HP',
+  );
   const linkQR = await pg.textContent('#qrLink');
   cek(
     /\/f\/[A-Za-z0-9]{12}\?b=en$/.test(linkQR),
@@ -163,13 +181,6 @@ async function main() {
     (await fetch(URL_DEMO + 'i/RahasiaAsli123')).status === 404,
     'foto booth asli (folder foto/) tidak bisa dibuka dari demo',
   );
-  cek(
-    await pg.evaluate(() => {
-      const r = document.getElementById('thanksPhoto').getBoundingClientRect();
-      return r.width > 0 && r.right <= innerWidth + 1;
-    }),
-    'hasil foto muat di layar HP',
-  );
   const sesi = await pg.evaluate(() => api.getSessions());
   cek(
     sesi.length === 2 &&
@@ -180,7 +191,9 @@ async function main() {
   );
 
   console.log('\n▶ Admin');
-  await pg.click('#btnBackToMenu');
+  await pg.click('#btnGuestQrDone');
+  await tungguLayar('start');
+  await pg.evaluate(() => __leura.show('home'));
   await tungguLayar('home');
   await pg.click('#btnAdminOpen');
   await tunggu(300);

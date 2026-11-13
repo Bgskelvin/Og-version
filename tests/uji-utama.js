@@ -1706,6 +1706,74 @@ const KASUS = {
       'internet kembali: semua foto hasil dikirim dulu, baru foto satuan',
       urutan,
     );
+    // Satu QR per tamu (v1.5.0): daftar hasil tamu dikirim, halaman /t menampilkan semuanya
+    cek((await panggil('guest-qr', [], 'Rina & Dimas')) === null, 'QR tamu: tanpa hasil → tidak ada QR');
+    const satu = await panggil('guest-qr', [{ kind: 'photo', code: a }], 'Rina & Dimas');
+    cek(
+      satu.count === 1 && satu.link === `http://127.0.0.1:${port}/f/${a}`,
+      'QR tamu dengan satu hasil: langsung link hasil itu',
+    );
+    const g = await panggil(
+      'guest-qr',
+      [
+        { kind: 'photo', code: a },
+        { kind: 'video', code: 'Vid3oKode12', label: 'quiz' },
+        { kind: 'photo', code: a },
+        { kind: 'apa', code: 'BukanJenis1' },
+        { kind: 'photo', code: '../../rahasia' },
+      ],
+      'Rina & Dimas',
+    );
+    const gk = (g && g.link.split('/t/')[1]) || '';
+    cek(g.count === 2 && /^[A-Za-z0-9]{10}$/.test(gk), 'QR tamu dengan beberapa hasil: satu link halaman tamu', g);
+    await tunggu(800);
+    const daftar = toko.has(`tamu/${gk}.json`) && JSON.parse(toko.get(`tamu/${gk}.json`).data);
+    cek(
+      daftar &&
+        JSON.stringify(daftar.isi) ===
+          JSON.stringify([
+            { jenis: 'foto', kode: a },
+            { jenis: 'video', kode: 'Vid3oKode12', label: 'quiz' },
+          ]) &&
+        toko.get(`tamu/${gk}.json`).meta.couple === 'Rina & Dimas',
+      'daftar hasil tamu terkirim ke server (tanpa kembar & isi tidak sah)',
+      daftar,
+    );
+    const halTamu = await (await ambil('/t/' + gk)).text();
+    cek(
+      halTamu.includes(`href="/f/${a}"`) &&
+        halTamu.includes(`src="/i/${a}"`) &&
+        halTamu.includes('Sedang dikirim') &&
+        halTamu.includes('Quick quiz') &&
+        halTamu.includes('Rina &amp; Dimas'),
+      'halaman tamu: foto siap (bisa dibuka), video quiz "sedang dikirim"',
+    );
+    const stTamu = await (await ambil('/ts/' + gk)).json();
+    cek(
+      stTamu.ok && stTamu.isi[0].siap === true && stTamu.isi[1].siap === false,
+      'status tamu: mana yang sudah sampai',
+      stTamu,
+    );
+    cek(
+      /Your Leura moments|Everything from your visit/.test(await (await ambil('/t/' + gk + '?b=en')).text()) &&
+        (await (await ambil('/t/' + gk + '?b=en')).text()).includes(`href="/f/${a}?b=en"`),
+      'halaman tamu bahasa Inggris; link hasil tetap bahasa Inggris',
+    );
+    cek(
+      (await ambil('/ut/' + gk, { method: 'PUT', body: '{"isi":[]}' })).status === 401 &&
+        (
+          await ambil('/ut/AbcdEfgh12', {
+            method: 'PUT',
+            headers: { authorization: 'Bearer ' + env.KUNCI_BOOTH },
+            body: '{"isi":[{"jenis":"foto","kode":"<script>"}]}',
+          })
+        ).status === 400,
+      'server menolak daftar tamu tanpa kunci booth, atau tanpa isi yang sah',
+    );
+    cek(
+      /Hasilmu sedang dikirim/.test(await (await ambil('/t/BelumAda1234')).text()),
+      'daftar belum sampai: halaman menunggu',
+    );
     // Server versi lama: foto satuan TIDAK dikirim (akan menimpa foto hasil)
     serverLama.enabled = true;
     await panggil('save-upload-settings', {});
@@ -1721,6 +1789,31 @@ const KASUS = {
         fs.readdirSync(path.join(dataDir, 'qr-singles')).length === 0,
       'server QR lama: foto satuan dilewati, foto hasil tetap aman',
     );
+    await panggil(
+      'guest-qr',
+      [
+        { kind: 'photo', code: a },
+        { kind: 'photo', code: c },
+      ],
+      'Rina & Dimas',
+    );
+    await tunggu(800);
+    cek(
+      ![...toko.keys()].some(k => k.startsWith('tamu/')) &&
+        !db()
+          .readUploadQueue()
+          .some(x => x.kind === 'guest'),
+      'server QR lama: daftar tamu tidak macet di antrean',
+    );
+    const gLama2 = await panggil(
+      'guest-qr',
+      [
+        { kind: 'photo', code: a },
+        { kind: 'photo', code: c },
+      ],
+      '',
+    );
+    cek(gLama2.link === `http://127.0.0.1:${port}/f/${a}`, 'server QR lama: QR tamu memakai link hasil pertama');
     await matikan();
   },
 

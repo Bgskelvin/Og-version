@@ -461,7 +461,9 @@ function register() {
           `Recording done (Sony, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.cardFile}${qr ? ', QR ' + qr.code : ''}`,
         );
       if (!r.error) copySonyVideo(sid, r, rec.file);
-      return r.error ? { ok: false, error: r.error } : { ok: true, file: rec.file, link: qr ? qr.link : null };
+      return r.error
+        ? { ok: false, error: r.error }
+        : { ok: true, file: rec.file, link: qr ? qr.link : null, code: qr ? qr.code : null };
     }
     await closeStream(rec);
     const ok = !rec.error;
@@ -489,7 +491,7 @@ function register() {
     if (ok) log.write(`Recording done (${seconds} s): ${path.basename(rec.file)}${qr ? ', QR ' + qr.code : ''}`);
     else log.error(`Recording could not be saved (${path.basename(rec.file)}): ${rec.error}`);
     if (ok) convert(sid, rec.file);
-    return { ok, file: rec.file, error: rec.error, link: qr ? qr.link : null };
+    return { ok, file: rec.file, error: rec.error, link: qr ? qr.link : null, code: qr ? qr.code : null };
   });
 
   // Cancel a recording that failed to start: close it and delete the still-empty file

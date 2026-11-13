@@ -786,10 +786,13 @@ body.camOn .pb-safe.on {
 }
 
 /* ============ Thank you screen ============
-   Three states (classes on #thanks, set by recording.js / photobooth.js / download-qr.js):
-   - no class       : message / quiz video → small card in the middle (check mark + text)
-   - .thanks-photo  : photo booth → large result photo on the left, text + buttons on the right
-   - .thanks-has-qr : + large QR on the right, ready to scan from an arm's length */
+   Shows a few seconds after every message / quiz / photo, then goes back to the main menu by itself
+   (app.js → show / leaveThanks). Classes on #thanks:
+   - no class        : message / quiz → small card in the middle (check mark + text)
+   - .thanks-photo   : photo booth → large result photo on the left, text on the right
+   - .thanks-failed  : not saved → orange "!" badge, stays longer
+   - .leaving        : the page fades up and away, then the main menu rises in (#home.enter)
+   --thanks-ms (set by app.js) = how long the page stays; the thin gold line fills up in that time. */
 .thanks-wrap {
   display: flex;
   align-items: center;
@@ -809,7 +812,7 @@ body.camOn .pb-safe.on {
   gap: 2.2vh;
   width: 100%;
   max-width: 640px;
-  padding: 4.4vh 3.4vw;
+  padding: 4.4vh 3.4vw 3.4vh;
   border-radius: var(--r-card);
   background: var(--glass);
   -webkit-backdrop-filter: var(--blur);
@@ -820,17 +823,11 @@ body.camOn .pb-safe.on {
     0 24px 60px rgba(20, 20, 40, 0.14);
 }
 .thanks-side .badge {
+  position: relative;
   margin: 0 auto 0.4vh;
 }
 .thanks-side p {
   margin: 0;
-}
-.thanks-menu {
-  flex: none;
-  width: 100%;
-  min-height: 72px;
-  margin-top: 1vh;
-  font-size: 22px;
 }
 #thanksName {
   display: block;
@@ -849,6 +846,30 @@ body.camOn .pb-safe.on {
 }
 #thanksTitle {
   max-width: 100%;
+}
+/* Thin gold line: fills up while the page waits, then the menu comes back */
+.thanks-timer {
+  width: min(220px, 60%);
+  height: 4px;
+  margin-top: 1.2vh;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  overflow: hidden;
+}
+.thanks-timer i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+#thanks.on .thanks-timer i {
+  animation: thanksTimer var(--thanks-ms, 5000ms) linear 0.5s forwards;
+}
+#thanks.thanks-failed .badge {
+  background: var(--orange);
+  box-shadow: 0 12px 30px rgba(255, 159, 10, 0.35);
 }
 
 /* Photo booth: the result photo is the focus */
@@ -890,73 +911,298 @@ body.camOn .pb-safe.on {
 #thanks.thanks-photo p {
   font-size: clamp(16px, 1.5vw, 19px);
 }
-#thanks.thanks-photo.thanks-has-qr p {
-  display: none;
-} /* "Your photos have been saved" — the QR already says so */
 
-/* Message / quiz with a video QR: no photo, everything must fit one screen */
-#thanks.thanks-has-qr:not(.thanks-photo) .thanks-side {
-  gap: 1.6vh;
-  padding: 3vh 3vw;
+/* ---- Coming in: the card floats up out of a blur, the check mark draws itself, gold sparkles burst ---- */
+#thanks.on .thanks-side {
+  animation: thanksIn 0.75s cubic-bezier(0.2, 0.9, 0.25, 1.08) both;
 }
-#thanks.thanks-has-qr:not(.thanks-photo) .badge {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto;
+#thanks.on .thanks-side > :not(.badge) {
+  animation: thanksRise 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
-#thanks.thanks-has-qr:not(.thanks-photo) .badge svg.i {
-  width: 36px;
-  height: 36px;
+#thanks.on .thanks-side > :nth-child(2) {
+  animation-delay: 0.32s;
 }
-#thanks.thanks-has-qr:not(.thanks-photo) #thanksMsg {
-  display: none;
+#thanks.on .thanks-side > :nth-child(3) {
+  animation-delay: 0.42s;
 }
-#thanks.thanks-has-qr:not(.thanks-photo) .thanks-qr canvas {
-  width: min(34vh, 100%, 330px);
+#thanks.on .thanks-side > :nth-child(4) {
+  animation-delay: 0.52s;
+}
+#thanks.on .badge {
+  animation: thanksBadge 0.7s cubic-bezier(0.3, 1.5, 0.5, 1) 0.15s both;
+}
+#thanks.on .badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--green);
+  animation: thanksRing 1.1s ease-out 0.35s both;
+}
+#thanks.thanks-failed .badge::after {
+  border-color: var(--orange);
+}
+#thanks.on .badge svg.i {
+  stroke-dasharray: 24;
+  animation: thanksCheck 0.45s ease-out 0.5s both;
+}
+#thanks.on.thanks-photo #thanksPhoto {
+  animation: thanksPrint 0.9s cubic-bezier(0.2, 0.85, 0.25, 1.05) both;
+}
+.thanks-burst {
+  position: absolute;
+  z-index: 2; /* sparkles fly over the card */
+  left: 50%;
+  top: 46%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+#thanks.thanks-photo .thanks-burst {
+  left: 38%;
+}
+.thanks-burst i {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0;
+}
+.thanks-burst i:nth-child(3n) {
+  background: #f2b8c6;
+  border-radius: 50%;
+}
+.thanks-burst i:nth-child(3n + 1) {
+  background: #e7c9a0;
+  width: 9px;
+  height: 20px;
+}
+#thanks.on .thanks-burst i {
+  animation: thanksBurst 1.4s cubic-bezier(0.15, 0.7, 0.3, 1) both;
+}
+.thanks-burst i:nth-child(1) {
+  --a: 0deg;
+  --d: 30vh;
+  animation-delay: 0.25s !important;
+}
+.thanks-burst i:nth-child(2) {
+  --a: 35deg;
+  --d: 37vh;
+  animation-delay: 0.3s !important;
+}
+.thanks-burst i:nth-child(3) {
+  --a: 51deg;
+  --d: 44vh;
+  animation-delay: 0.35s !important;
+}
+.thanks-burst i:nth-child(4) {
+  --a: 86deg;
+  --d: 35vh;
+  animation-delay: 0.4s !important;
+}
+.thanks-burst i:nth-child(5) {
+  --a: 103deg;
+  --d: 42vh;
+  animation-delay: 0.25s !important;
+}
+.thanks-burst i:nth-child(6) {
+  --a: 138deg;
+  --d: 33vh;
+  animation-delay: 0.3s !important;
+}
+.thanks-burst i:nth-child(7) {
+  --a: 154deg;
+  --d: 40vh;
+  animation-delay: 0.35s !important;
+}
+.thanks-burst i:nth-child(8) {
+  --a: 189deg;
+  --d: 31vh;
+  animation-delay: 0.4s !important;
+}
+.thanks-burst i:nth-child(9) {
+  --a: 206deg;
+  --d: 38vh;
+  animation-delay: 0.25s !important;
+}
+.thanks-burst i:nth-child(10) {
+  --a: 240deg;
+  --d: 45vh;
+  animation-delay: 0.3s !important;
+}
+.thanks-burst i:nth-child(11) {
+  --a: 257deg;
+  --d: 36vh;
+  animation-delay: 0.35s !important;
+}
+.thanks-burst i:nth-child(12) {
+  --a: 292deg;
+  --d: 43vh;
+  animation-delay: 0.4s !important;
+}
+.thanks-burst i:nth-child(13) {
+  --a: 309deg;
+  --d: 34vh;
+  animation-delay: 0.25s !important;
+}
+.thanks-burst i:nth-child(14) {
+  --a: 343deg;
+  --d: 41vh;
+  animation-delay: 0.3s !important;
 }
 
-/* QR: white card, large, full contrast */
-.thanks-qr {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 16px 16px 18px;
-  background: #fff;
-  border-radius: 24px;
-  color: #1d1d1f;
-  box-shadow:
-    0 2px 6px rgba(20, 20, 40, 0.06),
-    0 18px 44px rgba(20, 20, 40, 0.14);
-}
-.thanks-qr canvas {
-  width: min(38vh, 100%, 330px);
-  height: auto;
-  aspect-ratio: 1;
-  display: block;
-  image-rendering: pixelated;
-  margin-bottom: 4px;
-}
-.thanks-qr b {
-  font-size: 20px;
-  line-height: 1.25;
-  font-weight: 650;
-}
-.thanks-qr small {
-  font-size: 15px;
-  color: #6e6e73;
-}
-.thanks-qr .thanks-link {
-  font-size: 12px;
-  color: #a1a1a6;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* ---- Leaving: everything lifts up softly and fades into a blur ---- */
+#thanks.leaving .thanks-wrap,
+#thanks.leaving .thanks-burst {
+  animation: thanksOut 0.52s cubic-bezier(0.5, 0, 0.75, 0) both;
 }
 
-/* Portrait screen: photo on top, QR + text side by side below */
+/* ---- The main menu rises in after Thank you; options follow one after another ---- */
+#home.enter .home-menu {
+  animation: homeIn 0.7s cubic-bezier(0.2, 0.9, 0.25, 1.05) both;
+}
+#home.enter .menu-button {
+  animation: thanksRise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+#home.enter .menu-button:nth-child(1) {
+  animation-delay: 0.18s;
+}
+#home.enter .menu-button:nth-child(2) {
+  animation-delay: 0.26s;
+}
+#home.enter .menu-button:nth-child(3) {
+  animation-delay: 0.34s;
+}
+#home.enter .menu-done.with-qr {
+  animation:
+    thanksRise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) 0.44s both,
+    doneGlow 2.4s ease-in-out 1.1s 2;
+}
+
+@keyframes thanksIn {
+  from {
+    opacity: 0;
+    transform: translateY(46px) scale(0.9);
+    filter: blur(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes thanksRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes thanksBadge {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-25deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes thanksRing {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+@keyframes thanksCheck {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes thanksPrint {
+  from {
+    opacity: 0;
+    transform: translateY(60px) rotate(-4deg) scale(0.92);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes thanksBurst {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(0) scale(0.4);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(calc(var(--d) * -1)) rotate(220deg) scale(1);
+  }
+}
+@keyframes thanksTimer {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes thanksOut {
+  to {
+    opacity: 0;
+    transform: translateY(-36px) scale(1.04);
+    filter: blur(10px);
+  }
+}
+@keyframes homeIn {
+  from {
+    opacity: 0;
+    transform: translateY(60px) scale(0.95);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+@keyframes doneGlow {
+  0%,
+  100% {
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 12px 30px color-mix(in srgb, var(--accent) 35%, transparent),
+      0 0 0 10px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #thanks.on *,
+  #thanks.leaving *,
+  #home.enter * {
+    animation: none !important;
+  }
+  .thanks-burst {
+    display: none;
+  }
+}
+
+/* Portrait screen: photo on top, text below */
 @media (orientation: portrait) {
   .thanks-wrap {
     flex-direction: column;
@@ -964,37 +1210,156 @@ body.camOn .pb-safe.on {
   }
   #thanks.thanks-photo .thanks-result {
     height: auto;
-    max-height: 50vh;
+    max-height: 56vh;
   }
   #thanksPhoto {
-    max-height: 50vh;
+    max-height: 56vh;
   }
   #thanks.thanks-photo .thanks-side {
     width: min(620px, 90vw);
   }
-  .thanks-qr {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: 1fr auto auto auto 1fr;
-    column-gap: 24px;
-    row-gap: 6px;
-    text-align: left;
-    padding: 16px 24px 16px 16px;
+  #thanks.thanks-photo .thanks-burst {
+    left: 50%;
+    top: 30%;
   }
-  .thanks-qr canvas {
-    grid-row: 1 / 6;
-    width: min(26vh, 280px);
-    margin: 0;
+}
+
+/* ============ Guest QR (guestQr): one QR for everything this guest made ============ */
+.gq-card {
+  display: flex;
+  align-items: center;
+  gap: 4vw;
+  width: min(1060px, 100%);
+  padding: 4.5vh 4vw;
+  border-radius: var(--r-card);
+  text-align: left;
+}
+.gq-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+}
+.gq-text h1 {
+  margin: 0;
+  font-size: clamp(32px, 3.6vw, 50px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+#gqSummary {
+  margin: 0;
+  font-size: clamp(17px, 1.7vw, 21px);
+  font-weight: 600;
+  color: var(--accent);
+}
+#gqSummary:empty {
+  display: none;
+}
+.gq-steps {
+  margin: 0.4vh 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: gq;
+  display: grid;
+  gap: 1.3vh;
+}
+.gq-steps li {
+  counter-increment: gq;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: clamp(17px, 1.6vw, 20px);
+  color: var(--text);
+}
+.gq-steps li::before {
+  content: counter(gq);
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: #fff;
+  background: var(--accent);
+}
+.gq-done {
+  align-self: flex-start;
+  min-width: 220px;
+  min-height: 64px;
+  margin-top: 1.4vh;
+  font-size: 20px;
+}
+.gq-qr {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 18px 16px;
+  background: #fff;
+  border-radius: 26px;
+  color: #6e6e73;
+  box-shadow:
+    0 2px 6px rgba(20, 20, 40, 0.06),
+    0 18px 44px rgba(20, 20, 40, 0.14);
+}
+.gq-qr canvas {
+  width: min(44vh, 36vw, 400px);
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  image-rendering: pixelated;
+  margin-bottom: 4px;
+}
+.gq-qr small {
+  font-size: 15px;
+}
+.gq-qr .gq-link {
+  font-size: 12px;
+  color: #a1a1a6;
+  max-width: min(44vh, 36vw, 400px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#guestQr.on .gq-card {
+  animation: thanksIn 0.7s cubic-bezier(0.2, 0.9, 0.25, 1.05) both;
+}
+#guestQr.on .gq-qr {
+  animation: gqPop 0.7s cubic-bezier(0.3, 1.4, 0.5, 1) 0.2s both;
+}
+@keyframes gqPop {
+  from {
+    opacity: 0;
+    transform: scale(0.8) rotate(-3deg);
   }
-  .thanks-qr b {
-    grid-row: 2;
-    font-size: 22px;
+  to {
+    opacity: 1;
+    transform: none;
   }
-  .thanks-qr small {
-    grid-row: 3;
+}
+@media (orientation: portrait) {
+  .gq-card {
+    flex-direction: column-reverse;
+    text-align: center;
+    gap: 3vh;
   }
-  .thanks-qr .thanks-link {
-    grid-row: 4;
+  .gq-steps {
+    justify-items: center;
+  }
+  .gq-done {
+    align-self: stretch;
+  }
+  .gq-qr canvas {
+    width: min(40vh, 70vw, 420px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #guestQr.on * {
+    animation: none !important;
   }
 }
 
@@ -1002,10 +1367,15 @@ body.camOn .pb-safe.on {
   justify-content: center;
 }
 
-/* Done button on the main menu: simple, below the three options */
+/* Done button on the main menu, below the three options (guest-qr.js → renderDoneButton):
+   - QR off: a simple outlined "Done"
+   - .with-qr: "Finish & get QR" — large, gold, easy to see from a step away */
 .menu-done {
   margin: 18px auto 2px;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   min-height: 50px;
   padding: 0 40px;
   border-radius: 999px;
@@ -1015,7 +1385,31 @@ body.camOn .pb-safe.on {
   font-size: clamp(17px, 2.2vh, 20px);
   font-weight: 600;
 }
+.menu-done svg.i {
+  display: none;
+}
 .menu-done:active {
   transform: scale(0.97);
   background: rgba(255, 255, 255, 0.6);
+}
+.menu-done.with-qr {
+  width: 100%;
+  min-height: 78px;
+  margin-top: 22px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: clamp(22px, 2.9vh, 28px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.menu-done.with-qr svg.i {
+  display: block;
+  width: 1.3em;
+  height: 1.3em;
+  stroke-width: 2.2;
+}
+.menu-done.with-qr:active {
+  background: color-mix(in srgb, var(--accent) 88%, #000);
 }

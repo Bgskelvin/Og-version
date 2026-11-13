@@ -15,6 +15,7 @@ import { applySettings, applyMenu } from './settings.js';
 import { te, openTemplateEditor } from './template-editor.js';
 import { liveViewFrameCount } from './sony-camera.js';
 import { refreshDiskSpace } from './disk-space.js';
+import { openGuestQr } from './guest-qr.js';
 
 window.__leura = Object.freeze({
   state,
@@ -32,4 +33,5 @@ window.__leura = Object.freeze({
   openTemplateEditor,
   liveViewFrameCount,
   refreshDiskSpace,
+  openGuestQr,
 });

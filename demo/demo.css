@@ -98,27 +98,19 @@ html.demo body {
   html.demo #thanks.thanks-photo h1 {
     font-size: 26px;
   }
-  html.demo .thanks-qr {
-    column-gap: 16px;
-    padding: 12px 16px 12px 12px;
-  } /* susunan grid dari photobooth.css (layar tegak) */
-  html.demo .thanks-qr canvas {
-    width: min(20vh, 150px);
+  html.demo .gq-card {
+    padding: 22px 18px;
+    gap: 18px;
   }
-  html.demo .thanks-qr b {
-    font-size: 17px;
-    margin-top: 0;
+  html.demo .gq-text h1 {
+    font-size: 26px;
   }
-  html.demo .thanks-qr small {
-    font-size: 13px;
+  html.demo .gq-qr canvas {
+    width: min(34vh, 62vw);
   }
-  html.demo .thanks-qr .thanks-link {
-    display: none;
-  }
-  html.demo .thanks-menu {
-    min-height: 56px;
-    font-size: 18px;
-    margin-top: 0;
+  html.demo .menu-done.with-qr {
+    min-height: 60px;
+    font-size: 20px;
   }
 
   /* Judul Admin / Riwayat: tombol samping cukup ikon */

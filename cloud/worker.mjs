@@ -22,6 +22,12 @@
    GET  /vd/<kode>      unduh file video
    GET  /vp/<kode>      gambar sampul
 
+   Satu QR untuk semua hasil satu tamu (pesan, quiz, foto) — v1.5.0:
+   PUT  /ut/<kode>      booth mengirim daftar hasil tamu (JSON { isi: [{ jenis, kode, label }] }) — wajib kunci booth
+                        header opsional: x-leura-couple
+   GET  /t/<kode>       halaman tamu: semua hasilnya, masing-masing membuka halaman foto (/f) atau video (/v)
+   GET  /ts/<kode>      status JSON: hasil mana yang sudah sampai
+
    Foto disimpan di R2 (binding FOTO) dan dianggap hilang setelah
    HARI_SIMPAN hari; aturan R2 menghapus file aslinya otomatis.
    ===================================================================== */
@@ -32,6 +38,8 @@ const MAKS_SATUAN = 4;
 const MAKS_BAGIAN_BYTE = 9 * 1024 * 1024; // booth mengirim bagian 8 MB
 const MAKS_BAGIAN = 250; // ±2 GB per video
 const MAKS_POSTER = 3 * 1024 * 1024;
+const MAKS_ISI_TAMU = 20; // hasil per tamu
+const MAKS_DAFTAR_BYTE = 8 * 1024;
 
 const TEKS = {
   id: {
@@ -82,6 +90,17 @@ const TEKS = {
     vHilang: 'Video tidak ditemukan',
     vHilangInfo: 'Video disimpan selama {h} hari setelah direkam.',
     vPutar: 'Putar video',
+    tJudul: 'Hasil Leura-mu',
+    tSiap: 'Semua hasilmu ada di sini',
+    tInfo: 'Ketuk salah satu untuk melihat dan menyimpannya.',
+    tFoto: 'Foto photo booth',
+    tLihatFoto: 'Lihat & simpan foto',
+    tPutarVideo: 'Putar & simpan video',
+    tMenyusul: 'Sedang dikirim…',
+    tTunggu: 'Hasilmu sedang dikirim…',
+    tTungguInfo: 'Halaman ini akan terbuka sendiri. Biasanya hanya beberapa detik.',
+    tHilang: 'Link tidak ditemukan',
+    tHilangInfo: 'Hasil disimpan selama {h} hari setelah acara.',
   },
   en: {
     lang: 'en',
@@ -131,6 +150,17 @@ const TEKS = {
     vHilang: 'Video not found',
     vHilangInfo: 'Videos are kept for {h} days after they are recorded.',
     vPutar: 'Play video',
+    tJudul: 'Your Leura moments',
+    tSiap: 'Everything from your visit',
+    tInfo: 'Tap one to view and save it.',
+    tFoto: 'Photo booth',
+    tLihatFoto: 'View & save photos',
+    tPutarVideo: 'Play & save video',
+    tMenyusul: 'On its way…',
+    tTunggu: 'Your moments are on their way…',
+    tTungguInfo: 'This page opens by itself. It usually takes just a few seconds.',
+    tHilang: 'Link not found',
+    tHilangInfo: 'Results are kept for {h} days after the event.',
   },
 };
 
@@ -255,6 +285,47 @@ async function statusFoto(env, kode) {
   };
 }
 
+/* ---------- Satu QR per tamu ---------- */
+const kunciTamu = kode => `tamu/${kode}.json`;
+// Daftar dari booth → hanya isi yang valid (jenis foto/video, kode yang benar, tanpa kembar)
+function bersihkanDaftar(isi) {
+  const lihat = new Set();
+  return (Array.isArray(isi) ? isi : [])
+    .filter(x => x && (x.jenis === 'foto' || x.jenis === 'video') && KODE.test(String(x.kode || '')))
+    .filter(x => !lihat.has(x.kode) && lihat.add(x.kode))
+    .slice(0, MAKS_ISI_TAMU)
+    .map(x => ({
+      jenis: x.jenis,
+      kode: x.kode,
+      ...(x.jenis === 'video' ? { label: x.label === 'quiz' ? 'quiz' : 'pesan' } : {}),
+    }));
+}
+async function statusTamu(env, kode) {
+  if (!KODE.test(kode)) return null;
+  const obj = await env.FOTO.get(kunciTamu(kode));
+  if (!obj || kedaluwarsa(obj, env)) return null;
+  let daftar;
+  try {
+    daftar = JSON.parse(await new Response(obj.body).text());
+  } catch {
+    return null;
+  }
+  const isi = await Promise.all(
+    bersihkanDaftar(daftar.isi).map(async x => {
+      if (x.jenis === 'video') {
+        const v = await infoVideo(env, x.kode);
+        return { ...x, siap: !!v, poster: !!(v && v.poster) };
+      }
+      return { ...x, siap: !!(await ambil(env, x.kode)) };
+    }),
+  );
+  return {
+    couple: (obj.customMetadata && obj.customMetadata.couple) || '',
+    isi,
+    sampai: waktuUnggah(obj) + hariSimpan(env) * 86400000,
+  };
+}
+
 const GAYA = `
 :root{--bg:#F6F1EA;--kartu:#fff;--teks:#1D1D1F;--abu:#6E6E73;--garis:rgba(0,0,0,.08);--aksen:#B08D57;--aksen2:#9A7745;--isi:rgba(0,0,0,.05)}
 @media (prefers-color-scheme:dark){:root{--bg:#121212;--kartu:#1E1E20;--teks:#F5F5F7;--abu:#A1A1A6;--garis:rgba(255,255,255,.1);--isi:rgba(255,255,255,.07)}}
@@ -328,6 +399,19 @@ h2 small{font-weight:400;color:var(--abu);font-size:13px}
 .vbox .label{pointer-events:none}
 .putar{width:40px;height:40px;margin:30px auto;border-radius:50%;border:4px solid var(--aksen);border-right-color:transparent;animation:p 1s linear infinite}
 @keyframes p{to{transform:rotate(360deg)}}
+.hasil{display:grid;gap:12px}
+.item{display:flex;align-items:center;gap:14px;width:100%;padding:10px;border:0;border-radius:20px;background:var(--kartu);color:var(--teks);text-decoration:none;font:inherit;text-align:left;
+ box-shadow:0 1px 2px rgba(0,0,0,.05),0 12px 30px rgba(40,30,20,.10);transition:transform .15s ease}
+.item:active{transform:scale(.98)}
+.item .gbr{position:relative;flex:none;width:96px;height:96px;border-radius:14px;overflow:hidden;background:var(--isi);display:grid;place-items:center}
+.item .gbr img{width:100%;height:100%;object-fit:cover;display:block}
+.item .gbr .ikon{position:absolute;inset:auto;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.item .gbr .ikon svg{width:18px;height:18px}
+.item b{display:block;font-size:17px;font-weight:600}
+.item small{display:block;color:var(--abu);font-size:14px;margin-top:2px}
+.item .panah{margin-left:auto;color:var(--abu);flex:none}
+.item .panah svg{width:20px;height:20px;display:block}
+.item.tunggu{pointer-events:none}
 p{margin:8px 0}
 `;
 
@@ -351,6 +435,7 @@ const IKON = {
   kiri: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></svg>',
   kanan:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></svg>',
+  putar: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z"/></svg>',
 };
 
 // Halaman unduh: foto template besar, foto satuan di bawahnya, lihat besar (geser), simpan satu / semua
@@ -457,6 +542,46 @@ $('bagikan').onclick=function(){var u=location.origin+location.pathname+location
  else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){toast('✓ '+T.disalin)});};
 })();`;
 
+// Halaman tamu: semua hasil dari satu kunjungan, masing-masing membuka halaman foto / video
+function halamanTamu(t, kode, s, bahasa) {
+  const tgl = new Date(s.sampai).toLocaleDateString(bahasa === 'en' ? 'en-GB' : 'id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Makassar',
+  });
+  const q = bahasa === 'en' ? '?b=en' : '';
+  const kartu = s.isi
+    .map((x, i) => {
+      const video = x.jenis === 'video';
+      const judul = video ? (x.label === 'quiz' ? t.vQuiz : t.vPesan) : t.tFoto;
+      const tunda = `style="animation-delay:${120 + i * 70}ms"`;
+      if (!x.siap)
+        return `<div class="item tunggu muncul" ${tunda}><div class="gbr tunggu"></div><div><b>${esc(judul)}</b><small>${esc(t.tMenyusul)}</small></div></div>`;
+      const gambar = video
+        ? `${x.poster ? `<img src="/vp/${x.kode}" alt="">` : ''}<span class="ikon">${IKON.putar}</span>`
+        : `<img src="/i/${x.kode}" alt="">`;
+      return `<a class="item muncul" ${tunda} href="/${video ? 'v' : 'f'}/${x.kode}${q}"><div class="gbr">${gambar}</div><div><b>${esc(judul)}</b><small>${esc(video ? t.tPutarVideo : t.tLihatFoto)}</small></div><span class="panah">${IKON.kanan}</span></a>`;
+    })
+    .join('');
+  const siap = s.isi.filter(x => x.siap).length;
+  const isi = `<h1 class="muncul">${esc(s.couple || t.tJudul)}</h1>
+<p class="sub muncul" style="animation-delay:60ms">${esc(t.tSiap)} ✨</p>
+<div class="hasil">${kartu}</div>
+<p class="info">${esc(t.tInfo)}</p>
+<p class="info">${esc(t.tersedia.replace('{t}', tgl))}</p>
+<div class="kaki"><button class="chip" id="bagikan">${IKON.bagikan}${esc(t.bagikan)}</button></div>
+<div class="toast" id="toast" role="status"></div>`;
+  // Hasil yang belum sampai: tanya status setiap 5 detik, muat ulang saat ada yang baru (paling lama ±2 jam)
+  const skrip = `<script>(function(){var siap=${siap},semua=${s.isi.length},ke=0,$=function(id){return document.getElementById(id)};
+$('bagikan').onclick=function(){var u=location.origin+location.pathname+location.search;
+ if(navigator.share)navigator.share({url:u,title:${JSON.stringify(s.couple || t.tJudul).replace(/</g, '\\u003c')}}).catch(function(){});
+ else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){var e=$('toast');e.textContent='✓ '+${JSON.stringify(t.disalin).replace(/</g, '\\u003c')};e.classList.add('on');setTimeout(function(){e.classList.remove('on')},2200)})};
+(function tanya(){if(siap>=semua||ke++>1440)return;setTimeout(function(){fetch('/ts/${kode}',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+ var n=j&&j.isi?j.isi.filter(function(x){return x.siap}).length:0;if(n>siap)location.reload();else tanya()}).catch(tanya)},5000)})()})()</script>`;
+  return halaman({ ...t, judul: t.tJudul }, isi, skrip);
+}
+
 // Skrip halaman unduh (dijalankan di HP tamu)
 const SKRIP_UNDUH = `
 (function(){
@@ -545,7 +670,7 @@ export default {
 
     if (jalur === 'ping') {
       if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
-      return json({ ok: true, hari: h, satuan: true, video: true });
+      return json({ ok: true, hari: h, satuan: true, video: true, tamu: true });
     }
 
     /* ---------- Unggah video dari booth (per bagian) ---------- */
@@ -615,6 +740,32 @@ export default {
         return json({ ok: true });
       }
       return json({ ok: false, error: 'Metode tidak didukung' }, 405);
+    }
+
+    /* ---------- Daftar hasil satu tamu dari booth ---------- */
+    if (jalur === 'ut' && req.method === 'PUT') {
+      if (!bolehBooth(req, env)) return json({ ok: false, error: 'Kunci booth salah' }, 401);
+      if (!KODE.test(kode)) return json({ ok: false, error: 'Kode tidak valid' }, 400);
+      const teks = await req.text();
+      if (!teks || teks.length > MAKS_DAFTAR_BYTE) return json({ ok: false, error: 'Ukuran daftar tidak valid' }, 413);
+      let daftar;
+      try {
+        daftar = JSON.parse(teks);
+      } catch {
+        return json({ ok: false, error: 'Daftar bukan JSON' }, 400);
+      }
+      const isi = bersihkanDaftar(daftar && daftar.isi);
+      if (!isi.length) return json({ ok: false, error: 'Daftar kosong' }, 400);
+      // Waktu simpan dihitung dari kiriman pertama (daftar bisa dikirim ulang)
+      const lama = await env.FOTO.head(kunciTamu(kode));
+      const meta = { diunggah: lama ? String(waktuUnggah(lama)) : String(Date.now()) };
+      const couple = namaCouple(req.headers.get('x-leura-couple'));
+      if (couple) meta.couple = couple;
+      await env.FOTO.put(kunciTamu(kode), JSON.stringify({ isi }), {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: meta,
+      });
+      return json({ ok: true });
     }
 
     if (jalur === 'u' && req.method === 'PUT') {
@@ -698,6 +849,29 @@ export default {
         `<div class="putar"></div><h1>${esc(t.vTunggu)}</h1><p class="sub" id="info">${esc(t.vTungguInfo)}</p>`,
         `<script>(function(){var ke=0,info=${JSON.stringify(t.vLama).replace(/</g, '\\u003c')};(function tanya(){if(ke++>1440){document.getElementById('info').textContent=info;return}
 setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){if(r.ok)location.reload();else tanya()}).catch(tanya)},5000)})()})()</script>`,
+      );
+    }
+
+    /* ---------- Halaman tamu (satu QR untuk semua hasil) ---------- */
+    if (jalur === 'ts') {
+      const s = await statusTamu(env, kode);
+      return s ? json({ ok: true, ...s }) : json({ ok: false }, 404);
+    }
+    if (jalur === 't') {
+      const s = await statusTamu(env, kode);
+      if (s) return halamanTamu(t, kode, s, bahasa);
+      // Daftar belum sampai (internet booth lambat): muat ulang sendiri selama 15 menit pertama
+      const umur = Number(url.searchParams.get('n') || 0);
+      if (KODE.test(kode) && umur < 180) {
+        return halaman(
+          { ...t, judul: t.tJudul },
+          `<div class="putar"></div><h1>${esc(t.tTunggu)}</h1><p class="sub">${esc(t.tTungguInfo)}</p>`,
+          `<script>setTimeout(function(){var u=new URL(location.href);u.searchParams.set('n',${umur + 1});location.replace(u)},5000)</script>`,
+        );
+      }
+      return halaman(
+        { ...t, judul: t.tJudul },
+        `<h1>${esc(t.tHilang)}</h1><p class="sub">${esc(t.tHilangInfo.replace('{h}', h))}</p>`,
       );
     }
 

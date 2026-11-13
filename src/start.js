@@ -21,6 +21,7 @@ import { setupTemplateEditor } from './template-editor.js';
 import { setLanguage } from './language.js';
 import { resetIdle, setNotice, setupNavigation } from './app.js';
 import { setupGuestName } from './guest-name.js';
+import { setupGuestQr } from './guest-qr.js';
 import { state } from './state.js';
 
 (async () => {
@@ -42,6 +43,7 @@ import { state } from './state.js';
   setupAdmin();
   setupHistory();
   setupDownloadQr();
+  setupGuestQr();
   setupDiskSpace();
   setupSettings();
   setupBoothSettings();

@@ -82,6 +82,7 @@ export default [
             'QRPNG',
             'QRPNG2',
             'META_REC',
+            'GQ',
             'fireRecError',
             'setSony',
           ].map(n => [n, 'writable']),
