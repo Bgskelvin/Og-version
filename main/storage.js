@@ -1,6 +1,8 @@
 /* =====================================================================
-   storage.js — data locations, config.json, safe JSON read/write,
-   and file/folder name helpers. Used by every other module in main/.
+   storage.js — data locations, config.json, the database (settings,
+   session history; see database.js), safe JSON read/write for the files
+   that stay files (templates, filters), and file/folder name helpers.
+   Used by every other module in main/.
    ===================================================================== */
 const { app } = require('electron');
 const fs = require('fs');
@@ -18,9 +20,8 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 /* ---------- Data locations ---------- */
 const userData = app.getPath('userData');
 const defaultDir = path.join(app.getPath('documents'), 'VideoboothRecordings');
-const settingsPath = path.join(userData, 'settings.json');
-const sessionsPath = path.join(userData, 'sessions.json');
 fs.mkdirSync(userData, { recursive: true });
+const db = require('./database').openDatabase(userData);
 
 function tryRead(p) {
   try {
@@ -77,21 +78,10 @@ function writeJSON(p, data) {
     }
   } // fallback if rename is blocked (e.g. antivirus)
 }
-const readSettings = () => readJSON(settingsPath, {});
-const writeSettings = s => writeJSON(settingsPath, s);
-const readSessions = () => readJSON(sessionsPath, []);
-const writeSessions = l => writeJSON(sessionsPath, l);
-
-// Move the session history of old versions (it used to live in the recordings folder)
-const oldSessions = path.join(defaultDir, 'sessions.json');
-if (!fs.existsSync(sessionsPath) && fs.existsSync(oldSessions)) {
-  const old = readJSON(oldSessions, []);
-  old.forEach(s => {
-    s.dir = s.dir || defaultDir;
-    s.id = s.id || Date.parse(s.time) || Date.now();
-  });
-  writeSessions(old);
-}
+const readSettings = () => db.readSettings();
+const writeSettings = s => db.writeSettings(s);
+const readSessions = () => db.readSessions();
+const writeSessions = l => db.writeSessions(l);
 
 const getOutDir = () => readSettings().outDir || defaultDir;
 
@@ -119,14 +109,7 @@ function usableDir(dir) {
     return false;
   }
 }
-function updateSession(id, patch) {
-  const list = readSessions();
-  const s = list.find(x => x.id === id);
-  if (s) {
-    Object.assign(s, patch);
-    writeSessions(list);
-  }
-}
+const updateSession = (id, patch) => db.updateSession(id, patch);
 
 // Guest name from the "What's your name?" screen -> a safe file name (max 40 characters)
 const guestFileName = t => safeName(String(t || '').slice(0, 40));
@@ -149,6 +132,7 @@ module.exports = {
   configPath,
   userData,
   defaultDir,
+  db,
   readJSON,
   writeJSON,
   readSettings,
@@ -156,6 +140,9 @@ module.exports = {
   readSessions,
   writeSessions,
   updateSession,
+  getSession: id => db.getSession(id),
+  saveSession: s => db.saveSession(s),
+  deleteSession: id => db.deleteSession(id),
   getOutDir,
   usableDir,
   safeName,

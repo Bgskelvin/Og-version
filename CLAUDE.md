@@ -23,7 +23,7 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 | `installer/`                    | `build-mac.sh` → Leura.app + .dmg (`npm run build:mac`).                                 |
 | `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                  |
 
-Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Application Support/leura`, **bukan** di folder proyek.
+Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder proyek. Pengaturan, couple, riwayat sesi, dan antrean QR ada di database `leura.db` (lihat Konvensi kode); rekaman/foto di folder couple; template & filter tetap file JSON + gambar.
 
 ## Perintah
 
@@ -62,8 +62,10 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - Prettier **3.9.10 dikunci persis** (singleQuote, printWidth 120, arrowParens avoid). Jangan naikkan versi tanpa alasan.
 - ESLint 10 flat config (`eslint.config.mjs`). `src/` diperiksa sebagai ES module (browser + `api`), `prefer-const` menyala di semua kode.
 - `catch` kosong tidak boleh: beri komentar alasan atau catat ke log (`main/log.js`).
-- Simpan JSON dengan cara aman yang sudah ada (tmp + fsync + .bak) di `main/storage.js`.
-- Nama data tersimpan (settings, sesi, couple, template, filter, antrean QR, folder di data) bahasa Inggris. Data dari versi lama diubah otomatis oleh `main/migrate.js` saat app dibuka (aman diulang, cadangan di `<data>/backup/`). **Mengganti nama data tersimpan → tambah langkah di `main/migrate.js` + uji.**
+- **Database** (v1.4.0): `main/database.js`, SQLite bawaan Electron (`node:sqlite`), file `<data>/leura.db`. Tabel `settings`, `couples`, `sessions`, `upload_queue`, `app_state`; isi tiap baris JSON (kolom `data`). Setiap perubahan satu transaksi; cadangan harian di `<data>/backup/database/` (7 hari); file rusak disisihkan (`leura.db.corrupt-…`) dan cadangan terbaru dipakai. Modul lain memakai fungsi di `main/storage.js` (`readSettings`, `getSession`, `saveSession`, `updateSession`, `db.*`), bukan SQL langsung.
+- **Mengubah susunan tabel → tambah langkah baru di `SCHEMA` (`main/database.js`) + uji.** Langkah yang sudah dirilis tidak boleh diubah.
+- File JSON yang masih ada (template, filter) disimpan dengan cara aman (tmp + fsync + .bak) lewat `readJSON`/`writeJSON` di `main/storage.js`.
+- Nama data tersimpan (settings, sesi, couple, template, filter, antrean QR, folder di data) bahasa Inggris. Data dari versi lama diubah otomatis oleh `main/migrate.js` saat app dibuka (aman diulang, cadangan di `<data>/backup/`); langkah terakhirnya memindahkan file JSON lama ke database (file JSON disimpan di `backup/before-database-…`). **Mengganti nama data tersimpan → tambah langkah di `main/migrate.js` + uji.**
 - Protokol program kamera Sony (`kamera-sony/sony-helper.cpp`) dan server QR (`cloud/worker.mjs`) tetap memakai kata Indonesia (`sambung`, `tersambung`, `satuan`, `bagian`, …). Diterjemahkan di batasnya saja: `main/sony-camera.js` dan `main/upload.js`.
 - Nama file rekaman pesan tetap `Nama_pesan.mp4` (`FILE_LABELS` di `main/recording.js`), meski labelnya `message`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `enqueue()` di `main/video-processing.js`.
@@ -87,10 +89,8 @@ Data acara (couple, rekaman, pengaturan, antrean QR) ada di `~/Library/Applicati
 - Setelah mengubah kode: jalankan uji yang relevan, lalu `npm run cek` sebelum PR. Fitur baru → tambah uji.
 - GitHub Actions (`.github/workflows/uji.yml`) menjalankan semuanya di setiap PR (±6 menit).
 
-## Status (12 Nov 2026)
+## Status (13 Nov 2026)
 
-- `main` = v1.3.0: `src/`/`main/`/IPC/data bahasa Inggris (v1.1.1–v1.2.0, `main/migrate.js` mengubah data lama otomatis), sisa disk folder penyimpanan (v1.3.0, `main/disk-space.js`, `src/disk-space.js`). Leura.app 1.1.0 masih terpasang di Applications — setelah 1.2.0+ dibuka, jangan kembali ke Leura.app lama tanpa memulihkan cadangan. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- `refactor/ui-english` (v1.3.1): nama tampilan bahasa Inggris (id/kelas, nama layar, kunci kamus, pemberitahuan operator, `styles/base.css`).
-- Berikutnya: buat ulang Leura.app (`npm run build:mac`) dari `main`.
-- Nanti (didiskusikan dulu dengan Gusvin): `refactor/sqlite` (node:sqlite, migrasi otomatis dari JSON, simpan cadangan JSON).
+- `main` = v1.3.1: `src/`/`main/`/IPC/data bahasa Inggris (v1.1.1–v1.3.1, `main/migrate.js` mengubah data lama otomatis), sisa disk folder penyimpanan (v1.3.0). Leura 1.3.1 sudah dibuat (`dist/`); Leura.app di Applications masih 1.1.0. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
+- `refactor/sqlite` (v1.4.0): pengaturan, couple, riwayat sesi, antrean QR pindah ke database SQLite (`main/database.js`), pindah otomatis dari JSON, cadangan harian. Setelah 1.4.0 dibuka, versi lama tidak melihat data itu lagi (jangan kembali ke versi lama).
 - Sebelum acara pertama: `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

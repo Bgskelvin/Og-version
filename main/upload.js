@@ -2,7 +2,7 @@
    upload.js — photo download by QR: code, link, and the upload queue.
    - Every photobooth session gets a random code; the link & QR exist right
      away, even while the internet is down.
-   - Result photos go into a queue saved on disk (upload-queue.json),
+   - Result photos go into a queue saved in the database (upload_queue),
      uploaded one at a time to the Cloudflare server (cloud/worker.mjs), and
      retried automatically on failure — also after the app is opened again.
    - Single photos (1-4, without template) are uploaded AFTER every result photo
@@ -20,11 +20,10 @@ const { ipcMain, shell, clipboard } = require('electron');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { userData, readJSON, writeJSON, readSettings, writeSettings, updateSession } = require('./storage');
+const { userData, db, readJSON, readSettings, writeSettings, updateSession } = require('./storage');
 const { getWin } = require('./active-window');
 const log = require('./log');
 
-const QUEUE_FILE = path.join(userData, 'upload-queue.json');
 const SINGLES_DIR = path.join(userData, 'qr-singles');
 const MAX_SINGLES = 4;
 // Size of each video part (R2: all parts the same size, except the last). LEURA_TEST_PART_SIZE is only for the automated tests.
@@ -68,12 +67,12 @@ const isVideo = x => x.kind === 'video';
 function load() {
   if (loaded) return;
   loaded = true;
-  queue = readJSON(QUEUE_FILE, []);
+  queue = db.readUploadQueue();
   if (!Array.isArray(queue)) queue = [];
 }
 function saveQueue() {
   try {
-    writeJSON(QUEUE_FILE, queue);
+    db.writeUploadQueue(queue);
   } catch (e) {
     console.log('Could not save the upload queue: ' + e.message);
   }

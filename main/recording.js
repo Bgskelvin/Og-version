@@ -16,6 +16,9 @@ const {
   readSessions,
   writeSessions,
   updateSession,
+  getSession,
+  saveSession,
+  deleteSession,
   getOutDir,
   usableDir,
   safeName,
@@ -223,7 +226,7 @@ function register() {
   ipcMain.handle('get-sessions', () => readSessions());
 
   /* ---------- Per-session actions (Session history page in Admin) ---------- */
-  const findSession = id => readSessions().find(s => s.id === id);
+  const findSession = id => getSession(id);
   const location = s => path.join(s.dir || defaultDir, s.file || '');
   ipcMain.handle('session-open', async (e, id) => {
     const s = findSession(id);
@@ -390,8 +393,7 @@ function register() {
     // Record the session from the start with status "recording". If the app or computer dies in the
     // middle of a recording, this session is recognized and recovered when the app opens again.
     try {
-      const list = readSessions();
-      list.push({
+      saveSession({
         id: sid,
         time: new Date(rec.t0).toISOString(),
         label,
@@ -403,7 +405,6 @@ function register() {
         status: 'recording',
         ...(useSony ? { camera: 'sony' } : {}),
       });
-      writeSessions(list);
     } catch (err) {
       console.log('Could not record the session: ' + err.message);
     }
@@ -433,7 +434,7 @@ function register() {
     if (!rec) return null;
     recs.delete(id);
     const sid = rec.sid;
-    // Quiz: time & text image of each question (the images are saved as files, not in sessions.json)
+    // Quiz: time & text image of each question (the images are saved as files, not in the database)
     const { captions, captionImages, ...meta } = incomingMeta || {};
     const cleanCaptions = !meta.aborted ? videoProcessing.saveCaptions(sid, captions, captionImages) : null;
     if (cleanCaptions) meta.captions = cleanCaptions;
@@ -473,11 +474,8 @@ function register() {
       ...(qr ? { code: qr.code, link: qr.link, upload: 'processing' } : {}),
     };
     try {
-      const list = readSessions();
-      const s = list.find(x => x.id === sid);
-      if (s) Object.assign(s, patch);
-      else
-        list.push({
+      if (!updateSession(sid, patch))
+        saveSession({
           id: sid,
           time: new Date(rec.t0).toISOString(),
           label: rec.label,
@@ -485,7 +483,6 @@ function register() {
           dir: rec.dir,
           ...patch,
         });
-      writeSessions(list);
     } catch (err) {
       console.log('Could not record the session: ' + err.message);
     }
@@ -508,7 +505,7 @@ function register() {
       log.warn('The cancelled recording could not be deleted: ' + e.message);
     }
     try {
-      writeSessions(readSessions().filter(x => x.id !== rec.sid));
+      deleteSession(rec.sid);
     } catch (e) {
       log.warn('The cancelled session could not be removed from the list: ' + e.message);
     }
