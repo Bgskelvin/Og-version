@@ -91,6 +91,6 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 
 ## Status (13 Nov 2026)
 
-- `main` = v1.3.1: `src/`/`main/`/IPC/data bahasa Inggris (v1.1.1–v1.3.1, `main/migrate.js` mengubah data lama otomatis), sisa disk folder penyimpanan (v1.3.0). Leura 1.3.1 sudah dibuat (`dist/`); Leura.app di Applications masih 1.1.0. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
-- `refactor/sqlite` (v1.4.0): pengaturan, couple, riwayat sesi, antrean QR pindah ke database SQLite (`main/database.js`), pindah otomatis dari JSON, cadangan harian. Setelah 1.4.0 dibuka, versi lama tidak melihat data itu lagi (jangan kembali ke versi lama).
-- Sebelum acara pertama: `feature/admin-security` (Admin tersembunyi, wajib ganti `1234`, kunci setelah salah 5x), `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.
+- `main` = v1.4.0 (database SQLite, lihat Konvensi kode). Sebelumnya v1.3.1: `src/`/`main/`/IPC/data bahasa Inggris (v1.1.1–v1.3.1, `main/migrate.js` mengubah data lama otomatis), sisa disk folder penyimpanan (v1.3.0). Leura 1.4.0 sudah dibuat (`dist/`); Leura.app di Applications masih 1.1.0. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara.
+- `feature/small-admin-button` (v1.4.1): tombol Admin di layar utama hanya ikon kecil samar (44 px). Keamanan Admin lengkap (`feature/admin-security`: buka tersembunyi, PIN di layar sentuh, kunci otomatis, kode pemulihan) ditunda oleh Gusvin.
+- Sebelum dijual: `feature/admin-security` (layar sentuh tanpa keyboard: ketuk pojok 5x, PIN 6 angka di layar, wajib ganti `1234`, kunci sementara setelah salah 5x, Admin terkunci otomatis 2 menit, kode pemulihan). Sebelum acara pertama: `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.

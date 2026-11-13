@@ -327,6 +327,16 @@ async function main() {
 
   console.log('\n▶ Admin: pengaturan langsung berlaku & panel bisa digulir');
   await pg.click('#btnBackToMenu');
+  const tombolAdmin = await pg.evaluate(() => {
+    const b = document.getElementById('btnAdminOpen');
+    const r = b.getBoundingClientRect();
+    return { teks: b.textContent.trim(), label: b.getAttribute('aria-label'), w: r.width, h: r.height };
+  });
+  cek(
+    tombolAdmin.teks === '' && tombolAdmin.label === 'Admin' && tombolAdmin.w <= 48 && tombolAdmin.h >= 44,
+    'tombol Admin hanya ikon kecil (tanpa tulisan, tetap mudah disentuh)',
+    tombolAdmin,
+  );
   await pg.click('#btnAdminOpen');
   await pg.fill('#uid', 'leura');
   await pg.fill('#pw', '1234');
