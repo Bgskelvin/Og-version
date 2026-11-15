@@ -76,6 +76,7 @@
     photoFlash: true,
     askName: true,
     kiosk: false,
+    fullscreen: false,
     camera: 'webcam',
     language: 'en',
     accent: '#B08D57',

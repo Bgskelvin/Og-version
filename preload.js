@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   recChunk: (id, buf) => ipcRenderer.send('rec-chunk', id, buf),
   recEnd: (id, seconds, meta) => ipcRenderer.invoke('rec-end', id, seconds, meta),
   recAbort: id => ipcRenderer.invoke('rec-abort', id),
+  onFullscreenChanged: cb => ipcRenderer.on('fullscreen-changed', (e, on) => cb(on)),
   onRecError: cb => ipcRenderer.on('rec-error', (e, id, msg) => cb(id, msg)),
   uploadStatus: () => ipcRenderer.invoke('upload-status'),
   guestQr: (items, couple) => ipcRenderer.invoke('guest-qr', items, couple),

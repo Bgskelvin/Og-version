@@ -41,6 +41,7 @@ function effective() {
     ),
     ...Object.fromEntries(Object.entries(SWITCHES).map(([k, d]) => [k, typeof s[k] === 'boolean' ? s[k] : d])),
     kiosk: typeof s.kiosk === 'boolean' ? s.kiosk : !!config.kiosk,
+    fullscreen: typeof s.fullscreen === 'boolean' ? s.fullscreen : !!config.fullscreen,
     camera: CAMERA_SOURCES.includes(s.camera) ? s.camera : 'webcam',
     language: LANGUAGES.includes(s.language) ? s.language : 'en',
     accent: isColor(s.accent)
@@ -96,12 +97,16 @@ function register() {
       s.camera = patch.camera;
       require('./sony-camera').setSource(s.camera);
     }
-    if ('kiosk' in patch) {
-      s.kiosk = !!patch.kiosk;
+    // Full screen: the window fills the screen but can still be left (green button, Ctrl+Cmd+F).
+    // Kiosk: locked full screen. Leaving kiosk goes back to whatever "fullscreen" says.
+    if ('fullscreen' in patch) s.fullscreen = !!patch.fullscreen;
+    if ('kiosk' in patch) s.kiosk = !!patch.kiosk;
+    if ('fullscreen' in patch || 'kiosk' in patch) {
+      const now = { ...effective(), ...s };
       const win = getWin();
       if (win) {
-        win.setKiosk(s.kiosk);
-        if (!s.kiosk) win.setFullScreen(false);
+        if ('kiosk' in patch) win.setKiosk(!!now.kiosk);
+        if (!now.kiosk) win.setFullScreen(!!now.fullscreen);
       }
     }
     writeSettings(s);
@@ -150,4 +155,17 @@ function register() {
   });
 }
 
-module.exports = { effective, checkLogin, register };
+// The window entered/left full screen by itself (green button, menu, Ctrl+Cmd+F): remember it for next time
+function rememberFullscreen(on) {
+  const s = readSettings();
+  if (effective().kiosk || effective().fullscreen === !!on) return;
+  s.fullscreen = !!on;
+  writeSettings(s);
+}
+
+module.exports = {
+  rememberFullscreen,
+  effective,
+  checkLogin,
+  register,
+};

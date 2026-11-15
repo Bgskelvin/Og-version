@@ -3,7 +3,7 @@
    ===================================================================== */
 const { BrowserWindow, Menu } = require('electron');
 const path = require('path');
-const { effective } = require('./settings');
+const { effective, rememberFullscreen } = require('./settings');
 const recording = require('./recording');
 const { getWin, setWin } = require('./active-window');
 const log = require('./log');
@@ -14,13 +14,27 @@ function createWindow(DEV) {
   // On Mac there is still the app menu (Cmd+Q to quit) and Edit (copy/paste in text fields).
   const template = [];
   if (process.platform === 'darwin') template.push({ role: 'appMenu' }, { role: 'editMenu' });
+  // Full screen only (Ctrl+Cmd+F on Mac, F11 on Windows); switched off while kiosk locks the window
+  template.push({
+    label: 'Window',
+    submenu: [
+      {
+        label: 'Toggle Full Screen',
+        accelerator: process.platform === 'darwin' ? 'Ctrl+Cmd+F' : 'F11',
+        click: () => {
+          const w = getWin();
+          if (w && !effective().kiosk) w.setFullScreen(!w.isFullScreen());
+        },
+      },
+    ],
+  });
   if (DEV) template.push({ label: 'Developer', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }] });
   Menu.setApplicationMenu(template.length ? Menu.buildFromTemplate(template) : null);
 
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
-    fullscreen: effective().kiosk,
+    fullscreen: effective().kiosk || effective().fullscreen,
     kiosk: effective().kiosk,
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
@@ -65,6 +79,16 @@ function createWindow(DEV) {
       if (!win.isDestroyed()) wc.reload();
     }, 1000);
   });
+
+  // Full screen switched with the green button / menu / shortcut: remember it, and tell Admin → Settings
+  for (const [name, on] of [
+    ['enter-full-screen', true],
+    ['leave-full-screen', false],
+  ])
+    win.on(name, () => {
+      rememberFullscreen(on);
+      if (!win.isDestroyed()) wc.send('fullscreen-changed', on);
+    });
 
   // Red ✕ button: ask first (the same dialog as Admin → Close app)
   win.on('close', e => {
