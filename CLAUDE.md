@@ -70,6 +70,7 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 - Protokol program kamera Sony (`kamera-sony/sony-helper.cpp`) dan server QR (`cloud/worker.mjs`) tetap memakai kata Indonesia (`sambung`, `tersambung`, `satuan`, `bagian`, …). Diterjemahkan di batasnya saja: `main/sony-camera.js` dan `main/upload.js`.
 - Nama file rekaman pesan tetap `Nama_pesan.mp4` (`FILE_LABELS` di `main/recording.js`), meski labelnya `message`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `enqueue()` di `main/video-processing.js`.
+- Semua encode video lewat `encode()` (`main/video-processing.js`): Mac = chip video (`h264_videotoolbox`), Windows = kartu grafis (`WINDOWS_ENCODERS`: NVIDIA → Intel → AMD, dicoba sekali saat app dibuka, hasilnya di log). Gagal → libx264. Konversi .webm → .mp4 di Mac tetap libx264 (`macChip: false`).
 
 ## Tampilan `src/`
 

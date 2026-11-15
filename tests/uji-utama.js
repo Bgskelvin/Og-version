@@ -2000,6 +2000,71 @@ const KASUS = {
     );
   },
 
+  async 'Windows video encoder: graphics card first, libx264 if it fails (real FFmpeg)'() {
+    let ff = null;
+    try {
+      ff = require('ffmpeg-static');
+    } catch {
+      /* ffmpeg-static not installed: look for FFmpeg in PATH */
+    }
+    if (!ff) {
+      const w = spawnSync('sh', ['-c', 'command -v ffmpeg'], { encoding: 'utf8' });
+      ff = (w.stdout || '').trim() || null;
+    }
+    if (!ff) {
+      cek(true, 'no FFmpeg on this computer: video encoder test skipped');
+      return;
+    }
+    process.env.LEURA_TEST_FFMPEG = ff;
+    const { dataDir } = nyalakanAplikasi({ platform: 'win32' });
+    const vp = require(path.join(__dirname, '..', 'main', 'video-processing.js'));
+    cek(
+      vp.WINDOWS_ENCODERS.map(e => e.name).join() === 'h264_nvenc,h264_qsv,h264_amf',
+      'tries NVIDIA, then Intel, then AMD',
+    );
+    cek(
+      vp.kbpsForSize({ w: 1920, h: 1080 }) === 9331 &&
+        vp.kbpsForSize({ w: 1280, h: 720 }) === 4147 &&
+        vp.kbpsForSize(null) === undefined,
+      'bitrate for a .webm follows its size (1080p ≈ 9300k, 720p ≈ 4100k)',
+    );
+    // Test encoders: one that this FFmpeg doesn't have, and libx264 posing as a graphics card that passes
+    // the short test (6000k) but fails on a real video (any other bitrate)
+    vp.WINDOWS_ENCODERS.splice(
+      0,
+      Infinity,
+      { name: 'h264_not_here', label: 'Missing', pixFmt: 'yuv420p', args: k => ['-b:v', k] },
+      {
+        name: 'libx264',
+        label: 'Test card',
+        pixFmt: 'yuv420p',
+        args: k => (k === '6000k' ? ['-b:v', k] : ['-no_such_option', '1']),
+      },
+    );
+    const chosen = await vp.findWindowsEncoder();
+    cek(
+      chosen && chosen.label === 'Test card',
+      'an encoder this computer lacks is skipped, the next working one is used',
+    );
+    const out = path.join(dataDir, 'encoded.mp4');
+    const r = await vp.encode(['-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=30', '-t', '2'], [], out, {
+      kbps: 3000,
+    });
+    const info = spawnSync(ff, ['-hide_banner', '-i', out], { encoding: 'utf8' }).stderr || '';
+    cek(r.ok && /Video: h264/.test(info), 'graphics card fails on a real video → libx264 still makes the MP4', info);
+    cek((await vp.findWindowsEncoder()) === null, 'after a failure: libx264 for the rest of the app run');
+    const logs = fs
+      .readdirSync(path.join(dataDir, 'logs'))
+      .map(f => fs.readFileSync(path.join(dataDir, 'logs', f), 'utf8'))
+      .join('');
+    cek(
+      /Video encoder: Test card graphics card \(libx264\)/.test(logs) &&
+        /Test card video encoder failed, using libx264 from now on/.test(logs),
+      'chosen encoder and the failure are written to the log',
+      logs,
+    );
+  },
+
   async 'npm start (folder kode): versi development & branch Git di Admin'() {
     const { panggil, electron } = nyalakanAplikasi();
     electron.__siap();
