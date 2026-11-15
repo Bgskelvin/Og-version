@@ -79,21 +79,75 @@ async function videoSize(file) {
   const kbps = Number((r.stderr.match(/bitrate: (\d+) kb\/s/) || [])[1]) || 0;
   return { w, h, kbps };
 }
-// Video encoder: on a Mac the video chip (fast, efficient), otherwise libx264
-const macEncoder = kbps => [
-  '-c:v',
-  'h264_videotoolbox',
-  '-b:v',
-  Math.max(2500, Math.min(kbps || 12000, 60000)) + 'k',
-  '-allow_sw',
-  '1',
+// Video encoder: on a Mac the video chip, on Windows the graphics card (NVIDIA / Intel / AMD);
+// both are fast and leave the processor free for the booth. Otherwise (or if it fails) libx264.
+const bitrate = kbps => Math.max(2500, Math.min(kbps || 12000, 60000));
+const macEncoder = kbps => ['-c:v', 'h264_videotoolbox', '-b:v', bitrate(kbps) + 'k', '-allow_sw', '1'];
+// Windows graphics card encoders, best first. Bitrate based like on the Mac, so file sizes are predictable.
+const WINDOWS_ENCODERS = [
+  { name: 'h264_nvenc', label: 'NVIDIA', pixFmt: 'yuv420p', args: k => ['-preset', 'p4', '-rc', 'vbr', '-b:v', k] },
+  { name: 'h264_qsv', label: 'Intel Quick Sync', pixFmt: 'nv12', args: k => ['-preset', 'medium', '-b:v', k] },
+  {
+    name: 'h264_amf',
+    label: 'AMD',
+    pixFmt: 'yuv420p',
+    args: k => ['-quality', 'balanced', '-rc', 'vbr_peak', '-b:v', k],
+  },
 ];
+const windowsEncoderArgs = (enc, kbps) => [
+  '-c:v',
+  enc.name,
+  ...enc.args(bitrate(kbps) + 'k'),
+  '-maxrate',
+  Math.round(bitrate(kbps) * 1.5) + 'k',
+  '-pix_fmt',
+  enc.pixFmt,
+];
+// Which graphics card encoder works on this computer: tried once with a short test video (a card can be
+// listed in FFmpeg but missing in the computer). null = none, libx264 is used.
+let windowsEncoder;
+function findWindowsEncoder() {
+  if (windowsEncoder === undefined)
+    windowsEncoder = (async () => {
+      for (const enc of WINDOWS_ENCODERS) {
+        const r = await runFfmpeg(
+          [
+            ...['-f', 'lavfi', '-i', 'color=c=black:s=1280x720:r=30', '-frames:v', '10'],
+            ...windowsEncoderArgs(enc, 6000),
+            ...['-f', 'null', '-'],
+          ],
+          20000,
+        );
+        if (r.ok) {
+          log.write(`Video encoder: ${enc.label} graphics card (${enc.name})`);
+          return enc;
+        }
+      }
+      log.write('Video encoder: no graphics card encoder available, using libx264 (processor)');
+      return null;
+    })();
+  return windowsEncoder;
+}
+// Bitrate for a video without a known bitrate (a .webm from the browser): about 0.15 bits per pixel at 30 fps
+// (1080p ≈ 9300k, 720p ≈ 4100k). Unknown size → undefined (bitrate() then uses 12000k).
+const kbpsForSize = size => (size ? Math.round((size.w * size.h * 30 * 0.15) / 1000) : undefined);
 const genericEncoder = crf => ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(crf)];
-async function encode(inputArgs, outputArgs, output, { kbps, crf = 20 } = {}) {
-  if (process.platform === 'darwin') {
+// macChip: false keeps the Mac on libx264 (the .webm → .mp4 conversion, unchanged on the Mac)
+async function encode(inputArgs, outputArgs, output, { kbps, crf = 20, macChip = true } = {}) {
+  if (process.platform === 'darwin' && macChip) {
     const r = await runFfmpeg([...inputArgs, ...macEncoder(kbps), '-pix_fmt', 'yuv420p', ...outputArgs, output]);
     if (r.ok) return r;
     log.warn('Mac video encoder failed, using libx264: ' + lastLine(r.stderr));
+  }
+  if (process.platform === 'win32') {
+    const enc = await findWindowsEncoder();
+    if (enc) {
+      const r = await runFfmpeg([...inputArgs, ...windowsEncoderArgs(enc, kbps), ...outputArgs, output]);
+      if (r.ok) return r;
+      // e.g. the graphics card driver crashed or was updated: libx264 for the rest of this app run
+      log.warn(`${enc.label} video encoder failed, using libx264 from now on: ${lastLine(r.stderr)}`);
+      windowsEncoder = Promise.resolve(null);
+    }
   }
   return runFfmpeg([...inputArgs, ...genericEncoder(crf), '-pix_fmt', 'yuv420p', ...outputArgs, output]);
 }
@@ -315,6 +369,8 @@ const processLater = sid => enqueue(() => continueSession(sid));
 // When the app opens: continue work that was interrupted
 function start() {
   if (!available()) return;
+  // Windows: find the graphics card encoder now (in the queue), so the first guest doesn't wait for it
+  if (process.platform === 'win32') enqueue(findWindowsEncoder);
   for (const s of readSessions()) {
     if (s.status === 'captions') {
       updateSession(s.id, { status: 'done', captionStatus: undefined });
@@ -338,6 +394,11 @@ module.exports = {
   getFfmpegPath: () => ffmpegPath,
   enqueue,
   runFfmpeg,
+  encode,
+  videoSize,
+  kbpsForSize,
+  findWindowsEncoder,
+  WINDOWS_ENCODERS, // for the automated tests
   saveCaptions,
   processLater,
   start,

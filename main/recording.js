@@ -7,7 +7,6 @@
    version for QR is made in video-processing.js.
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
-const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -37,70 +36,39 @@ videoProcessing.useUpload(upload);
 
 /* ---------- FFmpeg: .webm -> .mp4 ---------- */
 const ffmpegPath = videoProcessing.getFfmpegPath();
+const lastLine = text => (text || '').split('\n').filter(Boolean).slice(-1)[0];
 
 function convert(id, webmPath) {
   if (!ffmpegPath) {
     updateSession(id, { status: 'webm' });
     return;
   }
-  videoProcessing.enqueue(
-    () =>
-      new Promise(resolve => {
-        const mp4 = webmPath.replace(/\.webm$/i, '.mp4');
-        const p = spawn(
-          ffmpegPath,
-          [
-            '-y',
-            '-fflags',
-            '+genpts',
-            '-i',
-            webmPath,
-            '-c:v',
-            'libx264',
-            '-preset',
-            'veryfast',
-            '-crf',
-            '23',
-            '-pix_fmt',
-            'yuv420p',
-            '-r',
-            '30',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '192k',
-            '-movflags',
-            '+faststart',
-            mp4,
-          ],
-          { stdio: 'ignore' },
-        );
-        p.on('error', err => {
-          log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${err.message}`);
-          updateSession(id, { status: 'failed' });
-          resolve();
-        });
-        p.on('close', code => {
-          try {
-            if (code === 0 && fs.existsSync(mp4)) {
-              const od = path.join(path.dirname(webmPath), 'original');
-              fs.mkdirSync(od, { recursive: true });
-              fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
-              updateSession(id, { file: path.basename(mp4), status: 'done' });
-              log.write('MP4 done: ' + path.basename(mp4));
-              videoProcessing.processLater(id); // quiz question texts & phone version for QR
-            } else {
-              log.error(`MP4 conversion failed (${path.basename(webmPath)}), FFmpeg code ${code}`);
-              updateSession(id, { status: 'failed' });
-            }
-          } catch (e) {
-            log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${e.message}`);
-            updateSession(id, { status: 'failed' });
-          }
-          resolve();
-        });
-      }),
-  );
+  videoProcessing.enqueue(async () => {
+    const mp4 = webmPath.replace(/\.webm$/i, '.mp4');
+    // Graphics card on Windows, libx264 elsewhere (the Mac stays on libx264 here: macChip false)
+    const r = await videoProcessing.encode(
+      ['-fflags', '+genpts', '-i', webmPath],
+      ['-r', '30', '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart'],
+      mp4,
+      { kbps: videoProcessing.kbpsForSize(await videoProcessing.videoSize(webmPath)), crf: 23, macChip: false },
+    );
+    try {
+      if (r.ok && fs.existsSync(mp4)) {
+        const od = path.join(path.dirname(webmPath), 'original');
+        fs.mkdirSync(od, { recursive: true });
+        fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
+        updateSession(id, { file: path.basename(mp4), status: 'done' });
+        log.write('MP4 done: ' + path.basename(mp4));
+        videoProcessing.processLater(id); // quiz question texts & phone version for QR
+      } else {
+        log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${lastLine(r.stderr) || 'FFmpeg error'}`);
+        updateSession(id, { status: 'failed' });
+      }
+    } catch (e) {
+      log.error(`MP4 conversion failed (${path.basename(webmPath)}): ${e.message}`);
+      updateSession(id, { status: 'failed' });
+    }
+  });
 }
 // Video download by QR: the code & link exist right away, the video follows after processing & upload
 function reserveQr(sid, label, couple) {
