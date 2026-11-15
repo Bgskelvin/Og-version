@@ -1,0 +1,18 @@
+# Keep LF line endings on every system (Windows Git would otherwise turn them into CRLF,
+# which Prettier reports as wrong formatting and bash scripts cannot run).
+* text=auto eol=lf
+
+# Binary files: never touch
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.mp4 binary
+*.mov binary
+*.wav binary
+*.cube binary
+*.dylib binary
+*.dll binary
+*.exe binary
+*.db binary
