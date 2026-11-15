@@ -33,7 +33,7 @@ window.CP = { activeId: 'a', couples: [
   { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
-const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, accent: '#b08d57', loginId: 'leura', messageCountdown: 3, messageMaxSeconds: 0,
+const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, fullscreen: false, accent: '#b08d57', loginId: 'leura', messageCountdown: 3, messageMaxSeconds: 0,
   photoCountdown: 5, photoPreview: 2, photoFlash: true, enableMessage: true, enableQuiz: true, enablePhoto: true, language: 'id' };
 window.api = {
   getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),

@@ -100,6 +100,8 @@ export async function loadSettings() {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
+  $('setFullscreen').checked = s.fullscreen || s.kiosk;
+  $('setFullscreen').disabled = s.kiosk;
   $('setAskName').checked = state.cfg.askName;
   $('setGuestLanguage').value = s.language || 'en';
   $('setId').value = s.loginId;
@@ -111,6 +113,8 @@ async function saveSetting(patch, msg) {
   applySettings(s);
   renderSwatches(s.accent);
   $('setKiosk').checked = s.kiosk;
+  $('setFullscreen').checked = s.fullscreen || s.kiosk;
+  $('setFullscreen').disabled = s.kiosk;
   $('setAskName').checked = state.cfg.askName;
   flash('setMsg', msg || 'Saved.');
 }
@@ -125,6 +129,12 @@ async function saveLogin() {
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupSettings() {
+  $('setFullscreen').onchange = e =>
+    saveSetting({ fullscreen: e.target.checked }, e.target.checked ? 'Full screen is on.' : 'Full screen is off.');
+  // Full screen switched outside Admin (green button, Ctrl+Cmd+F)
+  api.onFullscreenChanged?.(on => {
+    if (!$('setFullscreen').disabled) $('setFullscreen').checked = on;
+  });
   $('setKiosk').onchange = e =>
     saveSetting(
       { kiosk: e.target.checked },

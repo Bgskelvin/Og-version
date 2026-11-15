@@ -87,7 +87,12 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
       setKiosk(v) {
         this.kiosk = v;
       }
-      setFullScreen() {}
+      setFullScreen(v) {
+        this.layarPenuh = v;
+      }
+      isFullScreen() {
+        return !!this.layarPenuh;
+      }
       on(n, f) {
         (this.ev = this.ev || {})[n] = f;
       }

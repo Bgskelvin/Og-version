@@ -44,6 +44,43 @@ const KASUS = {
     );
   },
 
+  async 'layar penuh (fullscreen)'() {
+    const { panggil, electron } = nyalakanAplikasi({ platform: 'darwin' });
+    electron.__siap();
+    await tunggu(200);
+    const jendela = electron.__jendela;
+    cek((await panggil('get-settings')).fullscreen === false, 'awal: tidak layar penuh');
+    cek(jendela.opsi.fullscreen === false && jendela.opsi.kiosk === false, 'jendela dibuka biasa', jendela.opsi);
+    let s = await panggil('save-settings', { fullscreen: true });
+    cek(s.fullscreen === true && jendela.layarPenuh === true, 'Admin menyalakan layar penuh', s);
+    // Tombol hijau / Ctrl+Cmd+F: diingat untuk berikutnya dan tampilan diberi tahu
+    electron.__wc.sent.length = 0;
+    jendela.layarPenuh = false;
+    jendela.ev['leave-full-screen']();
+    cek((await panggil('get-settings')).fullscreen === false, 'keluar layar penuh lewat tombol hijau diingat');
+    cek(
+      electron.__wc.sent.some(a => a[0] === 'fullscreen-changed' && a[1] === false),
+      'tampilan diberi tahu',
+      electron.__wc.sent,
+    );
+    jendela.ev['enter-full-screen']();
+    cek((await panggil('get-settings')).fullscreen === true, 'masuk layar penuh diingat');
+    // Menu Window → Toggle Full Screen
+    const menu = electron.__menu.find(m => m.label === 'Window').submenu[0];
+    jendela.layarPenuh = true;
+    menu.click();
+    cek(jendela.layarPenuh === false, 'menu membalik layar penuh');
+    // Kiosk mengunci; setelah kiosk mati kembali ke pilihan "fullscreen"
+    s = await panggil('save-settings', { kiosk: true });
+    cek(s.kiosk === true && jendela.kiosk === true, 'kiosk menyala');
+    menu.click();
+    cek(jendela.layarPenuh === false, 'menu tidak berpengaruh saat kiosk');
+    jendela.ev['leave-full-screen']();
+    cek((await panggil('get-settings')).fullscreen === true, 'kiosk tidak mengubah pilihan layar penuh');
+    s = await panggil('save-settings', { kiosk: false });
+    cek(jendela.kiosk === false && jendela.layarPenuh === true, 'kiosk mati: kembali layar penuh biasa', s);
+  },
+
   async 'pengaturan & login'() {
     const { panggil, dataDir, db } = nyalakanAplikasi();
     const awal = await panggil('get-settings');
@@ -676,7 +713,9 @@ const KASUS = {
     cek(!ok.dicegah, 'halaman aplikasi sendiri tetap boleh dimuat');
     cek(electron.__wc.openHandler().action === 'deny', 'jendela baru ditolak');
     cek(
-      JSON.stringify(electron.__menu) === JSON.stringify([{ role: 'appMenu' }, { role: 'editMenu' }]),
+      JSON.stringify(electron.__menu.map(m => m.role || m.label)) ===
+        JSON.stringify(['appMenu', 'editMenu', 'Window']) &&
+        !/reload|devtools|zoom/i.test(JSON.stringify(electron.__menu)),
       'menu Mac tanpa Reload/DevTools',
       electron.__menu,
     );
