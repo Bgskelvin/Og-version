@@ -12,16 +12,16 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 
 ## Struktur
 
-| Folder / file                   | Isi                                                                                      |
-| ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.         |
-| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                           |
-| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).      |
-| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`. |
-| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.  |
-| `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                             |
-| `installer/`                    | `build-mac.sh` → Leura.app + .dmg (`npm run build:mac`).                                 |
-| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                  |
+| Folder / file                   | Isi                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.          |
+| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                            |
+| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).       |
+| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.  |
+| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.   |
+| `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                              |
+| `installer/`                    | `build-mac.sh` → Leura.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows). |
+| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                   |
 
 Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder proyek. Pengaturan, couple, riwayat sesi, dan antrean QR ada di database `leura.db` (lihat Konvensi kode); rekaman/foto di folder couple; template & filter tetap file JSON + gambar.
 
@@ -32,6 +32,7 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 - `npm run test:utama`, `npm run test:tampilan`, `npm run uji:demo` — uji per bagian.
 - `npm run lint` / `npm run lint:fix`, `npm run format` / `npm run format:check`.
 - `npm run build:mac` — installer Mac (di `main` untuk dipakai acara).
+- `npm run build:win` — installer Windows `Leura-Setup-<versi>-x64.exe` (hanya di Windows). GitHub juga membuatnya otomatis (`.github/workflows/installer-windows.yml`: tombol Run workflow, setiap tag `v*`, PR yang mengubah installer) → unduh di Artifacts. Program kamera Sony belum ada di versi Windows; pustaka Sony Mac hanya di `build.mac.extraResources`.
 - `npm run uji:sony`, `uji:sony-tidur`, `uji:sony-mode` — butuh kamera Sony A6700 tersambung.
 
 ## Workflow Git — GitHub Flow

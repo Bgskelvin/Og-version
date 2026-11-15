@@ -16,6 +16,7 @@
     "cek": "npm run lint && npm run format:check && npm test && npm run uji:demo",
     "build:sony": "bash kamera-sony/build.sh",
     "build:mac": "bash installer/build-mac.sh",
+    "build:win": "node installer/build-win.js",
     "uji:sony": "node tests/uji-kamera-sony.js",
     "uji:sony-tidur": "node tests/uji-sony-tidur.js",
     "uji:sony-mode": "node tests/uji-sony-mode.js",
@@ -65,13 +66,6 @@
     ],
     "extraResources": [
       {
-        "from": "kamera-sony/bin",
-        "to": "kamera-sony/bin",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
         "from": "THIRD-PARTY-NOTICES.txt",
         "to": "THIRD-PARTY-NOTICES.txt"
       }
@@ -85,6 +79,15 @@
         "dmg"
       ],
       "category": "public.app-category.photography",
+      "extraResources": [
+        {
+          "from": "kamera-sony/bin",
+          "to": "kamera-sony/bin",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ],
       "icon": "installer/icon.png",
       "identity": null,
       "hardenedRuntime": false,
@@ -97,6 +100,27 @@
     },
     "dmg": {
       "title": "Leura ${version}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "installer/icon.png"
+    },
+    "nsis": {
+      "artifactName": "Leura-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Leura",
+      "deleteAppDataOnUninstall": false
     }
   }
 }

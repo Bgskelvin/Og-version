@@ -30,7 +30,8 @@ const BIN_DIR = () =>
   app && app.isPackaged
     ? path.join(process.resourcesPath, 'kamera-sony', 'bin')
     : path.join(ROOT, 'kamera-sony', 'bin');
-const HELPER = () => process.env.SONY_HELPER || path.join(BIN_DIR(), 'sony-helper');
+const HELPER = () =>
+  process.env.SONY_HELPER || path.join(BIN_DIR(), process.platform === 'win32' ? 'sony-helper.exe' : 'sony-helper');
 const SIMULATION_DIR = path.join(ROOT, 'kamera-sony', 'simulasi');
 const TEMP_DIR = path.join(userData, 'sony-temp');
 const MODES = ['webcam', 'sony', 'sony-sim'];

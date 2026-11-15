@@ -1881,10 +1881,12 @@ const KASUS = {
       'FFmpeg di luar app.asar (bisa dijalankan)',
     );
     const er = b.extraResources || [];
+    const erMac = (b.mac && b.mac.extraResources) || [];
     cek(
-      er.some(x => x.from === 'kamera-sony/bin' && x.to === 'kamera-sony/bin') &&
-        er.some(x => x.from === 'THIRD-PARTY-NOTICES.txt'),
-      'program & pustaka kamera Sony + lisensi ikut ke Contents/Resources',
+      erMac.some(x => x.from === 'kamera-sony/bin' && x.to === 'kamera-sony/bin') &&
+        er.some(x => x.from === 'THIRD-PARTY-NOTICES.txt') &&
+        !er.some(x => x.from === 'kamera-sony/bin'),
+      'program & pustaka kamera Sony (Mac) + lisensi ikut ke Contents/Resources',
     );
     cek(
       fs.existsSync(path.join(akar, 'THIRD-PARTY-NOTICES.txt')) &&
@@ -1960,6 +1962,41 @@ const KASUS = {
     cek(
       (await panggil('open-licenses')).ok && electron.__dibuka === path.join(res, 'THIRD-PARTY-NOTICES.txt'),
       'tombol lisensi membuka THIRD-PARTY-NOTICES.txt dari Resources',
+    );
+  },
+
+  async 'Windows installer (.exe): settings, build script, data kept on uninstall'() {
+    const root = path.join(__dirname, '..');
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+    const b = pkg.build || {};
+    cek(
+      pkg.scripts['build:win'] === 'node installer/build-win.js' &&
+        fs.existsSync(path.join(root, 'installer', 'build-win.js')),
+      'npm run build:win available',
+    );
+    const targets = (b.win && b.win.target) || [];
+    cek(
+      targets.some(t => t.target === 'nsis' && (t.arch || []).includes('x64')) &&
+        fs.existsSync(path.join(root, b.win.icon)),
+      'Windows: NSIS installer for x64, icon exists',
+    );
+    const n = b.nsis || {};
+    cek(
+      n.oneClick === false && n.deleteAppDataOnUninstall === false && n.createDesktopShortcut === true,
+      'installer asks before installing, makes a desktop shortcut, keeps event data on uninstall',
+    );
+    cek(
+      /^Leura-Setup-\$\{version\}-\$\{arch\}\.\$\{ext\}$/.test(n.artifactName || ''),
+      'installer file named Leura-Setup-<version>-<arch>.exe (the build script looks for it)',
+    );
+    cek(
+      !((b.win && b.win.extraResources) || []).some(x => x.from === 'kamera-sony/bin'),
+      'Mac Sony libraries do not go into the Windows app',
+    );
+    const wf = path.join(root, '.github', 'workflows', 'installer-windows.yml');
+    cek(
+      fs.existsSync(wf) && /npm run build:win/.test(fs.readFileSync(wf, 'utf8')),
+      'GitHub builds the Windows installer automatically',
     );
   },
 
