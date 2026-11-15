@@ -46,7 +46,7 @@ export default [
   },
   // Proses utama Electron, preload, skrip build & uji: Node (CommonJS)
   {
-    files: ['main.js', 'preload.js', 'main/**/*.js', 'tests/**/*.js', 'demo/bangun.js'],
+    files: ['main.js', 'preload.js', 'main/**/*.js', 'tests/**/*.js', 'demo/bangun.js', 'installer/**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } },
   },
   // Tampilan aplikasi (src/): ES module di browser; window.api dari preload.js

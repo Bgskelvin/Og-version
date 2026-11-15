@@ -1,0 +1,46 @@
+# Builds the Windows installer (Leura-Setup-<version>-x64.exe) on a GitHub Windows computer.
+# Download it from the run's page → "Artifacts" → Leura-Windows.
+# Runs: by hand (Actions → Installer Windows → Run workflow), for every version tag (v1.2.3),
+# and on Pull Requests that change the installer.
+name: Installer Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'installer/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/installer-windows.yml'
+
+concurrency:
+  group: installer-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install components
+        run: npm ci
+
+      - name: Build the installer
+        run: npm run build:win
+
+      - name: Keep the installer for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Leura-Windows
+          path: dist/Leura-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14
