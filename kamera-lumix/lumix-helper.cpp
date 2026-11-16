@@ -292,10 +292,19 @@ static void chooseLiveViewQuality() {
   std::string options;
   for (int i = 0; i < list->RecomImgQualityListCount && i < 1024; i++) {
     auto& q = list->RecomImgQualityListData[i];
-    options += " " + std::to_string(q.Resolution) + "@" + std::to_string(q.FrameRate) + "fps";
+    // Resolution = width in the upper 16 bits, height in the lower 16 bits
+    options += " " + std::to_string(q.Resolution >> 16) + "x" + std::to_string(q.Resolution & 0xFFFF) + "@" +
+               std::to_string(q.FrameRate) + "fps";
     if (best < 0 || q.Resolution > list->RecomImgQualityListData[best].Resolution) best = i;
   }
-  fprintf(stderr, "Live view options:%s\n", options.c_str()); // goes into the app log
+  // For measuring only: LUMIX_LV=0,1,2… picks an option by its place in the list
+  char pickEnv[8] = "";
+  size_t pickLen = 0;
+  if (getenv_s(&pickLen, pickEnv, sizeof pickEnv, "LUMIX_LV") == 0 && pickLen > 1) {
+    int i = atoi(pickEnv);
+    if (i >= 0 && i < list->RecomImgQualityListCount) best = i;
+  }
+  fprintf(stderr, "Live view options:%s (using #%d)\n", options.c_str(), best); // goes into the app log
   if (best >= 0) LMX_func_api_LiveView_Str_Set_Trans_Img(list->RecomImgQualityListData[best], &err);
 }
 
