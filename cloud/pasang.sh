@@ -61,8 +61,8 @@ say "Mengecek sambungan"
 sleep 3
 if curl -fsS -H "Authorization: Bearer $KUNCI" "$URL/ping" | grep -q '"ok":true'; then
   printf '\n✓ Selesai. Server unduh foto: %s\n' "$URL"
-  printf '  Di aplikasi: Admin → Pengaturan photobooth → Unduh lewat QR → "Ambil dari hasil pasang"\n\n'
+  printf '  Di aplikasi: Admin → bagian QR → tombol "Load from setup" → "Test connection"\n\n'
 else
   printf '\n⚠ Worker terpasang di %s, tapi tes sambungan belum berhasil.\n' "$URL"
-  printf '  Tunggu 1 menit lalu tekan "Tes sambungan" di Admin.\n\n'
+  printf '  Tunggu 1 menit lalu tekan "Test connection" di Admin.\n\n'
 fi
