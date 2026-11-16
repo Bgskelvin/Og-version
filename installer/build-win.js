@@ -7,7 +7,10 @@
 //   - app code (app.asar)
 //   - FFmpeg (MP4, quiz text, phone version for the QR)  → resources/app.asar.unpacked
 //   - THIRD-PARTY-NOTICES.txt                             → resources/
-//   - Sony camera helper: not yet (needs the Windows Sony SDK, a later step)
+//   - USB camera helpers, if built on this computer (they need the licensed SDKs, so GitHub builds
+//     the installer without them; then only the webcam works):
+//       Sony  kamera-sony/bin-win  → resources/kamera-sony/bin   (npm run build:sony)
+//       Lumix kamera-lumix/bin     → resources/kamera-lumix/bin  (npm run build:lumix)
 // Event data (couples, recordings, settings, QR queue) is NOT inside: it stays in
 //   %APPDATA%\leura — the same folder "npm start" uses, and uninstalling keeps it.
 // Result:  dist/Leura-Setup-<version>-x64.exe  and  dist/win-unpacked/
@@ -64,7 +67,13 @@ if (!ff || !fs.existsSync(ff)) fail('FFmpeg (ffmpeg-static) not found. Run: npm 
 if (!runsVersion(ff)) fail('FFmpeg is there but does not run on this computer: ' + ff);
 ok('FFmpeg');
 if (!fs.existsSync(path.join(ROOT, 'THIRD-PARTY-NOTICES.txt'))) fail('THIRD-PARTY-NOTICES.txt is missing.');
-warn('Sony camera over USB is not in the Windows version yet (webcam works).');
+const HELPERS = [
+  ['Sony', path.join('kamera-sony', 'bin-win', 'sony-helper.exe'), 'npm run build:sony', 'kamera-sony'],
+  ['Lumix', path.join('kamera-lumix', 'bin', 'lumix-helper.exe'), 'npm run build:lumix', 'kamera-lumix'],
+];
+for (const [name, file, build] of HELPERS)
+  if (fs.existsSync(path.join(ROOT, file))) ok(`${name} camera helper`);
+  else warn(`${name} camera helper not built: the installer works without it (${build} to add it)`);
 
 say('Building the installer (a few minutes)');
 fs.rmSync(path.join(ROOT, 'dist'), { recursive: true, force: true });
@@ -80,6 +89,12 @@ if (!fs.existsSync(ffApp) || !runsVersion(ffApp)) fail('FFmpeg inside the instal
 ok('FFmpeg inside the app');
 if (!fs.existsSync(path.join(res, 'THIRD-PARTY-NOTICES.txt'))) fail('THIRD-PARTY-NOTICES.txt did not go into the app.');
 ok('Third-party licences');
+for (const [name, file, , folder] of HELPERS) {
+  if (!fs.existsSync(path.join(ROOT, file))) continue;
+  if (!fs.existsSync(path.join(res, folder, 'bin', path.basename(file))))
+    fail(`The ${name} camera helper did not go into the app.`);
+  ok(`${name} camera helper inside the app`);
+}
 const setup = path.join(ROOT, 'dist', `Leura-Setup-${version}-x64.exe`);
 if (!fs.existsSync(setup)) fail('Installer not found: ' + setup);
 const mb = (fs.statSync(setup).size / 1024 / 1024).toFixed(0);

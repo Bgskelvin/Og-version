@@ -97,10 +97,10 @@ function closeStream(rec) {
 // Recording chunks are written to disk every second, so their content can be saved.
 function recoverInterrupted() {
   const list = readSessions();
-  // Sony camera videos not copied yet: the original file is safe on the camera's SD card
+  // USB camera (Sony / Lumix) videos not copied yet: the original file is safe on the camera's SD card
   let sonyFound = false;
   for (const s of list) {
-    if (s.camera === 'sony' && (s.status === 'recording' || s.status === 'transfer')) {
+    if ((s.camera === 'sony' || s.camera === 'lumix') && (s.status === 'recording' || s.status === 'transfer')) {
       s.status = 'card-only';
       s.recovered = true;
       sonyFound = true;
@@ -181,11 +181,13 @@ function copySonyVideo(sid, info, file) {
   sony.download(info, file).then(h => {
     if (h.ok) {
       updateSession(sid, { status: 'done', file: path.basename(file) });
-      log.write('Sony video copied: ' + path.basename(file));
+      log.write(`${sony.brandName()} video copied: ` + path.basename(file));
       videoProcessing.processLater(sid);
     } else {
       updateSession(sid, { status: 'card-only', error: h.error });
-      log.error(`Sony video not copied yet (${path.basename(file)}): ${h.error} — still safe on the card`);
+      log.error(
+        `${sony.brandName()} video not copied yet (${path.basename(file)}): ${h.error} — still safe on the card`,
+      );
     }
   });
 }
@@ -278,7 +280,7 @@ function register() {
         return {
           error: `The video is only on the camera SD card${s.cardFile ? ' (' + s.cardFile + ')' : ''}. Copy it from the card manually.`,
         };
-      if (!sony.ready()) return { error: 'Connect the Sony camera first, then try again.' };
+      if (!sony.ready()) return { error: `Connect the ${sony.brandName()} camera first, then try again.` };
       updateSession(id, { status: 'transfer', error: undefined });
       copySonyVideo(id, s.cardInfo, location(s));
       return { ok: true };
@@ -347,7 +349,7 @@ function register() {
     if (useSony) {
       const r = await sony.startRecording();
       if (r.error) {
-        log.error(`Recording ${label} (Sony) could not start: ${r.error}`);
+        log.error(`Recording ${label} (${sony.brandName()}) could not start: ${r.error}`);
         return { error: r.error };
       }
     } else {
@@ -371,7 +373,7 @@ function register() {
         ...(guest ? { guest: String(options.guest).trim().slice(0, 40) } : {}),
         seconds: 0,
         status: 'recording',
-        ...(useSony ? { camera: 'sony' } : {}),
+        ...(useSony ? { camera: sony.brand() } : {}),
       });
     } catch (err) {
       console.log('Could not record the session: ' + err.message);
@@ -387,7 +389,7 @@ function register() {
       });
     recs.set(id, rec);
     log.write(
-      `Recording started: ${label}${useSony ? ' (Sony)' : ''} → ${path.basename(file)}${fallback ? ' [fallback folder]' : ''}`,
+      `Recording started: ${label}${useSony ? ` (${sony.brandName()})` : ''} → ${path.basename(file)}${fallback ? ' [fallback folder]' : ''}`,
     );
     return { id, file, fallback };
   });
@@ -423,10 +425,11 @@ function register() {
             }),
       };
       updateSession(sid, patch);
-      if (r.error) log.error(`Sony recording stopped with an error (${path.basename(rec.file)}): ${r.error}`);
+      if (r.error)
+        log.error(`${sony.brandName()} recording stopped with an error (${path.basename(rec.file)}): ${r.error}`);
       else
         log.write(
-          `Recording done (Sony, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.cardFile}${qr ? ', QR ' + qr.code : ''}`,
+          `Recording done (${sony.brandName()}, ${seconds} s): ${path.basename(rec.file)}, copying from card ${r.cardFile}${qr ? ', QR ' + qr.code : ''}`,
         );
       if (!r.error) copySonyVideo(sid, r, rec.file);
       return r.error

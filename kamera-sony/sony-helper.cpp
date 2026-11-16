@@ -43,6 +43,11 @@
 #include <thread>
 #include <vector>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #include "CameraRemote_SDK.h"
 #include "CrDeviceProperty.h"
 #include "IDeviceCallback.h"
@@ -116,7 +121,29 @@ static long g_unduhSelesai = 0;          // job yang baru selesai
 static bool g_unduhOk = false;
 static std::string g_unduhFile;
 
+// Teks dari/ke SDK. Mac: CrChar = char (UTF-8). Windows: CrChar = wchar_t (UNICODE, seperti contoh resmi Sony),
+// jadi diubah ke/dari UTF-8 (protokol dengan aplikasi selalu UTF-8).
+using CrText = std::basic_string<CrChar>;
+#ifdef _WIN32
+static std::string teks(const CrChar* s) {
+  if (!s || !*s) return std::string();
+  int n = WideCharToMultiByte(CP_UTF8, 0, s, -1, nullptr, 0, nullptr, nullptr);
+  std::string o(n > 0 ? n - 1 : 0, '\0');
+  if (n > 1) WideCharToMultiByte(CP_UTF8, 0, s, -1, &o[0], n, nullptr, nullptr);
+  return o;
+}
+static CrText crTeks(const std::string& s) {
+  if (s.empty()) return CrText();
+  int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+  CrText o(n > 0 ? n - 1 : 0, L'\0');
+  if (n > 1) MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &o[0], n);
+  return o;
+}
+#else
 static std::string teks(const CrChar* s) { return s ? std::string(s) : std::string(); }
+static CrText crTeks(const std::string& s) { return s; }
+#endif
+static CrChar g_kosong[1] = {0}; // teks kosong untuk SetSaveInfo
 
 class Panggilan : public SDK::IDeviceCallback {
  public:
@@ -296,7 +323,10 @@ static void cmdSambung(long id, const std::vector<std::string>& a) {
   if (e) return jawabGagal(id, "Gagal menyambung ke kamera", e);
   if (!tunggu(15000, [] { return g_hasilSambung != 0; })) return jawabGagal(id, "Kamera tidak menjawab saat disambungkan");
   if (g_hasilSambung < 0) return jawabGagal(id, "Kamera menolak sambungan. Pastikan mode USB kamera = PC Remote.", g_kodeSambung);
-  if (a.size() > 0 && !a[0].empty()) SDK::SetSaveInfo(g_dev, const_cast<CrChar*>(a[0].c_str()), const_cast<CrChar*>(""), -1);
+  if (a.size() > 0 && !a[0].empty()) {
+    CrText f = crTeks(a[0]);
+    SDK::SetSaveInfo(g_dev, &f[0], g_kosong, -1);
+  }
   std::this_thread::sleep_for(std::chrono::milliseconds(800));   // beri waktu kamera mengirim daftar properti
   std::string catatan = setelKamera();
   jawabOk(id, "\"model\":\"" + esc(g_model) + "\"" + (catatan.empty() ? "" : ",\"catatan\":\"" + esc(catatan) + "\""));
@@ -430,8 +460,9 @@ static std::string fokus() {
 static bool unduhSekarang(const FileKartu& f, const std::string& folder, long job, std::string& hasil, int ms) {
   if (g_unduhJob) { hasil = "kartu sedang dipakai menyalin file lain"; return false; }
   g_unduhJob = job;
+  CrText dir = crTeks(folder);
   SDK::CrError e = SDK::GetRemoteTransferContentsDataFile(g_dev, (SDK::CrSlotNumber)f.slot, f.contentId, f.fileId,
-                                                          0x5000000, const_cast<CrChar*>(folder.c_str()), nullptr);
+                                                          0x5000000, &dir[0], nullptr);
   if (e) { g_unduhJob = 0; hasil = "gagal mulai menyalin " + hex(e); return false; }
   if (!tunggu(ms, [job] { return g_unduhSelesai == job; })) { hasil = "menyalin terlalu lama"; return false; }
   hasil = g_unduhFile;
@@ -446,7 +477,10 @@ static void cmdFoto(long id, const std::vector<std::string>& a) {
   if (!g_tersambung) return jawabGagal(id, "Kamera belum tersambung");
   setelJikaPerlu();
   std::string folder = a.size() > 0 ? a[0] : "";
-  if (!folder.empty()) SDK::SetSaveInfo(g_dev, const_cast<CrChar*>(folder.c_str()), const_cast<CrChar*>(""), -1);
+  if (!folder.empty()) {
+    CrText f = crTeks(folder);
+    SDK::SetSaveInfo(g_dev, &f[0], g_kosong, -1);
+  }
   std::set<uint64_t> sebelum;
   for (auto& f : daftarFile(SDK::CrSlotNumber_Slot1, SDK::CrContentsFile_FileFormat_Jpeg)) sebelum.insert(kunci(f));
   { std::lock_guard<std::mutex> l(g_mx); g_tungguFoto = true; g_fileFoto.clear(); }
@@ -522,9 +556,9 @@ static void cmdUnduh(long id, const std::vector<std::string>& a) {
   if (g_unduhJob) return jawabGagal(id, "Masih ada file yang sedang diunduh");
   uint32_t slot = (uint32_t)std::stoul(a[0]), contentId = (uint32_t)std::stoul(a[1]), fileId = (uint32_t)std::stoul(a[2]);
   g_unduhJob = id;
+  CrText dir = crTeks(a[3]);
   SDK::CrError e = SDK::GetRemoteTransferContentsDataFile(g_dev, (SDK::CrSlotNumber)slot, contentId, fileId,
-                                                          0x5000000 /* 80 MB per bagian */,
-                                                          const_cast<CrChar*>(a[3].c_str()), nullptr);
+                                                          0x5000000 /* 80 MB per bagian */, &dir[0], nullptr);
   if (e) { g_unduhJob = 0; return jawabGagal(id, "Gagal mulai mengunduh dari kartu", e); }
   jawabOk(id, "\"job\":" + std::to_string(id));   // selesainya dikabarkan lewat "unduh-selesai"
 }

@@ -6,7 +6,7 @@ import { loadSessions } from './session-history.js';
 import { applyCouples, fillCoupleSel } from './couple.js';
 import { loadSettings } from './settings.js';
 import { openStream, fillDevices } from './camera.js';
-import { usingSony, fillAdminCamera } from './sony-camera.js';
+import { usingSony, cameraBrand, fillAdminCamera } from './sony-camera.js';
 import { $, store } from './state.js';
 import { setNotice, show } from './app.js';
 import { refreshDiskSpace } from './disk-space.js';
@@ -139,7 +139,7 @@ async function confirmQuit() {
   const notes = [];
   if (counts.copying)
     notes.push(
-      `${counts.copying} video(s) still copying from the Sony camera. The originals are safe on the camera card and can be copied again from Session history.`,
+      `${counts.copying} video(s) still copying from the ${cameraBrand()} camera. The originals are safe on the camera card and can be copied again from Session history.`,
     );
   if (counts.processing)
     notes.push(
@@ -154,7 +154,8 @@ async function confirmQuit() {
   overlay.id = 'dlgQuit';
   overlay.innerHTML = `<div class="dialog-card"><h2>Quit the app?</h2><p></p><ul></ul>
     <div class="dialog-actions"><button class="btn sm tint" id="dlgQuitCancel">Cancel</button><button class="btn sm primary" id="dlgQuitYes">Quit app</button></div></div>`;
-  overlay.querySelector('p').textContent = 'The Sony camera will be disconnected cleanly, then the app will close.';
+  overlay.querySelector('p').textContent =
+    `The ${cameraBrand()} camera will be disconnected cleanly, then the app will close.`;
   const ul = overlay.querySelector('ul');
   if (notes.length)
     notes.forEach(note => {

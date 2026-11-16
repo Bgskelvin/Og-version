@@ -1,7 +1,7 @@
 {
   "name": "leura",
   "productName": "Leura",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Leura — wedding videobooth & photobooth",
   "main": "main.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "cek": "npm run lint && npm run format:check && npm test && npm run uji:demo",
-    "build:sony": "bash kamera-sony/build.sh",
+    "build:sony": "node installer/build-sony.js",
+    "build:lumix": "node installer/build-lumix-win.js",
     "build:mac": "bash installer/build-mac.sh",
     "build:win": "node installer/build-win.js",
     "uji:sony": "node tests/uji-kamera-sony.js",
@@ -110,7 +111,23 @@
           ]
         }
       ],
-      "icon": "installer/icon.png"
+      "icon": "installer/icon.png",
+      "extraResources": [
+        {
+          "from": "kamera-sony/bin-win",
+          "to": "kamera-sony/bin",
+          "filter": [
+            "**/*"
+          ]
+        },
+        {
+          "from": "kamera-lumix/bin",
+          "to": "kamera-lumix/bin",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
     },
     "nsis": {
       "artifactName": "Leura-Setup-${version}-${arch}.${ext}",

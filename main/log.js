@@ -24,13 +24,7 @@ const pad = n => String(n).padStart(2, '0');
 const dateStamp = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const timeStamp = (d = new Date()) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 const dayFile = (t = dateStamp()) => path.join(LOG_DIR, t + '.txt');
-const appVersion = () => {
-  try {
-    return app.getVersion();
-  } catch {
-    return '?';
-  }
-};
+const { appVersion } = require('./version');
 
 let dirReady = false;
 // Write one line. level: 'info' | 'warn' | 'error'

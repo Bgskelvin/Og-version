@@ -9,7 +9,7 @@
 import { prepareTemplate, drawTemplate } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
 import { addGuestResult } from './guest-qr.js';
-import { usingSony } from './sony-camera.js';
+import { usingSony, cameraBrand } from './sony-camera.js';
 import { setThanks, needStream } from './recording.js';
 import { $, sleep, state } from './state.js';
 import { t, todayDate } from './language.js';
@@ -69,7 +69,7 @@ async function captureSony() {
     flashEl.classList.add('go');
   }
   const r = await capture;
-  if (!r || r.error) throw new Error((r && r.error) || 'The Sony camera did not send a photo');
+  if (!r || r.error) throw new Error((r && r.error) || `The ${cameraBrand()} camera did not send a photo`);
   const bmp = await createImageBitmap(new Blob([r.bytes], { type: 'image/jpeg' }), {
     imageOrientation: 'from-image',
   });
