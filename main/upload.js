@@ -32,7 +32,9 @@ const SINGLES_DIR = path.join(userData, 'qr-singles');
 const MAX_SINGLES = 4;
 // Size of each video part (R2: all parts the same size, except the last). LEURA_TEST_PART_SIZE is only for the automated tests.
 const PART_SIZE = Number(process.env.LEURA_TEST_PART_SIZE) || 8 * 1024 * 1024;
-const SETUP_RESULT = path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
+// Written by cloud/pasang.sh: { url, kunci, waktu } (Indonesian field names, like the server protocol).
+// LEURA_TEST_SETUP_RESULT is only for the automated tests (they must never read the real key).
+const SETUP_RESULT = process.env.LEURA_TEST_SETUP_RESULT || path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'; // without look-alike letters (0/O, 1/l/I)
 const MISSING = 'MISSING'; // returned by the senders when the file to send is gone
 
@@ -674,8 +676,9 @@ function register() {
   // Fill in the address & key from the result of "npm run cloud:pasang"
   ipcMain.handle('upload-setup-result', () => {
     const h = readJSON(SETUP_RESULT, null);
-    if (!h || !h.url || !h.key) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
-    return { url: h.url, key: h.key };
+    const key = h && (h.kunci || h.key);
+    if (!h || !h.url || !key) return { error: 'No setup result yet. Run first: npm run cloud:pasang' };
+    return { url: h.url, key };
   });
   // From Session history: open the photo link in the browser / copy the link
   ipcMain.handle('open-link', (e, url) => {

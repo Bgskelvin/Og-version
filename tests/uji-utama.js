@@ -2719,6 +2719,43 @@ const KASUS = {
     cek(disk.refuseIfFull() === null, 'disk cukup: rekaman boleh dimulai');
   },
 
+  async 'QR server setup: Load from setup reads cloud/pasang.sh result, npm run cloud:pasang finds bash'() {
+    const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'leura-setup-result-'));
+    const file = path.join(root, '.hasil-pasang.json');
+    process.env.LEURA_TEST_SETUP_RESULT = file;
+    const { panggil } = nyalakanAplikasi();
+    cek(/No setup result yet/.test((await panggil('upload-setup-result')).error || ''), 'no setup file: clear message');
+    // Same shape as cloud/pasang.sh writes
+    fs.writeFileSync(file, JSON.stringify({ url: 'https://x.workers.dev', kunci: 'k123', waktu: 'now' }));
+    let r = await panggil('upload-setup-result');
+    cek(r.url === 'https://x.workers.dev' && r.key === 'k123', 'url & kunci from pasang.sh are loaded', r);
+    cek((await panggil('upload-status')).hasSetupResult === true, 'Admin shows the Load from setup button');
+    fs.writeFileSync(file, JSON.stringify({ url: 'https://x.workers.dev', key: 'k456' }));
+    r = await panggil('upload-setup-result');
+    cek(r.key === 'k456', 'a file with "key" also works');
+
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+    cek(
+      pkg.scripts['cloud:pasang'] === 'node installer/cloud-setup.js',
+      'npm run cloud:pasang goes through cloud-setup.js',
+    );
+    const { findBash } = require(path.join(__dirname, '..', 'installer', 'cloud-setup.js'));
+    cek(findBash({ platform: 'darwin', env: {} }) === 'bash', 'Mac: plain bash');
+    const gitBash = path.win32.join('C:\\Program Files', 'Git', 'bin', 'bash.exe');
+    cek(
+      findBash({ platform: 'win32', env: { ProgramFiles: 'C:\\Program Files' }, exists: f => f === gitBash }) ===
+        gitBash,
+      'Windows: Git Bash in Program Files',
+    );
+    const userGit = path.win32.join('D:\\Tools\\Git', 'bin', 'bash.exe');
+    cek(
+      findBash({ platform: 'win32', env: { PATH: 'C:\\x;D:\\Tools\\Git\\cmd' }, exists: f => f === userGit }) ===
+        userGit,
+      'Windows: Git Bash found next to git on the PATH',
+    );
+    cek(findBash({ platform: 'win32', env: {}, exists: () => false }) === null, 'Windows without Git Bash: null');
+  },
+
   async 'satu jendela: aplikasi kedua langsung keluar'() {
     process.on('exit', () => {
       cek(true, 'aplikasi kedua keluar sebelum membuka apa pun');
