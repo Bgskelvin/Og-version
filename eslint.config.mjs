@@ -36,6 +36,9 @@ export default [
       'kamera-sony/.sdk/',
       'kamera-sony/hasil-uji/',
       'kamera-sony/uji/bin/',
+      'kamera-sony/bin-win/',
+      'kamera-lumix/bin/',
+      'kamera-lumix/uji/bin/',
     ],
   },
   {

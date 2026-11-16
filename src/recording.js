@@ -4,7 +4,7 @@
    Shared session state (rec, recT0, lastSave, busy, sessionToken, …) lives
    in state.js.
    ===================================================================== */
-import { usingSony, sonyState } from './sony-camera.js';
+import { usingSony, cameraBrand, sonyState } from './sony-camera.js';
 import { addGuestResult } from './guest-qr.js';
 import { $, sleep, state } from './state.js';
 import { setNotice, show } from './app.js';
@@ -154,7 +154,7 @@ export async function abortSession(msg) {
 export function needStream() {
   if (usingSony()) {
     if (sonyState.connected) return true;
-    setNotice('The Sony camera is not connected. Check the USB cable & camera, or look in Admin.', 8000);
+    setNotice(`The ${cameraBrand()} camera is not connected. Check the USB cable & camera, or look in Admin.`, 8000);
     return false;
   }
   if (state.mediaStream) return true;

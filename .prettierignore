@@ -9,4 +9,9 @@ kamera-sony/bin/
 kamera-sony/.sdk/
 kamera-sony/hasil-uji/
 kamera-sony/uji/bin/
+kamera-sony/bin-win/
+kamera-sony/.sdk-win/
+kamera-lumix/bin/
+kamera-lumix/.build/
+kamera-lumix/uji/bin/
 package-lock.json

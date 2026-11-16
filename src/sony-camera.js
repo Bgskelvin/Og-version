@@ -19,7 +19,11 @@ let liveViewFrames = 0; // number of live-view frames drawn so far
 let modeSwitchId = 0;
 export const liveViewFrameCount = () => liveViewFrames; // for the UI tests
 
-export const usingSony = () => !!state.cfg && (state.cfg.camera === 'sony' || state.cfg.camera === 'sony-sim');
+// A USB camera run by a helper program: Sony (Mac & Windows), simulated Sony, or Panasonic Lumix (Windows).
+// All of them work the same way in the app; only the name shown differs (cameraBrand).
+const USB_CAMERAS = ['sony', 'sony-sim', 'lumix'];
+export const usingSony = () => !!state.cfg && USB_CAMERAS.includes(state.cfg.camera);
+export const cameraBrand = () => (state.cfg && state.cfg.camera === 'lumix' ? 'Lumix' : 'Sony');
 
 // Set up the camera source from the settings: webcam/phone or Sony
 export async function applyCameraSource() {
@@ -122,7 +126,7 @@ async function runLiveView() {
 /* ---------- Camera status in Admin ---------- */
 function sonyStatusText(s) {
   if (s.connected) {
-    const parts = [`${s.model || 'Sony camera'} connected`];
+    const parts = [`${s.model || cameraBrand() + ' camera'} connected`];
     if (s.battery >= 0) parts.push(`battery ${s.battery}%`);
     if (s.cardError > 0) parts.push('⚠️ SD card problem / no card');
     else if (s.recordSecondsLeft > 0)
@@ -132,7 +136,7 @@ function sonyStatusText(s) {
     if (s.downloading) parts.push('copying video');
     return parts.join(' · ');
   }
-  return s.message || 'Looking for the Sony camera…';
+  return s.message || `Looking for the ${cameraBrand()} camera…`;
 }
 function renderSonyStatus() {
   if (!$('sonyStatus')) return;
@@ -144,9 +148,10 @@ export function fillAdminCamera() {
   $('camSource').value = state.cfg.camera || 'webcam';
   $('camSelRow').style.display = $('micSelRow').style.display = sony ? 'none' : '';
   $('sonyRow').style.display = sony ? '' : 'none';
-  $('camHint').textContent = sony
-    ? "Video sound comes from the Sony camera: plug the mic into the camera's mic jack. Videos are recorded to the SD card and copied to the couple folder automatically. Use a dummy battery so the camera doesn't die mid-event."
-    : 'Computer camera & mic, a USB webcam, or a phone used as a webcam.';
+  $('camHint').textContent = !sony
+    ? 'Computer camera & mic, a USB webcam, or a phone used as a webcam.'
+    : `Video sound comes from the ${cameraBrand()} camera: plug the mic into the camera's mic jack. Videos are recorded to the SD card and copied to the couple folder automatically. Use a dummy battery so the camera doesn't die mid-event.` +
+      (state.cfg.camera === 'lumix' ? " Set the camera's USB mode to PC(Tether)." : '');
   renderSonyStatus();
 }
 function receiveSonyStatus(s) {
@@ -155,7 +160,9 @@ function receiveSonyStatus(s) {
   renderSonyStatus();
   // Camera disconnected during a message/quiz recording: stop the session with a clear message
   if (wasConnected && !sonyState.connected && state.rec && state.rec.sony)
-    abortSession('The Sony camera disconnected while recording. What was recorded is still on the camera SD card.');
+    abortSession(
+      `The ${cameraBrand()} camera disconnected while recording. What was recorded is still on the camera SD card.`,
+    );
 }
 
 // Wire up this feature's buttons (called once from start.js)
@@ -172,11 +179,16 @@ export async function setupSonyCamera() {
     await applyCameraSource();
     fillAdminCamera();
     await fillDevices();
-    const label = { webcam: 'Webcam / phone', sony: 'Sony (USB)', 'sony-sim': 'Sony – simulation' }[state.cfg.camera];
+    const label = {
+      webcam: 'Webcam / phone',
+      sony: 'Sony (USB)',
+      'sony-sim': 'Sony – simulation',
+      lumix: 'Panasonic Lumix (USB)',
+    }[state.cfg.camera];
     flash('camMsg', `Camera source: ${label}.`);
   };
   $('btnSonyReconnect').onclick = async () => {
-    $('sonyStatus').textContent = 'Looking for the Sony camera…';
+    $('sonyStatus').textContent = `Looking for the ${cameraBrand()} camera…`;
     receiveSonyStatus(await api.sonyReconnect());
   };
 }

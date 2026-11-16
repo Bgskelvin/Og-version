@@ -2199,6 +2199,127 @@ const KASUS = {
     );
   },
 
+  async 'Lumix camera: clear message when the helper is missing or the computer is not Windows'() {
+    process.env.LUMIX_HELPER = path.join(require('os').tmpdir(), 'not-here', 'lumix-helper.exe');
+    const { panggil, electron, sesi } = nyalakanAplikasi({ platform: 'win32' });
+    electron.__siap();
+    await tunggu(100);
+    const s = await panggil('save-settings', { camera: 'lumix' });
+    cek(s.camera === 'lumix', 'Lumix can be chosen as the camera source');
+    const st = await panggil('sony-status');
+    cek(
+      st.mode === 'lumix' &&
+        !st.connected &&
+        /Lumix camera helper is not built yet.*npm run build:lumix/.test(st.message),
+      'helper not built: message says how to build it',
+      st.message,
+    );
+    cek(/npm run build:lumix/.test((await panggil('sony-photo')).error), 'shooting is refused with the same message');
+    const r = await panggil('rec-start', 'message', { sony: true });
+    cek(r.error && sesi().length === 0, 'recording is refused, no empty session', r);
+    // A Mac: the Lumix SDK is Windows only
+    delete process.env.LUMIX_HELPER;
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    await panggil('save-settings', { camera: 'webcam' });
+    await panggil('save-settings', { camera: 'lumix' });
+    cek(/only works on Windows/.test((await panggil('sony-status')).message), 'on a Mac: "only works on Windows"');
+  },
+
+  async 'Lumix camera: real helper with the fake SDK (photo, video, copy from the card)'() {
+    const bin = path.join(__dirname, '..', 'kamera-lumix', 'uji', 'bin', 'lumix-helper-palsu.exe');
+    if (!fs.existsSync(bin)) {
+      cek(true, 'skipped: test helper not built (Windows developer computer: npm run build:lumix -- --fake)');
+      return;
+    }
+    process.env.LUMIX_HELPER = bin;
+    const { panggil, electron, sesi, dataDir } = nyalakanAplikasi({ platform: 'win32' });
+    electron.__siap();
+    await tunggu(100);
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1500);
+    const st = await panggil('sony-status');
+    cek(st.connected && st.model === 'DC-S5M2', 'helper connected through the SDK', st);
+    const lv = await panggil('sony-live-view');
+    cek(lv && lv[0] === 0xff && lv[1] === 0xd8, 'live view JPEG from the SDK');
+    const f = await panggil('sony-photo');
+    cek(
+      f.ok && f.bytes[0] === 0xff && /photo/.test(Buffer.from(f.bytes).toString()),
+      'photo copied from the camera',
+      f,
+    );
+    const r = await panggil('rec-start', 'message', { sony: true });
+    cek(r.ok !== false && !r.error, 'recording started', r);
+    await tunggu(500);
+    const e = await panggil('rec-end', r.id, 3, {});
+    cek(e.ok, 'recording stopped & the new video file was announced', e.error);
+    for (let i = 0; i < 40 && sesi()[0].status !== 'done'; i++) await tunggu(250);
+    const s = sesi()[0];
+    cek(
+      s.status === 'done' &&
+        s.camera === 'lumix' &&
+        fs.readFileSync(r.file).subarray(0, 10).toString() === 'fake video' &&
+        fs.statSync(r.file).size === 20 * 1024 * 1024 + 123,
+      'video (20 MB, copied in parts) arrived in the couple folder; session marked as Lumix',
+      s,
+    );
+    const logs = fs
+      .readdirSync(path.join(dataDir, 'logs'))
+      .map(x => fs.readFileSync(path.join(dataDir, 'logs', x), 'utf8'));
+    cek(
+      /Lumix camera connected: DC-S5M2/.test(logs.join('')) && /Recording done \(Lumix, /.test(logs.join('')),
+      'the log names the Lumix camera',
+    );
+    await panggil('quit-app');
+  },
+
+  async 'Lumix camera: RAW+JPEG, unplugged camera, dial on video (fake SDK)'() {
+    const bin = path.join(__dirname, '..', 'kamera-lumix', 'uji', 'bin', 'lumix-helper-palsu.exe');
+    if (!fs.existsSync(bin)) {
+      cek(true, 'skipped: test helper not built (Windows developer computer: npm run build:lumix -- --fake)');
+      return;
+    }
+    process.env.LUMIX_HELPER = bin;
+    process.env.LUMIX_PALSU = 'raw-jpeg';
+    const { panggil, electron } = nyalakanAplikasi({ platform: 'win32' });
+    electron.__siap();
+    await tunggu(100);
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1500);
+    const f = await panggil('sony-photo');
+    cek(f.ok && /photo/.test(Buffer.from(f.bytes).toString()), 'RAW+JPEG: the RAW is skipped, the JPEG is used', f);
+    // Unplugged: live view fails → the app shows "disconnected" and looks for the camera again
+    process.env.LUMIX_PALSU = 'unplug';
+    await panggil('save-settings', { camera: 'webcam' });
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1200);
+    cek((await panggil('sony-status')).connected, 'connected before unplugging');
+    await tunggu(800);
+    for (let i = 0; i < 40; i++) await panggil('sony-live-view');
+    const st = await panggil('sony-status');
+    cek(!st.connected && /Lumix camera disconnected/.test(st.message), 'unplugged: shown as disconnected', st);
+    // Camera busy when asked to stop recording (seen with a real S5 II X): tried again, the video is kept
+    process.env.LUMIX_PALSU = 'busy-stop';
+    await panggil('save-settings', { camera: 'webcam' });
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1200);
+    const b = await panggil('rec-start', 'message', { sony: true });
+    await tunggu(300);
+    const be = await panggil('rec-end', b.id, 2, {});
+    cek(be.ok, 'camera busy when stopping: tried again, recording stopped', be);
+    // Mode dial on video (S5 II: the computer can't change it): a clear message, no shot
+    process.env.LUMIX_PALSU = 'dial-video';
+    await panggil('save-settings', { camera: 'webcam' });
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1200);
+    const d = await panggil('sony-photo');
+    cek(
+      /mode dial is on video.*P\/A\/S\/M/.test(d.error || ''),
+      'dial on video: photo refused with a clear message',
+      d,
+    );
+    await panggil('quit-app');
+  },
+
   async 'UI modules (src/): every import has a matching export'() {
     // A missing export stops the whole UI from loading, and ESLint doesn't check names across files.
     const espree = require('espree');

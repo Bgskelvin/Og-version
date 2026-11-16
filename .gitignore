@@ -14,6 +14,11 @@ kamera-sony/bin/
 kamera-sony/.sdk/
 kamera-sony/uji/bin/
 kamera-sony/hasil-uji/
+kamera-sony/bin-win/
+kamera-sony/.sdk-win/
+kamera-lumix/bin/
+kamera-lumix/.build/
+kamera-lumix/uji/bin/
 # Hasil pemasangan server QR (berisi kunci booth) & berkas kerja wrangler
 cloud/.hasil-pasang.json
 cloud/.wrangler/

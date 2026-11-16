@@ -12,16 +12,17 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 
 ## Struktur
 
-| Folder / file                   | Isi                                                                                       |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.          |
-| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                            |
-| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).       |
-| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.  |
-| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.   |
-| `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                              |
-| `installer/`                    | `build-mac.sh` → Leura.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows). |
-| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                   |
+| Folder / file                   | Isi                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.           |
+| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                             |
+| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).        |
+| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.   |
+| `kamera-lumix/`                 | Program `lumix-helper.exe` (C++, Lumix Tether SDK, khusus Windows). `npm run build:lumix`. |
+| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.    |
+| `demo/`                         | Leura Demo untuk HP (`npm run demo:pasang`).                                               |
+| `installer/`                    | `build-mac.sh` → Leura.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows).  |
+| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                    |
 
 Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder proyek. Pengaturan, couple, riwayat sesi, dan antrean QR ada di database `leura.db` (lihat Konvensi kode); rekaman/foto di folder couple; template & filter tetap file JSON + gambar.
 
@@ -32,7 +33,9 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 - `npm run test:utama`, `npm run test:tampilan`, `npm run uji:demo` — uji per bagian.
 - `npm run lint` / `npm run lint:fix`, `npm run format` / `npm run format:check`.
 - `npm run build:mac` — installer Mac (di `main` untuk dipakai acara).
-- `npm run build:win` — installer Windows `Leura-Setup-<versi>-x64.exe` (hanya di Windows). GitHub juga membuatnya otomatis (`.github/workflows/installer-windows.yml`: tombol Run workflow, setiap tag `v*`, PR yang mengubah installer) → unduh di Artifacts. Program kamera Sony belum ada di versi Windows; pustaka Sony Mac hanya di `build.mac.extraResources`.
+- `npm run build:win` — installer Windows `Leura-Setup-<versi>-x64.exe` (hanya di Windows). GitHub juga membuatnya otomatis (`.github/workflows/installer-windows.yml`: tombol Run workflow, setiap tag `v*`, PR yang mengubah installer) → unduh di Artifacts. Program kamera Sony (`kamera-sony/bin-win`) & Lumix (`kamera-lumix/bin`) ikut masuk kalau sudah dibuat di komputer itu (`build.win.extraResources`); GitHub tidak punya SDK, jadi installer dari GitHub hanya webcam. Pustaka Sony Mac hanya di `build.mac.extraResources`.
+- `npm run build:sony` — Mac: `kamera-sony/build.sh` → `bin/`; Windows: `installer/build-sony.js` → `bin-win/` (butuh SDK Windows di `sdk/sony windows/` + Build Tools for Visual Studio 2022, C++).
+- `npm run build:lumix` — `kamera-lumix/bin/lumix-helper.exe` (Windows, Build Tools C++). `-- --fake` = program uji dengan SDK tiruan untuk `test:utama`.
 - `npm run uji:sony`, `uji:sony-tidur`, `uji:sony-mode` — butuh kamera Sony A6700 tersambung.
 
 ## Workflow Git — GitHub Flow
@@ -69,6 +72,7 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 - Nama data tersimpan (settings, sesi, couple, template, filter, antrean QR, folder di data) bahasa Inggris. Data dari versi lama diubah otomatis oleh `main/migrate.js` saat app dibuka (aman diulang, cadangan di `<data>/backup/`); langkah terakhirnya memindahkan file JSON lama ke database (file JSON disimpan di `backup/before-database-…`). **Mengganti nama data tersimpan → tambah langkah di `main/migrate.js` + uji.**
 - Protokol program kamera Sony (`kamera-sony/sony-helper.cpp`) dan server QR (`cloud/worker.mjs`) tetap memakai kata Indonesia (`sambung`, `tersambung`, `satuan`, `bagian`, …). Diterjemahkan di batasnya saja: `main/sony-camera.js` dan `main/upload.js`.
 - Nama file rekaman pesan tetap `Nama_pesan.mp4` (`FILE_LABELS` di `main/recording.js`), meski labelnya `message`.
+- **Kamera USB** (`main/sony-camera.js`): sumber `sony`, `sony-sim`, `lumix`. Sony & Lumix memakai protokol program penghubung yang SAMA (perintah `sambung`, `foto`, `rekam-mulai`, … — lihat kepala `kamera-sony/sony-helper.cpp` & `kamera-lumix/lumix-helper.cpp`); nama yang tampil lewat `brandName()` (main) / `cameraBrand()` (src). Nama file & fungsi masih `sony-*` (dipakai untuk kedua kamera). Sesi menyimpan `camera: 'sony' | 'lumix'`.
 - FFmpeg dari `ffmpeg-static`; pekerjaan video berurutan lewat `enqueue()` di `main/video-processing.js`.
 - Semua encode video lewat `encode()` (`main/video-processing.js`): Mac = chip video (`h264_videotoolbox`), Windows = kartu grafis (`WINDOWS_ENCODERS`: NVIDIA → Intel → AMD, dicoba sekali saat app dibuka, hasilnya di log). Gagal → libx264. Konversi .webm → .mp4 di Mac tetap libx264 (`macChip: false`).
 

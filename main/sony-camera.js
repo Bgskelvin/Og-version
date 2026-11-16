@@ -1,7 +1,11 @@
 /* =====================================================================
-   sony-camera.js — Sony camera (A6700) over USB
-   Runs kamera-sony/bin/sony-helper (the Sony SDK helper program) as a
-   separate process and translates its commands for the app.
+   sony-camera.js — USB camera: Sony (A6700, Mac & Windows) or Panasonic Lumix (Windows)
+   Runs the camera's helper program as a separate process and translates its
+   commands for the app:
+     Sony:  kamera-sony/bin/sony-helper (Mac), kamera-sony/bin-win/sony-helper.exe (Windows)
+     Lumix: kamera-lumix/bin/lumix-helper.exe (Windows; Lumix Tether SDK)
+   Both helpers speak the same protocol, so everything below works for both;
+   only the names shown (brandName) and the helper file differ.
    The "sony-sim" mode uses a simulated camera (kamera-sony/simulasi), so
    every flow can be tried without a camera.
 
@@ -23,29 +27,50 @@ const { userData, readSettings } = require('./storage');
 const { getWin } = require('./active-window');
 
 const ROOT = path.join(__dirname, '..');
-// Helper program + Sony SDK libraries: in Leura.app they are in Contents/Resources/kamera-sony/bin
-// (copied by the installer, outside app.asar so they can run), with npm start in the code folder.
+// Helper program + camera SDK libraries. In the installed app they are in resources/kamera-sony/bin and
+// resources/kamera-lumix/bin (copied by the installer, outside app.asar so they can run); with npm start
+// in the code folder. The Windows Sony build has its own folder (bin-win) next to the Mac one (bin).
 const { app } = require('electron');
-const BIN_DIR = () =>
-  app && app.isPackaged
-    ? path.join(process.resourcesPath, 'kamera-sony', 'bin')
-    : path.join(ROOT, 'kamera-sony', 'bin');
-const HELPER = () =>
-  process.env.SONY_HELPER || path.join(BIN_DIR(), process.platform === 'win32' ? 'sony-helper.exe' : 'sony-helper');
+const win = () => process.platform === 'win32';
+const HELPERS = {
+  sony: {
+    env: 'SONY_HELPER',
+    dir: () => path.join('kamera-sony', app && app.isPackaged ? 'bin' : win() ? 'bin-win' : 'bin'),
+    file: () => (win() ? 'sony-helper.exe' : 'sony-helper'),
+    build: 'npm run build:sony',
+    platforms: ['darwin', 'win32'],
+  },
+  lumix: {
+    env: 'LUMIX_HELPER',
+    dir: () => path.join('kamera-lumix', 'bin'),
+    file: () => 'lumix-helper.exe',
+    build: 'npm run build:lumix',
+    platforms: ['win32'],
+  },
+};
+const HELPER = m => {
+  const h = HELPERS[m];
+  return process.env[h.env] || path.join(app && app.isPackaged ? process.resourcesPath : ROOT, h.dir(), h.file());
+};
 const SIMULATION_DIR = path.join(ROOT, 'kamera-sony', 'simulasi');
 const TEMP_DIR = path.join(userData, 'sony-temp');
-const MODES = ['webcam', 'sony', 'sony-sim'];
+const MODES = ['webcam', 'sony', 'sony-sim', 'lumix'];
+const HELPER_MODES = ['sony', 'lumix']; // sources with a real helper program
+// 'sony' | 'lumix': saved with each session (camera field); brandName() is shown to the operator
+const brand = () => (mode === 'lumix' ? 'lumix' : 'sony');
+const brandName = () => (mode === 'lumix' ? 'Lumix' : 'Sony');
 
 /* ---------------- Helper program (separate process) ---------------- */
 // A helper left over from an earlier app run (e.g. force-quit) can keep holding the camera
-// so the camera doesn't answer (error 0x8208). Stop it once when the app starts.
-let leftoversCleaned = false;
+// so the camera doesn't answer (error 0x8208). Stop it once per helper when the app starts.
+const leftoversCleaned = new Set();
 function stopLeftovers(file) {
-  if (leftoversCleaned || process.platform !== 'darwin') return;
-  leftoversCleaned = true;
+  if (leftoversCleaned.has(file) || !['darwin', 'win32'].includes(process.platform)) return;
+  leftoversCleaned.add(file);
   try {
-    execFileSync('pkill', ['-f', file], { timeout: 3000 });
-    console.log('Sony camera: an old helper program left behind was stopped.');
+    if (win()) execFileSync('taskkill', ['/F', '/IM', path.basename(file)], { timeout: 5000, stdio: 'ignore' });
+    else execFileSync('pkill', ['-f', file], { timeout: 3000 });
+    console.log('Camera: an old helper program left behind was stopped.');
   } catch {
     /* nothing left behind */
   }
@@ -88,9 +113,11 @@ class Helper extends EventEmitter {
         console.log('[sony-helper] ' + t);
       }
     });
-    p.on('error', err => this.finish('The Sony camera helper could not start: ' + err.message));
+    p.on('error', err => this.finish(`The ${brandName()} camera helper could not start: ` + err.message));
     p.on('exit', code =>
-      this.finish('The Sony camera helper stopped (code ' + code + ')' + (this.lastError ? ': ' + this.lastError : '')),
+      this.finish(
+        `The ${brandName()} camera helper stopped (code ${code})` + (this.lastError ? ': ' + this.lastError : ''),
+      ),
     );
     p.stdin.on('error', () => {});
   }
@@ -105,7 +132,7 @@ class Helper extends EventEmitter {
     this.emit('stopped', message);
   }
   send(cmd, args = [], ms = 10000) {
-    if (!this.proc) return Promise.resolve({ ok: false, error: 'The Sony camera helper is not running' });
+    if (!this.proc) return Promise.resolve({ ok: false, error: `The ${brandName()} camera helper is not running` });
     const id = ++this.seq;
     return new Promise(resolve => {
       const timer = setTimeout(() => {
@@ -273,11 +300,14 @@ function scheduleConnect(ms) {
   connectTimer = setTimeout(tryConnect, ms);
 }
 const { explainConnectError } = require('./sony-messages');
+// The Lumix helper already explains its errors in words; the SDK code is added for support
+const lumixError = r => (r.error || 'The Lumix camera is not connected yet') + (r.kode ? ` (${r.kode})` : '');
 const log = require('./log');
 let lastFailMessage = ''; // so the same connection failure (retried every 4 s) doesn't flood the log
 let successSnapshotTaken = false;
 // Snapshot of the Mac's state into the log (programs that might grab the camera, USB, disks). Doesn't wait, never fails.
 function logMacState(reason) {
+  if (process.platform !== 'darwin') return; // the snapshot only knows the Mac's tools
   require('./mac-diagnostics')
     .snapshot()
     .then(b => b.forEach(x => log.write(`  [Mac state · ${reason}] ${x}`)))
@@ -291,8 +321,8 @@ async function tryConnect() {
   connecting = false;
   if (!hub) return;
   if (r.ok) {
-    Object.assign(st, { connected: true, model: r.model || 'Sony', message: '' });
-    log.write(`Sony camera connected: ${st.model}`);
+    Object.assign(st, { connected: true, model: r.model || brandName(), message: '' });
+    log.write(`${brandName()} camera connected: ${st.model}`);
     st.modeKind = null;
     hub
       .send('mode', [], 5000)
@@ -308,12 +338,12 @@ async function tryConnect() {
       logMacState('connected');
     }
     lastFailMessage = '';
-    if (r.catatan) console.log('Sony camera: some settings could not be applied: ' + r.catatan);
+    if (r.catatan) log.warn(`${brandName()} camera: some settings could not be applied: ` + r.catatan);
     await refreshStatus();
   } else {
-    Object.assign(st, { connected: false, message: explainConnectError(r) });
+    Object.assign(st, { connected: false, message: mode === 'lumix' ? lumixError(r) : explainConnectError(r) });
     if (st.message !== lastFailMessage) {
-      log.warn('Sony camera could not connect: ' + st.message + ' (retrying every 4 seconds)');
+      log.warn(`${brandName()} camera could not connect: ` + st.message + ' (retrying every 4 seconds)');
       lastFailMessage = st.message;
       logMacState('failed ' + (r.kode || ''));
     }
@@ -341,10 +371,10 @@ function handleEvent(m) {
   if (m.ev === 'terputus') {
     Object.assign(st, {
       connected: false,
-      message: 'Sony camera disconnected. Check the USB cable and camera power.',
+      message: `${brandName()} camera disconnected. Check the USB cable and camera power.`,
       modeKind: null,
     });
-    log.warn('Sony camera disconnected' + (m.kode ? ' (' + m.kode + ')' : ''));
+    log.warn(`${brandName()} camera disconnected` + (m.kode ? ' (' + m.kode + ')' : ''));
     // The SDK tries to reconnect by itself; if that hasn't worked after 8 seconds, the app looks for the camera again
     scheduleConnect(8000);
     for (const t of pendingDownloads.values())
@@ -354,7 +384,7 @@ function handleEvent(m) {
     Object.assign(st, { connected: false, message: 'Reconnecting to the camera…' });
   } else if (m.ev === 'tersambung') {
     Object.assign(st, { connected: true, message: '' });
-    log.write('Sony camera connected again');
+    log.write(`${brandName()} camera connected again`);
     clearTimeout(connectTimer);
   } else if (m.ev === 'unduh-selesai' || m.ev === 'unduh-gagal') {
     const t = pendingDownloads.get(m.job);
@@ -372,7 +402,7 @@ function handleEvent(m) {
   broadcast();
 }
 
-// Change the camera source: 'webcam' | 'sony' | 'sony-sim'
+// Change the camera source: 'webcam' | 'sony' | 'sony-sim' | 'lumix'
 function setSource(m) {
   m = MODES.includes(m) ? m : 'webcam';
   if (m === mode && (hub || m === 'webcam')) return status();
@@ -385,15 +415,18 @@ function setSource(m) {
     broadcast();
     return status();
   }
-  if (m === 'sony') {
-    const file = HELPER();
-    if (!fs.existsSync(file)) {
-      st.message =
-        process.platform !== 'darwin' && !process.env.SONY_HELPER
-          ? 'A Sony camera over USB only works on a Mac.'
-          : app && app.isPackaged
-            ? 'The Sony camera helper is missing from this Leura.app. Build the installer again with: npm run build:mac'
-            : 'The Sony camera helper is not built yet. Run in Terminal: npm run build:sony';
+  if (HELPER_MODES.includes(m)) {
+    const h = HELPERS[m],
+      file = HELPER(m);
+    const wrongComputer = !h.platforms.includes(process.platform) && !process.env[h.env];
+    if (wrongComputer || !fs.existsSync(file)) {
+      st.message = wrongComputer
+        ? m === 'lumix'
+          ? 'A Lumix camera over USB only works on Windows (the Lumix SDK is Windows only).'
+          : 'A Sony camera over USB works on a Mac or Windows.'
+        : app && app.isPackaged
+          ? `The ${brandName()} camera helper is missing from this ${win() ? 'Leura installation' : 'Leura.app'}. Build the installer again with: ${win() ? 'npm run build:win' : 'npm run build:mac'}`
+          : `The ${brandName()} camera helper is not built yet. Run in Terminal: ${h.build}`;
       broadcast();
       return status();
     }
@@ -408,7 +441,7 @@ function setSource(m) {
     broadcast();
     // the helper program stopped suddenly: start it again
     setTimeout(() => {
-      if (hub === current && mode === 'sony') {
+      if (hub === current && HELPER_MODES.includes(mode)) {
         current.start();
         scheduleConnect(500);
       }
@@ -430,7 +463,7 @@ function shutdown() {
     if (st.recording) h.send('rekam-stop', [], 3000);
     done = h.stop();
   }
-  for (const t of pendingDownloads.values()) t.resolve({ ok: false, error: 'Sony camera turned off' });
+  for (const t of pendingDownloads.values()) t.resolve({ ok: false, error: `${brandName()} camera turned off` });
   pendingDownloads.clear();
   return done;
 }
@@ -479,7 +512,7 @@ function setMode(kind) {
 }
 
 async function takePhoto() {
-  if (!ready()) return { error: st.message || 'The Sony camera is not connected yet' };
+  if (!ready()) return { error: st.message || `The ${brandName()} camera is not connected yet` };
   await setMode('photo');
   fs.mkdirSync(TEMP_DIR, { recursive: true });
   const r = await hub.send('foto', [TEMP_DIR], 20000);
@@ -493,29 +526,29 @@ async function takePhoto() {
   }
 }
 async function startRecording() {
-  if (!ready()) return { error: st.message || 'The Sony camera is not connected yet' };
+  if (!ready()) return { error: st.message || `The ${brandName()} camera is not connected yet` };
   await setMode('video');
   const r = await hub.send('rekam-mulai', [], 10000);
   if (r.ok) {
     st.recording = true;
     broadcast();
   }
-  return r.ok ? { ok: true } : { error: r.error };
+  return r.ok ? { ok: true } : { error: r.error + (r.kode ? ` (${r.kode})` : '') };
 }
 async function stopRecording() {
-  if (!hub) return { error: 'The Sony camera is not active' };
+  if (!hub) return { error: `The ${brandName()} camera is not active` };
   const r = await hub.send('rekam-stop', [], 45000);
   st.recording = false;
   broadcast();
   // cardFile: the video's file name on the SD card; slot/contentId/fileId: where download() finds it
   return r.ok
     ? { ok: true, cardFile: r.nama, slot: r.slot, contentId: r.contentId, fileId: r.fileId }
-    : { error: r.error };
+    : { error: r.error + (r.kode ? ` (${r.kode})` : '') };
 }
 // Copy a video from the card to `target` (full .mp4 path). Queued one at a time.
 function download(info, target) {
   const job = downloadQueue.then(async () => {
-    if (!ready()) return { error: 'The Sony camera is not connected yet' };
+    if (!ready()) return { error: `The ${brandName()} camera is not connected yet` };
     const dir = path.join(TEMP_DIR, 'video-' + Date.now());
     fs.mkdirSync(dir, { recursive: true });
     const r = await hub.send('unduh', [info.slot, info.contentId, info.fileId, dir], 15000);
@@ -584,6 +617,8 @@ module.exports = {
   shutdown,
   status,
   usingSony,
+  brand,
+  brandName,
   ready,
   takePhoto,
   startRecording,

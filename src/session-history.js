@@ -290,7 +290,7 @@ function sessionRow(s) {
   const sub =
     kind === 'photo'
       ? `${s.photos || 4} photos${s.template ? ' · ' + s.template : ''}`
-      : fmt(s.seconds || 0) + (s.camera === 'sony' ? ' · Sony camera' : '');
+      : fmt(s.seconds || 0) + (s.camera === 'sony' ? ' · Sony camera' : s.camera === 'lumix' ? ' · Lumix camera' : '');
   b.innerHTML = `<span class="hist-icon"></span><span class="hist-text"><b></b><small></small></span><span class="hist-tag"></span><em class="hist-status ${color}"></em>`;
   if (kind === 'photo' && historyView.thumb.get(s._id))
     b.querySelector('.hist-icon').innerHTML = `<img alt="" src="${historyView.thumb.get(s._id)}">`;

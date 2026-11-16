@@ -26,7 +26,8 @@ const SWITCHES = {
   askName: true, // "What's your name?" screen after Start; the guest name becomes the file name
 };
 const MENU = ['enableMessage', 'enableQuiz', 'enablePhoto'];
-const CAMERA_SOURCES = ['webcam', 'sony', 'sony-sim']; // webcam/phone, Sony over USB, simulated Sony
+// webcam/phone, Sony over USB, simulated Sony, Panasonic Lumix over USB (Windows)
+const CAMERA_SOURCES = ['webcam', 'sony', 'sony-sim', 'lumix'];
 const LANGUAGES = ['en', 'id']; // guest screen language (Admin is always English); default: English
 const clampInt = (v, [lo, hi], dflt) => {
   const n = Math.round(Number(v));
