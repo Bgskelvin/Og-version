@@ -97,6 +97,15 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
 
 ## Status (14 Nov 2026)
 
+- **Versi Windows** (`feature/windows-usb-cameras`, v1.7.0, 16 Nov 2026): kamera Lumix (DC-S5M2X diuji asli: live view, foto, video, salin dari kartu; dial harus di P/A/S/M) & Sony (program dibuat, belum diuji kamera asli), video lewat kartu grafis (v1.6.1). Belum selesai / belum teruji:
+  - Live view lebih lancar: kamera menawarkan 640×480, 960×720, 1280×960 (semua "30fps", yang sampai ±10 gambar/detik). Ukur dengan `LUMIX_LV=0|1|2` + alat ukur (scratchpad `lv-fps.js`) saat kamera tersambung.
+  - "Stop rekam dicoba ulang" (kamera sibuk) baru teruji dengan kamera tiruan.
+  - Sony di Windows belum dicoba dengan kamera asli; driver USB (`sdk/sony windows/Driver.zip`) perlu dipasang dulu.
+  - QR di Windows menunggu kunci booth dari Mac (`cloud/.hasil-pasang.json` di Mac; Cloudflare tidak bisa menampilkannya).
+  - Kamera Lumix terputus sekali (16 Nov 10:01, kode 0x40003, lalu tidak terlihat Windows ±3 menit): sebab belum diketahui (Auto Power Off? kabel?).
+  - Installer di `dist/` dari branch ini hanya untuk percobaan; installer acara dibuat ulang dari `main` setelah merge.
+  - Alat Claude melihat salinan `%APPDATA%` sendiri: log/database asli Gusvin hanya bisa dibaca kalau Gusvin menempelkannya.
+
 - `main` = v1.4.1 (tombol Admin hanya ikon kecil samar). v1.4.0: database SQLite (lihat Konvensi kode). Sebelumnya v1.3.1: `src/`/`main/`/IPC/data bahasa Inggris, `main/migrate.js` mengubah data lama otomatis. Leura 1.4.1 sudah dibuat (`dist/`); Leura.app di Applications masih 1.1.0. Jalur Sony baru diuji dengan kamera tiruan — uji dengan A6700 asli sebelum acara. Keamanan Admin lengkap ditunda oleh Gusvin.
 - `feature/combined-guest-qr` (v1.5.0): **satu QR per tamu**. Terima kasih tanpa QR/tombol, kembali sendiri ke menu dengan animasi (4,5 dtk pesan/quiz, 6,5 dtk foto, 9 dtk gagal; ketuk = langsung). Menu: tombol besar "Finish & get QR" (`src/guest-qr.js`) → layar `guestQr`. Tamu pergi tanpa menekan → saat diam, QR tetap tampil dulu. Server: `PUT /ut`, `GET /t` & `/ts` di `cloud/worker.mjs` → server yang terpasang (`leura-foto.leuraa.workers.dev`) masih versi lama: **perlu `npm run cloud:pasang`**. Sampai itu, beberapa hasil = link hasil pertama saja (aplikasi bertanya ke server dulu). Satu hasil = link hasil itu sendiri.
 - Sebelum dijual: `feature/admin-security` (layar sentuh tanpa keyboard: ketuk pojok 5x, PIN 6 angka di layar, wajib ganti `1234`, kunci sementara setelah salah 5x, Admin terkunci otomatis 2 menit, kode pemulihan). Sebelum acara pertama: `fix/sony-0x8210` (butuh A6700), `npm run cloud:pasang`.
