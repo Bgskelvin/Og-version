@@ -305,12 +305,14 @@ const lumixError = r => (r.error || 'The Lumix camera is not connected yet') + (
 const log = require('./log');
 let lastFailMessage = ''; // so the same connection failure (retried every 4 s) doesn't flood the log
 let successSnapshotTaken = false;
-// Snapshot of the Mac's state into the log (programs that might grab the camera, USB, disks). Doesn't wait, never fails.
+// Snapshot of the computer's state into the log (does it see the camera, programs that might grab it).
+// Mac and Windows each have their own tools; elsewhere nothing is logged. Doesn't wait, never fails.
 function logMacState(reason) {
-  if (process.platform !== 'darwin') return; // the snapshot only knows the Mac's tools
-  require('./mac-diagnostics')
+  const mac = process.platform === 'darwin';
+  if (!mac && !win()) return;
+  require(mac ? './mac-diagnostics' : './windows-diagnostics')
     .snapshot()
-    .then(b => b.forEach(x => log.write(`  [Mac state · ${reason}] ${x}`)))
+    .then(b => b.forEach(x => log.write(`  [${mac ? 'Mac' : 'Windows'} state · ${reason}] ${x}`)))
     .catch(() => {});
 }
 async function tryConnect() {

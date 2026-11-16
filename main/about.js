@@ -25,9 +25,11 @@ function gitBranch() {
   }
 }
 
+const { appVersion } = require('./version');
+
 function info() {
   return {
-    version: app.getVersion(),
+    version: appVersion(),
     installed: !!app.isPackaged,
     branch: app.isPackaged ? '' : gitBranch(),
     electron: process.versions.electron,

@@ -415,7 +415,10 @@ const KASUS = {
     cek(!fs.existsSync(path.join(folder, '2020-01-01.txt')), 'catatan lebih dari 30 hari dihapus otomatis');
     const isi = () => fs.readFileSync(path.join(folder, hariIni), 'utf8');
     cek(
-      /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) && /App opened/.test(isi()) && /Leura version 1\.0\.0/.test(isi()),
+      /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) &&
+        /App opened/.test(isi()) &&
+        // from the code folder the version comes from package.json (not Electron's own version)
+        isi().includes(`Leura version ${require(path.join(__dirname, '..', 'package.json')).version} `),
       'satu file per hari, dimulai "App opened" + versi',
       hariIni,
     );
@@ -2079,7 +2082,9 @@ const KASUS = {
     })();
     const branch = (head.match(/^ref: refs\/heads\/(.+)$/) || [])[1] || (head ? head.slice(0, 7) : '');
     cek(
-      info.installed === false && info.version === '1.0.0' && info.branch === branch,
+      info.installed === false &&
+        info.version === require(path.join(__dirname, '..', 'package.json')).version &&
+        info.branch === branch,
       'Admin → About: "development" + nama branch dari folder kode',
       info,
     );
@@ -2223,6 +2228,22 @@ const KASUS = {
     await panggil('save-settings', { camera: 'webcam' });
     await panggil('save-settings', { camera: 'lumix' });
     cek(/only works on Windows/.test((await panggil('sony-status')).message), 'on a Mac: "only works on Windows"');
+  },
+
+  async 'Windows state in the log when a USB camera connects or fails'() {
+    const d = require(path.join(__dirname, '..', 'main', 'windows-diagnostics.js'));
+    cek(
+      ['LUMIX Tether.exe', 'Imaging Edge Desktop.exe', 'lumix-helper.exe', 'sony-helper.exe'].every(n =>
+        d.PROCESS_PATTERN.test(n),
+      ) && !['chrome.exe', 'explorer.exe', 'Leura.exe'].some(n => d.PROCESS_PATTERN.test(n)),
+      'programs that hold a camera are recognized, ordinary programs are not',
+    );
+    const lines = await d.snapshot(); // on a computer without these Windows tools: "(none)", never an error
+    cek(
+      lines.length === 2 && /^cameras Windows sees: /.test(lines[0]) && /^camera programs running: /.test(lines[1]),
+      'snapshot: the cameras Windows sees + camera programs running',
+      lines,
+    );
   },
 
   async 'Lumix camera: real helper with the fake SDK (photo, video, copy from the card)'() {
