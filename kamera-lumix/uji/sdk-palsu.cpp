@@ -8,9 +8,7 @@
      raw-jpeg      RAW+JPEG: a RAW transfer request comes first (must be skipped)
      unplug        the camera is unplugged 1.5 s after connecting (live view fails)
      busy-stop     the camera is busy the first 2 times it is asked to stop recording
-     dial-video    the mode dial is on video and can't be changed from the computer (like the S5 II)
-     late-plug     the camera is only seen if the file LUMIX_PALSU_PLUGGED existed when the SDK started
-                   (a camera plugged in later stays unseen until the helper is started again) */
+     dial-video    the mode dial is on video and can't be changed from the computer (like the S5 II) */
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -74,18 +72,14 @@ static std::string fakeJpeg(const char* text) {
   return j;
 }
 
-static bool g_pluggedAtInit = true;
-void LMX_API LMX_func_api_Init(void) {
-  const char* f = getenv("LUMIX_PALSU_PLUGGED");
-  g_pluggedAtInit = scenario() != "late-plug" || (f && GetFileAttributesA(f) != INVALID_FILE_ATTRIBUTES);
-}
+void LMX_API LMX_func_api_Init(void) {}
 UINT8 LMX_API LMX_func_api_Close_Device(UINT32* retError) {
   g_open = false;
   return result(true, retError);
 }
 UINT8 LMX_API LMX_func_api_Get_PnPDeviceInfo(PLMX_CONNECT_DEVICE_INFO info, UINT32* retError) {
   memset(info, 0, sizeof *info);
-  if (scenario() == "no-camera" || !g_pluggedAtInit) return result(true, retError);
+  if (scenario() == "no-camera") return result(true, retError);
   info->find_PnpDevice_Count = 1;
   wcscpy_s(info->find_PnpDevice_Info[0].dev_ModelName, L"DC-S5M2");
   wcscpy_s(info->find_PnpDevice_Info[0].dev_MakerName, L"DC-S5M2"); // the real SDK gives the model here too

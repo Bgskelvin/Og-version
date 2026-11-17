@@ -2341,42 +2341,16 @@ const KASUS = {
     await panggil('quit-app');
   },
 
-  async 'Lumix camera plugged in later: the helper is restarted and finds it (fake SDK)'() {
-    const bin = path.join(__dirname, '..', 'kamera-lumix', 'uji', 'bin', 'lumix-helper-palsu.exe');
-    if (!fs.existsSync(bin)) {
-      cek(true, 'skipped: test helper not built (Windows developer computer: npm run build:lumix -- --fake)');
-      return;
-    }
-    // Seen with a GH6: the camera only connected after switching the source to Sony and back
-    const plugged = path.join(require('os').tmpdir(), `leura-lumix-plugged-${process.pid}`);
-    fs.rmSync(plugged, { force: true });
-    Object.assign(process.env, {
-      LUMIX_HELPER: bin,
-      LUMIX_PALSU: 'late-plug',
-      LUMIX_PALSU_PLUGGED: plugged,
-      LEURA_LUMIX_RESTART_AFTER: '1',
-    });
-    const { panggil, electron, dataDir } = nyalakanAplikasi({ platform: 'win32' });
+  async 'USB camera chosen in Admin is used again when the app opens'() {
+    // Since v1.3.1 the setting is called "camera": the app read the old name "kamera" when opening,
+    // so the USB camera stayed off until the source was chosen again in Admin (seen with a Lumix GH6)
+    const { panggil, electron, db } = nyalakanAplikasi();
+    db().writeSettings({ ...db().readSettings(), camera: 'sony-sim' });
     electron.__siap();
-    await tunggu(100);
-    await panggil('save-settings', { camera: 'lumix' });
-    await tunggu(1500);
-    cek(!(await panggil('sony-status')).connected, 'no camera yet: not connected');
-    fs.writeFileSync(plugged, 'camera plugged in');
     let st;
-    for (let i = 0; i < 40 && !(st = await panggil('sony-status')).connected; i++) await tunggu(250);
-    cek(st.connected && st.model === 'DC-S5M2', 'camera plugged in later is found without changing the source', st);
-    const logs = fs
-      .readdirSync(path.join(dataDir, 'logs'))
-      .map(x => fs.readFileSync(path.join(dataDir, 'logs', x), 'utf8'))
-      .join('');
-    cek(
-      /restarting the camera helper so it looks again/.test(logs) && !/camera helper stopped/.test(logs),
-      'the log says the helper was restarted (not reported as a crash)',
-    );
+    for (let i = 0; i < 20 && !(st = await panggil('sony-status')).connected; i++) await tunggu(200);
+    cek(st.mode === 'sony-sim' && st.connected, 'the saved camera source is started when the app opens', st);
     await panggil('quit-app');
-    fs.rmSync(plugged, { force: true });
-    for (const k of ['LUMIX_PALSU', 'LUMIX_PALSU_PLUGGED', 'LEURA_LUMIX_RESTART_AFTER']) delete process.env[k];
   },
 
   async 'UI modules (src/): every import has a matching export'() {
