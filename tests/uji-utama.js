@@ -2341,6 +2341,44 @@ const KASUS = {
     await panggil('quit-app');
   },
 
+  async 'Lumix camera plugged in later: the helper is restarted and finds it (fake SDK)'() {
+    const bin = path.join(__dirname, '..', 'kamera-lumix', 'uji', 'bin', 'lumix-helper-palsu.exe');
+    if (!fs.existsSync(bin)) {
+      cek(true, 'skipped: test helper not built (Windows developer computer: npm run build:lumix -- --fake)');
+      return;
+    }
+    // Seen with a GH6: the camera only connected after switching the source to Sony and back
+    const plugged = path.join(require('os').tmpdir(), `leura-lumix-plugged-${process.pid}`);
+    fs.rmSync(plugged, { force: true });
+    Object.assign(process.env, {
+      LUMIX_HELPER: bin,
+      LUMIX_PALSU: 'late-plug',
+      LUMIX_PALSU_PLUGGED: plugged,
+      LEURA_LUMIX_RESTART_AFTER: '1',
+    });
+    const { panggil, electron, dataDir } = nyalakanAplikasi({ platform: 'win32' });
+    electron.__siap();
+    await tunggu(100);
+    await panggil('save-settings', { camera: 'lumix' });
+    await tunggu(1500);
+    cek(!(await panggil('sony-status')).connected, 'no camera yet: not connected');
+    fs.writeFileSync(plugged, 'camera plugged in');
+    let st;
+    for (let i = 0; i < 40 && !(st = await panggil('sony-status')).connected; i++) await tunggu(250);
+    cek(st.connected && st.model === 'DC-S5M2', 'camera plugged in later is found without changing the source', st);
+    const logs = fs
+      .readdirSync(path.join(dataDir, 'logs'))
+      .map(x => fs.readFileSync(path.join(dataDir, 'logs', x), 'utf8'))
+      .join('');
+    cek(
+      /restarting the camera helper so it looks again/.test(logs) && !/camera helper stopped/.test(logs),
+      'the log says the helper was restarted (not reported as a crash)',
+    );
+    await panggil('quit-app');
+    fs.rmSync(plugged, { force: true });
+    for (const k of ['LUMIX_PALSU', 'LUMIX_PALSU_PLUGGED', 'LEURA_LUMIX_RESTART_AFTER']) delete process.env[k];
+  },
+
   async 'UI modules (src/): every import has a matching export'() {
     // A missing export stops the whole UI from loading, and ESLint doesn't check names across files.
     const espree = require('espree');

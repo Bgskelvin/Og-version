@@ -304,6 +304,11 @@ const { explainConnectError } = require('./sony-messages');
 const lumixError = r => (r.error || 'The Lumix camera is not connected yet') + (r.kode ? ` (${r.kode})` : '');
 const log = require('./log');
 let lastFailMessage = ''; // so the same connection failure (retried every 4 s) doesn't flood the log
+// Lumix: the helper may only see the cameras that were plugged in when it started (seen with a GH6 plugged
+// in later: it connected only after switching the source to Sony and back). After this many failed
+// attempts in a row (±20 s) the helper is started again so it looks for cameras afresh.
+const LUMIX_RESTART_AFTER = Number(process.env.LEURA_LUMIX_RESTART_AFTER) || 5;
+let failures = 0;
 let successSnapshotTaken = false;
 // Snapshot of the computer's state into the log (does it see the camera, programs that might grab it).
 // Mac and Windows each have their own tools; elsewhere nothing is logged. Doesn't wait, never fails.
@@ -340,6 +345,7 @@ async function tryConnect() {
       logMacState('connected');
     }
     lastFailMessage = '';
+    failures = 0;
     if (r.catatan) log.warn(`${brandName()} camera: some settings could not be applied: ` + r.catatan);
     await refreshStatus();
   } else {
@@ -349,9 +355,23 @@ async function tryConnect() {
       lastFailMessage = st.message;
       logMacState('failed ' + (r.kode || ''));
     }
-    scheduleConnect(4000);
+    failures++;
+    if (mode === 'lumix' && hub instanceof Helper && failures % LUMIX_RESTART_AFTER === 0) restartHelper();
+    else scheduleConnect(4000);
   }
   broadcast();
+}
+// Stop and start the helper program again (without changing the source), then look for the camera
+async function restartHelper() {
+  const h = hub;
+  if (failures === LUMIX_RESTART_AFTER)
+    log.write(`${brandName()} camera still not found: restarting the camera helper so it looks again`);
+  h.restarting = true; // the 'stopped' handler in setSource() leaves this restart alone
+  await h.stop();
+  h.restarting = false;
+  if (hub !== h) return; // the source was changed meanwhile
+  h.start();
+  scheduleConnect(500);
 }
 async function refreshStatus() {
   if (!hub || !st.connected) return;
@@ -413,6 +433,7 @@ function setSource(m) {
   log.write('Camera source: ' + m);
   mode = m;
   st = { connected: false, model: '', message: '' };
+  failures = 0;
   if (m === 'webcam') {
     broadcast();
     return status();
@@ -437,7 +458,7 @@ function setSource(m) {
   const current = hub;
   hub.on('ev', handleEvent);
   hub.on('stopped', message => {
-    if (hub !== current) return;
+    if (hub !== current || current.restarting) return;
     log.error(message + ' — restarting in 3 seconds');
     Object.assign(st, { connected: false, message });
     broadcast();

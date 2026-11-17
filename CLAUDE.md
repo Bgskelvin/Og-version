@@ -103,6 +103,7 @@ Data acara ada di `~/Library/Application Support/leura`, **bukan** di folder pro
   - Sony di Windows belum dicoba dengan kamera asli; driver USB (`sdk/sony windows/Driver.zip`) perlu dipasang dulu.
   - QR: 16 Nov 2026 server dipasang ulang dari Windows (`npm run cloud:pasang`, v1.7.1: lewat Git Bash) → **kunci booth baru**, ada di `cloud/.hasil-pasang.json` di Windows. Kunci lama di Mac tidak berlaku lagi: salin file itu ke Mac lalu Admin → "Load from setup".
   - Kamera Lumix terputus sekali (16 Nov 10:01, kode 0x40003, lalu tidak terlihat Windows ±3 menit): sebab belum diketahui (Auto Power Off? kabel?).
+  - Lumix GH6 (17 Nov 2026) baru tersambung setelah sumber kamera diganti Sony → Lumix. v1.7.3 (`fix/lumix-camera-redetect`): setelah 5x gagal (±20 dtk) program Lumix dijalankan ulang sendiri. Dugaan: SDK hanya melihat kamera yang tercolok saat program mulai (belum dipastikan dengan kamera asli).
   - Installer di `dist/` dari branch ini hanya untuk percobaan; installer acara dibuat ulang dari `main` setelah merge.
   - Alat Claude melihat salinan `%APPDATA%` sendiri: log/database asli Gusvin hanya bisa dibaca kalau Gusvin menempelkannya.
 
