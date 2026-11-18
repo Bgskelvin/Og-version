@@ -43,6 +43,8 @@ async function saveEvidence(reason) {
       busy: window.__leura?.state?.busy,
       log: (window.LOG || []).filter(x => x !== 'chunk').slice(-15),
       text: (document.querySelector('.screen.on')?.innerText || '').slice(0, 300),
+      now: Math.round(performance.now()),
+      screens: window.SCREEN_HISTORY,
     }));
     console.log('Evidence (' + reason + '): ' + JSON.stringify({ ...info, pageErrors }));
   } catch (e) {
@@ -175,6 +177,41 @@ async function main() {
   pg.on('pageerror', e => errors.push(e.message));
   evidencePage = pg;
   await pg.addInitScript(PALSU);
+  // Evidence: every screen change with the code that asked for it (show() toggles "on" on each .screen)
+  await pg.addInitScript(() => {
+    window.SCREEN_HISTORY = [];
+    const toggle = DOMTokenList.prototype.toggle;
+    DOMTokenList.prototype.toggle = function (name, force) {
+      const el = this._owner;
+      const result = toggle.call(this, name, force);
+      if (name === 'on' && force === true && el && el.classList.contains('screen')) {
+        const last = window.SCREEN_HISTORY.at(-1);
+        if (!last || last.id !== el.id) {
+          const at = (new Error().stack || '')
+            .split('\n')
+            .slice(4, 9)
+            .map(l =>
+              l
+                .trim()
+                .replace(/^at /, '')
+                .replace(/https?:\/\/[^/]+\//, ''),
+            )
+            .join(' < ');
+          window.SCREEN_HISTORY.push({ t: Math.round(performance.now()), id: el.id, at });
+          if (window.SCREEN_HISTORY.length > 12) window.SCREEN_HISTORY.shift();
+        }
+      }
+      return result;
+    };
+    const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'classList');
+    Object.defineProperty(Element.prototype, 'classList', {
+      get() {
+        const list = desc.get.call(this);
+        list._owner = this;
+        return list;
+      },
+    });
+  });
   await pg.goto(HALAMAN);
   await pg.waitForTimeout(800);
   const layar = () => pg.evaluate(() => document.querySelector('.screen.on').id);
