@@ -9,7 +9,7 @@
 import { prepareTemplate, drawTemplate, drawPrintQr, SAMPLE_QR_LINK } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
 import { addGuestResult } from './guest-qr.js';
-import { askPrintCopies, printCanvas, printLayout, printOn } from './print-choice.js';
+import { askPrintCopies, printCanvas, printLayout, printOn, printQrSpot } from './print-choice.js';
 import { usingSony, cameraBrand } from './sony-camera.js';
 import { setThanks, needStream } from './recording.js';
 import { $, sleep, state } from './state.js';
@@ -959,6 +959,8 @@ async function finishEdit() {
         frame: lay.tpl ? undefined : FRAMES()[editor.frame][1],
         stickers: editor.stickers.length,
         drawings: editor.strokes.length,
+        // Where the QR goes on prints of this photo, so Session history can print it again the same way
+        printQr: printQrSpot(lay),
       },
     });
     saved = r;

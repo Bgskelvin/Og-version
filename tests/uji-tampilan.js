@@ -162,6 +162,7 @@ window.api = {
   printStatus: async () => ({ printer: ST.printer || '', waiting: 0, failed: 0, printedToday: 0, sheetsToday: 0, lastError: '' }),
   printRetry: async () => ({ retried: 0 }), printClearFailed: async () => ({ removed: 0 }),
   printTest: async () => { LOG.push('tes cetak'); return { ok: true }; }, onPrintStatus: () => {},
+  printSessionSource: async id => ({ image: await buatJpeg(1200, 1800, '#a64') }),
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
@@ -1369,7 +1370,17 @@ async function main() {
     window.SESI = [
       { id: 1, time: t(1, 19, 2), label: 'message', couple: 'Ayu & Budi', seconds: 48, status: 'done' },
       { id: 2, time: t(0, 18, 5), label: 'message', couple: 'Rina & Dimas', seconds: 42, status: 'done' },
-      { id: 3, time: t(0, 18, 7), label: 'photo', couple: 'Rina & Dimas', status: 'photo', photos: 4 },
+      {
+        id: 3,
+        time: t(0, 18, 7),
+        label: 'photo',
+        couple: 'Rina & Dimas',
+        status: 'photo',
+        photos: 4,
+        guest: 'Sari',
+        prints: 1,
+        printQr: { enabled: true, x: 980, y: 1580, size: 180 },
+      },
       {
         id: 4,
         time: t(0, 18, 12),
@@ -1412,6 +1423,33 @@ async function main() {
     'ringkasan jumlah pesan/quiz/foto & menit video',
     await pg.textContent('#histSummary'),
   );
+  // Print a photo session again from the history
+  await pg.locator('#histList .hist-row', { hasText: 'Sari' }).click();
+  await tunggu(200);
+  cek(/Printed: 1 copy/.test(await pg.textContent('#histList .hist-detail')), 'detail sesi foto: jumlah cetak');
+  await pg.locator('#histList .hist-detail button', { hasText: 'Print' }).click();
+  cek(
+    (await pg.locator('.hist-print button').count()) === 7 &&
+      /How many prints/.test(await pg.textContent('.hist-print')),
+    'Print: pilih jumlah lembar (1-6, Cancel)',
+  );
+  await pg.evaluate(() => (window.CETAK = null));
+  await pg.locator('.hist-print button', { hasText: /^2$/ }).click();
+  await pg.waitForFunction(
+    () => window.CETAK && /2 prints sent/.test(document.getElementById('histMsg').textContent),
+    null,
+    {
+      timeout: 8000,
+    },
+  );
+  const ulang = await pg.evaluate(() => (window.CETAK ? { ...window.CETAK, image: window.CETAK.image.length } : null));
+  cek(
+    ulang && ulang.copies === 2 && ulang.layout === 'portrait' && ulang.guest === 'Sari' && ulang.image > 1000,
+    'Riwayat sesi: foto dicetak ulang 2 lembar',
+    ulang,
+  );
+  cek(/2 prints sent/.test(await pg.textContent('#histMsg')), 'pesan: dikirim ke printer');
+  await pg.locator('#histList .hist-row', { hasText: 'Sari' }).click(); // close the detail again
   const judulHari = await pg.locator('#histList .group-title').allTextContents();
   cek(
     judulHari.length === 2 && /^Today/.test(judulHari[0]) && /^Yesterday/.test(judulHari[1]),
@@ -1465,7 +1503,7 @@ async function main() {
     'pilihan "Semua couple" menampilkan semua sesi dengan nama couple',
   );
   cek(
-    / · Photo$/.test(await pg.locator('.hist-row[data-id="3"] b').textContent()) &&
+    / · Photo · Sari$/.test(await pg.locator('.hist-row[data-id="3"] b').textContent()) &&
       / · Message$/.test(await pg.locator('.hist-row[data-id="1"] b').textContent()) &&
       !/undefined/.test(await pg.textContent('#histList')),
     'each row shows its kind (Message / Quiz / Photo)',

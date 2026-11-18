@@ -2803,8 +2803,20 @@ const KASUS = {
     );
     cek(jobs.length === 1 && jobs[0].copies === 2 && jobs[0].printer === 'DNP DS620', 'printed once, 2 copies', jobs);
     cek(sesi().find(x => x.id === photo.sessionId).prints === 2, 'the photo session notes 2 prints');
+    // Session history → Print: the saved photo is read back, reprints add up, other couple's folder
+    const source = await panggil('print-session-source', photo.sessionId);
+    cek(source.image && source.image.length === 4, 'Session history gets the saved template photo', source);
+    cek(/no photo/.test((await panggil('print-session-source', 12345)).error), 'unknown session: clear error');
+    await panggil('print-photo', { image: jpg, copies: 1, sessionId: photo.sessionId, couple: 'Ayu & Budi' });
+    await tunggu(50);
+    await print.idle();
+    cek(sesi().find(x => x.id === photo.sessionId).prints === 3, 'reprint adds up: 3 prints');
+    cek(
+      fs.existsSync(path.join(docsDir, 'VideoboothRecordings', 'Ayu & Budi', 'Foto', 'Print')),
+      "reprint goes to that session's couple folder",
+    );
     let st = await panggil('print-status');
-    cek(st.printedToday === 2 && st.sheetsToday === 2 && st.waiting === 0 && st.failed === 0, 'status: 2 printed', st);
+    cek(st.printedToday === 3 && st.sheetsToday === 3 && st.waiting === 0 && st.failed === 0, 'status: 3 printed', st);
 
     // Strips: two side by side on one 4×6 sheet
     cek(
@@ -2834,9 +2846,9 @@ const KASUS = {
     await tunggu(50);
     await print.idle();
     st = await panggil('print-status');
-    cek(st.failed === 0 && st.printedToday === 3 && st.sheetsToday === 3, 'after Retry: printed', st);
+    cek(st.failed === 0 && st.printedToday === 4 && st.sheetsToday === 4, 'after Retry: printed', st);
     const saved = db().getState('printQueue', []);
-    cek(saved.length === 2 && saved.every(j => j.status === 'done'), 'queue is kept in the database', saved);
+    cek(saved.length === 3 && saved.every(j => j.status === 'done'), 'queue is kept in the database', saved);
 
     // A failed job can be removed; a test page goes through the same queue
     fail = true;
@@ -2854,7 +2866,7 @@ const KASUS = {
       'test page printed',
       jobs.at(-1),
     );
-    cek((await panggil('print-status')).printedToday === 3, 'test pages are not counted as guest prints');
+    cek((await panggil('print-status')).printedToday === 4, 'test pages are not counted as guest prints');
   },
 
   async 'printing: jobs waiting when the app closed are printed when it opens'() {

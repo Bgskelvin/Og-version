@@ -88,9 +88,37 @@ export function printCanvas(out, lay, link) {
   c.height = out.height;
   const ctx = c.getContext('2d');
   ctx.drawImage(out, 0, 0);
-  const qr = lay.tpl ? lay.prepared.tpl.qr : lay.qr;
-  if (link) drawPrintQr(ctx, qr, link + (language === 'en' ? '?b=en' : ''));
+  if (link) drawPrintQr(ctx, printQrSpot(lay), link + (language === 'en' ? '?b=en' : ''));
   return c;
+}
+// The QR spot of a layout (template or built-in), or undefined when it has none / it is off
+export function printQrSpot(lay) {
+  const qr = lay.tpl ? lay.prepared.tpl.qr : lay.qr;
+  return qr && qr.enabled ? { enabled: true, x: qr.x, y: qr.y, size: qr.size } : undefined;
+}
+
+/* Session history → Print: the saved template photo + its QR again (same spot as the guest's print).
+   Older sessions without a saved spot are printed without a QR. */
+export async function printSession(s, copies, link) {
+  const src = await api.printSessionSource(s.id);
+  if (!src || src.error) return { ok: false, error: (src && src.error) || 'The photo could not be read.' };
+  const bmp = await createImageBitmap(new Blob([src.image], { type: 'image/jpeg' }));
+  const c = document.createElement('canvas');
+  c.width = bmp.width;
+  c.height = bmp.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(bmp, 0, 0);
+  if (link) drawPrintQr(ctx, s.printQr, link + (language === 'en' ? '?b=en' : ''));
+  const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.95));
+  if (!blob) return { ok: false, error: 'Could not create the print image.' };
+  return api.printPhoto({
+    image: new Uint8Array(await blob.arrayBuffer()),
+    copies,
+    layout: printLayout({ W: c.width, H: c.height }),
+    guest: s.guest,
+    sessionId: s.id,
+    couple: s.couple,
+  });
 }
 
 // Wire up this feature's buttons (called once from start.js)

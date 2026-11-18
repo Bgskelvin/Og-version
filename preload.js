@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('api', {
   printRetry: () => ipcRenderer.invoke('print-retry'),
   printClearFailed: () => ipcRenderer.invoke('print-clear-failed'),
   printTest: () => ipcRenderer.invoke('print-test'),
+  printSessionSource: id => ipcRenderer.invoke('print-session-source', id),
   onPrintStatus: cb => ipcRenderer.on('print-status', (e, s) => cb(s)),
   templateSizes: () => ipcRenderer.invoke('template-sizes'),
   countTemplates: () => ipcRenderer.invoke('count-templates'),

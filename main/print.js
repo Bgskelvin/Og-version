@@ -32,6 +32,7 @@ const {
   freeBaseName,
   readSettings,
   updateSession,
+  getSession,
 } = require('./storage');
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./active-window');
@@ -243,10 +244,10 @@ function notify() {
 }
 
 // Where the print files of the active couple go: <storage folder>/<couple>/Foto/Print
-function printDir() {
+function printDir(couple = activeCoupleName()) {
   let base = getOutDir();
   if (!usableDir(base)) base = defaultDir;
-  const dir = path.join(coupleDir(base, activeCoupleName()), 'Foto', 'Print');
+  const dir = path.join(coupleDir(base, couple), 'Foto', 'Print');
   return usableDir(dir) ? dir : null;
 }
 
@@ -261,11 +262,12 @@ function addJob(payload) {
   if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return { ok: false, error: 'The print image must be a JPG' };
   if (!(copies >= 1 && copies <= MAX_COPIES)) return { ok: false, error: 'Choose 1 to 10 copies' };
   const layout = LAYOUTS.includes(payload.layout) ? payload.layout : 'portrait';
-  const dir = printDir();
+  // Reprints from Session history go to the folder of that session's couple
+  const couple = (typeof payload.couple === 'string' && payload.couple.trim()) || activeCoupleName();
+  const dir = printDir(couple);
   if (!dir) return { ok: false, error: 'The print folder is not writable.' };
-  const base = freeBaseName(
-    guestFileName(guest) || (safeName(activeCoupleName()) ? safeName(activeCoupleName()) + '_' : '') + stamp(),
-    b => fs.existsSync(path.join(dir, `${b}_print.jpg`)),
+  const base = freeBaseName(guestFileName(guest) || (safeName(couple) ? safeName(couple) + '_' : '') + stamp(), b =>
+    fs.existsSync(path.join(dir, `${b}_print.jpg`)),
   );
   const file = path.join(dir, `${base}_print.jpg`);
   fs.writeFileSync(file, bytes);
@@ -275,7 +277,7 @@ function addJob(payload) {
     pdfFile: path.join(dir, `${base}_print_x${copies}.pdf`),
     copies,
     layout,
-    couple: activeCoupleName(),
+    couple,
     ...(guest ? { guest: String(guest).trim().slice(0, 40) } : {}),
     ...(Number.isSafeInteger(sessionId) ? { sessionId } : {}),
     status: 'waiting',
@@ -285,7 +287,9 @@ function addJob(payload) {
   persist();
   if (job.sessionId) {
     try {
-      updateSession(job.sessionId, { prints: copies }); // shown in Session history
+      // Total prints of this session, shown in Session history (reprints add up)
+      const s = getSession(job.sessionId);
+      if (s) updateSession(job.sessionId, { prints: (Number(s.prints) || 0) + copies });
     } catch (e) {
       log.warn('Could not note the prints on the session: ' + e.message);
     }
@@ -319,6 +323,14 @@ function register() {
     }
   });
   ipcMain.handle('print-status', () => status());
+  // Session history → Print: the saved template photo of that session (the screen adds the QR)
+  ipcMain.handle('print-session-source', (e, id) => {
+    const s = getSession(Number(id));
+    if (!s || s.label !== 'photo' || !s.file) return { error: 'This session has no photo.' };
+    const file = path.join(s.dir || '', s.file);
+    if (!fs.existsSync(file)) return { error: 'The photo was not found in the folder: ' + s.file };
+    return { image: fs.readFileSync(file) };
+  });
   // Failed jobs go back into the queue
   ipcMain.handle('print-retry', () => {
     load();
