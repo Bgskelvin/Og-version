@@ -6,7 +6,8 @@
      one QR that leads to all of this guest's results (main/upload.js →
      guestQr; one result = that result's own page, several = a guest page).
    - A guest who walks away without pressing it still gets the QR: when a
-     guest page sits idle, app.js opens this page before going back to Start.
+     message / quiz / photo page sits idle, app.js opens this page before going
+     back to Start. The main menu itself never leaves by itself.
    - QR off in Admin: the button just says "Done" and goes back to Start.
    ===================================================================== */
 import { drawQr } from './qr.js';

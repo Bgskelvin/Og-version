@@ -315,6 +315,17 @@ body.camOn .btn.glassy {
 .chip.icon-only:active {
   opacity: 0.9;
 }
+/* Back button for guests: only an icon, but clearly visible (not faint like the Admin button) */
+.chip.icon {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  justify-content: center;
+}
+.chip.icon .i {
+  width: 24px;
+  height: 24px;
+}
 
 /* ============ Start screen ============ */
 #btnStart {

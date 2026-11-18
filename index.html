@@ -122,8 +122,11 @@
 
     <!-- 1b. GUEST NAME SCREEN (name) — Admin → Display → Ask guest name -->
     <div class="screen mid" id="name">
-      <button class="chip left" id="btnNameBack" data-t="back">
-        <svg class="i"><use href="#i-back" /></svg>Kembali
+      <button class="chip left icon" id="btnNameBack" aria-label="Back" title="Back">
+        <svg class="i"><use href="#i-back" /></svg>
+      </button>
+      <button class="chip right icon-only" id="btnAdminOpenName" aria-label="Admin" title="Admin">
+        <svg class="i"><use href="#i-sliders" /></svg>
       </button>
       <div class="name-card glass">
         <h1 data-t="name.title">Siapa namamu?</h1>
@@ -135,6 +138,10 @@
 
     <!-- 2. MAIN MENU (home) -->
     <div class="screen" id="home">
+      <!-- Only until the guest finished something: back to the name page (or Start when the name isn't asked) -->
+      <button class="chip left icon" id="btnHomeBack" aria-label="Back" title="Back" style="display: none">
+        <svg class="i"><use href="#i-back" /></svg>
+      </button>
       <button class="chip right icon-only" id="btnAdminOpen" aria-label="Admin" title="Admin">
         <svg class="i"><use href="#i-sliders" /></svg>
       </button>

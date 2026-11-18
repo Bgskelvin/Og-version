@@ -22,6 +22,15 @@ export function startGuest() {
   show('name');
   setTimeout(() => $('nameInput').focus({ preventScroll: true }), 50);
 }
+// Main menu back button (only before the guest finished anything): change the name, or cancel.
+// The name typed before stays in the box, so a typo is fixed with a tap or two.
+export function backFromHome() {
+  if (!state.cfg.askName) return show('start');
+  $('nameInput').value = state.guestName;
+  if (nameKeyboard) nameKeyboard.reset();
+  show('name');
+  setTimeout(() => $('nameInput').focus({ preventScroll: true }), 50);
+}
 function submitName() {
   const n = $('nameInput').value.replace(/\s+/g, ' ').trim();
   if (!n) return;
@@ -41,4 +50,5 @@ export function setupGuestName() {
   nameKeyboard = createKeyboard($('nameKeyboard'), $('nameInput'), { onEnter: submitName, maxLength: 40 });
   onLanguageChange(() => nameKeyboard.redraw()); // key labels follow the guest screen language
   $('btnNameBack').onclick = () => show('start');
+  $('btnHomeBack').onclick = backFromHome;
 }
