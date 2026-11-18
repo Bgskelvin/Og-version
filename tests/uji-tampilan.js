@@ -230,8 +230,12 @@ async function main() {
   const tunggu = ms => pg.waitForTimeout(ms);
   const tungguLayar = (id, ms = 20000) => pg.waitForSelector('#' + id + '.on', { timeout: ms });
   // Terima kasih kembali sendiri ke menu; ketuk layarnya supaya langsung kembali (dengan animasi keluar)
+  // A slow machine (GitHub Windows) can stall past the 4.5 s auto-return: then the page has already left by
+  // itself. So tap only if it is still showing, in one step inside the page (no gap for a race).
   const keMenu = async () => {
-    await pg.click('#thanks');
+    await pg.evaluate(() => {
+      if (__leura.state.current === 'thanks') document.getElementById('thanks').click();
+    });
     await tungguLayar('home');
   };
 
