@@ -12,8 +12,9 @@ import { openGuestQr, renderDoneButton } from './guest-qr.js';
 // How long the Thank you page stays before going back to the main menu by itself
 const THANKS_MS = { video: 4500, photo: 6500, failed: 9000 };
 const LEAVE_MS = 520; // length of the "leaving" animation (styles/photobooth.css → thanksOut)
-// Guest pages: a guest who walks away from these with results gets their QR before Start comes back
-const GUEST_PAGES = ['home', 'message', 'quiz', 'photo', 'editphoto'];
+// Guest pages: a guest who walks away from these with results gets their QR before Start comes back.
+// The main menu (home) is not here: it never leaves by itself (no idle timer), it waits for a tap.
+const GUEST_PAGES = ['message', 'quiz', 'photo', 'editphoto'];
 
 // Touch screens can report one finger tap twice (a second "ghost" click a moment later). When the
 // first click changes the page, the ghost lands on whatever button of the new page is under the
@@ -31,7 +32,11 @@ export function show(name) {
     ignoreTapsUntil = performance.now() + GHOST_TAP_MS;
   // Start → name → menu: the new page animates in and takes no taps meanwhile, whatever the screen
   // reports (some touch screens report a finger as a mouse)
-  const arriving = ARRIVAL_PAGES.includes(name) && ['start', 'name'].includes(from) && name !== from;
+  // Menu → name (back button): the name page's back button is in the same corner, so the same guard
+  // stops one tap going back twice (menu → name → Start)
+  const arriving =
+    name !== from &&
+    ((ARRIVAL_PAGES.includes(name) && ['start', 'name'].includes(from)) || (name === 'name' && from === 'home'));
   if (arriving) ignoreTapsUntil = performance.now() + state.arrivalGuardMs;
   state.current = name;
   clearTimeout(state.thanksTimer);
@@ -53,6 +58,8 @@ export function show(name) {
   }
   if (name === 'home') {
     $('btnGuestDone').style.display = state.guestActivity ? '' : 'none';
+    // Back (change name / cancel) only until the guest reached a Thank you page (saved or failed)
+    $('btnHomeBack').style.display = state.guestActivity ? 'none' : '';
     renderDoneButton();
     // Coming from Start, the name page or Thank you: the menu rises in (styles/photobooth.css → homeIn)
     const home = $('home').classList;
@@ -77,7 +84,7 @@ export function resetIdle() {
   if (state.busy) return;
   const wait = {
     name: 60000,
-    home: 60000,
+    // home: none — the main menu never goes back to Start or the QR page by itself
     message: 60000,
     quiz: 60000,
     photo: 60000,

@@ -1694,12 +1694,29 @@ async function main() {
   await pg.evaluate(() => {
     __leura.state.guestResults = [{ kind: 'photo', code: 'Ab3dEf9hJk' }];
     __leura.state.guestActivity = 1;
-    __leura.show('home');
-    clearTimeout(__leura.state.idleTimer);
   });
-  // Idle on the menu: the real timer is 60 s; call what it calls
-  await pg.evaluate(() => __leura.openGuestQr());
-  cek((await layar()) === 'guestQr', 'menu dibiarkan dengan hasil: QR tamu tampil dulu, bukan langsung Start');
+  // Open the menu and note every long timer started meanwhile (the idle timer is 20 s or more)
+  const timerMenu = await pg.evaluate(() => {
+    const asli = window.setTimeout;
+    const lama = [];
+    window.setTimeout = (fn, ms, ...a) => {
+      if (ms >= 10000) lama.push(ms);
+      return asli(fn, ms, ...a);
+    };
+    try {
+      __leura.show('home'); // show() starts the idle timer of the new page
+    } finally {
+      window.setTimeout = asli;
+    }
+    return lama;
+  });
+  cek(timerMenu.length === 0, 'halaman utama: tidak kembali sendiri ke Start / QR (tanpa timer diam)', timerMenu);
+  // Idle on a guest page (message): the real timer is 60 s; call what it calls
+  await pg.evaluate(() => {
+    __leura.show('message');
+    __leura.openGuestQr();
+  });
+  cek((await layar()) === 'guestQr', 'halaman tamu dibiarkan dengan hasil: QR tamu tampil dulu, bukan langsung Start');
   await pg.click('#btnGuestQrDone');
 
   console.log('\n▶ Link QR di Riwayat sesi');
@@ -1797,6 +1814,59 @@ async function main() {
     (await layar()) === 'home' && (await pg.textContent('#guestGreeting')) === 'Hai, Sari!',
     'keyboard fisik juga bisa (Enter = Lanjut)',
   );
+  const ikonKembali = await pg.evaluate(() =>
+    ['btnHomeBack', 'btnNameBack'].map(id => {
+      const b = document.getElementById(id);
+      const r = b.getBoundingClientRect();
+      return { teks: b.textContent.trim(), kiri: r.left < innerWidth / 2, atas: r.top < 100, w: r.width };
+    }),
+  );
+  cek(
+    (await pg.isVisible('#btnHomeBack')) && ikonKembali[0].teks === '' && ikonKembali[0].kiri && ikonKembali[0].atas,
+    'menu utama (belum ada kegiatan): tombol kembali ikon di pojok kiri atas',
+    ikonKembali[0],
+  );
+  await pg.click('#btnHomeBack');
+  cek(
+    (await layar()) === 'name' && (await pg.inputValue('#nameInput')) === 'Sari',
+    'tombol kembali di menu: ke halaman nama, nama lama tetap terisi',
+  );
+  const ikonNama = await pg.evaluate(() => {
+    const b = document.getElementById('btnNameBack');
+    const r = b.getBoundingClientRect();
+    return { teks: b.textContent.trim(), kiri: r.left < innerWidth / 2, atas: r.top < 100 };
+  });
+  cek(
+    ikonNama.teks === '' && ikonNama.kiri && ikonNama.atas,
+    'halaman nama: tombol kembali ikon di pojok kiri atas',
+    ikonNama,
+  );
+  await pg.fill('#nameInput', 'Sarah');
+  await pg.press('#nameInput', 'Enter');
+  cek(
+    (await layar()) === 'home' && (await pg.textContent('#guestGreeting')) === 'Hai, Sarah!',
+    'nama bisa diganti lewat tombol kembali',
+  );
+  await pg.evaluate(() => {
+    __leura.state.guestActivity = 1; // the guest finished a message / quiz / photo (Thank you page)
+    __leura.show('home');
+  });
+  cek(!(await pg.isVisible('#btnHomeBack')), 'setelah ada kegiatan: tombol kembali di menu hilang');
+  await pg.evaluate(() => {
+    __leura.state.guestActivity = 0;
+    __leura.show('home');
+  });
+  // Touch screen: one tap reported twice must not go back twice (menu → name → Start); both buttons share a corner
+  await pg.evaluate(() => {
+    __leura.state.arrivalGuardMs = 700;
+    document.getElementById('btnHomeBack').click();
+    document.getElementById('btnNameBack').click(); // the ghost click
+    __leura.state.arrivalGuardMs = 0;
+  });
+  cek((await layar()) === 'name', 'layar sentuh: ketukan ganda di tombol kembali hanya mundur satu halaman');
+  await tunggu(750);
+  await pg.click('#btnNameBack');
+  cek((await layar()) === 'start', 'halaman nama: tombol kembali ke Start');
   await pg.evaluate(() => __leura.show('start'));
   cek(
     (await pg.evaluate(() => __leura.state.guestName)) === '' && !(await pg.isVisible('#guestGreeting')),
@@ -1811,6 +1881,21 @@ async function main() {
       (await pg.textContent('#nameKeyboard [data-k="enter"]')) === 'Continue',
     'halaman nama & keyboard ikut bahasa tamu',
   );
+  const adminDiNama = await pg.evaluate(() => {
+    const b = document.getElementById('btnAdminOpenName');
+    const r = b.getBoundingClientRect();
+    return { teks: b.textContent.trim(), w: r.width, h: r.height, kanan: r.right > innerWidth / 2 };
+  });
+  cek(
+    adminDiNama.teks === '' && adminDiNama.w <= 48 && adminDiNama.h >= 44 && adminDiNama.kanan,
+    'halaman nama: tombol Admin ikon kecil di pojok kanan',
+    adminDiNama,
+  );
+  await pg.click('#btnAdminOpenName');
+  await tunggu(300);
+  cek((await layar()) === 'admin' && (await pg.isVisible('#adminPanel')), 'halaman nama: tombol Admin membuka Admin');
+  await pg.click('#btnAdminBack');
+  cek((await layar()) === 'name', 'Admin dibuka dari halaman nama: kembali ke halaman nama');
   await pg.evaluate(() => {
     __leura.setLanguage('id');
     __leura.show('admin');
@@ -1828,6 +1913,9 @@ async function main() {
     (await layar()) === 'home' && !(await pg.isVisible('#guestGreeting')),
     'tanpa tanya nama: Start langsung ke Halaman Utama',
   );
+  await pg.click('#btnHomeBack');
+  cek((await layar()) === 'start', 'tanpa tanya nama: tombol kembali di menu langsung ke Start');
+  await pg.click('#btnStart');
   // Touch screen: one finger tap reported twice must not press a menu button of the new page
   await pg.evaluate(() => {
     __leura.state.arrivalGuardMs = 700;

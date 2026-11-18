@@ -7,13 +7,20 @@ import { applyCouples, fillCoupleSel } from './couple.js';
 import { loadSettings } from './settings.js';
 import { openStream, fillDevices } from './camera.js';
 import { usingSony, cameraBrand, fillAdminCamera } from './sony-camera.js';
-import { $, store } from './state.js';
+import { $, state, store } from './state.js';
 import { setNotice, show } from './app.js';
 import { refreshDiskSpace } from './disk-space.js';
 
 // Logging in to Admin is needed once while the app is open. Kept in memory only (not on disk),
 // so after the app is closed and opened again, Admin must log in again.
 let adminUnlocked = false;
+// The guest page Admin was opened from (main menu or the guest name page): Admin goes back there
+let returnTo = 'home';
+
+function leaveAdmin() {
+  // Back to the name page only if "Ask guest name" is still on
+  show(returnTo === 'name' && state.cfg.askName ? 'name' : 'home');
+}
 
 async function openAdminPanel() {
   $('adminLogin').style.display = 'none';
@@ -22,6 +29,7 @@ async function openAdminPanel() {
   await refreshAdmin();
 }
 function openAdmin() {
+  returnTo = state.current === 'name' ? 'name' : 'home';
   if (adminUnlocked) return openAdminPanel();
   $('adminLogin').style.display = 'block';
   $('adminPanel').style.display = 'none';
@@ -60,15 +68,16 @@ async function refreshAdmin() {
 // Wire up this feature's buttons (called once from start.js)
 export function setupAdmin() {
   $('btnAdminOpen').onclick = openAdmin;
+  $('btnAdminOpenName').onclick = openAdmin;
   $('btnLogin').onclick = doLogin;
-  $('btnLoginBack').onclick = () => show('home');
+  $('btnLoginBack').onclick = leaveAdmin;
   $('pw').addEventListener('keydown', e => {
     if (e.key === 'Enter') doLogin();
   });
   $('uid').addEventListener('keydown', e => {
     if (e.key === 'Enter') $('pw').focus();
   });
-  $('btnAdminBack').onclick = () => show('home');
+  $('btnAdminBack').onclick = leaveAdmin;
   $('btnQuitApp').onclick = confirmQuit;
   // Window ✕ button / ⌘Q: the same dialog (only once even if pressed repeatedly)
   api.onQuitRequest(() => confirmQuit());
@@ -96,7 +105,7 @@ export function setupAdmin() {
   // Lock Admin again (e.g. booth left without an operator): next time a login is needed
   $('btnLockAdmin').onclick = () => {
     adminUnlocked = false;
-    show('home');
+    leaveAdmin();
   };
   $('camSel').onchange = async e => {
     store.set('camId', e.target.value);
