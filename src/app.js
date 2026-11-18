@@ -8,6 +8,7 @@ import { setTemplateCoupleName } from './template-render.js';
 import { getTemplateCouple } from './template-editor.js';
 import { cameraModeForScreen } from './sony-camera.js';
 import { openGuestQr, renderDoneButton } from './guest-qr.js';
+import { choosePrintsByItself } from './print-choice.js';
 
 // How long the Thank you page stays before going back to the main menu by itself
 const THANKS_MS = { video: 4500, photo: 6500, failed: 9000 };
@@ -95,12 +96,14 @@ export function resetIdle() {
     setphoto: 180000,
     tpleditor: 900000,
     coupleForm: 900000,
+    printCopies: 45000, // "How many prints?": the chosen number (default 1) is printed by itself
     thanks: 20000, // only a safety net: the page leaves by itself after a few seconds
     guestQr: 60000,
   }[state.current];
   if (!wait) return;
   state.idleTimer = setTimeout(() => {
     if (state.current === 'thanks') show('home');
+    else if (state.current === 'printCopies') choosePrintsByItself();
     // The guest left without pressing "Finish & get QR": show their QR anyway before the next guest
     else if (GUEST_PAGES.includes(state.current) && state.guestResults.length) openGuestQr();
     else show('start');

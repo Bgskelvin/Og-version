@@ -16,6 +16,9 @@ import { getUploadStatus, refreshUploadStatus } from './download-qr.js';
 import { $, fmt, state } from './state.js';
 import { flash, show } from './app.js';
 import { language } from './language.js';
+import { printSession } from './print-choice.js';
+
+const PRINT_CHOICES = [1, 2, 3, 4, 5, 6];
 
 // status → [label, color class, needs attention?, explanation]
 const SESSION_STATUS = {
@@ -369,6 +372,12 @@ function sessionDetail(s) {
       d.appendChild(l);
     }
   }
+  if (s.prints) {
+    const pr = document.createElement('div');
+    pr.className = 'muted';
+    pr.textContent = `Printed: ${s.prints} ${s.prints === 1 ? 'copy' : 'copies'}`;
+    d.appendChild(pr);
+  }
   if (s.file) {
     const f = document.createElement('div');
     f.className = 'muted hist-file';
@@ -395,6 +404,38 @@ function sessionDetail(s) {
         showResult(await api.sessionOpen(s._id)),
       );
     addButton('Show in Finder', async () => showResult(await api.sessionReveal(s._id)));
+    if (s.label === 'photo' && s.status === 'photo' && api.printSessionSource)
+      addButton('Print', () => {
+        // Tap Print → choose how many; the numbers replace the buttons until one is tapped (or Cancel)
+        const choices = document.createElement('div');
+        choices.className = 'item actions hist-print';
+        choices.style.padding = '10px 0 0';
+        choices.style.border = '0';
+        const label = document.createElement('span');
+        label.className = 'muted';
+        label.textContent = 'How many prints?';
+        choices.appendChild(label);
+        for (const n of PRINT_CHOICES) {
+          const b = document.createElement('button');
+          b.className = 'btn sm tint';
+          b.textContent = String(n);
+          b.onclick = async () => {
+            choices.querySelectorAll('button').forEach(x => (x.disabled = true));
+            const r = await printSession({ ...s, id: s._id }, n, link);
+            if (!r || !r.ok) flash('histMsg', 'Could not print: ' + ((r && r.error) || 'unknown error'), true);
+            else flash('histMsg', `${n} print${n === 1 ? '' : 's'} sent to the printer.`);
+            choices.replaceWith(actions);
+            refreshHistory(true);
+          };
+          choices.appendChild(b);
+        }
+        const cancel = document.createElement('button');
+        cancel.className = 'btn sm tint danger';
+        cancel.textContent = 'Cancel';
+        cancel.onclick = () => choices.replaceWith(actions);
+        choices.appendChild(cancel);
+        actions.replaceWith(choices);
+      });
     if (link) {
       addButton('Show QR', () => showSessionQr(s, link));
       addButton('Copy link', async () => {

@@ -68,7 +68,8 @@ window.CP = { activeId: 'a', couples: [
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
 const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, fullscreen: false, accent: '#b08d57', loginId: 'leura', messageCountdown: 3, messageMaxSeconds: 0,
-  photoCountdown: 5, photoPreview: 2, photoFlash: true, enableMessage: true, enableQuiz: true, enablePhoto: true, language: 'id' };
+  photoCountdown: 5, photoPreview: 2, photoFlash: true, enableMessage: true, enableQuiz: true, enablePhoto: true, language: 'id',
+  printEnabled: false, printMaxCopies: 4, printer: '' };
 window.api = {
   getConfig: async () => ({ ...ST, welcome: '', colors: { accent: ST.accent } }),
   getCouples: async () => JSON.parse(JSON.stringify(CP)),
@@ -155,6 +156,13 @@ window.api = {
   getFilter: async id => { const f = (window.FLT || []).find(x => x.id === id); return f ? { ...f } : null; },
   renameFilter: async () => ({ ok: true }),
   deleteFilter: async id => { window.FLT = (window.FLT || []).filter(x => x.id !== id); return { ok: true }; },
+  // Printing (main/print.js is tested in uji-utama.js)
+  printPrinters: async () => [{ name: 'DNP DS620', displayName: 'DNP DS620', isDefault: true }],
+  printPhoto: async p => { window.CETAK = { copies: p.copies, layout: p.layout, guest: p.guest, image: p.image }; LOG.push('cetak ' + p.copies); return { ok: true, id: 1 }; },
+  printStatus: async () => ({ printer: ST.printer || '', waiting: 0, failed: 0, printedToday: 0, sheetsToday: 0, lastError: '' }),
+  printRetry: async () => ({ retried: 0 }), printClearFailed: async () => ({ removed: 0 }),
+  printTest: async () => { LOG.push('tes cetak'); return { ok: true }; }, onPrintStatus: () => {},
+  printSessionSource: async id => ({ image: await buatJpeg(1200, 1800, '#a64') }),
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
@@ -720,6 +728,40 @@ async function main() {
   await pg.setInputFiles('#teFrameFile', { name: 'foto.jpg', mimeType: 'image/jpeg', buffer: png });
   await tunggu(200);
   cek(/must be a PNG/.test(await pg.textContent('#teMsg')), 'bingkai JPG ditolak dengan pesan jelas');
+  // QR for prints: a new template has one in the bottom-right corner; it can be moved, resized, turned off
+  await pg.click('[data-tab="print"]');
+  const qrNow = () => pg.evaluate(() => ({ ...__leura.te.tpl.qr }));
+  const q0 = await pg.evaluate(() => ({ ...__leura.te.tpl.qr, W: __leura.te.tpl.W, H: __leura.te.tpl.H }));
+  cek(
+    (await pg.isChecked('#teQrOn')) && (await pg.locator('.te-qr').count()) === 1 && q0.x > q0.W / 2 && q0.y > q0.H / 2,
+    'template baru: QR cetak di pojok kanan bawah',
+    q0,
+  );
+  await pg.locator('#teQrCorners [data-corner="tl"]').click();
+  const q1 = await qrNow();
+  cek(q1.x < 100 && q1.y < 100, 'tombol posisi: QR pindah ke kiri atas', q1);
+  const kotakQr = await pg.locator('.te-qr').boundingBox();
+  await pg.mouse.move(kotakQr.x + kotakQr.width / 2, kotakQr.y + kotakQr.height / 2);
+  await pg.mouse.down();
+  await pg.mouse.move(kotakQr.x + kotakQr.width / 2 + 60, kotakQr.y + kotakQr.height / 2 + 80, { steps: 4 });
+  await pg.mouse.up();
+  const q2 = await qrNow();
+  cek(q2.x > q1.x && q2.y > q1.y, 'QR bisa digeser di kanvas', q2);
+  await pg.locator('#teQrSize').fill('300');
+  cek(
+    (await qrNow()).size === 300 && /300 px · 2\.5 cm/.test(await pg.textContent('#teQrSizeValue')),
+    'ukuran QR diatur, tampil dalam cm',
+  );
+  await pg.uncheck('#teQrOn');
+  cek((await pg.locator('.te-qr').count()) === 0 && !(await pg.isVisible('#teQrEdit')), 'QR cetak bisa dimatikan');
+  await pg.check('#teQrOn');
+  cek((await qrNow()).size === 300, 'dinyalakan lagi: posisi & ukuran tetap');
+  cek(
+    (await pg.locator('.te-qr').textContent()) === '' &&
+      (await pg.evaluate(() => getComputedStyle(document.querySelector('.te-qr')).borderTopColor)) !==
+        'rgb(10, 132, 255)',
+    'kotak QR di editor tanpa warna biru & tanpa tulisan',
+  );
   await pg.click('#teSave');
   await tunggu(400);
   const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
@@ -727,8 +769,10 @@ async function main() {
     (await layar()) === 'coupleForm' &&
       simpan.t.name === 'Rustic emas' &&
       simpan.t.coupleId === 'a' &&
-      simpan.frame === png.length,
-    'template tersimpan untuk couple aktif beserta bingkainya',
+      simpan.frame === png.length &&
+      simpan.t.qr.enabled &&
+      simpan.t.qr.size === 300,
+    'template tersimpan untuk couple aktif beserta bingkainya & QR cetak',
     simpan && { name: simpan.t.name, frame: simpan.frame },
   );
   cek(
@@ -1326,7 +1370,17 @@ async function main() {
     window.SESI = [
       { id: 1, time: t(1, 19, 2), label: 'message', couple: 'Ayu & Budi', seconds: 48, status: 'done' },
       { id: 2, time: t(0, 18, 5), label: 'message', couple: 'Rina & Dimas', seconds: 42, status: 'done' },
-      { id: 3, time: t(0, 18, 7), label: 'photo', couple: 'Rina & Dimas', status: 'photo', photos: 4 },
+      {
+        id: 3,
+        time: t(0, 18, 7),
+        label: 'photo',
+        couple: 'Rina & Dimas',
+        status: 'photo',
+        photos: 4,
+        guest: 'Sari',
+        prints: 1,
+        printQr: { enabled: true, x: 980, y: 1580, size: 180 },
+      },
       {
         id: 4,
         time: t(0, 18, 12),
@@ -1369,6 +1423,33 @@ async function main() {
     'ringkasan jumlah pesan/quiz/foto & menit video',
     await pg.textContent('#histSummary'),
   );
+  // Print a photo session again from the history
+  await pg.locator('#histList .hist-row', { hasText: 'Sari' }).click();
+  await tunggu(200);
+  cek(/Printed: 1 copy/.test(await pg.textContent('#histList .hist-detail')), 'detail sesi foto: jumlah cetak');
+  await pg.locator('#histList .hist-detail button', { hasText: 'Print' }).click();
+  cek(
+    (await pg.locator('.hist-print button').count()) === 7 &&
+      /How many prints/.test(await pg.textContent('.hist-print')),
+    'Print: pilih jumlah lembar (1-6, Cancel)',
+  );
+  await pg.evaluate(() => (window.CETAK = null));
+  await pg.locator('.hist-print button', { hasText: /^2$/ }).click();
+  await pg.waitForFunction(
+    () => window.CETAK && /2 prints sent/.test(document.getElementById('histMsg').textContent),
+    null,
+    {
+      timeout: 8000,
+    },
+  );
+  const ulang = await pg.evaluate(() => (window.CETAK ? { ...window.CETAK, image: window.CETAK.image.length } : null));
+  cek(
+    ulang && ulang.copies === 2 && ulang.layout === 'portrait' && ulang.guest === 'Sari' && ulang.image > 1000,
+    'Riwayat sesi: foto dicetak ulang 2 lembar',
+    ulang,
+  );
+  cek(/2 prints sent/.test(await pg.textContent('#histMsg')), 'pesan: dikirim ke printer');
+  await pg.locator('#histList .hist-row', { hasText: 'Sari' }).click(); // close the detail again
   const judulHari = await pg.locator('#histList .group-title').allTextContents();
   cek(
     judulHari.length === 2 && /^Today/.test(judulHari[0]) && /^Yesterday/.test(judulHari[1]),
@@ -1422,7 +1503,7 @@ async function main() {
     'pilihan "Semua couple" menampilkan semua sesi dengan nama couple',
   );
   cek(
-    / · Photo$/.test(await pg.locator('.hist-row[data-id="3"] b').textContent()) &&
+    / · Photo · Sari$/.test(await pg.locator('.hist-row[data-id="3"] b').textContent()) &&
       / · Message$/.test(await pg.locator('.hist-row[data-id="1"] b').textContent()) &&
       !/undefined/.test(await pg.textContent('#histList')),
     'each row shows its kind (Message / Quiz / Photo)',
@@ -2149,6 +2230,132 @@ async function main() {
   await pg.click('#dlgQuitCancel');
   await tunggu(100);
   cek((await pg.locator('#dlgQuit').count()) === 0, 'tombol ✕ lalu Batal: aplikasi tetap terbuka');
+
+  console.log('\n▶ Cetak foto: tamu memilih jumlah lembar');
+  await pg.evaluate(() => {
+    TPL.length = 0; // built-in Grid 2×2: its print QR is at 980,1580 (180 px)
+    Object.assign(UNG.st, { enabled: true, url: 'https://leura-foto.uji.workers.dev', hasKey: true });
+    __leura.applySettings({
+      ...__leura.state.cfg,
+      photoCountdown: 2,
+      photoPreview: 0,
+      photoFlash: false,
+      printEnabled: true,
+      printMaxCopies: 3,
+    });
+    __leura.setLanguage('id');
+    __leura.show('home');
+  });
+  // Dark pixels on the QR layer of the Edit photo page (the QR the print will have)
+  const qrDiEdit = () =>
+    pg.evaluate(() => {
+      const c = document.getElementById('peQr'),
+        d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let dark = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 0 && d[i - 1] < 60) dark++;
+      return dark;
+    });
+  let qrTerlihat = 0;
+  const sesiFoto = async () => {
+    await pg.click('#btnToPhoto');
+    await pg.click('#pbStart');
+    await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+    await pg.click('#pbFinish');
+    await tunggu(500);
+    qrTerlihat = await qrDiEdit();
+    await pg.click('#peDone');
+    await tungguLayar('printCopies');
+  };
+  await sesiFoto();
+  cek(qrTerlihat > 100, 'Edit foto: QR cetak sudah terlihat di pratinjau', qrTerlihat);
+  cek(
+    (await pg.evaluate(() => document.getElementById('pcPhoto').src.startsWith('data:image/jpeg'))) &&
+      (await pg.isVisible('#pcPhoto')),
+    'Selesai → halaman "Mau cetak berapa lembar?" dengan foto tamu',
+  );
+  cek(
+    (await pg.textContent('#pcCount')) === '1' &&
+      (await pg.textContent('#pcUnit')) === 'lembar' &&
+      (await pg.isDisabled('#pcMinus')),
+    'mulai dari 1 lembar, tombol − mati',
+  );
+  cek(
+    (await pg.evaluate(() => getComputedStyle(document.getElementById('pcPhoto')).animationName)) === 'pcPhotoIn',
+    'foto masuk dengan animasi',
+  );
+  for (let i = 0; i < 4; i++) await pg.click('#pcPlus', { force: true });
+  cek(
+    (await pg.textContent('#pcCount')) === '3' && (await pg.isDisabled('#pcPlus')),
+    'paling banyak sesuai batas Admin (3), tombol + mati',
+  );
+  await pg.click('#pcMinus');
+  cek(
+    (await pg.textContent('#pcCount')) === '2' &&
+      (await pg.evaluate(() => document.getElementById('pcCount').classList.contains('down'))),
+    'tombol − mengurangi (angka bergulir turun)',
+  );
+  await pg.click('#pcPrint');
+  await tunggu(100);
+  cek(
+    await pg.evaluate(() => document.getElementById('printCopies').classList.contains('to-print')),
+    'Cetak: foto turun keluar dengan animasi',
+  );
+  await tungguLayar('thanks');
+  const cetak = await pg.evaluate(() => ({ ...window.CETAK, image: window.CETAK.image.length }));
+  cek(cetak.copies === 2 && cetak.layout === 'portrait' && cetak.image > 1000, '2 lembar dikirim ke printer', cetak);
+  cek(
+    (await pg.textContent('#thanksMsg')) === 'Fotomu sudah tersimpan dan sedang dicetak.' &&
+      (await pg.isVisible('#thanksPhoto')),
+    'Terima kasih: foto tersimpan & sedang dicetak',
+  );
+  // QR only on the print: dark finder square inside the white quiet zone, at the layout's QR spot
+  const piksel = await pg.evaluate(async () => {
+    const bmp = await createImageBitmap(new Blob([window.CETAK.image], { type: 'image/jpeg' }));
+    const c = new OffscreenCanvas(bmp.width, bmp.height),
+      g = c.getContext('2d');
+    g.drawImage(bmp, 0, 0);
+    const at = (x, y) => g.getImageData(x, y, 1, 1).data[0];
+    // Top-left finder pattern: dark ring, white ring, dark centre (same spots for QR version 3 and 4)
+    return {
+      w: bmp.width,
+      h: bmp.height,
+      quiet: at(983, 1583),
+      ring: at(1000, 1600),
+      gap: at(1005, 1605),
+      centre: at(1013, 1613),
+    };
+  });
+  cek(
+    piksel.w === 1200 &&
+      piksel.h === 1800 &&
+      piksel.quiet > 200 &&
+      piksel.ring < 60 &&
+      piksel.gap > 200 &&
+      piksel.centre < 60,
+    'foto cetak memuat QR di tempatnya (foto digital tanpa QR)',
+    piksel,
+  );
+  await keMenu();
+  await sesiFoto();
+  await pg.evaluate(() => (window.CETAK = null));
+  await pg.click('#pcSkip');
+  await tungguLayar('thanks');
+  cek(
+    (await pg.evaluate(() => window.CETAK)) === null &&
+      (await pg.textContent('#thanksMsg')) === 'Fotomu sudah tersimpan.',
+    'Tidak usah cetak: tidak ada yang dicetak',
+  );
+  await keMenu();
+  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, printEnabled: false }));
+  await pg.click('#btnToPhoto');
+  await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+  await pg.click('#pbFinish');
+  await tunggu(500);
+  cek((await qrDiEdit()) === 0, 'cetak mati: tidak ada QR di Edit foto');
+  await pg.click('#peDone');
+  await tungguLayar('thanks');
+  await keMenu();
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => {

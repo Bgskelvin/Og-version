@@ -2768,6 +2768,144 @@ const KASUS = {
     cek(findBash({ platform: 'win32', env: {}, exists: () => false }) === null, 'Windows without Git Bash: null');
   },
 
+  async 'printing: queue, copies, strips per sheet, failure & retry, PDF test without a printer'() {
+    const { panggil, docsDir, db, sesi } = nyalakanAplikasi();
+    const print = require(path.join(__dirname, '..', 'main', 'print.js'));
+    const jobs = [];
+    let fail = false;
+    print.setDriver(async (job, printer) => {
+      jobs.push({ ...job, printer });
+      return fail ? { ok: false, error: 'Paper empty' } : { ok: true, sheets: print.sheetsFor(job.layout, job.copies) };
+    });
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    const s = await panggil('get-settings');
+    cek(s.printEnabled === false && s.printMaxCopies === 4 && s.printer === '', 'printing off by default, PDF test', s);
+    const s2 = await panggil('save-settings', { printEnabled: true, printMaxCopies: 99, printer: 'DNP DS620' });
+    cek(s2.printEnabled && s2.printMaxCopies === 10 && s2.printer === 'DNP DS620', 'settings saved, limit max 10', s2);
+
+    const photo = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Sari' });
+    cek(Number.isSafeInteger(photo.sessionId), 'save-photos returns the session id for the print', photo);
+    const r = await panggil('print-photo', {
+      image: jpg,
+      copies: 2,
+      layout: 'portrait',
+      guest: 'Sari',
+      sessionId: photo.sessionId,
+    });
+    cek(r.ok, 'print job queued', r);
+    await tunggu(50);
+    await print.idle();
+    const dir = path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas', 'Foto', 'Print');
+    cek(
+      fs.existsSync(path.join(dir, 'Sari_print.jpg')),
+      'print image saved in <couple>/Foto/Print',
+      fs.readdirSync(dir),
+    );
+    cek(jobs.length === 1 && jobs[0].copies === 2 && jobs[0].printer === 'DNP DS620', 'printed once, 2 copies', jobs);
+    cek(sesi().find(x => x.id === photo.sessionId).prints === 2, 'the photo session notes 2 prints');
+    // Session history → Print: the saved photo is read back, reprints add up, other couple's folder
+    const source = await panggil('print-session-source', photo.sessionId);
+    cek(source.image && source.image.length === 4, 'Session history gets the saved template photo', source);
+    cek(/no photo/.test((await panggil('print-session-source', 12345)).error), 'unknown session: clear error');
+    await panggil('print-photo', { image: jpg, copies: 1, sessionId: photo.sessionId, couple: 'Ayu & Budi' });
+    await tunggu(50);
+    await print.idle();
+    cek(sesi().find(x => x.id === photo.sessionId).prints === 3, 'reprint adds up: 3 prints');
+    cek(
+      fs.existsSync(path.join(docsDir, 'VideoboothRecordings', 'Ayu & Budi', 'Foto', 'Print')),
+      "reprint goes to that session's couple folder",
+    );
+    let st = await panggil('print-status');
+    cek(st.printedToday === 3 && st.sheetsToday === 3 && st.waiting === 0 && st.failed === 0, 'status: 3 printed', st);
+
+    // Strips: two side by side on one 4×6 sheet
+    cek(
+      print.sheetsFor('strip', 1) === 1 && print.sheetsFor('strip', 3) === 2 && print.sheetsFor('portrait', 3) === 3,
+      'strips: 2 per sheet',
+    );
+    const html = print.pageHtml('file:///x.jpg', 'strip');
+    cek((html.match(/<img /g) || []).length === 2 && /size: 4in 6in/.test(html), 'strip page: 2 strips on 4×6');
+    cek(/size: 6in 4in/.test(print.pageHtml('file:///x.jpg', 'landscape')), 'landscape page: 6×4');
+
+    // Bad input is refused
+    cek(!(await panggil('print-photo', { image: jpg, copies: 0 })).ok, '0 copies refused');
+    cek(!(await panggil('print-photo', { image: jpg, copies: 11 })).ok, '11 copies refused');
+    cek(!(await panggil('print-photo', { image: new Uint8Array([1, 2, 3]), copies: 1 })).ok, 'not a JPG: refused');
+
+    // Printer fails: job stays as failed, Retry prints it
+    fail = true;
+    await panggil('print-photo', { image: jpg, copies: 1, layout: 'strip', guest: 'Sari' });
+    await tunggu(50);
+    await print.idle();
+    st = await panggil('print-status');
+    cek(st.failed === 1 && /Paper empty/.test(st.lastError), 'failed print is kept with the reason', st);
+    cek(fs.existsSync(path.join(dir, 'Sari_2_print.jpg')), 'same guest again: Sari_2_print.jpg (not overwritten)');
+    fail = false;
+    st = await panggil('print-retry');
+    cek(st.retried === 1, 'Retry sends the failed print again', st);
+    await tunggu(50);
+    await print.idle();
+    st = await panggil('print-status');
+    cek(st.failed === 0 && st.printedToday === 4 && st.sheetsToday === 4, 'after Retry: printed', st);
+    const saved = db().getState('printQueue', []);
+    cek(saved.length === 3 && saved.every(j => j.status === 'done'), 'queue is kept in the database', saved);
+
+    // A failed job can be removed; a test page goes through the same queue
+    fail = true;
+    await panggil('print-photo', { image: jpg, copies: 1 });
+    await tunggu(50);
+    await print.idle();
+    st = await panggil('print-clear-failed');
+    cek(st.removed === 1 && st.failed === 0, 'Remove failed drops it from the queue', st);
+    fail = false;
+    cek((await panggil('print-test')).ok, 'test page queued');
+    await tunggu(50);
+    await print.idle();
+    cek(
+      jobs.at(-1).test === true && /Leura-test-print_.*\.pdf$/.test(jobs.at(-1).pdfFile),
+      'test page printed',
+      jobs.at(-1),
+    );
+    cek((await panggil('print-status')).printedToday === 4, 'test pages are not counted as guest prints');
+  },
+
+  async 'printing: jobs waiting when the app closed are printed when it opens'() {
+    const { db, electron, dataDir } = nyalakanAplikasi();
+    const dir = path.join(dataDir, 'p');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'a_print.jpg');
+    fs.writeFileSync(file, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+    db().setState('printQueue', [
+      { id: 1, file, copies: 1, layout: 'portrait', status: 'printing', created: 'x' },
+      { id: 2, file: path.join(dir, 'gone.jpg'), copies: 1, layout: 'portrait', status: 'waiting', created: 'x' },
+    ]);
+    const print = require(path.join(__dirname, '..', 'main', 'print.js'));
+    const done = [];
+    print.setDriver(async job => {
+      done.push(job.id);
+      return { ok: true };
+    });
+    electron.__siap();
+    await tunggu(200);
+    await print.idle();
+    const q = db().getState('printQueue', []);
+    cek(done.length === 1 && done[0] === 1, 'interrupted print is printed again', done);
+    cek(
+      q[0].status === 'done' && q[1].status === 'failed' && /missing/.test(q[1].error),
+      'missing file: failed, not a crash',
+      q,
+    );
+  },
+
+  async 'template: QR for prints is cleaned (size, inside the paper)'() {
+    const { cleanTemplate } = (nyalakanAplikasi(), require(path.join(__dirname, '..', 'main', 'template.js')));
+    const a = cleanTemplate({ size: '4r-portrait', qr: { enabled: true, x: 5000, y: -50, size: 20 } });
+    cek(a.qr.size === 120 && a.qr.x === 1080 && a.qr.y === 0, 'too small → 120 px, pushed inside the paper', a.qr);
+    const b = cleanTemplate({ size: 'strip', qr: { x: 0, y: 0, size: 900 } });
+    cek(b.qr.size === 300 && b.qr.enabled === true, 'strip: at most half the width', b.qr);
+    cek(cleanTemplate({ size: 'square' }).qr === null, 'old template without QR: none on prints');
+  },
+
   async 'satu jendela: aplikasi kedua langsung keluar'() {
     process.on('exit', () => {
       cek(true, 'aplikasi kedua keluar sebelum membuka apa pun');

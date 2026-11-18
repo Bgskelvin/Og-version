@@ -45,6 +45,7 @@ export const SCREENS = [
   'tpleditor',
   'coupleForm',
   'saving',
+  'printCopies',
   'thanks',
   'guestQr',
 ];

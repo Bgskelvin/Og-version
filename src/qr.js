@@ -260,3 +260,31 @@ export function drawQr(canvas, text, px = 8) {
       if (qr.isDark(x, y)) c.fillRect((x + quietZone) * px, (y + quietZone) * px, px, px);
   return qr;
 }
+
+/* Paint a QR as a white square (quiet zone included) at x, y with side `size`, on any canvas.
+   Used for the QR on printed photos (print-choice.js) and its preview in the template editor.
+   Modules are snapped to whole pixels so the printer gets crisp edges. */
+export function paintQr(ctx, text, x, y, size) {
+  const qr = createQr(text),
+    quietZone = 4,
+    cells = qr.size + quietZone * 2,
+    px = size / cells;
+  ctx.save();
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#000';
+  for (let r = 0; r < qr.size; r++)
+    for (let c = 0; c < qr.size; c++)
+      if (qr.isDark(c, r)) {
+        const x0 = Math.round(x + (c + quietZone) * px),
+          y0 = Math.round(y + (r + quietZone) * px);
+        ctx.fillRect(
+          x0,
+          y0,
+          Math.round(x + (c + quietZone + 1) * px) - x0,
+          Math.round(y + (r + quietZone + 1) * px) - y0,
+        );
+      }
+  ctx.restore();
+  return qr;
+}

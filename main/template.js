@@ -1,7 +1,8 @@
 /* =====================================================================
    template.js — Photo Booth photo design templates (per couple)
    Stored in <data folder>/templates/<id>/:
-     template.json   size, background color, positions of photos 1-4, texts
+     template.json   size, background color, positions of photos 1-4, texts,
+                     QR position for prints (qr: only on printed photos, not the digital file)
      background.png/jpg  background image (optional, from Canva/Photoshop)
      frame.png           transparent PNG drawn over the photos (optional)
    ===================================================================== */
@@ -56,6 +57,18 @@ function cleanTemplate(t) {
     font: FONTS.includes(x.font) ? x.font : 'sans',
     bold: !!x.bold,
   }));
+  // QR on printed photos only (main/print.js). Square, top-left corner + side, in template pixels.
+  // Smallest side 120 px = 1 cm at 300 dpi; below that phones struggle to read it.
+  const q = t.qr && typeof t.qr === 'object' ? t.qr : null;
+  const qrSize = q ? number(q.size, 120, Math.min(W, H) / 2, 180) : 0;
+  const qr = q
+    ? {
+        enabled: q.enabled !== false,
+        size: Math.round(qrSize),
+        x: Math.round(number(q.x, 0, W - qrSize, W - qrSize - 40)),
+        y: Math.round(number(q.y, 0, H - qrSize, H - qrSize - 40)),
+      }
+    : null;
   return {
     id:
       String(t.id || 'tpl' + Date.now())
@@ -80,6 +93,7 @@ function cleanTemplate(t) {
     guestPicksFilter: t.guestPicksFilter !== false, // guests may still pick another filter
     slots,
     texts,
+    qr,
   };
 }
 

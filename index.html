@@ -48,6 +48,13 @@
         <path d="M18 4.5L20.5 7 18 9.5M18 14.5l2.5 2.5-2.5 2.5" />
       </symbol>
       <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+      <symbol id="i-print" viewBox="0 0 24 24">
+        <path
+          d="M7 9V4h10v5M7 17H5a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 5 9h14a1.5 1.5 0 0 1 1.5 1.5v5A1.5 1.5 0 0 1 19 17h-2"
+        />
+        <path d="M7 14h10v6H7z" />
+      </symbol>
       <symbol id="i-pencil" viewBox="0 0 24 24">
         <path d="M4.5 19.5l1-4L16 5l3 3L8.5 18.5z" />
         <path d="M14 7l3 3" />
@@ -534,6 +541,34 @@
       </div>
     </div>
 
+    <!-- HOW MANY PRINTS? (printCopies) — after Edit photo → Done, only when printing is on in Admin
+         (src/print-choice.js). The guest sees their photo and picks 1 … the Admin limit. -->
+    <div class="screen mid" id="printCopies">
+      <div class="pc-wrap">
+        <div class="pc-photo"><img id="pcPhoto" alt="Foto untuk dicetak" /></div>
+        <div class="pc-side">
+          <p class="pc-eyebrow" data-t="pc.eyebrow">Cetak fotomu</p>
+          <h1 class="pc-title" data-t="pc.title">Mau cetak berapa lembar?</h1>
+          <div class="pc-stepper">
+            <button id="pcMinus" class="pc-step" aria-label="Kurangi">
+              <svg class="i"><use href="#i-minus" /></svg>
+            </button>
+            <div class="pc-number">
+              <span id="pcCount">1</span>
+              <small id="pcUnit">lembar</small>
+            </div>
+            <button id="pcPlus" class="pc-step" aria-label="Tambah">
+              <svg class="i"><use href="#i-plus" /></svg>
+            </button>
+          </div>
+          <button id="pcPrint" class="btn primary pc-print" data-t="pc.print">
+            <svg class="i"><use href="#i-print" /></svg>Cetak
+          </button>
+          <button id="pcSkip" class="pc-skip" data-t="pc.skip">Tidak usah cetak</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 6. THANK YOU SCREEN (thanks) -->
     <!-- Shows a few seconds after a message / quiz / photo, then goes back to the main menu by itself
          (tapping anywhere goes back right away). Animations: styles/photobooth.css "Thank you screen" -->
@@ -686,6 +721,39 @@
           </p>
           <div class="note ok" id="setPhotoMsg"></div>
 
+          <div class="group-title">Printing</div>
+          <div class="group">
+            <div class="item split" style="justify-content: space-between">
+              <span style="width: auto">Print photos (guests choose how many after editing)</span>
+              <label class="switch"><input type="checkbox" id="setPrintEnabled" /><i></i></label>
+            </div>
+            <div class="item split">
+              <span>Printer</span
+              ><select id="setPrinter" class="field" aria-label="Printer"></select>
+            </div>
+            <div class="item split">
+              <span>Most prints per guest</span
+              ><select id="setPrintMax" aria-label="Most prints a guest can choose"></select>
+            </div>
+            <div class="item actions">
+              <button id="btnPrintTest" class="btn sm tint">Test print</button>
+              <button id="btnPrintRetry" class="btn sm tint" style="display: none">Retry failed</button>
+              <button id="btnPrintClear" class="btn sm tint danger" style="display: none">Remove failed</button>
+              <button id="btnPrintRefresh" class="btn sm tint">Find printers</button>
+            </div>
+            <div class="item split sony-row">
+              <i class="sony-dot" id="printDot"></i
+              ><span class="muted" id="printStatus" style="width: auto; flex: 1"></span>
+            </div>
+          </div>
+          <p class="pe-hint" style="margin: 8px 6px 0">
+            Paper: 4×6 inch (10×15 cm). Strip templates print two side by side on one sheet. No printer yet? Choose
+            <b>Save as PDF (test)</b>: every print becomes a PDF in <b>&lt;couple&gt;/Foto/Print</b>, exactly as it
+            would be printed. The QR on prints is set per template (template editor → Print QR) and needs QR download
+            on.
+          </p>
+          <div class="note ok" id="printMsg"></div>
+
           <div class="group-title">Download via QR (photos &amp; videos)</div>
           <div class="group">
             <div class="item split" style="justify-content: space-between">
@@ -766,6 +834,9 @@
             </button>
             <button class="pe-tab te-tab" data-tab="filter">
               <svg class="i"><use href="#i-drop" /></svg>Filter
+            </button>
+            <button class="pe-tab te-tab" data-tab="print">
+              <svg class="i"><use href="#i-qr" /></svg>Print QR
             </button>
           </div>
           <div class="sheet-body">
@@ -882,6 +953,32 @@
               </p>
               <input type="file" id="teFilterFile" accept=".cube" hidden />
             </div>
+            <div class="pe-pane te-pane" data-pane="print">
+              <div class="group">
+                <div class="item split" style="justify-content: space-between">
+                  <span style="width: auto">QR code on printed photos</span>
+                  <label class="switch"><input type="checkbox" id="teQrOn" /><i></i></label>
+                </div>
+              </div>
+              <div id="teQrEdit">
+                <div class="pe-sec">Size <span class="muted" id="teQrSizeValue"></span></div>
+                <input type="range" id="teQrSize" min="120" max="600" step="10" style="width: 100%" />
+                <div class="pe-sec">Quick position</div>
+                <div class="pe-row" id="teQrCorners">
+                  <button class="btn sm tint" data-corner="br">Bottom right</button>
+                  <button class="btn sm tint" data-corner="bl">Bottom left</button>
+                  <button class="btn sm tint" data-corner="tr">Top right</button>
+                  <button class="btn sm tint" data-corner="tl">Top left</button>
+                  <button class="btn sm tint" data-corner="bc">Bottom center</button>
+                </div>
+              </div>
+              <p class="pe-hint" id="teQrInfo" style="margin-top: 10px"></p>
+              <p class="pe-hint">
+                The QR is printed <b>only on paper prints</b>. The digital photo guests download has no QR. Guests scan
+                it to download their photos (QR download must be on). Drag the QR on the left to move it; drag its
+                corner dot to resize. Keep it at least 1.5 cm and on a plain, light area so phones read it easily.
+              </p>
+            </div>
             <div class="note ok" id="teMsg"></div>
           </div>
         </div>
@@ -923,6 +1020,7 @@
           <div class="pe-box" id="peBox">
             <canvas id="peCanvas"></canvas><canvas id="peDraw"></canvas>
             <div id="peStickers"></div>
+            <canvas id="peQr"></canvas>
           </div>
         </div>
         <div class="sheet glass pe-panel">

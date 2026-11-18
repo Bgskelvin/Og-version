@@ -59,6 +59,8 @@ const DEFAULTS = {
   enableQuiz: true,
   enablePhoto: true,
   askName: true,
+  printEnabled: false, // Photo booth → Printing (print-choice.js)
+  printMaxCopies: 4,
 };
 export function normalizeConfig(src) {
   for (const [k, d] of Object.entries(DEFAULTS)) {
@@ -87,6 +89,7 @@ export function applyMenu() {
 export function applySettings(s) {
   normalizeConfig(s);
   if (s.camera) state.cfg.camera = s.camera;
+  if (typeof s.printer === 'string') state.cfg.printer = s.printer;
   if (s.language && s.language !== language) {
     state.cfg.language = s.language;
     setLanguage(s.language);
