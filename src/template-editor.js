@@ -21,6 +21,9 @@ import {
   applyRatio,
   photoArrangement,
   defaultTexts,
+  defaultQr,
+  drawPrintQr,
+  SAMPLE_QR_LINK,
 } from './template-render.js';
 import { applyLut, sampleFilterPhoto, loadLut, forgetLut } from './lut.js';
 import { $, state } from './state.js';
@@ -141,6 +144,7 @@ function newTemplate() {
     guestPicksFilter: true,
     slots: photoArrangement('kisi', W, H, 3 / 2),
     texts: defaultTexts(W, H),
+    qr: defaultQr(W, H), // only on prints; older templates have none until Admin turns it on
   };
 }
 export async function openTemplateEditor(tpl) {
@@ -163,6 +167,7 @@ export async function openTemplateEditor(tpl) {
   setEditorTab('design');
   fillEditorPanel();
   fillFilterPanel();
+  fillQrPanel();
   requestAnimationFrame(fitEditorCanvas);
 }
 
@@ -190,6 +195,7 @@ function drawEditor() {
     { tpl: te.tpl, background: te.background, frame: te.frame },
     { scale: c.width / te.tpl.W, placeholder: true, photos },
   );
+  drawPrintQr(ctx, te.tpl.qr, SAMPLE_QR_LINK, c.width / te.tpl.W);
   placeHandles();
 }
 /* Handles on top of the drawing. Existing handles are only moved (not
@@ -199,8 +205,10 @@ function placeHandles() {
     { W, H } = te.tpl,
     pct = (v, t) => (v / t) * 100 + '%';
   const slots = box.querySelectorAll('.te-slot'),
-    texts = box.querySelectorAll('.te-text');
-  if (slots.length !== te.tpl.slots.length || texts.length !== te.tpl.texts.length) {
+    texts = box.querySelectorAll('.te-text'),
+    qr = te.tpl.qr && te.tpl.qr.enabled ? te.tpl.qr : null;
+  const qrHandle = box.querySelector('.te-qr');
+  if (slots.length !== te.tpl.slots.length || texts.length !== te.tpl.texts.length || !!qrHandle !== !!qr) {
     box.innerHTML = '';
     te.tpl.slots.forEach((s, i) => {
       const el = document.createElement('div');
@@ -216,7 +224,24 @@ function placeHandles() {
       attachDrag(el, 'text', i);
       box.appendChild(el);
     });
+    if (qr) {
+      const el = document.createElement('div');
+      el.className = 'te-qr';
+      el.innerHTML = '<span class="te-qr-tag">QR · print only</span><span class="te-resize" title="Resize"></span>';
+      attachDrag(el, 'qr', 0);
+      attachDrag(el.querySelector('.te-resize'), 'qrsize', 0);
+      box.appendChild(el);
+    }
     return placeHandles();
+  }
+  if (qr) {
+    qrHandle.classList.toggle('sel', te.sel.kind === 'qr');
+    Object.assign(qrHandle.style, {
+      left: pct(qr.x, W),
+      top: pct(qr.y, H),
+      width: pct(qr.size, W),
+      height: pct(qr.size, H),
+    });
   }
   te.tpl.slots.forEach((s, i) => {
     const el = slots[i];
@@ -247,14 +272,14 @@ function attachDrag(el, kind, i) {
   el.addEventListener('pointerdown', e => {
     e.stopPropagation();
     el.setPointerCapture(e.pointerId);
-    const obj = kind === 'text' ? te.tpl.texts[i] : te.tpl.slots[i];
+    const isQr = kind === 'qr' || kind === 'qrsize';
+    const obj = isQr ? te.tpl.qr : kind === 'text' ? te.tpl.texts[i] : te.tpl.slots[i];
     start = { x: e.clientX, y: e.clientY, obj: { ...obj } };
-    te.sel = { kind: kind === 'text' ? 'text' : 'slot', i };
+    te.sel = { kind: isQr ? 'qr' : kind === 'text' ? 'text' : 'slot', i };
     fillEditorPanel();
     placeHandles();
     resetIdle();
-    if (kind !== 'text') setEditorTab('photo');
-    else setEditorTab('text');
+    setEditorTab(isQr ? 'print' : kind === 'text' ? 'text' : 'photo');
   });
   el.addEventListener('pointermove', e => {
     if (!start) return;
@@ -285,6 +310,18 @@ function attachDrag(el, kind, i) {
         s.w = Math.round(Math.max(60, snap(o.w + dx, [W - o.x, W / 2 - o.x], distance)));
         s.h = Math.round(Math.max(60, snap(o.h + dy, [H - o.y, H / 2 - o.y], distance)));
       }
+    } else if (kind === 'qr') {
+      const q = te.tpl.qr,
+        o = start.obj;
+      const x = snap(o.x + dx, [0, W / 2 - o.size / 2, W - o.size], distance),
+        y = snap(o.y + dy, [0, H / 2 - o.size / 2, H - o.size], distance);
+      q.x = Math.round(Math.min(W - o.size, Math.max(0, x)));
+      q.y = Math.round(Math.min(H - o.size, Math.max(0, y)));
+    } else if (kind === 'qrsize') {
+      const q = te.tpl.qr,
+        o = start.obj;
+      q.size = Math.round(Math.max(QR_MIN, Math.min(qrMax(), W - o.x, H - o.y, o.size + Math.max(dx, dy))));
+      fillQrPanel();
     } else {
       const t = te.tpl.texts[i],
         o = start.obj;
@@ -308,6 +345,39 @@ function setEditorTab(tab) {
   document.querySelectorAll('.te-tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab));
   document.querySelectorAll('.te-pane').forEach(p => p.classList.toggle('on', p.dataset.pane === tab));
   if (te.tpl && (tab === 'filter' || previous === 'filter')) drawEditor();
+}
+
+/* ---------------- QR on prints ----------------
+   Same limits as main/template.js: at least 120 px (1 cm at 300 dpi), at most half the short side. */
+const QR_MIN = 120;
+const qrMax = () => Math.floor(Math.min(te.tpl.W, te.tpl.H) / 2);
+const cm = px => ((px / 300) * 2.54).toFixed(1).replace('.0', '') + ' cm';
+function fillQrPanel() {
+  const t = te.tpl;
+  if (!t) return;
+  const on = !!(t.qr && t.qr.enabled);
+  $('teQrOn').checked = on;
+  $('teQrEdit').style.display = on ? '' : 'none';
+  $('teQrSize').max = qrMax();
+  if (on) {
+    $('teQrSize').value = t.qr.size;
+    $('teQrSizeValue').textContent = `${t.qr.size} px · ${cm(t.qr.size)}`;
+  }
+  $('teQrInfo').textContent = on
+    ? t.qr.size < 180
+      ? '⚠️ Small QR: some phones need a moment to read it. 180 px (1.5 cm) or more is easier.'
+      : 'Guests scan this QR on their print to download the digital photos.'
+    : 'No QR on prints of this template.';
+}
+function placeQr(corner) {
+  const t = te.tpl,
+    q = t.qr,
+    m = Math.round(Math.min(t.W, t.H) * 0.035);
+  q.x = corner.includes('l') ? m : corner === 'bc' ? Math.round((t.W - q.size) / 2) : t.W - q.size - m;
+  q.y = corner.includes('t') ? m : t.H - q.size - m;
+  te.sel = { kind: 'qr', i: 0 };
+  te.dirty = true;
+  drawEditor();
 }
 
 /* ---------------- Photo filter (LUT .cube) ---------------- */
@@ -639,7 +709,18 @@ function changeSize(key) {
     y: Math.round(x.y * sy),
     size: Math.max(10, Math.round(x.size * sm)),
   }));
+  if (t.qr) {
+    // The QR keeps its place on the paper and stays square & inside it
+    const size = Math.max(QR_MIN, Math.min(Math.floor(Math.min(u.W, u.H) / 2), Math.round(t.qr.size * sm)));
+    t.qr = {
+      ...t.qr,
+      size,
+      x: Math.round(Math.min(u.W - size, Math.max(0, t.qr.x * sx))),
+      y: Math.round(Math.min(u.H - size, Math.max(0, t.qr.y * sy))),
+    };
+  }
   Object.assign(t, { size: key, W: u.W, H: u.H });
+  fillQrPanel();
   te.dirty = true;
   fillEditorPanel();
   fitEditorCanvas();
@@ -801,6 +882,29 @@ export function setupTemplateEditor() {
     e.target.value = '';
   };
   $('teFilterDelete').onclick = deleteSelectedFilter;
+  $('teQrOn').onchange = e => {
+    const t = te.tpl;
+    if (e.target.checked) t.qr = t.qr ? { ...t.qr, enabled: true } : defaultQr(t.W, t.H);
+    else if (t.qr) t.qr.enabled = false;
+    te.sel = e.target.checked ? { kind: 'qr', i: 0 } : { kind: 'slot', i: 0 };
+    te.dirty = true;
+    fillQrPanel();
+    drawEditor();
+  };
+  $('teQrSize').oninput = e => {
+    const t = te.tpl,
+      q = t.qr;
+    if (!q) return;
+    const size = Math.max(QR_MIN, Math.min(qrMax(), Number(e.target.value)));
+    // Grows around its center, stays on the paper
+    q.x = Math.round(Math.min(t.W - size, Math.max(0, q.x + (q.size - size) / 2)));
+    q.y = Math.round(Math.min(t.H - size, Math.max(0, q.y + (q.size - size) / 2)));
+    q.size = size;
+    te.dirty = true;
+    fillQrPanel();
+    drawEditor();
+  };
+  document.querySelectorAll('#teQrCorners [data-corner]').forEach(b => (b.onclick = () => placeQr(b.dataset.corner)));
   let strengthTimer = null;
   $('teFilterStrength').oninput = e => {
     te.tpl.filterStrength = Number(e.target.value);

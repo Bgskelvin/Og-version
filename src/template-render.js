@@ -8,6 +8,7 @@
    ===================================================================== */
 import { todayDate } from './language.js';
 import { state } from './state.js';
+import { paintQr } from './qr.js';
 
 export const TEMPLATE_FONTS = {
   sans: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
@@ -235,4 +236,19 @@ export function defaultTexts(W, H) {
       bold: false,
     },
   ];
+}
+
+/* ---- QR on printed photos (only on prints, never on the digital photo) ----
+   tpl.qr = { enabled, x, y, size } in template pixels (main/template.js cleans it).
+   New templates get one in the bottom-right corner; older templates have none until Admin adds it. */
+export function defaultQr(W, H) {
+  const size = Math.round(Math.min(W, H) * (W < 700 ? 0.3 : 0.15)),
+    m = Math.round(Math.min(W, H) * 0.035);
+  return { enabled: true, size, x: W - size - m, y: H - size - m };
+}
+// The link the editor previews with (same length as a real download link, so the size looks the same)
+export const SAMPLE_QR_LINK = 'https://leura-foto.example.workers.dev/f/Ab3dEf9hJk?b=en';
+export function drawPrintQr(ctx, qr, text, scale = 1) {
+  if (!qr || !qr.enabled || !text) return;
+  paintQr(ctx, text, qr.x * scale, qr.y * scale, qr.size * scale);
 }

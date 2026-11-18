@@ -17,6 +17,7 @@ const NUMBERS = {
   messageMaxSeconds: [0, 600, 0], // Videobooth: message length limit (0 = no limit)
   photoCountdown: [2, 10, 5], // Photobooth: countdown before each photo
   photoPreview: [0, 5, 2], // Photobooth: preview seconds after each shot (0 = none)
+  printMaxCopies: [1, 10, 4], // Printing: most prints a guest can choose per photo session
 };
 const SWITCHES = {
   enableMessage: true,
@@ -24,6 +25,7 @@ const SWITCHES = {
   enablePhoto: true,
   photoFlash: true, // Photobooth: screen flash effect
   askName: true, // "What's your name?" screen after Start; the guest name becomes the file name
+  printEnabled: false, // Printing: guests choose how many prints after editing (main/print.js)
 };
 const MENU = ['enableMessage', 'enableQuiz', 'enablePhoto'];
 // webcam/phone, Sony over USB, simulated Sony, Panasonic Lumix over USB (Windows)
@@ -50,6 +52,7 @@ function effective() {
       : config.colors && isColor(config.colors.accent)
         ? config.colors.accent
         : '#B08D57',
+    printer: typeof s.printer === 'string' ? s.printer : '', // '' = Save as PDF (test, no printer)
     loginId: (s.login && s.login.id) || (config.login && config.login.id) || 'admin',
   };
 }
@@ -94,6 +97,7 @@ function register() {
     if (!MENU.some(k => next[k])) return { ...now, error: 'At least one option must stay on the main menu.' };
     if ('accent' in patch && isColor(patch.accent)) s.accent = patch.accent;
     if ('language' in patch && LANGUAGES.includes(patch.language)) s.language = patch.language;
+    if ('printer' in patch) s.printer = String(patch.printer || '').slice(0, 200);
     if ('camera' in patch && CAMERA_SOURCES.includes(patch.camera)) {
       s.camera = patch.camera;
       require('./sony-camera').setSource(s.camera);

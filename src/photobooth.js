@@ -9,6 +9,7 @@
 import { prepareTemplate, drawTemplate } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
 import { addGuestResult } from './guest-qr.js';
+import { askPrintCopies, printCanvas, printLayout, printOn } from './print-choice.js';
 import { usingSony, cameraBrand } from './sony-camera.js';
 import { setThanks, needStream } from './recording.js';
 import { $, sleep, state } from './state.js';
@@ -371,6 +372,7 @@ const LAYOUTS = {
       ].map(([x, y]) => ({ x, y, w, h }));
     },
     text: { y: 1560, name: 84, date: 36 },
+    qr: { enabled: true, x: 980, y: 1580, size: 180 }, // only on prints (print-choice.js)
   },
   strip: {
     get name() {
@@ -406,7 +408,9 @@ const LAYOUTS = {
       ];
     },
     text: { y: 1560, name: 84, date: 36 },
+    qr: { enabled: true, x: 980, y: 1580, size: 180 },
   },
+  // strip: no QR, the couple's name fills the bottom
 };
 const FILTERS = [
   ['none', 'Normal', 'none'],
@@ -891,6 +895,10 @@ const toBytes = (c, q) =>
     ),
   );
 let saving = false;
+/* Done: save the photos, then (printing on) ask how many prints, then Thank you.
+   Saving starts right away and runs while the guest chooses, so the print's QR can carry the
+   download link and the guest doesn't wait twice. Without printing the "Saving" page shows
+   at least 3 s like before. */
 async function finishEdit() {
   if (saving) return;
   saving = true;
@@ -903,15 +911,12 @@ async function finishEdit() {
   renderBase(ctx, lay);
   renderStrokes(ctx, lay);
   renderStickers(ctx, lay);
+  const preview = out.toDataURL('image/jpeg', 0.85);
 
-  $('savingTitle').textContent = t('saving.photo');
-  const bar = $('saveBar');
-  bar.classList.remove('run');
-  void bar.offsetWidth;
-  bar.classList.add('run');
-  show('saving');
   let ok = false,
-    err = '';
+    err = '',
+    saved = null,
+    finished = false;
   const results = state.guestResults; // this guest's list, even if the save finishes after they left
   const work = (async () => {
     const originals = [];
@@ -934,22 +939,71 @@ async function finishEdit() {
         drawings: editor.strokes.length,
       },
     });
+    saved = r;
     ok = !!(r && r.ok);
     err = r && r.error;
     // The download code goes into the guest's one QR ("Finish & get QR" on the main menu)
     if (ok && r.code) addGuestResult(results, { kind: 'photo', code: r.code });
-  })().catch(e => {
-    err = e.message;
-  });
-  await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
+  })()
+    .catch(e => {
+      err = e.message;
+    })
+    .finally(() => {
+      finished = true;
+    });
+  const showSaving = () => {
+    $('savingTitle').textContent = t('saving.photo');
+    const bar = $('saveBar');
+    bar.classList.remove('run');
+    void bar.offsetWidth;
+    bar.classList.add('run');
+    show('saving');
+  };
+
+  let copies = 0;
+  if (printOn()) {
+    state.busy = false; // the guest is choosing: the idle timer runs (prints the chosen number by itself)
+    copies = await askPrintCopies(preview, printLayout(lay));
+    state.busy = true;
+    if (!finished) showSaving();
+    await Promise.race([work, sleep(15000)]);
+  } else {
+    showSaving();
+    await Promise.all([sleep(3000), Promise.race([work, sleep(15000)])]);
+  }
   $('savingTitle').textContent = t('saving.recording');
 
+  // Print even when saving failed: the guest still gets their photo (without the QR then)
+  let printed = null;
+  if (copies) {
+    try {
+      const image = await toBytes(printCanvas(out, lay, ok && saved.link), 0.95);
+      printed = await api.printPhoto({
+        image,
+        copies,
+        layout: printLayout(lay),
+        guest: state.guestName,
+        sessionId: ok ? saved.sessionId : undefined,
+      });
+    } catch (e) {
+      printed = { ok: false, error: e.message };
+    }
+    if (!printed || !printed.ok)
+      setNotice('Photo could not be printed: ' + ((printed && printed.error) || 'unknown error'), 15000);
+  }
+
   setThanks(ok);
-  $('thanksMsg').textContent = ok ? t('thanks.photoOk') : t('thanks.photoFailed');
+  $('thanksMsg').textContent = !ok
+    ? t('thanks.photoFailed')
+    : !copies
+      ? t('thanks.photoOk')
+      : printed && printed.ok
+        ? t('thanks.photoPrinting')
+        : t('thanks.printFailed');
   if (!ok) setNotice('Photos could not be saved: ' + (err || 'timed out'), 15000);
   const tp = $('thanksPhoto');
   if (ok) {
-    tp.src = out.toDataURL('image/jpeg', 0.85);
+    tp.src = preview;
     tp.style.display = 'block';
     $('thanksBadge').style.display = 'none';
     $('thanks').classList.add('thanks-photo');

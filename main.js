@@ -9,6 +9,7 @@
      recording.js        video recording, MP4, recovering interrupted recordings
      video-processing.js quiz texts on the video & phone version for QR (FFmpeg)
      photo.js            saving Photo Booth results
+     print.js            printing guest photos (print queue, printer / PDF test)
      template.js         photo design templates per couple
      filter.js           photo filters (.cube LUT) for templates
      sony-camera.js      Sony camera over USB (helper program + simulation)
@@ -68,6 +69,8 @@ require('./main/settings').register();
 require('./main/disk-space').register();
 require('./main/couple').register();
 require('./main/photo').register();
+const print = require('./main/print');
+print.register();
 require('./main/template').register();
 require('./main/filter').register();
 const sonyCamera = require('./main/sony-camera');
@@ -94,6 +97,7 @@ app.whenReady().then(async () => {
   appWindow.createWindow(DEV);
   sonyCamera.start(); // connect the Sony camera if chosen in Admin
   upload.start(); // continue the remaining photo upload queue (QR)
+  print.start(); // continue prints that were waiting when the app closed
 });
 
 app.on('second-instance', () => appWindow.showWindow());

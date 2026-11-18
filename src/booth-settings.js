@@ -4,6 +4,7 @@
    Values & limits are enforced in main/pengaturan.js.
    ===================================================================== */
 import { fillDownloadQrSettings } from './download-qr.js';
+import { fillPrintSettings } from './print-settings.js';
 import { SECONDS, secLabel, fillSelect, normalizeConfig, applySettings } from './settings.js';
 import { $, state } from './state.js';
 import { flash, show } from './app.js';
@@ -74,7 +75,10 @@ async function openBoothSettings(screen) {
   const s = await api.getSettings();
   normalizeConfig(s);
   fillBoothSettings({ ...s, ...state.cfg });
-  if (screen === 'setphoto') fillDownloadQrSettings();
+  if (screen === 'setphoto') {
+    fillDownloadQrSettings();
+    fillPrintSettings();
+  }
 }
 async function saveBoothSetting(patch, msgId, msg) {
   const s = await api.saveSettings(patch);

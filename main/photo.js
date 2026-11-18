@@ -84,7 +84,13 @@ function register() {
         console.log('Could not record the photo session: ' + err.message);
       }
       log.write(`Photos saved: ${resultFile} (+${originals.length} originals)${qr ? ', QR ' + qr.code : ''}`);
-      return { ok: true, file: path.join(dir, resultFile), link: qr ? qr.link : null, code: qr ? qr.code : null };
+      return {
+        ok: true,
+        file: path.join(dir, resultFile),
+        link: qr ? qr.link : null,
+        code: qr ? qr.code : null,
+        sessionId: sid, // print.js notes the number of prints on this session
+      };
     } catch (err) {
       log.error('Could not save the photos: ' + err.message);
       return { ok: false, error: err.message };

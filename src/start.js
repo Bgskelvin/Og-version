@@ -12,6 +12,8 @@ import { setupDiskSpace } from './disk-space.js';
 import { setupDownloadQr } from './download-qr.js';
 import { setupMessage } from './message.js';
 import { setupPhotobooth } from './photobooth.js';
+import { setupPrintChoice } from './print-choice.js';
+import { setupPrintSettings } from './print-settings.js';
 import { setupQuiz } from './quiz.js';
 import { setupRecording } from './recording.js';
 import { normalizeConfig, applyMenu, setupSettings } from './settings.js';
@@ -51,6 +53,8 @@ import { state } from './state.js';
   setupCouples();
   setupRecording();
   setupPhotobooth();
+  setupPrintChoice();
+  setupPrintSettings();
   await setupSonyCamera();
   setupTemplateEditor();
 
