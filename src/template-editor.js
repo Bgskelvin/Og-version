@@ -227,7 +227,7 @@ function placeHandles() {
     if (qr) {
       const el = document.createElement('div');
       el.className = 'te-qr';
-      el.innerHTML = '<span class="te-qr-tag">QR · print only</span><span class="te-resize" title="Resize"></span>';
+      el.innerHTML = '<span class="te-resize" title="Resize"></span>';
       attachDrag(el, 'qr', 0);
       attachDrag(el.querySelector('.te-resize'), 'qrsize', 0);
       box.appendChild(el);

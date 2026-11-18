@@ -389,7 +389,8 @@
   height: 100%;
   display: block;
 }
-#peDraw {
+#peDraw,
+#peQr {
   pointer-events: none;
 }
 .pe-box.drawing #peDraw {
@@ -645,35 +646,19 @@
   border-color: var(--accent);
   background: rgba(10, 132, 255, 0.08);
 }
-/* QR for prints only: dashed blue box with a "Print only" tag, so it is never mistaken for part of the design */
+/* QR for prints: handled like a photo box (dashed outline, accent when selected, corner dot to resize) */
 .te-qr {
   position: absolute;
   z-index: 4;
-  border: 2px dashed #0a84ff;
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
   border-radius: 4px;
   cursor: move;
   touch-action: none;
 }
 .te-qr.sel {
-  border-style: solid;
+  border: 3px solid var(--accent);
   box-shadow: 0 0 0 1px #fff;
-}
-.te-qr .te-resize {
-  border-color: #0a84ff;
-}
-.te-qr-tag {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 6px);
-  transform: translateX(-50%);
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: #0a84ff;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  pointer-events: none;
 }
 .te-paper {
   display: block;

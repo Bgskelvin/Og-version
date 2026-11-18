@@ -755,6 +755,12 @@ async function main() {
   cek((await pg.locator('.te-qr').count()) === 0 && !(await pg.isVisible('#teQrEdit')), 'QR cetak bisa dimatikan');
   await pg.check('#teQrOn');
   cek((await qrNow()).size === 300, 'dinyalakan lagi: posisi & ukuran tetap');
+  cek(
+    (await pg.locator('.te-qr').textContent()) === '' &&
+      (await pg.evaluate(() => getComputedStyle(document.querySelector('.te-qr')).borderTopColor)) !==
+        'rgb(10, 132, 255)',
+    'kotak QR di editor tanpa warna biru & tanpa tulisan',
+  );
   await pg.click('#teSave');
   await tunggu(400);
   const simpan = await pg.evaluate(() => window.SIMPAN_TPL);
@@ -2190,7 +2196,7 @@ async function main() {
   console.log('\n▶ Cetak foto: tamu memilih jumlah lembar');
   await pg.evaluate(() => {
     TPL.length = 0; // built-in Grid 2×2: its print QR is at 980,1580 (180 px)
-    UNG.st.enabled = true;
+    Object.assign(UNG.st, { enabled: true, url: 'https://leura-foto.uji.workers.dev', hasKey: true });
     __leura.applySettings({
       ...__leura.state.cfg,
       photoCountdown: 2,
@@ -2202,16 +2208,28 @@ async function main() {
     __leura.setLanguage('id');
     __leura.show('home');
   });
+  // Dark pixels on the QR layer of the Edit photo page (the QR the print will have)
+  const qrDiEdit = () =>
+    pg.evaluate(() => {
+      const c = document.getElementById('peQr'),
+        d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let dark = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 0 && d[i - 1] < 60) dark++;
+      return dark;
+    });
+  let qrTerlihat = 0;
   const sesiFoto = async () => {
     await pg.click('#btnToPhoto');
     await pg.click('#pbStart');
     await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
     await pg.click('#pbFinish');
     await tunggu(500);
+    qrTerlihat = await qrDiEdit();
     await pg.click('#peDone');
     await tungguLayar('printCopies');
   };
   await sesiFoto();
+  cek(qrTerlihat > 100, 'Edit foto: QR cetak sudah terlihat di pratinjau', qrTerlihat);
   cek(
     (await pg.evaluate(() => document.getElementById('pcPhoto').src.startsWith('data:image/jpeg'))) &&
       (await pg.isVisible('#pcPhoto')),
@@ -2291,6 +2309,15 @@ async function main() {
   );
   await keMenu();
   await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, printEnabled: false }));
+  await pg.click('#btnToPhoto');
+  await pg.click('#pbStart');
+  await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
+  await pg.click('#pbFinish');
+  await tunggu(500);
+  cek((await qrDiEdit()) === 0, 'cetak mati: tidak ada QR di Edit foto');
+  await pg.click('#peDone');
+  await tungguLayar('thanks');
+  await keMenu();
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => {

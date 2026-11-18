@@ -6,7 +6,7 @@
    state.js, app.js). Only setupPhotobooth() is exported.
    Photos are taken in grabFrame() (webcam/HDMI) or captureSony() (Sony camera).
    ===================================================================== */
-import { prepareTemplate, drawTemplate } from './template-render.js';
+import { prepareTemplate, drawTemplate, drawPrintQr, SAMPLE_QR_LINK } from './template-render.js';
 import { applyLut, loadLut } from './lut.js';
 import { addGuestResult } from './guest-qr.js';
 import { askPrintCopies, printCanvas, printLayout, printOn } from './print-choice.js';
@@ -601,7 +601,7 @@ function fitStage() {
   box.style.width = Math.floor(lay.W * k) + 'px';
   box.style.height = Math.floor(lay.H * k) + 'px';
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  for (const id of ['peCanvas', 'peDraw']) {
+  for (const id of ['peCanvas', 'peDraw', 'peQr']) {
     const c = $(id);
     c.width = Math.round(lay.W * k * dpr);
     c.height = Math.round(lay.H * k * dpr);
@@ -616,6 +616,28 @@ function redraw() {
   ctx.clearRect(0, 0, c.width, c.height);
   renderBase(ctx, currentLayout(), previewScale());
   redrawInk();
+  redrawQr();
+}
+/* QR preview: when this photo will be printed with a QR (printing on, QR download on, the layout has a
+   QR spot), the guest sees it while editing, on top like on the print. The real link is only known after
+   saving, so a link of the same length is shown. */
+let qrPreview = false;
+async function checkQrPreview() {
+  qrPreview = false;
+  if (!printOn()) return;
+  try {
+    const st = await api.uploadStatus();
+    qrPreview = !!(st && st.enabled && st.url && st.hasKey);
+  } catch (e) {
+    console.log('Upload status could not be read: ' + e.message);
+  }
+}
+function redrawQr() {
+  const c = $('peQr'),
+    ctx = c.getContext('2d'),
+    lay = currentLayout();
+  ctx.clearRect(0, 0, c.width, c.height);
+  if (qrPreview) drawPrintQr(ctx, lay.tpl ? lay.prepared.tpl.qr : lay.qr, SAMPLE_QR_LINK, previewScale());
 }
 function redrawInk() {
   const c = $('peDraw'),
@@ -861,7 +883,7 @@ function attachDrawing() {
 }
 
 async function openEdit() {
-  await loadCoupleTemplates();
+  await Promise.all([loadCoupleTemplates(), checkQrPreview()]);
   if (!layoutChoices()[editor.layout]) editor.layout = Object.keys(layoutChoices())[0];
   syncFilter(true);
   // The Layout tab only shows with more than one option; the Frame tab only for built-in layouts.
