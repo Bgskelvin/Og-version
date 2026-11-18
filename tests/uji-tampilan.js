@@ -15,8 +15,40 @@ try {
   );
   process.exit(1);
 }
-const { cek, hasil } = require('./bantu');
+const { cek: check, hasil } = require('./bantu');
+// The first failed check also saves evidence (the page as it is at that moment)
+let evidenceSaved = null;
+const cek = (ok, ...rest) => {
+  const r = check(ok, ...rest);
+  if (!ok && !evidenceSaved) evidenceSaved = saveEvidence('first failed check');
+  return r;
+};
 const { startStaticServer } = require('./static-server');
+
+// When the test stops or a check fails: screenshot + what the page shows, so a failure on GitHub can be
+// understood without the computer (uji.yml uploads tests/hasil-uji/ as an artifact).
+let evidencePage = null;
+const pageErrors = [];
+async function saveEvidence(reason) {
+  if (!evidencePage) return;
+  try {
+    const dir = path.join(__dirname, 'hasil-uji');
+    require('fs').mkdirSync(dir, { recursive: true });
+    await evidencePage.screenshot({
+      path: path.join(dir, `tampilan-${reason.replace(/\W+/g, '-')}.png`),
+      timeout: 5000,
+    });
+    const info = await evidencePage.evaluate(() => ({
+      screen: document.querySelector('.screen.on')?.id,
+      busy: window.__leura?.state?.busy,
+      log: (window.LOG || []).filter(x => x !== 'chunk').slice(-15),
+      text: (document.querySelector('.screen.on')?.innerText || '').slice(0, 300),
+    }));
+    console.log('Evidence (' + reason + '): ' + JSON.stringify({ ...info, pageErrors }));
+  } catch (e) {
+    console.log('Evidence could not be saved: ' + e.message);
+  }
+}
 
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
@@ -139,8 +171,9 @@ async function main() {
   const HALAMAN = server.url + 'index.html';
   const browser = await playwright.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const pg = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  const errors = [];
+  const errors = pageErrors;
   pg.on('pageerror', e => errors.push(e.message));
+  evidencePage = pg;
   await pg.addInitScript(PALSU);
   await pg.goto(HALAMAN);
   await pg.waitForTimeout(800);
@@ -1976,13 +2009,16 @@ async function main() {
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);
 
+  await evidenceSaved;
   await browser.close();
   await server.close();
   const h = hasil();
   console.log(`\n${h.gagal ? '✗' : '✓'} Uji tampilan: ${h.lulus} lulus, ${h.gagal} gagal`);
   process.exit(h.gagal ? 1 : 0);
 }
-main().catch(e => {
+main().catch(async e => {
   console.log('Uji berhenti: ' + e.message);
+  await evidenceSaved;
+  await saveEvidence('stopped');
   process.exit(1);
 });
