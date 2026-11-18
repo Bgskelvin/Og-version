@@ -15,8 +15,42 @@ try {
   );
   process.exit(1);
 }
-const { cek, hasil } = require('./bantu');
+const { cek: check, hasil } = require('./bantu');
+// The first failed check also saves evidence (the page as it is at that moment)
+let evidenceSaved = null;
+const cek = (ok, ...rest) => {
+  const r = check(ok, ...rest);
+  if (!ok && !evidenceSaved) evidenceSaved = saveEvidence('first failed check');
+  return r;
+};
 const { startStaticServer } = require('./static-server');
+
+// When the test stops or a check fails: screenshot + what the page shows, so a failure on GitHub can be
+// understood without the computer (uji.yml uploads tests/hasil-uji/ as an artifact).
+let evidencePage = null;
+const pageErrors = [];
+async function saveEvidence(reason) {
+  if (!evidencePage) return;
+  try {
+    const dir = path.join(__dirname, 'hasil-uji');
+    require('fs').mkdirSync(dir, { recursive: true });
+    await evidencePage.screenshot({
+      path: path.join(dir, `tampilan-${reason.replace(/\W+/g, '-')}.png`),
+      timeout: 5000,
+    });
+    const info = await evidencePage.evaluate(() => ({
+      screen: document.querySelector('.screen.on')?.id,
+      busy: window.__leura?.state?.busy,
+      log: (window.LOG || []).filter(x => x !== 'chunk').slice(-15),
+      text: (document.querySelector('.screen.on')?.innerText || '').slice(0, 300),
+      now: Math.round(performance.now()),
+      screens: window.SCREEN_HISTORY,
+    }));
+    console.log('Evidence (' + reason + '): ' + JSON.stringify({ ...info, pageErrors }));
+  } catch (e) {
+    console.log('Evidence could not be saved: ' + e.message);
+  }
+}
 
 // Dipasang di halaman sebelum aplikasi berjalan: kamera palsu + api palsu yang mencatat panggilan
 const PALSU = `
@@ -139,9 +173,45 @@ async function main() {
   const HALAMAN = server.url + 'index.html';
   const browser = await playwright.chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const pg = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-  const errors = [];
+  const errors = pageErrors;
   pg.on('pageerror', e => errors.push(e.message));
+  evidencePage = pg;
   await pg.addInitScript(PALSU);
+  // Evidence: every screen change with the code that asked for it (show() toggles "on" on each .screen)
+  await pg.addInitScript(() => {
+    window.SCREEN_HISTORY = [];
+    const toggle = DOMTokenList.prototype.toggle;
+    DOMTokenList.prototype.toggle = function (name, force) {
+      const el = this._owner;
+      const result = toggle.call(this, name, force);
+      if (name === 'on' && force === true && el && el.classList.contains('screen')) {
+        const last = window.SCREEN_HISTORY.at(-1);
+        if (!last || last.id !== el.id) {
+          const at = (new Error().stack || '')
+            .split('\n')
+            .slice(4, 9)
+            .map(l =>
+              l
+                .trim()
+                .replace(/^at /, '')
+                .replace(/https?:\/\/[^/]+\//, ''),
+            )
+            .join(' < ');
+          window.SCREEN_HISTORY.push({ t: Math.round(performance.now()), id: el.id, at });
+          if (window.SCREEN_HISTORY.length > 12) window.SCREEN_HISTORY.shift();
+        }
+      }
+      return result;
+    };
+    const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'classList');
+    Object.defineProperty(Element.prototype, 'classList', {
+      get() {
+        const list = desc.get.call(this);
+        list._owner = this;
+        return list;
+      },
+    });
+  });
   await pg.goto(HALAMAN);
   await pg.waitForTimeout(800);
   const layar = () => pg.evaluate(() => document.querySelector('.screen.on').id);
@@ -216,10 +286,19 @@ async function main() {
     'Terima kasih masuk dengan animasi + garis waktu 4,5 detik',
     animasi,
   );
+  // The leaving animation only lasts ±0.5 s: on a slow computer (GitHub Windows) it can be over before the test
+  // looks, so it is recorded while it happens instead of waited for
+  await pg.evaluate(() => {
+    const t = document.getElementById('thanks');
+    window.__sawLeaving = false;
+    new MutationObserver(() => {
+      if (t.classList.contains('leaving')) window.__sawLeaving = true;
+    }).observe(t, { attributes: true, attributeFilter: ['class'] });
+  });
   await tunggu(4200);
   cek((await layar()) === 'thanks', 'Terima kasih masih tampil sebelum 4,5 detik');
-  await pg.waitForSelector('#thanks.leaving', { timeout: 2000 });
   await tungguLayar('home', 3000);
+  cek(await pg.evaluate(() => window.__sawLeaving), 'Terima kasih keluar dengan animasi sebelum menu');
   cek(
     await pg.evaluate(
       () =>
@@ -1967,13 +2046,16 @@ async function main() {
   console.log('\n▶ Tidak ada error di halaman');
   cek(errors.length === 0, 'tidak ada error JavaScript', errors);
 
+  await evidenceSaved;
   await browser.close();
   await server.close();
   const h = hasil();
   console.log(`\n${h.gagal ? '✗' : '✓'} Uji tampilan: ${h.lulus} lulus, ${h.gagal} gagal`);
   process.exit(h.gagal ? 1 : 0);
 }
-main().catch(e => {
+main().catch(async e => {
   console.log('Uji berhenti: ' + e.message);
+  await evidenceSaved;
+  await saveEvidence('stopped');
   process.exit(1);
 });
