@@ -49,5 +49,13 @@ jobs:
       - name: Uji tampilan
         run: npm run test:tampilan
 
+      - name: Simpan bukti uji tampilan yang gagal
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bukti-uji-tampilan-${{ matrix.os }}
+          path: tests/hasil-uji/
+          if-no-files-found: ignore
+
       - name: Uji demo HP
         run: npm run uji:demo

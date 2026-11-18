@@ -2341,6 +2341,18 @@ const KASUS = {
     await panggil('quit-app');
   },
 
+  async 'USB camera chosen in Admin is used again when the app opens'() {
+    // Since v1.3.1 the setting is called "camera": the app read the old name "kamera" when opening,
+    // so the USB camera stayed off until the source was chosen again in Admin (seen with a Lumix GH6)
+    const { panggil, electron, db } = nyalakanAplikasi();
+    db().writeSettings({ ...db().readSettings(), camera: 'sony-sim' });
+    electron.__siap();
+    let st;
+    for (let i = 0; i < 20 && !(st = await panggil('sony-status')).connected; i++) await tunggu(200);
+    cek(st.mode === 'sony-sim' && st.connected, 'the saved camera source is started when the app opens', st);
+    await panggil('quit-app');
+  },
+
   async 'UI modules (src/): every import has a matching export'() {
     // A missing export stops the whole UI from loading, and ESLint doesn't check names across files.
     const espree = require('espree');

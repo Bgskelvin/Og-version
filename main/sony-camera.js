@@ -609,7 +609,7 @@ function start() {
   } catch {
     /* the temporary folder doesn't exist yet */
   }
-  setSource(readSettings().kamera);
+  setSource(readSettings().camera);
 }
 
 module.exports = {

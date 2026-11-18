@@ -28,3 +28,5 @@ demo/.wrangler/
 
 # Pengaturan VS Code pribadi
 .vscode/
+# Bukti uji tampilan yang gagal (screenshot), dibuat ulang setiap uji
+tests/hasil-uji/
