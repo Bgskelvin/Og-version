@@ -486,6 +486,16 @@ async function main() {
     'tombol Admin hanya ikon kecil (tanpa tulisan, tetap mudah disentuh)',
     tombolAdmin,
   );
+  // Operator taps Password straight away: the "cursor to ID" a moment later must not steal it
+  const fokusLogin = await pg.evaluate(async () => {
+    document.getElementById('btnAdminOpen').click();
+    document.getElementById('pw').focus();
+    await new Promise(r => setTimeout(r, 150));
+    return document.activeElement.id;
+  });
+  cek(fokusLogin === 'pw', 'login Admin: kursor tidak pindah dari Password ke ID', fokusLogin);
+  await pg.click('#btnLoginBack');
+  await tungguLayar('home');
   await pg.click('#btnAdminOpen');
   await pg.fill('#uid', 'leura');
   await pg.fill('#pw', '1234');

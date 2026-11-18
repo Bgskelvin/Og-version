@@ -37,7 +37,11 @@ function openAdmin() {
   $('pw').value = '';
   $('loginErr').textContent = '';
   show('admin');
-  setTimeout(() => $('uid').focus(), 50);
+  // Cursor to the ID box, unless the operator already tapped ID or Password in the meantime
+  // (otherwise the password being typed could jump into the ID box)
+  setTimeout(() => {
+    if (!['uid', 'pw'].includes(document.activeElement && document.activeElement.id)) $('uid').focus();
+  }, 50);
 }
 async function doLogin() {
   if (await api.login($('uid').value.trim(), $('pw').value)) {
