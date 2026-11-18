@@ -15,8 +15,24 @@ const LEAVE_MS = 520; // length of the "leaving" animation (styles/photobooth.cs
 // Guest pages: a guest who walks away from these with results gets their QR before Start comes back
 const GUEST_PAGES = ['home', 'message', 'quiz', 'photo', 'editphoto'];
 
+// Touch screens can report one finger tap twice (a second "ghost" click a moment later). When the
+// first click changes the page, the ghost lands on whatever button of the new page is under the
+// finger (Start → menu → straight into Photo booth). So after a finger tap changes the page, taps
+// are ignored for a moment. Mouse clicks are not affected.
+const GHOST_TAP_MS = 500;
+const TAP_TO_PAGE_MS = 100; // a page change this soon after a finger tap was caused by that tap
+const ARRIVAL_PAGES = ['name', 'home'];
+let lastFingerTap = -Infinity;
+let ignoreTapsUntil = 0;
+
 export function show(name) {
   const from = state.current;
+  if (name !== from && performance.now() - lastFingerTap < TAP_TO_PAGE_MS)
+    ignoreTapsUntil = performance.now() + GHOST_TAP_MS;
+  // Start → name → menu: the new page animates in and takes no taps meanwhile, whatever the screen
+  // reports (some touch screens report a finger as a mouse)
+  const arriving = ARRIVAL_PAGES.includes(name) && ['start', 'name'].includes(from) && name !== from;
+  if (arriving) ignoreTapsUntil = performance.now() + state.arrivalGuardMs;
   state.current = name;
   clearTimeout(state.thanksTimer);
   $('thanks').classList.remove('leaving');
@@ -38,10 +54,10 @@ export function show(name) {
   if (name === 'home') {
     $('btnGuestDone').style.display = state.guestActivity ? '' : 'none';
     renderDoneButton();
-    // Coming back from Thank you: the menu rises in (styles/photobooth.css → homeIn)
+    // Coming from Start, the name page or Thank you: the menu rises in (styles/photobooth.css → homeIn)
     const home = $('home').classList;
     home.remove('enter');
-    if (from === 'thanks') {
+    if (from === 'thanks' || arriving) {
       void $('home').offsetWidth; // restart the animation
       home.add('enter');
     }
@@ -109,6 +125,20 @@ export function setNotice(t, ms) {
 
 // Wire up this feature's buttons (called once from start.js)
 export function setupNavigation() {
+  // Runs before every button's own handler (capture): drops ghost taps, remembers finger taps
+  document.addEventListener(
+    'click',
+    e => {
+      if (performance.now() < ignoreTapsUntil) {
+        console.log(`Tap ignored right after a page change (${e.pointerType || 'no pointer'}, page ${state.current})`);
+        e.stopPropagation();
+        e.preventDefault();
+        return;
+      }
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') lastFingerTap = performance.now();
+    },
+    true,
+  );
   $('btnStart').onclick = startGuest;
   $('thanks').onclick = leaveThanks; // tap anywhere to go back to the menu right away
 }

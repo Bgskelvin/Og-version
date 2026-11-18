@@ -112,6 +112,7 @@ async function main() {
   await pg.fill('#nameInput', 'Budi');
   await pg.press('#nameInput', 'Enter');
   await tungguLayar('home');
+  await tunggu(800); // the menu takes no taps while it animates in after the name page
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(5000);
@@ -195,6 +196,7 @@ async function main() {
   await tungguLayar('start');
   await pg.evaluate(() => __leura.show('home'));
   await tungguLayar('home');
+  await tunggu(800); // the menu takes no taps while it animates in after Start
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   cek(/leura/.test(await pg.textContent('.demo-petunjuk')), 'petunjuk login demo tampil');
@@ -208,6 +210,7 @@ async function main() {
   await pg.reload();
   await tunggu(1500);
   await pg.evaluate(() => __leura.show('home'));
+  await tunggu(800); // the menu takes no taps while it animates in after Start
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   await pg.fill('#uid', 'leura');

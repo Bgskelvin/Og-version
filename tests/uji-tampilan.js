@@ -214,6 +214,12 @@ async function main() {
   });
   await pg.goto(HALAMAN);
   await pg.waitForTimeout(800);
+  // The tests click faster than any guest: no waiting after Start (the wait itself is tested further down)
+  const tanpaJeda = () =>
+    pg.evaluate(() => {
+      __leura.state.arrivalGuardMs = 0;
+    });
+  await tanpaJeda();
   const layar = () => pg.evaluate(() => document.querySelector('.screen.on').id);
   const log = () => pg.evaluate(() => LOG.filter(x => x !== 'chunk'));
   const bersihkan = () =>
@@ -1822,6 +1828,22 @@ async function main() {
     (await layar()) === 'home' && !(await pg.isVisible('#guestGreeting')),
     'tanpa tanya nama: Start langsung ke Halaman Utama',
   );
+  // Touch screen: one finger tap reported twice must not press a menu button of the new page
+  await pg.evaluate(() => {
+    __leura.state.arrivalGuardMs = 700;
+    __leura.show('start');
+    document.getElementById('btnStart').click();
+    document.getElementById('btnToPhoto').click(); // the ghost click
+  });
+  cek((await layar()) === 'home', 'layar sentuh: ketukan ganda di Start tidak langsung membuka Photo booth');
+  cek(
+    await pg.evaluate(() => document.getElementById('home').classList.contains('enter')),
+    'Start → menu: menu muncul dengan animasi',
+  );
+  await tunggu(800);
+  await tanpaJeda();
+  await pg.click('#btnToPhoto');
+  cek((await layar()) === 'photo', 'layar sentuh: setelah sesaat, tombol menu bisa ditekan lagi');
   await pg.evaluate(() => __leura.show('admin'));
   await pg.click('#setAskName');
   await tunggu(200);
@@ -2035,6 +2057,7 @@ async function main() {
   cek(await pg.isVisible('#adminPanel'), 'sebelum ditutup: Admin masih terbuka tanpa login');
   await pg.reload();
   await tunggu(1200);
+  await tanpaJeda();
   await pg.evaluate(() => __leura.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(200);

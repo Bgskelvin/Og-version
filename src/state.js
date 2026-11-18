@@ -62,6 +62,7 @@ export const state = {
   guestName: '', // guest name from the "What's your name?" page (empty = not asked)
   guestResults: [], // this guest's results with a QR code: [{ kind: 'photo' | 'video', code, label }]
   thanksTimer: null, // Thank you → back to the main menu by itself
+  arrivalGuardMs: 700, // Start → name → menu: taps ignored this long while the page animates in (app.js)
 
   // Camera & mic
   mediaStream: null, // the open camera + mic stream
