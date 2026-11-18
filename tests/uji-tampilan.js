@@ -216,10 +216,19 @@ async function main() {
     'Terima kasih masuk dengan animasi + garis waktu 4,5 detik',
     animasi,
   );
+  // The leaving animation only lasts ±0.5 s: on a slow computer (GitHub Windows) it can be over before the test
+  // looks, so it is recorded while it happens instead of waited for
+  await pg.evaluate(() => {
+    const t = document.getElementById('thanks');
+    window.__sawLeaving = false;
+    new MutationObserver(() => {
+      if (t.classList.contains('leaving')) window.__sawLeaving = true;
+    }).observe(t, { attributes: true, attributeFilter: ['class'] });
+  });
   await tunggu(4200);
   cek((await layar()) === 'thanks', 'Terima kasih masih tampil sebelum 4,5 detik');
-  await pg.waitForSelector('#thanks.leaving', { timeout: 2000 });
   await tungguLayar('home', 3000);
+  cek(await pg.evaluate(() => window.__sawLeaving), 'Terima kasih keluar dengan animasi sebelum menu');
   cek(
     await pg.evaluate(
       () =>
