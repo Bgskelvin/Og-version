@@ -112,6 +112,7 @@ async function main() {
   await pg.fill('#nameInput', 'Budi');
   await pg.press('#nameInput', 'Enter');
   await tungguLayar('home');
+  await tunggu(800); // the menu takes no taps while it animates in after the name page
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(5000);
