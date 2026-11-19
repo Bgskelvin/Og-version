@@ -1,6 +1,6 @@
 # PlaygroundBooth demo untuk HP — tampilan (demo/web) + server kecil untuk QR demo (server.mjs).
 # Unggah dengan:  npm run demo:pasang
-name = "playgroundbooth-demo"
+name = "demo"
 main = "server.mjs"
 compatibility_date = "2025-06-01"
 

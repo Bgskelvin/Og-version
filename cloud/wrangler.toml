@@ -1,6 +1,6 @@
 # Konfigurasi Worker Cloudflare untuk unduh foto lewat QR.
 # Dipasang dengan:  npm run cloud:pasang
-name = "playgroundbooth-foto"
+name = "foto"
 main = "worker.mjs"
 compatibility_date = "2025-06-01"
 
