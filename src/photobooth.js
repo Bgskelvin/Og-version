@@ -952,6 +952,7 @@ async function finishEdit() {
       result,
       singles,
       guest: state.guestName,
+      visit: state.visitId,
       meta: {
         layout: lay.tpl ? 'template' : editor.layout,
         template: lay.tpl ? lay.name : undefined,

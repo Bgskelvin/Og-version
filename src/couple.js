@@ -193,6 +193,10 @@ export function setupCouples() {
     const r = await api.openCoupleFolder(state.editingId);
     if (r) flash('cpMsg', r, true);
   };
+  $('btnCoupleAlbum').onclick = async () => {
+    const r = await api.openAlbum(state.editingId);
+    if (r) flash('cpMsg', r, true);
+  };
   $('btnCoupleCancel').onclick = () => {
     disarmDelete();
     show('admin');

@@ -10,6 +10,12 @@ const stream = require('stream');
 const { spawnSync } = require('child_process');
 const { cek, hasil, tunggu, nyalakanAplikasi } = require('./bantu');
 
+// Event folder of a couple whose first session is today (main/event-folders.js): "<YYYY-MM-DD> <couple>"
+const pad2 = n => String(n).padStart(2, '0');
+const tglHariIni = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const folderAcara = (docsDir, couple = 'Rina & Dimas') =>
+  path.join(docsDir, 'VideoboothRecordings', `${tglHariIni()} ${couple}`);
+
 const KASUS = {
   async 'couple: tambah, edit, ganti aktif, hapus'() {
     const { panggil } = nyalakanAplikasi();
@@ -274,8 +280,13 @@ const KASUS = {
       'isi kedua file benar dan terpisah',
     );
     cek(
-      path.basename(path.dirname(ra.file)) === 'Rina & Dimas' && path.basename(ra.file).startsWith('Rina & Dimas_'),
-      'file masuk folder couple & diberi nama couple',
+      path.dirname(path.dirname(ra.file)).endsWith(`${tglHariIni()} Rina & Dimas`) &&
+        path.basename(path.dirname(ra.file)) === '1 Pesan Video' &&
+        path.basename(ra.file) === '001.webm' &&
+        path.basename(path.dirname(rb.file)) === '2 Quiz' &&
+        path.basename(rb.file) === '002.webm',
+      'file masuk <tanggal> <couple>/1 Pesan Video & 2 Quiz, bernomor urut tamu',
+      [ra.file, rb.file],
     );
     const s = sesi();
     cek(s.length === 2 && new Set(s.map(x => x.id)).size === 2, 'dua sesi tercatat dengan ID unik');
@@ -332,12 +343,14 @@ const KASUS = {
     const r1 = await panggil('save-photos', { originals: [jpg, jpg, jpg, jpg], result: jpg, meta: { layout: 'grid' } });
     const r2 = await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
     cek(r1.ok && r2.ok, 'dua sesi foto tersimpan (walau di detik yang sama)');
-    const dir = path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas', 'Foto');
-    const files = fs.readdirSync(dir);
+    const acara = folderAcara(docsDir);
+    const files = fs.readdirSync(path.join(acara, '3 Foto')).sort();
+    const asli = n => fs.readdirSync(path.join(acara, '4 Foto Asli', n)).sort();
     cek(
-      files.filter(f => f.endsWith('_hasil.jpg')).length === 2 &&
-        files.filter(f => /_foto-\d\.jpg$/.test(f)).length === 5,
-      'file foto & hasil ada di <couple>/Foto',
+      JSON.stringify(files) === '["001.jpg","002.jpg"]' &&
+        JSON.stringify(asli('001')) === '["1.jpg","2.jpg","3.jpg","4.jpg"]' &&
+        JSON.stringify(asli('002')) === '["1.jpg"]',
+      'hasil di 3 Foto/001.jpg, foto asli di 4 Foto Asli/001/1.jpg …',
       files,
     );
     cek(
@@ -352,55 +365,51 @@ const KASUS = {
 
   async 'nama tamu jadi nama file (video & foto)'() {
     const { panggil, kirim, docsDir, sesi } = nyalakanAplikasi();
-    const dirCouple = path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas');
-    const A = await panggil('rec-start', 'message', { guest: '  Budi Ari ' });
+    const acara = folderAcara(docsDir);
+    const pesan = path.join(acara, '1 Pesan Video');
+    const A = await panggil('rec-start', 'message', { guest: '  Budi Ari ', visit: 'v1' });
     kirim('rec-chunk', A.id, Buffer.from('AA'));
     const ra = await panggil('rec-end', A.id, 4, {});
-    cek(
-      path.basename(ra.file) === 'Budi Ari_pesan.webm' && path.dirname(ra.file) === dirCouple,
-      'video pesan: <couple>/Budi Ari_pesan',
-      ra.file,
-    );
+    cek(ra.file === path.join(pesan, '001 Budi Ari.webm'), 'video pesan: 1 Pesan Video/001 Budi Ari', ra.file);
     // Seolah sudah diubah ke MP4 (file .webm hilang, .mp4 ada): nama yang sama tidak boleh dipakai lagi
     fs.renameSync(ra.file, ra.file.replace(/\.webm$/, '.mp4'));
-    const B = await panggil('rec-start', 'message', { guest: 'Budi Ari' });
+    const B = await panggil('rec-start', 'message', { guest: 'Budi Ari', visit: 'v1' });
     await panggil('rec-end', B.id, 3, {});
     cek(
-      path.basename(B.file || sesi().at(-1).file).startsWith('Budi Ari_2_pesan'),
-      'tamu bernama sama: Budi Ari_2_pesan (tidak menimpa)',
+      sesi().at(-1).file === '001 Budi Ari (2).webm',
+      'tamu yang sama, pesan kedua: 001 Budi Ari (2) (tidak menimpa)',
       sesi().at(-1).file,
     );
-    const C = await panggil('rec-start', 'quiz', { guest: 'Budi Ari' });
+    const C = await panggil('rec-start', 'quiz', { guest: 'Budi Ari', visit: 'v1' });
     await panggil('rec-end', C.id, 3, {});
-    cek(sesi().at(-1).file === 'Budi Ari_quiz.webm', 'tamu yang sama ikut quiz: Budi Ari_quiz', sesi().at(-1).file);
-    cek(sesi().filter(x => x.guest === 'Budi Ari').length === 3, 'nama tamu tercatat di riwayat sesi');
-    const D = await panggil('rec-start', 'message', { guest: 'Ani/Bu:di?' });
+    cek(
+      sesi().at(-1).file === '001 Budi Ari.webm' && path.basename(sesi().at(-1).dir) === '2 Quiz',
+      'tamu yang sama ikut quiz: 2 Quiz/001 Budi Ari (nomor sama)',
+      sesi().at(-1),
+    );
+    cek(sesi().filter(x => x.guest === 'Budi Ari' && x.seq === 1).length === 3, 'nama & nomor tamu tercatat di sesi');
+    const D = await panggil('rec-start', 'message', { guest: 'Ani/Bu:di?', visit: 'v2' });
     await panggil('rec-end', D.id, 3, {});
-    cek(sesi().at(-1).file === 'AniBudi_pesan.webm', 'karakter terlarang di nama file dibuang', sesi().at(-1).file);
+    cek(
+      sesi().at(-1).file === '002 AniBudi.webm',
+      'tamu berikutnya: nomor 002, karakter terlarang dibuang',
+      sesi().at(-1).file,
+    );
     const E = await panggil('rec-start', 'message', { guest: '' });
     await panggil('rec-end', E.id, 3, {});
-    cek(
-      /^Rina & Dimas_\d{4}-\d\d-\d\d_\d\d-\d\d-\d\d_pesan\.webm$/.test(sesi().at(-1).file),
-      'tanpa nama tamu: nama lama (couple + waktu)',
-      sesi().at(-1).file,
-    );
+    cek(sesi().at(-1).file === '003.webm', 'tanpa nama tamu: hanya nomor', sesi().at(-1).file);
     const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
-    await panggil('save-photos', { originals: [jpg, jpg], result: jpg, meta: {}, guest: 'Sari' });
-    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Sari' });
-    const foto = fs.readdirSync(path.join(dirCouple, 'Foto')).sort();
+    await panggil('save-photos', { originals: [jpg, jpg], result: jpg, meta: {}, guest: 'Sari', visit: 'v4' });
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Sari', visit: 'v4' });
+    const foto = fs.readdirSync(path.join(acara, '3 Foto')).sort();
     cek(
-      JSON.stringify(foto) ===
-        JSON.stringify([
-          'Sari_2_foto-1.jpg',
-          'Sari_2_hasil.jpg',
-          'Sari_foto-1.jpg',
-          'Sari_foto-2.jpg',
-          'Sari_hasil.jpg',
-        ]),
-      'foto: Sari_hasil.jpg + Sari_foto-1…, berikutnya Sari_2_…',
+      JSON.stringify(foto) === '["004 Sari (2).jpg","004 Sari.jpg"]' &&
+        fs.readdirSync(path.join(acara, '4 Foto Asli', '004 Sari')).length === 2 &&
+        fs.readdirSync(path.join(acara, '4 Foto Asli', '004 Sari (2)')).length === 1,
+      'foto: 3 Foto/004 Sari.jpg + 4 Foto Asli/004 Sari/, berikutnya 004 Sari (2)',
       foto,
     );
-    cek(sesi().at(-1).guest === 'Sari' && sesi().at(-1).file === 'Sari_2_hasil.jpg', 'sesi foto mencatat nama tamu');
+    cek(sesi().at(-1).guest === 'Sari' && sesi().at(-1).file === '004 Sari (2).jpg', 'sesi foto mencatat nama tamu');
   },
 
   async 'catatan harian (log) untuk melacak masalah'() {
@@ -426,8 +435,8 @@ const KASUS = {
     kirim('rec-chunk', A.id, Buffer.from('AA'));
     await panggil('rec-end', A.id, 5, {});
     cek(
-      /\d\d:\d\d:\d\d +Recording started: message → Budi_pesan\.webm/.test(isi()) &&
-        /Recording done \(5 s\): Budi_pesan\.webm/.test(isi()),
+      /\d\d:\d\d:\d\d +Recording started: message → 001 Budi\.webm/.test(isi()) &&
+        /Recording done \(5 s\): 001 Budi\.webm/.test(isi()),
       'rekaman mulai & selesai tercatat dengan jam',
     );
     await panggil('login', 'leura', 'salah');
@@ -682,7 +691,11 @@ const KASUS = {
     const d = await panggil('save-couple', { name: 'Sinta / Rama: 2026?', questions: ['a'] });
     await panggil('set-active-couple', d.couple.id);
     const r = await panggil('rec-start', 'message');
-    cek(path.basename(path.dirname(r.file)) === 'Sinta Rama 2026', 'karakter / : ? dibuang dari nama folder', r.file);
+    cek(
+      path.basename(path.dirname(path.dirname(r.file))) === `${tglHariIni()} Sinta Rama 2026`,
+      'karakter / : ? dibuang dari nama folder acara',
+      r.file,
+    );
     await panggil('rec-abort', r.id);
   },
 
@@ -770,7 +783,7 @@ const KASUS = {
     );
     await panggil('sony-mode', 'photo');
     const r = await panggil('rec-start', 'message', { sony: true });
-    cek(r.id && /_pesan\.mp4$/.test(r.file), 'rekam Sony langsung bernama .mp4', r.file);
+    cek(r.id && path.basename(r.file) === '001.mp4', 'rekam Sony langsung bernama .mp4', r.file);
     cek(sesi()[0].status === 'recording' && sesi()[0].camera === 'sony', 'sesi tercatat sebagai rekaman kamera Sony');
     cek((await panggil('sony-status')).recording === true, 'status kamera: sedang merekam');
     cek((await panggil('sony-mode', 'video')).changed === false, 'mulai rekam otomatis memindah kamera ke VIDEO dulu');
@@ -784,8 +797,8 @@ const KASUS = {
     await tunggu(1500);
     cek(sesi()[0].status === 'done' && fs.statSync(r.file).size > 10000, 'video tersalin ke folder couple', sesi()[0]);
     cek(
-      path.dirname(r.file) === path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas'),
-      'video ada di folder couple',
+      path.dirname(r.file) === path.join(folderAcara(docsDir), '1 Pesan Video'),
+      'video ada di folder acara/1 Pesan Video',
     );
     // dua rekaman berurutan: penyalinan antre, keduanya selesai
     const a = await panggil('rec-start', 'quiz-1', { sony: true });
@@ -823,11 +836,11 @@ const KASUS = {
     await panggil('save-photos', { originals: [jpg], result: jpg, meta: {} });
     const foto = sesi()[0];
     cek(
-      (await panggil('session-open', foto.id)).ok && /_hasil\.jpg$/.test(electron.__dibuka),
+      (await panggil('session-open', foto.id)).ok && /3 Foto[\\/]001\.jpg$/.test(electron.__dibuka),
       'foto hasil bisa dibuka',
     );
     cek(
-      (await panggil('session-reveal', foto.id)).ok && /_hasil\.jpg$/.test(electron.__ditunjukkan),
+      (await panggil('session-reveal', foto.id)).ok && /3 Foto[\\/]001\.jpg$/.test(electron.__ditunjukkan),
       'foto ditunjukkan di Finder',
     );
     cek(/^data:image\/jpeg;base64,/.test(await panggil('session-thumb', foto.id)), 'gambar kecil foto tersedia');
@@ -1095,14 +1108,18 @@ const KASUS = {
       'video quiz: MP4 → teks ditempel → versi HP → terkirim',
       sQ,
     );
+    const teknis = path.join(path.dirname(sQ.dir), '.leura', 'original');
+    const nama = sQ.file.replace(/\.mp4$/, '');
     const utama = path.join(sQ.dir, sQ.file),
-      asli = path.join(sQ.dir, 'original', 'Sari_quiz_original.mp4');
+      asli = path.join(teknis, nama + '_original.mp4');
     cek(
-      sQ.file === 'Sari_quiz.mp4' &&
+      /^\d{3} Sari\.mp4$/.test(sQ.file) &&
+        path.basename(sQ.dir) === '2 Quiz' &&
         fs.existsSync(utama) &&
         fs.existsSync(asli) &&
-        fs.existsSync(path.join(sQ.dir, 'original', 'Sari_quiz.webm')),
-      'folder couple: Sari_quiz.mp4 (dengan teks), original/Sari_quiz_original.mp4 (tanpa teks) & rekaman webm asli',
+        fs.existsSync(path.join(teknis, nama + '.webm')),
+      'folder acara: 2 Quiz/<no> Sari.mp4 (dengan teks); .leura/original: tanpa teks & rekaman webm asli',
+      sQ,
     );
     // Warna rata-rata pita bawah video di detik tertentu (teks uji = kotak merah / biru)
     const warna = (f, t) => {
@@ -1477,14 +1494,16 @@ const KASUS = {
       ana.status === 'done' &&
         ana.captionStatus === 'done' &&
         ana.upload === 'sent' &&
-        fs.existsSync(path.join(folder, 'original', 'Ana_quiz_original.mp4')) &&
+        ana.file === '001 Ana.mp4' &&
+        path.basename(ana.dir) === '2 Quiz' &&
+        fs.existsSync(path.join(path.dirname(ana.dir), '.leura', 'original', '001 Ana_original.mp4')) &&
         toko.has('video/AnaKode123.mp4'),
       'aplikasi dibuka lagi: teks pertanyaan & unggah video yang terputus dilanjutkan sendiri',
       ana,
     );
     const edo = await tungguSesi(222, s => s.captionStatus === 'failed');
     cek(
-      edo.captionStatus === 'failed' && edo.status === 'done' && fs.existsSync(path.join(folder, 'Edo_quiz.mp4')),
+      edo.captionStatus === 'failed' && edo.status === 'done' && fs.existsSync(path.join(edo.dir, '002 Edo.mp4')),
       'gambar teks hilang: ditandai gagal, video tetap aman',
       edo,
     );
@@ -1492,7 +1511,8 @@ const KASUS = {
     cek((await panggil('session-retry', 222)).ok, 'Riwayat: "Process again" bisa ditekan');
     const edo2 = await tungguSesi(222, s => s.captionStatus === 'done');
     cek(
-      edo2.captionStatus === 'done' && fs.existsSync(path.join(folder, 'original', 'Edo_quiz_original.mp4')),
+      edo2.captionStatus === 'done' &&
+        fs.existsSync(path.join(path.dirname(edo2.dir), '.leura', 'original', '002 Edo_original.mp4')),
       'Process again: teks pertanyaan berhasil ditempel',
       edo2,
     );
@@ -2795,10 +2815,10 @@ const KASUS = {
     cek(r.ok, 'print job queued', r);
     await tunggu(50);
     await print.idle();
-    const dir = path.join(docsDir, 'VideoboothRecordings', 'Rina & Dimas', 'Foto', 'Print');
+    const dir = path.join(folderAcara(docsDir), '5 Cetak');
     cek(
-      fs.existsSync(path.join(dir, 'Sari_print.jpg')),
-      'print image saved in <couple>/Foto/Print',
+      fs.existsSync(path.join(dir, '001 Sari.jpg')),
+      'print image saved in <event>/5 Cetak, named like its photo',
       fs.readdirSync(dir),
     );
     cek(jobs.length === 1 && jobs[0].copies === 2 && jobs[0].printer === 'DNP DS620', 'printed once, 2 copies', jobs);
@@ -2812,8 +2832,8 @@ const KASUS = {
     await print.idle();
     cek(sesi().find(x => x.id === photo.sessionId).prints === 3, 'reprint adds up: 3 prints');
     cek(
-      fs.existsSync(path.join(docsDir, 'VideoboothRecordings', 'Ayu & Budi', 'Foto', 'Print')),
-      "reprint goes to that session's couple folder",
+      fs.existsSync(path.join(dir, '001 Sari (2).jpg')),
+      "reprint goes to that session's event folder: 001 Sari (2).jpg",
     );
     let st = await panggil('print-status');
     cek(st.printedToday === 3 && st.sheetsToday === 3 && st.waiting === 0 && st.failed === 0, 'status: 3 printed', st);
@@ -2839,7 +2859,7 @@ const KASUS = {
     await print.idle();
     st = await panggil('print-status');
     cek(st.failed === 1 && /Paper empty/.test(st.lastError), 'failed print is kept with the reason', st);
-    cek(fs.existsSync(path.join(dir, 'Sari_2_print.jpg')), 'same guest again: Sari_2_print.jpg (not overwritten)');
+    cek(fs.existsSync(path.join(dir, 'Sari.jpg')), 'print without a session: named after the guest');
     fail = false;
     st = await panggil('print-retry');
     cek(st.retried === 1, 'Retry sends the failed print again', st);
@@ -2861,11 +2881,7 @@ const KASUS = {
     cek((await panggil('print-test')).ok, 'test page queued');
     await tunggu(50);
     await print.idle();
-    cek(
-      jobs.at(-1).test === true && /Leura-test-print_.*\.pdf$/.test(jobs.at(-1).pdfFile),
-      'test page printed',
-      jobs.at(-1),
-    );
+    cek(jobs.at(-1).test === true && /Test print .*\.pdf$/.test(jobs.at(-1).pdfFile), 'test page printed', jobs.at(-1));
     cek((await panggil('print-status')).printedToday === 4, 'test pages are not counted as guest prints');
   },
 
@@ -2904,6 +2920,211 @@ const KASUS = {
     const b = cleanTemplate({ size: 'strip', qr: { x: 0, y: 0, size: 900 } });
     cek(b.qr.size === 300 && b.qr.enabled === true, 'strip: at most half the width', b.qr);
     cek(cleanTemplate({ size: 'square' }).qr === null, 'old template without QR: none on prints');
+  },
+
+  async 'event folders: old couple folder is moved into the new layout once, safely'() {
+    const akar = fs.mkdtempSync(path.join(require('os').tmpdir(), 'leura-folders-'));
+    const docs = path.join(akar, 'docs'),
+      data = path.join(akar, 'data');
+    const lama = path.join(docs, 'VideoboothRecordings', 'Rina & Dimas');
+    const tulis = (rel, isi = 'x') => {
+      fs.mkdirSync(path.dirname(path.join(lama, rel)), { recursive: true });
+      fs.writeFileSync(path.join(lama, rel), isi);
+    };
+    tulis('Budi_pesan.mp4', 'video budi');
+    tulis('original/Budi_pesan.webm', 'webm budi');
+    tulis('Sari_quiz.mp4', 'quiz sari');
+    tulis('original/Sari_quiz_original.mp4', 'quiz tanpa teks');
+    tulis('Foto/Budi_hasil.jpg', 'hasil');
+    tulis('Foto/Budi_foto-1.jpg', 'asli 1');
+    tulis('Foto/Budi_foto-2.jpg', 'asli 2');
+    tulis('Foto/Print/Budi_print.jpg', 'cetak');
+    tulis('catatan-saya.txt', 'file milik operator');
+    const t = (h, m) => new Date(2026, 9, 3, h, m).toISOString(); // 3 Oct 2026
+    // An older Leura: database with sessions in the old layout
+    const { openDatabase } = require(path.join(__dirname, '..', 'main', 'database.js'));
+    fs.mkdirSync(data, { recursive: true });
+    const db0 = openDatabase(data);
+    db0.writeCouples({ activeId: 'c1', couples: [{ id: 'c1', name: 'Rina & Dimas', questions: ['Q'] }] });
+    db0.writeSessions([
+      {
+        id: 1,
+        time: t(18, 0),
+        label: 'message',
+        file: 'Budi_pesan.mp4',
+        dir: lama,
+        couple: 'Rina & Dimas',
+        guest: 'Budi',
+        status: 'done',
+      },
+      {
+        id: 2,
+        time: t(18, 5),
+        label: 'photo',
+        file: 'Budi_hasil.jpg',
+        dir: path.join(lama, 'Foto'),
+        couple: 'Rina & Dimas',
+        guest: 'Budi',
+        status: 'photo',
+        photos: 2,
+        originalFiles: ['Budi_foto-1.jpg', 'Budi_foto-2.jpg'],
+      },
+      {
+        id: 3,
+        time: t(19, 0),
+        label: 'quiz',
+        file: 'Sari_quiz.mp4',
+        dir: lama,
+        couple: 'Rina & Dimas',
+        guest: 'Sari',
+        status: 'done',
+      },
+      {
+        id: 4,
+        time: t(19, 30),
+        label: 'message',
+        file: 'Budi_2_pesan.mp4',
+        dir: lama,
+        couple: 'Rina & Dimas',
+        guest: 'Budi',
+        status: 'card-only',
+      },
+    ]);
+    db0.writeUploadQueue([{ code: 'Kode123456', file: path.join(lama, 'Foto', 'Budi_hasil.jpg'), sid: 2 }]);
+    db0.setState('printQueue', [
+      {
+        id: 9,
+        file: path.join(lama, 'Foto', 'Print', 'Budi_print.jpg'),
+        copies: 1,
+        layout: 'portrait',
+        sessionId: 2,
+        status: 'done',
+      },
+    ]);
+    db0.close();
+
+    const { db, sesi } = nyalakanAplikasi({ akar });
+    const acara = path.join(docs, 'VideoboothRecordings', '2026-10-03 Rina & Dimas');
+    const ada = rel => fs.existsSync(path.join(acara, rel));
+    cek(!fs.existsSync(lama) && fs.existsSync(acara), 'couple folder renamed to "<date of first session> <couple>"');
+    cek(
+      ada('1 Pesan Video/001 Budi.mp4') &&
+        ada('2 Quiz/002 Sari.mp4') &&
+        ada('3 Foto/001 Budi.jpg') &&
+        ada('4 Foto Asli/001 Budi/1.jpg') &&
+        ada('4 Foto Asli/001 Budi/2.jpg') &&
+        ada('5 Cetak/001 Budi.jpg'),
+      'files moved into the subfolders, one number per guest visit (Budi 18:00 & 18:05 = 001)',
+      fs.readdirSync(acara),
+    );
+    cek(
+      ada('.leura/original/001 Budi.webm') && ada('.leura/original/002 Sari_original.mp4'),
+      'technical copies moved to .leura/original',
+    );
+    cek(ada('catatan-saya.txt') && !ada('Foto') && !ada('original'), 'unknown files stay, empty old folders removed');
+    const s = sesi();
+    const byId = id => s.find(x => x.id === id);
+    cek(
+      s.every(x => x.event === '2026-10-03 Rina & Dimas') &&
+        byId(1).seq === 1 &&
+        byId(2).seq === 1 &&
+        byId(3).seq === 2 &&
+        byId(4).seq === 3,
+      'sessions: event folder & guest number saved (Budi again at 19:30 = new visit 003)',
+      s.map(x => [x.id, x.seq, x.file]),
+    );
+    cek(
+      byId(4).file === '003 Budi.mp4' && path.basename(byId(4).dir) === '1 Pesan Video',
+      'video still on the SD card: its session points at the new place',
+    );
+    cek(
+      byId(2).originalsDir === path.join(acara, '4 Foto Asli', '001 Budi') &&
+        JSON.stringify(byId(2).originalFiles) === '["1.jpg","2.jpg"]',
+      'photo session knows where its original photos are',
+    );
+    cek(
+      db().readUploadQueue()[0].file === path.join(acara, '3 Foto', '001 Budi.jpg') &&
+        db().getState('printQueue')[0].file === path.join(acara, '5 Cetak', '001 Budi.jpg'),
+      'QR upload queue & print queue follow the moved files',
+    );
+    cek(db().readCouples().couples[0].folder === '2026-10-03 Rina & Dimas', 'the couple remembers its event folder');
+    const backups = fs.readdirSync(path.join(data, 'backup')).filter(f => f.startsWith('event-folders-'));
+    cek(backups.length === 1, 'a list of every move is kept in backup/');
+    // Running again changes nothing
+    const again = require(path.join(__dirname, '..', 'main', 'event-folders.js')).reorganize();
+    cek(again.length === 0 && ada('1 Pesan Video/001 Budi.mp4'), 'running again changes nothing');
+  },
+
+  async 'event folders: guest numbers per visit, folder kept after renaming the couple'() {
+    const { panggil, kirim, docsDir, sesi } = nyalakanAplikasi();
+    const rec = async (label, visit, guest) => {
+      const r = await panggil('rec-start', label, { visit, guest });
+      kirim('rec-chunk', r.id, Buffer.from('AA'));
+      await panggil('rec-end', r.id, 3, {});
+      return r.file;
+    };
+    await rec('message', 'a', 'Budi');
+    await rec('quiz', 'a', 'Budi');
+    await rec('message', 'b', 'Sari');
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Budi', visit: 'a' });
+    cek(
+      JSON.stringify(sesi().map(x => x.seq)) === '[1,1,2,1]',
+      'Budi keeps number 001 for his message, quiz & photo; Sari is 002',
+      sesi().map(x => x.seq),
+    );
+    const d = await panggil('get-couples');
+    const c = d.couples.find(x => x.id === d.activeId);
+    await panggil('save-couple', { ...c, name: 'Rina & Dimas Wedding' });
+    const f = await rec('message', 'c', 'Andi');
+    cek(
+      path.dirname(path.dirname(f)) === folderAcara(docsDir) && path.basename(f) === '003 Andi.webm',
+      'renamed couple: same event folder, numbers continue',
+      f,
+    );
+    cek(!fs.existsSync(path.join(folderAcara(docsDir), '5 Cetak')), 'a subfolder only appears when it is used');
+  },
+
+  async 'album: Album.html per event, safe names, opens from Admin'() {
+    const { panggil, kirim, docsDir, electron } = nyalakanAplikasi();
+    electron.__siap();
+    await tunggu(100);
+    const r = await panggil('rec-start', 'message', { visit: 'a', guest: '<b>Budi</b>' });
+    kirim('rec-chunk', r.id, Buffer.from('AA'));
+    await panggil('rec-end', r.id, 42, {});
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    await panggil('save-photos', { originals: [jpg, jpg], result: jpg, meta: {}, guest: 'Sari', visit: 'b' });
+    const album = require(path.join(__dirname, '..', 'main', 'album.js'));
+    const acara = folderAcara(docsDir);
+    const data = album.albumData(acara);
+    cek(
+      data.couple === 'Rina & Dimas' && data.guests.length === 2 && data.guests[1].items[0].originals.length === 2,
+      'album data: 2 guests, the photo with its 2 original photos',
+      data,
+    );
+    cek(
+      data.guests[1].items[0].src === '3%20Foto/002%20Sari.jpg' &&
+        data.guests[0].items[0].src === '1%20Pesan%20Video/001%20bBudib.webm' &&
+        data.guests[0].items[0].seconds === 42,
+      'relative links that work from the folder (spaces encoded)',
+      data.guests,
+    );
+    await tunggu(3000); // made by itself a moment after the last change
+    const file = path.join(acara, 'Album.html');
+    cek(fs.existsSync(file), 'Album.html made in the event folder by itself');
+    const html = fs.readFileSync(file, 'utf8');
+    cek(
+      !html.includes('<b>Budi</b>') && html.includes('\\u003cb>Budi\\u003c/b>'),
+      'a guest name with HTML in it is shown as text, never as page code',
+    );
+    cek(/class="amp"/.test(html) && /Rina/.test(html) && /Dimas/.test(html), 'couple names with the large "&"');
+    electron.__dibuka = null;
+    cek((await panggil('open-album', '')) === '' && /Album\.html$/.test(electron.__dibuka), 'Admin: Open album');
+    const lain = await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] });
+    cek(
+      /No recordings or photos/.test(await panggil('open-album', lain.couple.id)),
+      'couple without sessions: clear message',
+    );
   },
 
   async 'satu jendela: aplikasi kedua langsung keluar'() {

@@ -10,6 +10,8 @@
      video-processing.js quiz texts on the video & phone version for QR (FFmpeg)
      photo.js            saving Photo Booth results
      print.js            printing guest photos (print queue, printer / PDF test)
+     event-folders.js    one folder per wedding, subfolders per kind, guest numbers
+     album.js            Album.html: the offline gallery in every event folder
      template.js         photo design templates per couple
      filter.js           photo filters (.cube LUT) for templates
      sony-camera.js      Sony camera over USB (helper program + simulation)
@@ -58,6 +60,14 @@ try {
   process.exit(1);
 }
 
+// Recordings & photos of older versions → one folder per wedding (before any module reads their paths).
+// Never stops the app: a problem is logged and tried again next time.
+try {
+  migrationNotes.push(...require('./main/event-folders').reorganize());
+} catch (e) {
+  migrationNotes.push({ level: 'error', text: 'Event folders could not be arranged: ' + e.message });
+}
+
 // The daily log is set up first, so every message & error after it is recorded too
 const log = require('./main/log');
 log.hookConsole();
@@ -98,6 +108,7 @@ app.whenReady().then(async () => {
   sonyCamera.start(); // connect the Sony camera if chosen in Admin
   upload.start(); // continue the remaining photo upload queue (QR)
   print.start(); // continue prints that were waiting when the app closed
+  require('./main/album').start(); // Album.html follows every change in an event
 });
 
 app.on('second-instance', () => appWindow.showWindow());
