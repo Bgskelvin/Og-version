@@ -123,13 +123,24 @@ function register() {
     if (!d || !fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
     return shell.openPath(d);
   });
-  // Album.html: the gallery per guest (album.js); made again first so it is up to date
-  ipcMain.handle('open-album', async (e, id) => {
+  // Album.html (album.js): status for the couple page, and "Create album" (made, then opened)
+  ipcMain.handle('album-status', (e, id) => {
     const d = eventDirOf(id);
-    if (!d || !fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
-    const file = require('./album').writeAlbum(d);
-    if (!file) return 'The album could not be made. See the log.';
-    return shell.openPath(file);
+    if (!d || !fs.existsSync(d)) return { sessions: 0, made: null, newSince: 0, processing: 0 };
+    return require('./album').albumStatus(d);
+  });
+  // options.anyway: make it even while videos are still being processed
+  ipcMain.handle('create-album', async (e, id, options = {}) => {
+    const d = eventDirOf(id);
+    if (!d || !fs.existsSync(d)) return { error: 'No recordings or photos for this couple yet.' };
+    const album = require('./album');
+    const st = album.albumStatus(d);
+    if (st.processing && !(options && options.anyway)) return { needsConfirm: true, processing: st.processing };
+    const file = album.writeAlbum(d);
+    if (!file) return { error: 'The album could not be made. See the log.' };
+    require('./log').write(`Album created: ${path.basename(d)} (${st.sessions} sessions)`);
+    const err = await shell.openPath(file);
+    return err ? { error: err } : { ok: true, ...album.albumStatus(d) };
   });
 }
 

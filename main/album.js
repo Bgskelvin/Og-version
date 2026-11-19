@@ -3,8 +3,11 @@
    wedding, one entry per guest (their video messages, quiz videos and
    photos). It opens in any browser straight from the folder, also on the
    couple's own computer, and plays the files next to it (relative links).
-   - Made again a few seconds after any session of that event changes
-     (storage.onSessionChange), and when Admin opens it.
+   - Made only when Admin asks (couple page → "Create album"), usually after
+     the event: nothing runs in the background while guests use the booth.
+     Pressing it again brings the album up to date. Admin first sees whether
+     videos are still being processed (they would show "still being prepared")
+     and how many sessions came after the last album (albumStatus).
    - The data is put in the page as JSON and drawn by the page's own script
      with textContent, so a guest name can never break or inject the page.
    - Written the safe way (temporary file, then renamed).
@@ -13,12 +16,9 @@
    ===================================================================== */
 const fs = require('fs');
 const path = require('path');
-const { readSessions, readSettings, onSessionChange } = require('./storage');
+const { readSessions, readSettings } = require('./storage');
 const eventFolders = require('./event-folders');
 const log = require('./log');
-
-const DELAY_MS = 2500;
-const timers = new Map();
 
 const TEXT = {
   id: {
@@ -459,25 +459,26 @@ function writeAlbum(eventDir) {
     return null;
   }
 }
-// A few seconds after the last change (one write for a burst of changes)
-function scheduleAlbum(eventDir) {
-  const key = path.resolve(eventDir);
-  clearTimeout(timers.get(key));
-  const timer = setTimeout(() => {
-    timers.delete(key);
-    writeAlbum(eventDir);
-  }, DELAY_MS);
-  if (timer.unref) timer.unref();
-  timers.set(key, timer);
-}
-function start() {
-  // Every event once when the app opens (also events just moved into the new layout)
-  const events = new Set(readSessions().map(eventFolders.eventDirOf).filter(Boolean));
-  events.forEach(d => fs.existsSync(d) && scheduleAlbum(d));
-  onSessionChange(s => {
-    const dir = eventFolders.eventDirOf(s);
-    if (dir) scheduleAlbum(dir);
-  });
+/* For the couple page: is there an album, when was it made, how many sessions came after it,
+   and how many videos are still being processed (converted, questions added, copied from the camera). */
+const BUSY = ['recording', 'processing', 'captions', 'transfer'];
+function albumStatus(eventDir) {
+  const file = path.join(eventDir, eventFolders.ALBUM_FILE);
+  let made = null;
+  try {
+    made = fs.statSync(file).mtimeMs;
+  } catch {
+    /* no album yet */
+  }
+  const own = readSessions().filter(
+    s => eventFolders.eventDirOf(s) && path.resolve(eventFolders.eventDirOf(s)) === path.resolve(eventDir),
+  );
+  return {
+    sessions: own.length,
+    made,
+    newSince: made ? own.filter(s => Date.parse(s.time) > made).length : 0,
+    processing: own.filter(s => BUSY.includes(s.status)).length,
+  };
 }
 
-module.exports = { start, writeAlbum, scheduleAlbum, albumData, albumHtml };
+module.exports = { writeAlbum, albumData, albumHtml, albumStatus };

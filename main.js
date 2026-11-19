@@ -108,7 +108,6 @@ app.whenReady().then(async () => {
   sonyCamera.start(); // connect the Sony camera if chosen in Admin
   upload.start(); // continue the remaining photo upload queue (QR)
   print.start(); // continue prints that were waiting when the app closed
-  require('./main/album').start(); // Album.html follows every change in an event
 });
 
 app.on('second-instance', () => appWindow.showWindow());

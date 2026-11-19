@@ -3085,7 +3085,7 @@ const KASUS = {
     cek(!fs.existsSync(path.join(folderAcara(docsDir), '5 Cetak')), 'a subfolder only appears when it is used');
   },
 
-  async 'album: Album.html per event, safe names, opens from Admin'() {
+  async 'album: created from Admin after the event, safe names, asks while videos are processing'() {
     const { panggil, kirim, docsDir, electron } = nyalakanAplikasi();
     electron.__siap();
     await tunggu(100);
@@ -3109,20 +3109,48 @@ const KASUS = {
       'relative links that work from the folder (spaces encoded)',
       data.guests,
     );
-    await tunggu(3000); // made by itself a moment after the last change
+    await tunggu(3000);
     const file = path.join(acara, 'Album.html');
-    cek(fs.existsSync(file), 'Album.html made in the event folder by itself');
+    cek(!fs.existsSync(file), 'no album during the event: nothing runs in the background');
+    let st = await panggil('album-status', '');
+    cek(st.sessions === 2 && st.made === null && st.processing === 0, 'couple page: no album yet, 2 sessions', st);
+    // A video still being processed: Admin is asked first
+    const { updateSession } = require(path.join(__dirname, '..', 'main', 'storage.js'));
+    const video = require(path.join(__dirname, '..', 'main', 'storage.js'))
+      .readSessions()
+      .find(x => x.label === 'message');
+    updateSession(video.id, { status: 'processing' });
+    let c = await panggil('create-album', '');
+    cek(
+      c.needsConfirm && c.processing === 1 && !fs.existsSync(file),
+      'video still processing: asks before creating',
+      c,
+    );
+    electron.__dibuka = null;
+    c = await panggil('create-album', '', { anyway: true });
+    cek(c.ok && fs.existsSync(file) && /Album\.html$/.test(electron.__dibuka), 'Create anyway: made and opened', c);
+    cek(
+      /still being prepared|sedang disiapkan/.test(fs.readFileSync(file, 'utf8')) &&
+        album.albumData(acara).guests[0].items[0].state === 'processing',
+      'that video shows as being prepared',
+    );
+    updateSession(video.id, { status: 'webm' });
     const html = fs.readFileSync(file, 'utf8');
     cek(
       !html.includes('<b>Budi</b>') && html.includes('\\u003cb>Budi\\u003c/b>'),
       'a guest name with HTML in it is shown as text, never as page code',
     );
     cek(/class="amp"/.test(html) && /Rina/.test(html) && /Dimas/.test(html), 'couple names with the large "&"');
-    electron.__dibuka = null;
-    cek((await panggil('open-album', '')) === '' && /Album\.html$/.test(electron.__dibuka), 'Admin: Open album');
+    // A session after the album: the couple page says the album is behind
+    await tunggu(20);
+    await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Andi', visit: 'c' });
+    st = await panggil('album-status', '');
+    cek(st.made && st.newSince === 1, 'a new session after the album is counted', st);
+    c = await panggil('create-album', '');
+    cek(c.ok && c.newSince === 0 && album.albumData(acara).guests.length === 3, 'Create album again: up to date', c);
     const lain = await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] });
     cek(
-      /No recordings or photos/.test(await panggil('open-album', lain.couple.id)),
+      /No recordings or photos/.test((await panggil('create-album', lain.couple.id)).error),
       'couple without sessions: clear message',
     );
   },

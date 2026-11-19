@@ -129,6 +129,7 @@ function openCouplePage(c, keepForm = false) {
   $('cpOtherBox').style.display = c ? '' : 'none';
   if (c) listCoupleTemplates(c);
   else clearTemplateCouple();
+  if (c) showAlbumStatus();
   if (keepForm) return; // form content unchanged (after saving a new couple)
   $('fName').value = c ? c.name : '';
   $('fWelcome').value = c ? c.welcome || '' : '';
@@ -149,6 +150,49 @@ function openCouplePage(c, keepForm = false) {
   $('coupleForm').querySelector('.sheet-body').scrollTop = 0;
   setTimeout(() => $('fName').focus(), 50);
 }
+/* ---------- Album (after the event) ----------
+   "Create album" makes Album.html in the couple folder and opens it. Videos still being processed would
+   show "still being prepared": then the button asks once more ("Create anyway"). */
+let albumAnyway = null;
+const clock = ms =>
+  new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+function resetAlbumButton() {
+  clearTimeout(albumAnyway);
+  albumAnyway = null;
+  $('albumLabel').textContent = 'Create album';
+}
+async function showAlbumStatus() {
+  resetAlbumButton();
+  const id = state.editingId;
+  const st = api.albumStatus ? await api.albumStatus(id) : null;
+  if (id !== state.editingId || !st) return;
+  $('albumStatus').textContent = !st.sessions
+    ? 'No album yet: this couple has no recordings or photos.'
+    : !st.made
+      ? `No album yet · ${st.sessions} sessions${st.processing ? ` · ${st.processing} video(s) still being processed` : ''}`
+      : `Album created ${clock(st.made)}` +
+        (st.newSince ? ` · ⚠️ ${st.newSince} new session(s) since then: press Create album again` : ' · up to date') +
+        (st.processing ? ` · ${st.processing} video(s) still being processed` : '');
+}
+async function createAlbum() {
+  const anyway = !!albumAnyway;
+  resetAlbumButton();
+  const r = await api.createAlbum(state.editingId, { anyway });
+  if (r && r.needsConfirm) {
+    $('albumLabel').textContent = 'Create anyway?';
+    albumAnyway = setTimeout(resetAlbumButton, 6000);
+    flash(
+      'cpMsg',
+      `${r.processing} video(s) are still being processed and would show as "still being prepared". Wait a few minutes, or press again to create it now.`,
+      true,
+    );
+    return;
+  }
+  if (!r || r.error) return flash('cpMsg', (r && r.error) || 'The album could not be made.', true);
+  flash('cpMsg', 'Album created in the couple folder and opened.');
+  showAlbumStatus();
+}
+
 async function saveCouple() {
   const data = {
     id: state.editingId || undefined,
@@ -193,10 +237,7 @@ export function setupCouples() {
     const r = await api.openCoupleFolder(state.editingId);
     if (r) flash('cpMsg', r, true);
   };
-  $('btnCoupleAlbum').onclick = async () => {
-    const r = await api.openAlbum(state.editingId);
-    if (r) flash('cpMsg', r, true);
-  };
+  $('btnCoupleAlbum').onclick = createAlbum;
   $('btnCoupleCancel').onclick = () => {
     disarmDelete();
     show('admin');

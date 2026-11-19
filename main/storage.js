@@ -81,24 +81,7 @@ function writeJSON(p, data) {
 const readSettings = () => db.readSettings();
 const writeSettings = s => db.writeSettings(s);
 const readSessions = () => db.readSessions();
-
-/* Listeners told after a session is added or changed (album.js remakes that event's Album.html).
-   A listener that fails never stops the save. */
-const sessionListeners = [];
-const onSessionChange = fn => sessionListeners.push(fn);
-function sessionChanged(s) {
-  if (!s) return;
-  for (const fn of sessionListeners)
-    try {
-      fn(s);
-    } catch (e) {
-      console.log('Session listener failed: ' + e.message);
-    }
-}
-const writeSessions = l => {
-  db.writeSessions(l);
-  l.forEach(sessionChanged);
-};
+const writeSessions = l => db.writeSessions(l);
 
 const getOutDir = () => readSettings().outDir || defaultDir;
 
@@ -126,11 +109,7 @@ function usableDir(dir) {
     return false;
   }
 }
-const updateSession = (id, patch) => {
-  const ok = db.updateSession(id, patch);
-  if (ok && sessionListeners.length) sessionChanged(db.getSession(id));
-  return ok;
-};
+const updateSession = (id, patch) => db.updateSession(id, patch);
 
 // Guest name from the "What's your name?" screen -> a safe file name (max 40 characters)
 const guestFileName = t => safeName(String(t || '').slice(0, 40));
@@ -162,12 +141,7 @@ module.exports = {
   writeSessions,
   updateSession,
   getSession: id => db.getSession(id),
-  saveSession: s => {
-    const r = db.saveSession(s);
-    sessionChanged(s);
-    return r;
-  },
-  onSessionChange,
+  saveSession: s => db.saveSession(s),
   deleteSession: id => db.deleteSession(id),
   getOutDir,
   usableDir,
