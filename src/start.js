@@ -3,7 +3,7 @@
    Runs after all plain scripts: loads settings & couples, wires up every
    feature's buttons, then opens the camera.
    ===================================================================== */
-import './debug-handle.js'; // window.__leura for the UI tests and the phone demo
+import './debug-handle.js'; // window.__playgroundbooth for the UI tests and the phone demo
 import { setupAdmin } from './admin.js';
 import { setupBoothSettings } from './booth-settings.js';
 import { initDevices } from './camera.js';

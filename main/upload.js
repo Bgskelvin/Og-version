@@ -16,7 +16,7 @@
      of everything they made (photos, message, quiz) go to the server as one small
      list (kind 'guest' in the queue, sent before anything else). The guest page
      /t/<code> shows them all. A guest with only one result gets that result's own link.
-   The server protocol (cloud/worker.mjs: paths, x-leura-* headers, JSON fields
+   The server protocol (cloud/worker.mjs: paths, x-playgroundbooth-* headers, JSON fields
    such as satuan, bagian, hari) keeps its Indonesian words, so a server that
    is already installed keeps working without npm run cloud:pasang.
    ===================================================================== */
@@ -30,11 +30,12 @@ const log = require('./log');
 
 const SINGLES_DIR = path.join(userData, 'qr-singles');
 const MAX_SINGLES = 4;
-// Size of each video part (R2: all parts the same size, except the last). LEURA_TEST_PART_SIZE is only for the automated tests.
-const PART_SIZE = Number(process.env.LEURA_TEST_PART_SIZE) || 8 * 1024 * 1024;
+// Size of each video part (R2: all parts the same size, except the last). PLAYGROUNDBOOTH_TEST_PART_SIZE is only for the automated tests.
+const PART_SIZE = Number(process.env.PLAYGROUNDBOOTH_TEST_PART_SIZE) || 8 * 1024 * 1024;
 // Written by cloud/pasang.sh: { url, kunci, waktu } (Indonesian field names, like the server protocol).
-// LEURA_TEST_SETUP_RESULT is only for the automated tests (they must never read the real key).
-const SETUP_RESULT = process.env.LEURA_TEST_SETUP_RESULT || path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
+// PLAYGROUNDBOOTH_TEST_SETUP_RESULT is only for the automated tests (they must never read the real key).
+const SETUP_RESULT =
+  process.env.PLAYGROUNDBOOTH_TEST_SETUP_RESULT || path.join(__dirname, '..', 'cloud', '.hasil-pasang.json');
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'; // without look-alike letters (0/O, 1/l/I)
 const MISSING = 'MISSING'; // returned by the senders when the file to send is gone
 
@@ -180,8 +181,8 @@ async function sendPhoto(item, p, n = 0) {
   const limit = setTimeout(() => ctrl.abort(), 60000);
   const headers = { authorization: 'Bearer ' + p.key, 'content-type': 'image/jpeg' };
   if (!n) {
-    headers['x-leura-jumlah'] = String((item.singles || []).length);
-    if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
+    headers['x-playgroundbooth-jumlah'] = String((item.singles || []).length);
+    if (item.couple) headers['x-playgroundbooth-couple'] = encodeURIComponent(item.couple);
   }
   try {
     const r = await fetch(`${baseUrl(p.url)}/u/${item.code}${n ? '/' + n : ''}`, {
@@ -248,7 +249,7 @@ async function sendGuest(item, p) {
     ...(x.kind === 'video' ? { label: x.label === 'quiz' ? 'quiz' : 'pesan' } : {}),
   }));
   const headers = { 'content-type': 'application/json' };
-  if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
+  if (item.couple) headers['x-playgroundbooth-couple'] = encodeURIComponent(item.couple);
   const { r, j, fault } = await request(
     p,
     `/ut/${item.code}`,
@@ -288,8 +289,11 @@ async function sendVideo(item, p) {
     return '';
   }
   if (!item.uploadId) {
-    const headers = { 'x-leura-jenis': item.label === 'quiz' ? 'quiz' : 'pesan', 'x-leura-ukuran': String(size) };
-    if (item.couple) headers['x-leura-couple'] = encodeURIComponent(item.couple);
+    const headers = {
+      'x-playgroundbooth-jenis': item.label === 'quiz' ? 'quiz' : 'pesan',
+      'x-playgroundbooth-ukuran': String(size),
+    };
+    if (item.couple) headers['x-playgroundbooth-couple'] = encodeURIComponent(item.couple);
     const { r, j, fault } = await request(p, base + '/mulai', { method: 'POST', headers }, 60000);
     if (fault) return fault;
     if (!r.ok) return refused(r, j);

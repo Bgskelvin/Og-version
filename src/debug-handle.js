@@ -1,6 +1,6 @@
 /* =====================================================================
    debug-handle.js — one small, read-mostly handle on the running app:
-   window.__leura. Used by the UI tests (tests/uji-tampilan.js) and the
+   window.__playgroundbooth. Used by the UI tests (tests/uji-tampilan.js) and the
    phone demo's fake api (demo/api-demo.js) to look inside the page.
    The app itself never uses it — features import from each other.
    ===================================================================== */
@@ -17,7 +17,7 @@ import { liveViewFrameCount } from './sony-camera.js';
 import { refreshDiskSpace } from './disk-space.js';
 import { openGuestQr } from './guest-qr.js';
 
-window.__leura = Object.freeze({
+window.__playgroundbooth = Object.freeze({
   state,
   show,
   setNotice,

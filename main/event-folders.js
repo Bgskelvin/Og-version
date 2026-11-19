@@ -1,6 +1,6 @@
 /* =====================================================================
    event-folders.js — how recordings, photos and prints are laid out on disk
-   (Leura 1.10.0). One folder per wedding, sorted by date, one subfolder per
+   (PlaygroundBooth 1.10.0). One folder per wedding, sorted by date, one subfolder per
    kind, and one number per guest across all subfolders:
 
      <storage folder>/2026-11-22 Rina & Dimas/
@@ -10,7 +10,7 @@
        4 Foto Asli/     003 Budi/1.jpg … 4.jpg  the camera's original photos
        5 Cetak/         003 Budi.jpg            what was printed (PDF when testing)
        Album.html       a gallery per guest (album.js)
-       .leura/          technical files (original .webm, quiz video without text)
+       .playgroundbooth/ technical files (original .webm, quiz video without text)
 
    - The event folder name is kept on the couple (couple.folder), so it never
      changes, also not when the couple is renamed later.
@@ -44,7 +44,8 @@ const KIND_DIRS = {
   original: '4 Foto Asli',
   print: '5 Cetak',
 };
-const SYSTEM_DIR = '.leura';
+const SYSTEM_DIR = '.playgroundbooth';
+const FORMER_SYSTEM_DIR = '.leura'; // the app's former name (before 1.11.0)
 const ALBUM_FILE = 'Album.html';
 const pad = n => String(n).padStart(2, '0');
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -84,7 +85,7 @@ function kindDir(event, kind) {
   const dir = path.join(event.dir, KIND_DIRS[kind]);
   return usableDir(dir) ? dir : null;
 }
-// .leura/<sub> inside an event (hidden on Windows too)
+// .playgroundbooth/<sub> inside an event (hidden on Windows too)
 function systemDir(eventDir, sub) {
   const top = path.join(eventDir, SYSTEM_DIR);
   const isNew = !fs.existsSync(top);
@@ -100,7 +101,7 @@ function systemDir(eventDir, sub) {
   return dir;
 }
 /* Where the technical copy of a video goes (the original .webm, the quiz video without text).
-   New layout: <event>/.leura/original. Sessions from before stay with original/ next to the video. */
+   New layout: <event>/.playgroundbooth/original. Sessions from before stay with original/ next to the video. */
 function originalDirFor(videoDir) {
   const parent = path.dirname(videoDir);
   if (Object.values(KIND_DIRS).includes(path.basename(videoDir))) return systemDir(parent, 'original');
@@ -149,7 +150,7 @@ function target(kind, { guest, visit, ext, coupleName } = {}) {
 }
 
 /* ---------------------------------------------------------------------
-   reorganize(): data of Leura 1.9 and older → the new layout. Runs once
+   reorganize(): data of PlaygroundBooth 1.9 and older → the new layout. Runs once
    per session (sessions get an `event` field), when the app opens, before
    anything else reads the files:
    - the couple folder is renamed to "<date of its first session> <couple>"
@@ -158,7 +159,7 @@ function target(kind, { guest, visit, ext, coupleName } = {}) {
    - the database (sessions, QR upload queue, print queue) is updated per file,
      right after that file moved, so a file is never lost: a file that can't be
      moved stays where it is and its session keeps pointing at it;
-   - files Leura doesn't know about stay where they are; empty old folders are
+   - files PlaygroundBooth doesn't know about stay where they are; empty old folders are
      removed; a list of every move is kept in <data>/backup/event-folders-<time>.json.
    - a disk that isn't connected (SSD unplugged) is skipped and tried next time.
    --------------------------------------------------------------------- */
@@ -369,7 +370,49 @@ function reorganize() {
   return notes;
 }
 
+/* renameFormerSystemDirs(): <event>/.leura → <event>/.playgroundbooth (the app's former name),
+   once per event folder, and the sessions that point into it follow. Never overwrites. */
+function renameFormerSystemDirs() {
+  const notes = [];
+  const sessions = readSessions();
+  const done = new Map(); // event folder → renamed?
+  let changed = false;
+  for (const s of sessions) {
+    const eventDir = eventDirOf(s);
+    if (!eventDir) continue;
+    if (!done.has(eventDir)) {
+      const from = path.join(eventDir, FORMER_SYSTEM_DIR);
+      const to = path.join(eventDir, SYSTEM_DIR);
+      let ok = false;
+      try {
+        if (fs.existsSync(from) && !fs.existsSync(to)) {
+          fs.renameSync(from, to);
+          ok = true;
+        }
+      } catch (e) {
+        notes.push({ level: 'warn', text: `Could not rename ${from}: ${e.message}` });
+      }
+      done.set(eventDir, ok || (fs.existsSync(to) && !fs.existsSync(from)));
+    }
+    if (done.get(eventDir) && typeof s.originalFile === 'string') {
+      const parts = s.originalFile.split(/[\\/]/);
+      const i = parts.indexOf(FORMER_SYSTEM_DIR);
+      if (i >= 0) {
+        parts[i] = SYSTEM_DIR;
+        s.originalFile = parts.join(path.sep);
+        changed = true;
+      }
+    }
+  }
+  if (changed) writeSessions(sessions);
+  const renamed = [...done.values()].filter(Boolean).length;
+  if (changed || renamed)
+    notes.push({ level: 'info', text: `Technical folders renamed to ${SYSTEM_DIR} (new app name)` });
+  return notes;
+}
+
 module.exports = {
+  renameFormerSystemDirs,
   KIND_DIRS,
   SYSTEM_DIR,
   ALBUM_FILE,

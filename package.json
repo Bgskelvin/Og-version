@@ -1,5 +1,5 @@
 {
-  "name": "leura",
+  "name": "playgroundbooth",
   "productName": "PlaygroundBooth",
   "version": "1.11.0",
   "description": "PlaygroundBooth — wedding videobooth & photobooth",
@@ -24,7 +24,7 @@
     "cloud:pasang": "node installer/cloud-setup.js",
     "demo:bangun": "node demo/bangun.js",
     "demo:lihat": "node demo/bangun.js --lihat",
-    "demo:pasang": "node demo/bangun.js && cd demo && npx wrangler deploy && (npx wrangler r2 bucket lifecycle add leura-foto hapus-demo-1-hari demo/ --expire-days 1 --force || echo '⚠ Aturan hapus foto demo (1 hari) belum terpasang — jalankan lagi nanti')",
+    "demo:pasang": "node demo/bangun.js && cd demo && npx wrangler deploy && (npx wrangler r2 bucket lifecycle add playgroundbooth-foto hapus-demo-1-hari demo/ --expire-days 1 --force || echo '⚠ Aturan hapus foto demo (1 hari) belum terpasang — jalankan lagi nanti')",
     "uji:demo": "node tests/uji-demo.js"
   },
   "keywords": [],
@@ -47,7 +47,7 @@
   },
   "private": true,
   "build": {
-    "appId": "com.leura.booth",
+    "appId": "com.playgroundbooth.app",
     "productName": "PlaygroundBooth",
     "copyright": "© 2026 PlaygroundBooth",
     "artifactName": "PlaygroundBooth-${version}-${arch}.${ext}",

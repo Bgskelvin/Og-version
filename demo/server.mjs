@@ -5,11 +5,11 @@
                     tapi dibatasi: hanya JPEG, maks 8 MB, hanya dari halaman demo).
    - GET /f/<kode>  halaman unduh ASLI PlaygroundBooth (dipakai ulang dari cloud/worker.mjs),
      GET /s/<kode>, /i/<kode>, /d/<kode>  status, gambar & unduhan.
-   Foto demo disimpan di bucket yang sama (leura-foto) tapi di folder terpisah
+   Foto demo disimpan di bucket yang sama (playgroundbooth-foto) tapi di folder terpisah
    "demo/", hanya 1 hari (aturan R2 "hapus-demo-1-hari" menghapusnya otomatis).
    Foto booth asli (folder "foto/") tidak bisa dibaca atau ditimpa dari sini.
    ===================================================================== */
-import leura from '../cloud/worker.mjs';
+import worker from '../cloud/worker.mjs';
 
 const KODE = /^[A-Za-z0-9]{10,16}$/;
 const MAKS_BYTE = 8 * 1024 * 1024;
@@ -55,7 +55,7 @@ export default {
     }
 
     if (jalur === 'f' || jalur === 's' || jalur === 'i' || jalur === 'd') {
-      return leura.fetch(req, { ...env, FOTO: bucketDemo(env.FOTO), HARI_SIMPAN: '1', KUNCI_BOOTH: '' }, ctx);
+      return worker.fetch(req, { ...env, FOTO: bucketDemo(env.FOTO), HARI_SIMPAN: '1', KUNCI_BOOTH: '' }, ctx);
     }
 
     return env.ASSETS.fetch(req);

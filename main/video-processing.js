@@ -22,8 +22,8 @@ const log = require('./log');
 /* ---------- FFmpeg ---------- */
 let ffmpegPath = null;
 try {
-  // LEURA_TEST_FFMPEG is only used by the automated tests (real FFmpeg on the test computer)
-  ffmpegPath = process.env.LEURA_TEST_FFMPEG || require('ffmpeg-static');
+  // PLAYGROUNDBOOTH_TEST_FFMPEG is only used by the automated tests (real FFmpeg on the test computer)
+  ffmpegPath = process.env.PLAYGROUNDBOOTH_TEST_FFMPEG || require('ffmpeg-static');
   if (ffmpegPath) ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
 } catch {
   console.log('ffmpeg-static is not installed: recordings are kept as .webm');

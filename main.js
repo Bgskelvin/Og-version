@@ -25,14 +25,23 @@ const { app, session, systemPreferences, powerSaveBlocker } = require('electron'
 const path = require('path');
 
 // ---------- The data folder is always the same ----------
-// ~/Library/Application Support/leura — shared by "npm start" (code folder)
+// ~/Library/Application Support/playgroundbooth (Windows: %APPDATA%playgroundbooth) — shared by "npm start" (code folder)
 // and PlaygroundBooth.app (installer), so couples, recordings, settings & the QR queue don't move.
 // Must be set first: the "single window" lock & every module use this folder.
 // From the code folder only (not PlaygroundBooth.app): --data-dir=<folder> uses another data folder,
 // e.g. to try a new version on a copy of the event data without touching the real data.
+// Data saved under the former name (Leura, before 1.11.0) is moved to the new folder once (former-name.js).
+const formerName = require('./main/former-name');
 const dataDirArg = !app.isPackaged && process.argv.find(a => a.startsWith('--data-dir='));
-if (app.setPath)
-  app.setPath('userData', dataDirArg ? path.resolve(dataDirArg.slice(11)) : path.join(app.getPath('appData'), 'leura'));
+const renameNotes = [];
+if (app.setPath) {
+  if (!dataDirArg) renameNotes.push(...formerName.moveDataFolder(app.getPath('appData')));
+  app.setPath(
+    'userData',
+    dataDirArg ? path.resolve(dataDirArg.slice(11)) : path.join(app.getPath('appData'), formerName.NAME),
+  );
+  renameNotes.push(...formerName.renameDefaultLogin(app.getPath('userData')));
+}
 
 // ---------- Only one app window ----------
 // If the icon is clicked again while the app is running, the existing window is shown,
@@ -47,7 +56,7 @@ const DEV = process.argv.includes('--dev'); // npx electron main.js --dev  -> Re
 // before any module reads it. Its notes go into the log once the log is ready.
 let migrationNotes;
 try {
-  migrationNotes = [...require('./main/migrate').run(), ...require('./main/database').takeNotes()];
+  migrationNotes = [...renameNotes, ...require('./main/migrate').run(), ...require('./main/database').takeNotes()];
 } catch (e) {
   // The database was made by a newer PlaygroundBooth: don't touch it, tell the operator what to do
   require('electron').dialog.showErrorBox(
@@ -64,6 +73,7 @@ try {
 // Never stops the app: a problem is logged and tried again next time.
 try {
   migrationNotes.push(...require('./main/event-folders').reorganize());
+  migrationNotes.push(...require('./main/event-folders').renameFormerSystemDirs());
 } catch (e) {
   migrationNotes.push({ level: 'error', text: 'Event folders could not be arranged: ' + e.message });
 }

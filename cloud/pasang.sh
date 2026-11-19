@@ -10,7 +10,7 @@
 set -e
 cd "$(dirname "$0")"
 W="npx --yes wrangler@4"
-BUCKET="leura-foto"
+BUCKET="playgroundbooth-foto"
 HASIL=".hasil-pasang.json"
 
 say() { printf '\n▶ %s\n' "$1"; }

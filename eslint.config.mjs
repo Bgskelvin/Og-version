@@ -69,7 +69,7 @@ export default [
       globals: {
         ...globals.browser,
         api: 'readonly',
-        __leura: 'readonly', // window.__leura (src/debug-handle.js)
+        __playgroundbooth: 'readonly', // window.__playgroundbooth (src/debug-handle.js)
         // tiruan window.api & alat uji yang dipasang di halaman (PALSU di uji-tampilan.js)
         ...Object.fromEntries(
           [

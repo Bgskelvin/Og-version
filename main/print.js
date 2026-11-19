@@ -106,7 +106,7 @@ const escapeHtml = s =>
    A hidden window loads the page, then prints it silently to the chosen printer,
    or saves it as a PDF when no printer is chosen. Replaced in the tests. */
 async function electronDriver(job, printer) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'leura-print-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'playgroundbooth-print-'));
   const html = path.join(tmp, 'page.html');
   fs.writeFileSync(
     html,

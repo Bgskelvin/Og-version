@@ -9,7 +9,7 @@
 #   - program kamera Sony + pustaka SDK Sony + lisensi → Resources/kamera-sony/bin
 #   - THIRD-PARTY-NOTICES.txt                          → Resources/
 # Data (couple, rekaman, pengaturan, antrean QR) TIDAK ikut: tetap di
-#   ~/Library/Application Support/leura  — sama dengan "npm start".
+#   ~/Library/Application Support/playgroundbooth  — sama dengan "npm start".
 # Hasil:  dist/PlaygroundBooth-<versi>-<arm64|x64>.dmg  dan  dist/mac*/PlaygroundBooth.app
 # =====================================================================
 set -e
@@ -42,8 +42,8 @@ if [ ! -x kamera-sony/bin/sony-helper ] || [ ! -s kamera-sony/bin/licenses/libus
   if [ -f sdk/sony/SimpleCli.zip ]; then
     printf '  Membuat program kamera Sony (npm run build:sony)…\n'
     bash kamera-sony/build.sh
-  elif [ "$LEURA_TANPA_SONY" = "1" ]; then
-    awas "Tanpa kamera Sony (LEURA_TANPA_SONY=1)."
+  elif [ "$PLAYGROUNDBOOTH_TANPA_SONY" = "1" ]; then
+    awas "Tanpa kamera Sony (PLAYGROUNDBOOTH_TANPA_SONY=1)."
     mkdir -p kamera-sony/bin
   else
     gagal "Program kamera Sony belum ada dan SDK Sony (sdk/sony/SimpleCli.zip) tidak ditemukan."

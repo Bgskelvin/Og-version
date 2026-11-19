@@ -12,7 +12,7 @@
 //       Sony  kamera-sony/bin-win  → resources/kamera-sony/bin   (npm run build:sony)
 //       Lumix kamera-lumix/bin     → resources/kamera-lumix/bin  (npm run build:lumix)
 // Event data (couples, recordings, settings, QR queue) is NOT inside: it stays in
-//   %APPDATA%\leura — the same folder "npm start" uses, and uninstalling keeps it.
+//   %APPDATA%\playgroundbooth — the same folder "npm start" uses, and uninstalling keeps it.
 // Result:  dist/PlaygroundBooth-Setup-<version>-x64.exe  and  dist/win-unpacked/
 // =====================================================================
 'use strict';
@@ -109,4 +109,4 @@ console.log(`  2. Open ${path.basename(setup)} and follow the steps.`);
 console.log('     If Windows says "Windows protected your PC": click More info → Run anyway');
 console.log('     (the installer is not signed yet).');
 console.log('  3. Open PlaygroundBooth from the desktop or the Start menu. Allow camera & microphone if Windows asks.');
-console.log('  Event data stays in %APPDATA%\\leura, also after uninstalling.\n');
+console.log('  Event data stays in %APPDATA%\\playgroundbooth, also after uninstalling.\n');

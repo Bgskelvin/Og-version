@@ -3,7 +3,7 @@
    Dipasang dengan:  npm run cloud:pasang   (lihat cloud/pasang.sh)
 
    PUT  /u/<kode>       booth mengunggah foto hasil (dengan template) — wajib kunci booth
-                        header opsional: x-leura-couple (nama couple), x-leura-jumlah (jumlah foto satuan 0-4)
+                        header opsional: x-playgroundbooth-couple (nama couple), x-playgroundbooth-jumlah (jumlah foto satuan 0-4)
    PUT  /u/<kode>/<n>   booth mengunggah foto satuan ke-n (1-4)       — wajib kunci booth
    GET  /f/<kode>       halaman unduh untuk tamu (yang dibuka dari QR)
    GET  /s/<kode>       status JSON: foto mana yang sudah ada (dipakai halaman unduh)
@@ -13,7 +13,7 @@
 
    Video (pesan & quiz) — diunggah per bagian (R2 multipart), wajib kunci booth:
    PUT  /uv/<kode>/poster        gambar sampul (JPEG)
-   POST /uv/<kode>/mulai         mulai unggah → { uploadId }   (header x-leura-couple, x-leura-jenis, x-leura-ukuran)
+   POST /uv/<kode>/mulai         mulai unggah → { uploadId }   (header x-playgroundbooth-couple, x-playgroundbooth-jenis, x-playgroundbooth-ukuran)
    PUT  /uv/<kode>/<n>?u=<id>    bagian ke-n (1..) → { etag }
    POST /uv/<kode>/selesai?u=<id> { bagian: [{ partNumber, etag }] }
    GET  /v/<kode>       halaman video untuk tamu (pemutar + Simpan video)
@@ -24,7 +24,7 @@
 
    Satu QR untuk semua hasil satu tamu (pesan, quiz, foto) — v1.5.0:
    PUT  /ut/<kode>      booth mengirim daftar hasil tamu (JSON { isi: [{ jenis, kode, label }] }) — wajib kunci booth
-                        header opsional: x-leura-couple
+                        header opsional: x-playgroundbooth-couple
    GET  /t/<kode>       halaman tamu: semua hasilnya, masing-masing membuka halaman foto (/f) atau video (/v)
    GET  /ts/<kode>      status JSON: hasil mana yang sudah sampai
 
@@ -696,9 +696,9 @@ export default {
         if (await env.FOTO.head(kunci)) return json({ ok: true, ada: true });
         const meta = {
           diunggah: String(Date.now()),
-          jenis: req.headers.get('x-leura-jenis') === 'quiz' ? 'quiz' : 'pesan',
+          jenis: req.headers.get('x-playgroundbooth-jenis') === 'quiz' ? 'quiz' : 'pesan',
         };
-        const couple = namaCouple(req.headers.get('x-leura-couple'));
+        const couple = namaCouple(req.headers.get('x-playgroundbooth-couple'));
         if (couple) meta.couple = couple;
         const mpu = await env.FOTO.createMultipartUpload(kunci, {
           httpMetadata: { contentType: 'video/mp4' },
@@ -759,7 +759,7 @@ export default {
       // Waktu simpan dihitung dari kiriman pertama (daftar bisa dikirim ulang)
       const lama = await env.FOTO.head(kunciTamu(kode));
       const meta = { diunggah: lama ? String(waktuUnggah(lama)) : String(Date.now()) };
-      const couple = namaCouple(req.headers.get('x-leura-couple'));
+      const couple = namaCouple(req.headers.get('x-playgroundbooth-couple'));
       if (couple) meta.couple = couple;
       await env.FOTO.put(kunciTamu(kode), JSON.stringify({ isi }), {
         httpMetadata: { contentType: 'application/json' },
@@ -778,8 +778,8 @@ export default {
       if (!(b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff)) return json({ ok: false, error: 'Bukan foto JPEG' }, 415);
       const meta = { diunggah: String(Date.now()) };
       if (!n) {
-        const couple = namaCouple(req.headers.get('x-leura-couple'));
-        const jumlah = Math.min(MAKS_SATUAN, Math.max(0, Number(req.headers.get('x-leura-jumlah')) || 0));
+        const couple = namaCouple(req.headers.get('x-playgroundbooth-couple'));
+        const jumlah = Math.min(MAKS_SATUAN, Math.max(0, Number(req.headers.get('x-playgroundbooth-jumlah')) || 0));
         if (couple) meta.couple = couple;
         if (jumlah) meta.jumlah = String(jumlah);
       }
