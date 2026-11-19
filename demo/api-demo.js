@@ -5,6 +5,8 @@
      Hanya foto hasil photobooth yang dikirim ke server demo (untuk QR).
    - Admin bisa dibuka (ID: admin, password: 1234). Perubahan hanya di HP ini.
    - QR unduh foto jalan sungguhan (lewat demo/server.mjs, foto disimpan 1 hari).
+   - Cetak foto disimulasikan: layar "berapa cetak?" & Admin → Printing tampil seperti
+     aplikasi asli, tapi tidak ada printer (printer "Demo printer"). Cetak & QR menyala sejak awal.
    - Yang tidak ada di demo: kamera Sony, MP4,
      folder penyimpanan, ganti password, tutup aplikasi.
    File ini dimuat SEBELUM src/state.js. Kode aplikasi aslinya tidak diubah.
@@ -12,6 +14,8 @@
 (function () {
   'use strict';
   const DEMO = 'Not available in the demo.';
+  const DEMO_PRINTER = 'Demo printer';
+  const PRINT_SECONDS = 4; // a simulated print takes this long
   const MAKS_SESI = 20; // sesi terlama dihapus supaya memori HP tidak penuh
 
   // QR sungguhan kalau demo dibuka dari internet (https); di komputer sendiri: halaman contoh
@@ -81,6 +85,9 @@
     language: 'en',
     accent: '#B08D57',
     loginId: 'admin',
+    printEnabled: true, // the demo shows printing from the start (simulated, no printer)
+    printMaxCopies: 4,
+    printer: DEMO_PRINTER,
   };
   const BATAS = {
     quizSeconds: [10, 300],
@@ -89,6 +96,7 @@
     messageMaxSeconds: [0, 600],
     photoCountdown: [2, 10],
     photoPreview: [0, 5],
+    printMaxCopies: [1, 10],
   };
   const idBaru = p => p + Date.now() + Math.random().toString(36).slice(2, 6);
   // Demo data saved on this phone by an older version (Indonesian names), same as main/migrate.js
@@ -395,6 +403,36 @@
     ...Object.fromEntries(Object.entries(ST).filter(([k]) => !['loginId', 'accent'].includes(k))),
   });
 
+  /* ---------- Simulated printing ---------- */
+  let cetakMenunggu = 0,
+    cetakHariIni = 0;
+  const cbStatusCetak = [];
+  const statusCetak = () => ({
+    printer: DEMO_PRINTER,
+    waiting: cetakMenunggu,
+    failed: 0,
+    printedToday: cetakHariIni,
+    sheetsToday: cetakHariIni,
+    lastError: '',
+  });
+  const kabarCetak = () => cbStatusCetak.forEach(cb => cb(statusCetak()));
+  function cetak(copies, tamu, test = false) {
+    cetakMenunggu += 1;
+    kabarCetak();
+    catat(`Cetak (demo): ${test ? 'test page' : copies + ' copy/copies'}${tamu ? ' — ' + tamu : ''}`);
+    pesanLayar(
+      test
+        ? 'Demo: test page sent to the printer (no real printer in the demo).'
+        : `Demo: ${copies} print${copies === 1 ? '' : 's'} sent to the printer (no real printer in the demo).`,
+    );
+    setTimeout(() => {
+      cetakMenunggu = Math.max(0, cetakMenunggu - 1);
+      if (!test) cetakHariIni += copies;
+      kabarCetak();
+    }, PRINT_SECONDS * 1000);
+    return { ok: true, id: Date.now() };
+  }
+
   window.api = {
     getConfig: async () => {
       await siap;
@@ -414,6 +452,7 @@
         } else if (typeof ST_AWAL[k] === 'boolean' && typeof v === 'boolean') n[k] = v;
         else if (k === 'language' && ['id', 'en'].includes(v)) n[k] = v;
         else if (k === 'accent' && /^#[0-9a-f]{6}$/i.test(v)) n[k] = v;
+        else if (k === 'printer') n[k] = DEMO_PRINTER; // the only printer in the demo
       }
       if (p && p.camera && p.camera !== 'webcam') {
         pesanLayar('Kamera Sony hanya ada di aplikasi Mac. Demo memakai kamera HP.');
@@ -719,10 +758,11 @@
     },
 
     appInfo: async () => ({ demo: true, version: 'demo', installed: true, licenses: false }),
+    // QR is always on in the demo (when opened from the internet): Admin shows it on, prints get a QR
     uploadStatus: async () => ({
-      enabled: false,
-      url: '',
-      hasKey: false,
+      enabled: qrAsli(),
+      url: qrAsli() ? location.origin : '',
+      hasKey: qrAsli(),
       video: false,
       videoQuality: '720',
       waiting: 0,
@@ -744,6 +784,28 @@
     uploadSetupResult: async () => null,
     retryUploadNow: async () => ({ enabled: false }),
     onUploadStatus: () => {},
+
+    /* ---------- Printing (simulated: no printer, the queue and counts behave like main/print.js) ---------- */
+    printPrinters: async () => [{ name: DEMO_PRINTER, displayName: DEMO_PRINTER, isDefault: true }],
+    printStatus: async () => statusCetak(),
+    printPhoto: async p => {
+      const copies = Math.round(Number(p && p.copies));
+      if (!p || !p.image || !p.image.length) return { ok: false, error: 'No print image' };
+      if (!(copies >= 1 && copies <= 10)) return { ok: false, error: 'Choose 1 to 10 copies' };
+      return cetak(copies, p.guest);
+    },
+    printTest: async () => cetak(1, null, true),
+    printRetry: async () => ({ ...statusCetak(), retried: 0 }),
+    printClearFailed: async () => ({ ...statusCetak(), removed: 0 }),
+    printSessionSource: async id => {
+      await siap;
+      const blob = await ambil('media:' + id, null);
+      if (!blob) return { error: 'This session has no photo.' };
+      return { image: new Uint8Array(await blob.arrayBuffer()) };
+    },
+    onPrintStatus: cb => {
+      cbStatusCetak.push(cb);
+    },
 
     openLink: async u => {
       if (/^https:\/\//.test(u)) window.open(u, '_blank', 'noopener');

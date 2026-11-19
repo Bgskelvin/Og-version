@@ -131,7 +131,31 @@ async function main() {
   await pg.click('#pbFinish');
   await tunggu(600);
   await pg.click('#peDone');
+  // Printing is on from the start in the demo: the guest picks how many prints (simulated, no printer)
+  await tungguLayar('printCopies');
+  cek(
+    await pg.evaluate(() => {
+      const r = document.getElementById('pcPhoto').getBoundingClientRect();
+      return r.width > 0 && r.right <= innerWidth + 1;
+    }),
+    'cetak menyala sejak awal: halaman "berapa cetak?" tampil dengan foto tamu',
+  );
+  await tunggu(700); // the page animates in
+  await pg.click('#pcPlus');
+  cek((await pg.textContent('#pcCount')) === '2', 'jumlah cetak bisa ditambah');
+  await pg.click('#pcPrint');
   await tungguLayar('thanks');
+  cek(
+    /2 prints sent to the printer/.test(await pg.textContent('#notice')),
+    'demo memberi tahu: 2 cetak dikirim (tanpa printer)',
+  );
+  cek(
+    await pg.evaluate(async () => {
+      const st = await api.uploadStatus();
+      return st.enabled && st.hasKey && (await api.getSettings()).printEnabled;
+    }),
+    'QR & cetak menyala sejak awal (Admin menampilkannya menyala)',
+  );
   cek(await pg.isVisible('#thanksPhoto'), 'hasil foto tampil');
   cek(
     await pg.evaluate(() => {

@@ -57,7 +57,7 @@ export function renderPrintStatus(st) {
 }
 
 export async function fillPrintSettings() {
-  if (!api.printStatus) return; // phone demo: no printing
+  if (!api.printStatus) return; // no printing in this build
   const s = await api.getSettings();
   $('setPrintEnabled').checked = !!s.printEnabled;
   const max = Number(s.printMaxCopies) || (state.cfg && state.cfg.printMaxCopies) || 4;
