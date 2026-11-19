@@ -1,8 +1,8 @@
 {
   "name": "leura",
-  "productName": "Leura",
-  "version": "1.10.0",
-  "description": "Leura — wedding videobooth & photobooth",
+  "productName": "PlaygroundBooth",
+  "version": "1.11.0",
+  "description": "PlaygroundBooth — wedding videobooth & photobooth",
   "main": "main.js",
   "scripts": {
     "start": "electron main.js",
@@ -28,7 +28,7 @@
     "uji:demo": "node tests/uji-demo.js"
   },
   "keywords": [],
-  "author": "Leura",
+  "author": "PlaygroundBooth",
   "license": "UNLICENSED",
   "type": "commonjs",
   "devDependencies": {
@@ -48,9 +48,9 @@
   "private": true,
   "build": {
     "appId": "com.leura.booth",
-    "productName": "Leura",
-    "copyright": "© 2026 Leura",
-    "artifactName": "Leura-${version}-${arch}.${ext}",
+    "productName": "PlaygroundBooth",
+    "copyright": "© 2026 PlaygroundBooth",
+    "artifactName": "PlaygroundBooth-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "installer"
@@ -95,12 +95,12 @@
       "gatekeeperAssess": false,
       "minimumSystemVersion": "12.1",
       "extendInfo": {
-        "NSCameraUsageDescription": "Leura uses the camera to record guests and take photos.",
-        "NSMicrophoneUsageDescription": "Leura uses the microphone to record guest messages."
+        "NSCameraUsageDescription": "PlaygroundBooth uses the camera to record guests and take photos.",
+        "NSMicrophoneUsageDescription": "PlaygroundBooth uses the microphone to record guest messages."
       }
     },
     "dmg": {
-      "title": "Leura ${version}"
+      "title": "PlaygroundBooth ${version}"
     },
     "win": {
       "target": [
@@ -130,13 +130,13 @@
       ]
     },
     "nsis": {
-      "artifactName": "Leura-Setup-${version}-${arch}.${ext}",
+      "artifactName": "PlaygroundBooth-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Leura",
+      "shortcutName": "PlaygroundBooth",
       "deleteAppDataOnUninstall": false
     }
   }

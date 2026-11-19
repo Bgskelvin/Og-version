@@ -94,7 +94,7 @@ html, body { margin: 0; width: ${PAPER.width}in; height: ${PAPER.height}in; over
 h1 { font-size: 20pt; margin: 0; } p { margin: 0; font-size: 9pt; color: #6e6e73; max-width: 80mm; }
 .sw { display: flex; gap: 2mm; } .sw i { width: 9mm; height: 9mm; display: block; }
 </style></head><body><div class="edge"></div><div class="safe"></div><div class="mid">
-<h1>Leura test print</h1><p>4×6 inch · ${escapeHtml(printerLabel)}</p>
+<h1>PlaygroundBooth test print</h1><p>4×6 inch · ${escapeHtml(printerLabel)}</p>
 <div class="sw"><i style="background:#000"></i><i style="background:#ff3b30"></i><i style="background:#34c759"></i><i style="background:#0a84ff"></i><i style="background:#ffcc00"></i><i style="background:#b08d57"></i></div>
 <p>The gold line is the paper edge, the dashed line is 3 mm inside it. If the gold line is missing the printer cuts a little off the edges: keep names and the QR inside the dashed line.</p>
 </div></body></html>`;

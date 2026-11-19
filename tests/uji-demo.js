@@ -162,7 +162,10 @@ async function main() {
     'foto hasil terkirim ke server demo (folder demo/)',
   );
   const halUnduh = await (await fetch(URL_DEMO + 'f/' + kodeQR)).text();
-  cek(halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('LEURA'), 'halaman unduh asli Leura menampilkan foto itu');
+  cek(
+    halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('PLAYGROUNDBOOTH'),
+    'halaman unduh asli PlaygroundBooth menampilkan foto itu',
+  );
   cek(
     (await fetch(URL_DEMO + 'u/' + 'BukanJPEG1234', { method: 'PUT', body: 'halo' })).status === 415,
     'server demo menolak file yang bukan foto JPEG',

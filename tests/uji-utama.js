@@ -252,7 +252,7 @@ const KASUS = {
       pesan = e.message;
     }
     cek(
-      /newer Leura/.test(pesan) && !fs.readdirSync(baru).some(n => n.includes('corrupt')),
+      /newer PlaygroundBooth/.test(pesan) && !fs.readdirSync(baru).some(n => n.includes('corrupt')),
       'database versi lebih baru: ditolak, tidak dianggap rusak',
     );
 
@@ -427,7 +427,7 @@ const KASUS = {
       /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) &&
         /App opened/.test(isi()) &&
         // from the code folder the version comes from package.json (not Electron's own version)
-        isi().includes(`Leura version ${require(path.join(__dirname, '..', 'package.json')).version} `),
+        isi().includes(`PlaygroundBooth version ${require(path.join(__dirname, '..', 'package.json')).version} `),
       'satu file per hari, dimulai "App opened" + versi',
       hariIni,
     );
@@ -472,7 +472,7 @@ const KASUS = {
     const kirimIsi = fs.readFileSync(electron.__simpanKe, 'utf8');
     cek(
       simpan.ok &&
-        /Leura app log/.test(kirimIsi) &&
+        /PlaygroundBooth app log/.test(kirimIsi) &&
         /===== \d{4}-\d\d-\d\d =====/.test(kirimIsi) &&
         /Recording done/.test(kirimIsi) &&
         electron.__ditunjukkan === electron.__simpanKe,
@@ -1817,8 +1817,9 @@ const KASUS = {
       stTamu,
     );
     cek(
-      /Your Leura moments|Everything from your visit/.test(await (await ambil('/t/' + gk + '?b=en')).text()) &&
-        (await (await ambil('/t/' + gk + '?b=en')).text()).includes(`href="/f/${a}?b=en"`),
+      /Your PlaygroundBooth moments|Everything from your visit/.test(
+        await (await ambil('/t/' + gk + '?b=en')).text(),
+      ) && (await (await ambil('/t/' + gk + '?b=en')).text()).includes(`href="/f/${a}?b=en"`),
       'halaman tamu bahasa Inggris; link hasil tetap bahasa Inggris',
     );
     cek(
@@ -1884,8 +1885,8 @@ const KASUS = {
     const pkg = JSON.parse(fs.readFileSync(path.join(akar, 'package.json'), 'utf8'));
     const b = pkg.build || {};
     cek(
-      pkg.productName === 'Leura' && b.productName === 'Leura' && b.appId === 'com.leura.booth',
-      'nama aplikasi "Leura"',
+      pkg.productName === 'PlaygroundBooth' && b.productName === 'PlaygroundBooth' && b.appId === 'com.leura.booth',
+      'nama aplikasi "PlaygroundBooth"',
     );
     cek(
       pkg.scripts['build:mac'] === 'bash installer/build-mac.sh' &&
@@ -1972,7 +1973,9 @@ const KASUS = {
     cek(fs.existsSync(path.join(dataDir, 'config.json')), 'Leura.app: config.json bawaan disalin ke folder data');
     const st = (await panggil('save-settings', { camera: 'sony' })) && (await panggil('sony-status'));
     cek(
-      !st.connected && /missing from this Leura\.app/.test(st.message) && /npm run build:mac/.test(st.message),
+      !st.connected &&
+        /missing from this PlaygroundBooth\.app/.test(st.message) &&
+        /npm run build:mac/.test(st.message),
       'Leura.app tanpa program Sony: pesan jelas (bangun ulang installer)',
       st.message,
     );
@@ -2009,8 +2012,8 @@ const KASUS = {
       'installer asks before installing, makes a desktop shortcut, keeps event data on uninstall',
     );
     cek(
-      /^Leura-Setup-\$\{version\}-\$\{arch\}\.\$\{ext\}$/.test(n.artifactName || ''),
-      'installer file named Leura-Setup-<version>-<arch>.exe (the build script looks for it)',
+      /^PlaygroundBooth-Setup-\$\{version\}-\$\{arch\}\.\$\{ext\}$/.test(n.artifactName || ''),
+      'installer file named PlaygroundBooth-Setup-<version>-<arch>.exe (the build script looks for it)',
     );
     cek(
       !((b.win && b.win.extraResources) || []).some(x => x.from === 'kamera-sony/bin'),

@@ -74,7 +74,7 @@ const TEKS = {
       'Foto disimpan selama {h} hari setelah diambil. Kalau kamu baru saja berfoto, tunggu sebentar dan buka lagi link ini.',
     simpanHari: 'Foto tersedia {h} hari.',
     foto: 'Foto',
-    vJudul: 'Video Leura',
+    vJudul: 'Video PlaygroundBooth',
     vSiap: 'Videomu sudah siap',
     vPesan: 'Pesan video',
     vQuiz: 'Quick quiz',
@@ -90,7 +90,7 @@ const TEKS = {
     vHilang: 'Video tidak ditemukan',
     vHilangInfo: 'Video disimpan selama {h} hari setelah direkam.',
     vPutar: 'Putar video',
-    tJudul: 'Hasil Leura-mu',
+    tJudul: 'Hasil PlaygroundBooth-mu',
     tSiap: 'Semua hasilmu ada di sini',
     tInfo: 'Ketuk salah satu untuk melihat dan menyimpannya.',
     tFoto: 'Foto photo booth',
@@ -134,7 +134,7 @@ const TEKS = {
       'Photos are kept for {h} days after they are taken. If you just took your photo, please wait a moment and open this link again.',
     simpanHari: 'Available for {h} days.',
     foto: 'Photo',
-    vJudul: 'Leura video',
+    vJudul: 'PlaygroundBooth video',
     vSiap: 'Your video is ready',
     vPesan: 'Video message',
     vQuiz: 'Quick quiz',
@@ -150,7 +150,7 @@ const TEKS = {
     vHilang: 'Video not found',
     vHilangInfo: 'Videos are kept for {h} days after they are recorded.',
     vPutar: 'Play video',
-    tJudul: 'Your Leura moments',
+    tJudul: 'Your PlaygroundBooth moments',
     tSiap: 'Everything from your visit',
     tInfo: 'Tap one to view and save it.',
     tFoto: 'Photo booth',
@@ -208,22 +208,22 @@ const namaCouple = v => {
 // Nama file unduhan: "Rina-Dimas_foto-1.jpg" (huruf aman saja)
 const namaFile = (couple, kode, n) =>
   `${
-    (couple || 'Leura')
+    (couple || 'PlaygroundBooth')
       .normalize('NFKD')
       .replace(/[^A-Za-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-      .slice(0, 40) || 'Leura'
+      .slice(0, 40) || 'PlaygroundBooth'
   }_${n ? 'foto-' + n : 'template'}_${kode.slice(0, 4)}.jpg`;
 
 const kunciVideo = kode => `video/${kode}.mp4`;
 const kunciPoster = kode => `video/${kode}.jpg`;
 const namaFileVideo = (couple, kode, jenis) =>
   `${
-    (couple || 'Leura')
+    (couple || 'PlaygroundBooth')
       .normalize('NFKD')
       .replace(/[^A-Za-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-      .slice(0, 40) || 'Leura'
+      .slice(0, 40) || 'PlaygroundBooth'
   }_${jenis === 'quiz' ? 'quiz' : 'pesan'}_${kode.slice(0, 4)}.mp4`;
 async function infoVideo(env, kode) {
   if (!KODE.test(kode)) return null;
@@ -420,7 +420,7 @@ function halaman(t, isi, skrip = '') {
     `<!doctype html><html lang="${t.lang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F6F1EA"><title>${esc(t.judul)}</title><style>${GAYA}</style></head>
-<body><main><div class="merek">LEURA</div>${isi}</main>${skrip}</body></html>`,
+<body><main><div class="merek">PLAYGROUNDBOOTH</div>${isi}</main>${skrip}</body></html>`,
     { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...HEADER_AMAN } },
   );
 }
@@ -909,6 +909,6 @@ setTimeout(function(){fetch('/vs/${kode}',{cache:'no-store'}).then(function(r){i
       return halaman(t, `<h1>${esc(t.hilang)}</h1><p class="sub">${esc(t.hilangInfo.replace('{h}', h))}</p>`);
     }
 
-    return halaman(t, `<h1>Leura Photo Booth</h1>`);
+    return halaman(t, `<h1>PlaygroundBooth</h1>`);
   },
 };

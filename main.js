@@ -26,9 +26,9 @@ const path = require('path');
 
 // ---------- The data folder is always the same ----------
 // ~/Library/Application Support/leura — shared by "npm start" (code folder)
-// and Leura.app (installer), so couples, recordings, settings & the QR queue don't move.
+// and PlaygroundBooth.app (installer), so couples, recordings, settings & the QR queue don't move.
 // Must be set first: the "single window" lock & every module use this folder.
-// From the code folder only (not Leura.app): --data-dir=<folder> uses another data folder,
+// From the code folder only (not PlaygroundBooth.app): --data-dir=<folder> uses another data folder,
 // e.g. to try a new version on a copy of the event data without touching the real data.
 const dataDirArg = !app.isPackaged && process.argv.find(a => a.startsWith('--data-dir='));
 if (app.setPath)
@@ -49,12 +49,12 @@ let migrationNotes;
 try {
   migrationNotes = [...require('./main/migrate').run(), ...require('./main/database').takeNotes()];
 } catch (e) {
-  // The database was made by a newer Leura: don't touch it, tell the operator what to do
+  // The database was made by a newer PlaygroundBooth: don't touch it, tell the operator what to do
   require('electron').dialog.showErrorBox(
-    'Leura',
-    /newer Leura/.test(e.message)
-      ? 'This data was saved by a newer version of Leura. Please install the newest Leura to open it.'
-      : 'Leura could not open its data: ' + e.message,
+    'PlaygroundBooth',
+    /newer PlaygroundBooth/.test(e.message)
+      ? 'This data was saved by a newer version of PlaygroundBooth. Please install the newest PlaygroundBooth to open it.'
+      : 'PlaygroundBooth could not open its data: ' + e.message,
   );
   app.exit(1);
   process.exit(1);

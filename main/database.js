@@ -77,7 +77,9 @@ function connect(file) {
 function upgrade(db) {
   const version = db.prepare('PRAGMA user_version').get().user_version;
   if (version > SCHEMA.length)
-    throw new Error(`database is from a newer Leura (layout ${version}); this version knows up to ${SCHEMA.length}`);
+    throw new Error(
+      `database is from a newer PlaygroundBooth (layout ${version}); this version knows up to ${SCHEMA.length}`,
+    );
   for (let v = version; v < SCHEMA.length; v++)
     transaction(db, () => {
       db.exec(SCHEMA[v]);
@@ -151,7 +153,7 @@ function openDatabase(dataDir) {
   try {
     db = connect(file);
   } catch (e) {
-    if (/newer Leura/.test(e.message)) throw e; // never set aside the data of a newer version
+    if (/newer PlaygroundBooth/.test(e.message)) throw e; // never set aside the data of a newer version
     db = recover(file, dataDir, e);
   }
   const store = makeStore(db, dataDir, file);

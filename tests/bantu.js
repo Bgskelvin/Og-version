@@ -49,7 +49,7 @@ function pasangElectronPalsu({ dataDir, docsDir, platform, lock = true, argv = [
   };
   const electron = {
     app: {
-      isPackaged: !!terpasang, // true = berjalan sebagai Leura.app (installer)
+      isPackaged: !!terpasang, // true = berjalan sebagai PlaygroundBooth.app (installer)
       getPath: k => (k === 'userData' ? dataDir : docsDir),
       whenReady: () =>
         new Promise(r => {

@@ -1,4 +1,4 @@
-# Leura demo untuk HP — tampilan (demo/web) + server kecil untuk QR demo (server.mjs).
+# PlaygroundBooth demo untuk HP — tampilan (demo/web) + server kecil untuk QR demo (server.mjs).
 # Unggah dengan:  npm run demo:pasang
 name = "leura-demo"
 main = "server.mjs"

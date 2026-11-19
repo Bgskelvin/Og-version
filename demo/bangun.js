@@ -1,5 +1,5 @@
 /* =====================================================================
-   demo/bangun.js — membuat Leura versi DEMO untuk HP (folder demo/web)
+   demo/bangun.js — membuat PlaygroundBooth versi DEMO untuk HP (folder demo/web)
      npm run demo:bangun   → buat folder demo/web
      npm run demo:lihat    → buka demo di komputer ini (http://localhost:8080)
      npm run demo:pasang   → bangun + unggah ke Cloudflare (link untuk HP)
@@ -56,10 +56,10 @@ function bangun() {
     '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">\n' +
       '<meta name="robots" content="noindex">\n' +
       '<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="mobile-web-app-capable" content="yes">\n' +
-      '<meta name="apple-mobile-web-app-status-bar-style" content="default">\n<meta name="apple-mobile-web-app-title" content="Leura">\n' +
+      '<meta name="apple-mobile-web-app-status-bar-style" content="default">\n<meta name="apple-mobile-web-app-title" content="PlaygroundBooth">\n' +
       '<meta name="theme-color" content="#f5f5f7">\n<link rel="manifest" href="manifest.json">\n<link rel="apple-touch-icon" href="ikon-180.png">',
   );
-  ganti('<title>Videobooth</title>', '<title>Leura Demo</title>');
+  ganti('<title>PlaygroundBooth</title>', '<title>PlaygroundBooth Demo</title>');
   // Seluruh tampilan dibungkus supaya bisa diperkecil di HP landscape
   html = html.replace(/<body>\n/, '<body>\n<div id="skala">\n');
   ganti(
@@ -81,8 +81,8 @@ function bangun() {
     path.join(KELUAR, 'manifest.json'),
     JSON.stringify(
       {
-        name: 'Leura Demo',
-        short_name: 'Leura',
+        name: 'PlaygroundBooth Demo',
+        short_name: 'PlaygroundBooth',
         start_url: './',
         scope: './',
         display: 'fullscreen',

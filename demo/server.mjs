@@ -1,9 +1,9 @@
 /* =====================================================================
-   demo/server.mjs — server kecil untuk Leura Demo (Cloudflare Worker)
+   demo/server.mjs — server kecil untuk PlaygroundBooth Demo (Cloudflare Worker)
    - File tampilan (demo/web) dilayani otomatis oleh Cloudflare.
    - PUT /u/<kode>  demo mengunggah foto hasil photobooth (tanpa kunci booth,
                     tapi dibatasi: hanya JPEG, maks 8 MB, hanya dari halaman demo).
-   - GET /f/<kode>  halaman unduh ASLI Leura (dipakai ulang dari cloud/worker.mjs),
+   - GET /f/<kode>  halaman unduh ASLI PlaygroundBooth (dipakai ulang dari cloud/worker.mjs),
      GET /s/<kode>, /i/<kode>, /d/<kode>  status, gambar & unduhan.
    Foto demo disimpan di bucket yang sama (leura-foto) tapi di folder terpisah
    "demo/", hanya 1 hari (aturan R2 "hapus-demo-1-hari" menghapusnya otomatis).

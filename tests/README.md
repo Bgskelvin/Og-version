@@ -6,7 +6,7 @@ Jalankan dari folder proyek.
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run test:utama`    | Uji proses utama: couple, pengaturan & login, file rusak, rekaman, disk penuh, pemulihan rekaman, foto, QR, video, installer. Cukup Node.       |
 | `npm run test:tampilan` | Uji tampilan: membuka aplikasi di browser dengan kamera palsu lalu menekan tombol seperti tamu (Pesan, Quiz, Admin, Photo booth).               |
-| `npm run uji:demo`      | Uji Leura Demo untuk HP.                                                                                                                        |
+| `npm run uji:demo`      | Uji PlaygroundBooth Demo untuk HP.                                                                                                              |
 | `npm test`              | Uji proses utama + tampilan.                                                                                                                    |
 | `npm run lint`          | Pemeriksa kode (ESLint): salah ketik, variabel tak terpakai, `catch` kosong, dll. `npm run lint:fix` memperbaiki yang bisa diperbaiki otomatis. |
 | `npm run format`        | Merapikan format semua kode (Prettier). `npm run format:check` hanya memeriksa.                                                                 |

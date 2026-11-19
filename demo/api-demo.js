@@ -1,5 +1,5 @@
 /* =====================================================================
-   api-demo.js — Leura versi DEMO untuk browser HP (presentasi ke klien)
+   api-demo.js — PlaygroundBooth versi DEMO untuk browser HP (presentasi ke klien)
    Menggantikan bagian Mac (preload.js + folder main/) dengan versi browser:
    - Kamera depan HP, rekaman & foto disimpan di HP itu (IndexedDB).
      Hanya foto hasil photobooth yang dikirim ke server demo (untuk QR).
@@ -179,7 +179,7 @@
     LOG.push(`${jam()} ${t === 'error' ? '✗' : t === 'peringatan' ? '⚠' : ' '} ${p}`);
     if (LOG.length > 400) LOG.shift();
   };
-  catat('────────── Leura demo dibuka ──────────');
+  catat('────────── PlaygroundBooth demo dibuka ──────────');
   catat(navigator.userAgent);
   addEventListener('error', e => catat('Error: ' + e.message, 'error'));
 
@@ -762,7 +762,7 @@
     saveLog: async () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([LOG.join('\n')], { type: 'text/plain' }));
-      a.download = `Leura-demo-catatan-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `PlaygroundBooth-demo-catatan-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       return { ok: true, file: a.download };
     },
@@ -786,7 +786,7 @@
   void cbErrorRekam;
 
   /* ---------- Ukuran tampilan di HP landscape ----------
-     Leura dirancang untuk layar booth (tinggi ±540–800 titik); HP landscape cuma ±390.
+     PlaygroundBooth dirancang untuk layar booth (tinggi ±540–800 titik); HP landscape cuma ±390.
      Seluruh tampilan ada di dalam <div id="skala">: ditata seolah layarnya setinggi
      TINGGI_DASAR, lalu dikecilkan dengan transform supaya pas di layar HP.
      Ukuran vh/vw di CSS sudah diganti var(--vh)/var(--vw) oleh demo/bangun.js. */

@@ -1,5 +1,5 @@
 /* =====================================================================
-   version.js — the Leura version shown in the log and in Admin → About.
+   version.js — the PlaygroundBooth version shown in the log and in Admin → About.
    Installed app: Electron knows it (from package.json inside the app).
    From the code folder ("npm start" = electron main.js): Electron would give
    its OWN version there (e.g. 45.2.1), so package.json is read directly.

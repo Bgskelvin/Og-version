@@ -141,13 +141,13 @@ function register() {
     if (!files.length) return { error: 'No log entries yet.' };
     const r = await dialog.showSaveDialog({
       title: 'Save app log',
-      defaultPath: path.join(app.getPath('downloads'), `Leura-log-${dateStamp()}.txt`),
+      defaultPath: path.join(app.getPath('downloads'), `PlaygroundBooth-log-${dateStamp()}.txt`),
       filters: [{ name: 'Text', extensions: ['txt'] }],
     });
     if (r.canceled || !r.filePath) return { canceled: true };
     try {
       const content = [
-        `Leura app log — saved ${dateStamp()} ${timeStamp()}`,
+        `PlaygroundBooth app log — saved ${dateStamp()} ${timeStamp()}`,
         `Version ${appVersion()} · ${process.platform} ${require('os').release()}`,
         '',
       ];
@@ -167,7 +167,7 @@ function start() {
   deleteOld();
   write('────────── App opened ──────────');
   write(
-    `Leura version ${appVersion()} · ${process.platform} ${require('os').release()} · Electron ${process.versions.electron}`,
+    `PlaygroundBooth version ${appVersion()} · ${process.platform} ${require('os').release()} · Electron ${process.versions.electron}`,
   );
 }
 

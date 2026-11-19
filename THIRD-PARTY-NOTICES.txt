@@ -1,7 +1,7 @@
-Leura — third-party software notices
+PlaygroundBooth — third-party software notices
 =====================================
 
-Leura is built with the following third-party software. Each component keeps
+PlaygroundBooth is built with the following third-party software. Each component keeps
 its own copyright and license. Full license texts are included where noted.
 
 -------------------------------------------------------------------------------
@@ -33,5 +33,5 @@ Sony Camera Remote SDK v2.02 (libCr_Core, libmonitor_protocol, CrAdapter)
     - OpenSSL      — Apache License 2.0 (licenses/openssl-LICENSE.txt)
 
 -------------------------------------------------------------------------------
-QR code generator (src/qr.js) — written for Leura, follows ISO/IEC 18004.
+QR code generator (src/qr.js) — written for PlaygroundBooth, follows ISO/IEC 18004.
 "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.

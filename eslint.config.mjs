@@ -1,5 +1,5 @@
 /* =====================================================================
-   eslint.config.mjs — pemeriksa kode Leura   (npm run lint)
+   eslint.config.mjs — pemeriksa kode PlaygroundBooth   (npm run lint)
    - Aturan "recommended" bawaan ESLint (sama dengan @eslint/js recommended)
      + beberapa aturan tambahan yang umum dipakai.
    - Lingkungan per bagian: proses utama & uji (Node, CommonJS),

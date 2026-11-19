@@ -1,6 +1,6 @@
 /* =====================================================================
    about.js — Admin → App → About: app version & third-party licenses
-   - Leura.app (installer): version from package.json, licenses in
+   - PlaygroundBooth.app (installer): version from package.json, licenses in
      Contents/Resources/THIRD-PARTY-NOTICES.txt + kamera-sony/bin/licenses/
    - npm start (code folder): marked "development", plus the Git branch name
    ===================================================================== */
