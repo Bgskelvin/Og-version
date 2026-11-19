@@ -3141,6 +3141,10 @@ const KASUS = {
       'a guest name with HTML in it is shown as text, never as page code',
     );
     cek(/class="amp"/.test(html) && /Rina/.test(html) && /Dimas/.test(html), 'couple names with the large "&"');
+    cek(
+      !/data-kind="all"/.test(html) && ['message', 'quiz', 'photo'].every(k => html.includes(`data-kind="${k}"`)),
+      'album pages: video messages, quiz, photos (no "All" page)',
+    );
     // A session after the album: the couple page says the album is behind
     await tunggu(20);
     await panggil('save-photos', { originals: [jpg], result: jpg, meta: {}, guest: 'Andi', visit: 'c' });

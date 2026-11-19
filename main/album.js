@@ -29,7 +29,6 @@ const TEXT = {
     summary: (g, m, q, p) =>
       `${g} datang dan meninggalkan ${list([m && `${m} pesan video`, q && `${q} jawaban quiz`, p && `${p} sesi foto`], 'dan')}.`,
     empty: 'Belum ada kenangan di sini.',
-    all: 'Semua',
     messages: 'Pesan video',
     quiz: 'Quiz',
     photos: 'Foto',
@@ -58,7 +57,6 @@ const TEXT = {
     summary: (g, m, q, p) =>
       `${g} came by and left ${list([m && `${m} video message${m === 1 ? '' : 's'}`, q && `${q} quiz answer${q === 1 ? '' : 's'}`, p && `${p} photo session${p === 1 ? '' : 's'}`], 'and')}.`,
     empty: 'No memories here yet.',
-    all: 'All',
     messages: 'Video messages',
     quiz: 'Quiz',
     photos: 'Photos',
@@ -251,6 +249,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 56px 24px 40px; }
 .clips { margin: 12px 0 0; padding: 0; list-style: none; }
 .clip { display: flex; align-items: center; gap: 14px; padding: 10px 2px; border-top: 1px solid var(--hair); }
 .clip:last-child { border-bottom: 1px solid var(--hair); }
+.letter .clip { margin-top: 14px; padding-bottom: 0; border-bottom: 0; }
 .play { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
   border: 1px solid var(--gold); background: none; color: var(--gold); cursor: pointer; transition: background .2s, color .2s; }
 .play:hover { background: var(--gold); color: var(--white); }
@@ -296,7 +295,6 @@ footer::before { content: ''; display: block; width: 44px; height: 1px; margin: 
 </header>
 <nav class="bar" aria-label="${escapeHtml(t.title)}">
   <div class="tabs" role="group">
-    <button class="tab" data-kind="all" aria-pressed="true">${escapeHtml(t.all)}</button>
     <button class="tab" data-kind="message" aria-pressed="false">${escapeHtml(t.messages)}<small>${count('message')}</small></button>
     <button class="tab" data-kind="quiz" aria-pressed="false">${escapeHtml(t.quiz)}<small>${count('quiz')}</small></button>
     <button class="tab" data-kind="photo" aria-pressed="false">${escapeHtml(t.photos)}<small>${count('photo')}</small></button>
@@ -322,17 +320,35 @@ footer::before { content: ''; display: block; width: 44px; height: 1px; margin: 
 const CLIENT_JS = `
 (function () {
   var data = JSON.parse(document.getElementById('album-data').textContent);
-  var w = data.words, guests = data.guests;
+  var w = data.words;
   var box = document.getElementById('guests'), viewer = document.getElementById('viewer');
   var fig = viewer.querySelector('figure');
-  var kind = 'all', query = '', slides = [], at = 0, lastFocus = null;
+  var query = '', slides = [], at = 0, lastFocus = null;
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function pad(n) { return ('00' + n).slice(-3); }
   function clock(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString(w.locale, { hour: '2-digit', minute: '2-digit' }); }
   function length(s) { s = Math.round(s || 0); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
-  function nameOf(g) { return g.name || w.anonymous; }
   var PLAY = '<svg viewBox="0 0 12 14" aria-hidden="true"><path d="M0 0l12 7-12 7z"/></svg>';
 
+  // One list per page (video messages, quiz, photos), in the order they were made
+  var pages = { message: [], quiz: [], photo: [] };
+  data.guests.forEach(function (g) {
+    g.items.forEach(function (it) {
+      if (it.kind === 'photo' && !it.src) return;
+      if (pages[it.kind]) pages[it.kind].push({ name: g.name || w.anonymous, time: it.time || g.time, item: it });
+    });
+  });
+  Object.keys(pages).forEach(function (k) {
+    pages[k].sort(function (a, b) { return String(a.time).localeCompare(String(b.time)); });
+  });
+  var tabs = document.querySelectorAll('.tab');
+  var kind = 'message';
+  for (var i = 0; i < tabs.length; i++) {
+    var k = tabs[i].getAttribute('data-kind');
+    if (!pages[k].length) tabs[i].hidden = true; // no quiz at this wedding: no Quiz page
+  }
+  kind = ['message', 'quiz', 'photo'].filter(function (k) { return pages[k].length; })[0] || 'message';
+
+  /* ---- Viewer ---- */
   function open(list, i) {
     slides = list; at = i; lastFocus = document.activeElement;
     viewer.classList.add('open'); show(); viewer.querySelector('.x').focus();
@@ -364,83 +380,79 @@ const CLIENT_JS = `
     if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1);
   });
 
-  function card(g) {
-    var items = g.items.filter(function (it) { return kind === 'all' || it.kind === kind; });
-    if (!items.length) return null;
-    var photos = items.filter(function (it) { return it.kind === 'photo' && it.src; });
-    var clips = items.filter(function (it) { return it.kind !== 'photo'; });
-    var art = el('article', 'guest');
-    var label = (g.no ? w.guestNo + ' ' + pad(g.no) : '');
-    var who = el('div', 'who');
-    if (label) who.appendChild(el('span', 'no', label));
-    who.appendChild(el('h2', 'name', nameOf(g)));
-    var when = el('p', 'when', clock(g.time));
-    var holder = art;
-    if (photos.length) {
-      photos.forEach(function (p, pi) {
-        var b = el('button', 'print'); b.type = 'button';
-        var img = el('img'); img.src = p.src; img.alt = nameOf(g); img.loading = 'lazy'; img.decoding = 'async';
-        b.appendChild(img);
-        if (p.prints) b.appendChild(el('span', 'count', w.printed.replace('{n}', p.prints)));
-        var list = [{ src: p.src, caption: nameOf(g), detail: label }].concat(p.originals.map(function (o, k) {
-          return { src: o, caption: nameOf(g), detail: w.originals + ' ' + (k + 1) + '/' + p.originals.length };
-        }));
-        b.onclick = function () { open(list, 0); };
-        art.appendChild(b);
-        if (pi === 0) { art.appendChild(who); art.appendChild(when); }
-        if (p.originals.length) {
-          var row = el('div', 'originals');
-          p.originals.forEach(function (o, k) {
-            var ob = el('button'); ob.type = 'button'; ob.setAttribute('aria-label', w.originals + ' ' + (k + 1));
-            var oi = el('img'); oi.src = o; oi.alt = ''; oi.loading = 'lazy'; oi.decoding = 'async';
-            ob.appendChild(oi); ob.onclick = function () { open(list, k + 1); }; row.appendChild(ob);
-          });
-          art.appendChild(row);
-        }
+  /* ---- Entries ---- */
+  function who(n, entry) {
+    var h = el('div', 'who');
+    h.appendChild(el('span', 'no', w.guestNo + ' ' + n));
+    h.appendChild(el('h2', 'name', entry.name));
+    return h;
+  }
+  function photoEntry(entry, n) {
+    var p = entry.item, art = el('article', 'guest');
+    var b = el('button', 'print'); b.type = 'button';
+    var img = el('img'); img.src = p.src; img.alt = entry.name; img.loading = 'lazy'; img.decoding = 'async';
+    b.appendChild(img);
+    if (p.prints) b.appendChild(el('span', 'count', w.printed.replace('{n}', p.prints)));
+    var list = [{ src: p.src, caption: entry.name, detail: w.guestNo + ' ' + n }].concat(p.originals.map(function (o, k) {
+      return { src: o, caption: entry.name, detail: w.originals + ' ' + (k + 1) + '/' + p.originals.length };
+    }));
+    b.onclick = function () { open(list, 0); };
+    art.appendChild(b);
+    art.appendChild(who(n, entry));
+    art.appendChild(el('p', 'when', clock(entry.time)));
+    if (p.originals.length) {
+      var row = el('div', 'originals');
+      p.originals.forEach(function (o, k) {
+        var ob = el('button'); ob.type = 'button'; ob.setAttribute('aria-label', w.originals + ' ' + (k + 1));
+        var oi = el('img'); oi.src = o; oi.alt = ''; oi.loading = 'lazy'; oi.decoding = 'async';
+        ob.appendChild(oi); ob.onclick = function () { open(list, k + 1); }; row.appendChild(ob);
       });
-    } else {
-      holder = el('div', 'letter'); holder.appendChild(who); holder.appendChild(when); art.appendChild(holder);
+      art.appendChild(row);
     }
-    if (clips.length) {
-      var ul = el('ul', 'clips');
-      var playable = clips.filter(function (c) { return c.src; }).map(function (c) {
-        return { video: true, src: c.src, caption: nameOf(g), detail: (c.kind === 'quiz' ? w.quizVideo : w.message) + ', ' + length(c.seconds) };
-      });
-      clips.forEach(function (c) {
-        var li = el('li', 'clip');
-        var title = c.kind === 'quiz' ? w.quizVideo : w.message;
-        if (c.src) {
-          var b = el('button', 'play'); b.type = 'button'; b.innerHTML = PLAY; b.setAttribute('aria-label', w.play + ': ' + title + ', ' + nameOf(g));
-          var idx = playable.map(function (p) { return p.src; }).indexOf(c.src);
-          b.onclick = function () { open(playable, idx); };
-          li.appendChild(b);
-        } else li.appendChild(el('span', 'wait'));
-        var tx = el('span', 'clip-text', title);
-        tx.appendChild(el('small', null, c.src ? length(c.seconds) : (c.state === 'missing' ? w.missing : w.processing)));
-        li.appendChild(tx); ul.appendChild(li);
-      });
-      holder.appendChild(ul);
-    }
+    return art;
+  }
+  function videoEntry(entry, n, playable) {
+    var c = entry.item, art = el('article', 'guest');
+    var letter = el('div', 'letter');
+    letter.appendChild(who(n, entry));
+    var clip = el('div', 'clip');
+    var title = c.kind === 'quiz' ? w.quizVideo : w.message;
+    if (c.src) {
+      var b = el('button', 'play'); b.type = 'button'; b.innerHTML = PLAY;
+      b.setAttribute('aria-label', w.play + ': ' + title + ', ' + entry.name);
+      var idx = playable.map(function (p) { return p.src; }).indexOf(c.src);
+      b.onclick = function () { open(playable, idx); };
+      clip.appendChild(b);
+    } else clip.appendChild(el('span', 'wait'));
+    var tx = el('span', 'clip-text', clock(entry.time));
+    tx.appendChild(el('small', null, c.src ? length(c.seconds) : (c.state === 'missing' ? w.missing : w.processing)));
+    clip.appendChild(tx);
+    letter.appendChild(clip);
+    art.appendChild(letter);
     return art;
   }
   function render() {
     box.textContent = '';
-    var q = query.trim().toLowerCase(), n = 0;
-    guests.forEach(function (g) {
-      if (q && nameOf(g).toLowerCase().indexOf(q) < 0) return;
-      var c = card(g); if (c) { box.appendChild(c); n++; }
+    var q = query.trim().toLowerCase();
+    var list = pages[kind].filter(function (e) { return !q || e.name.toLowerCase().indexOf(q) >= 0; });
+    // Numbers start at 1 on every page and follow the order the moments were made (also while searching)
+    var number = function (e) { return pages[kind].indexOf(e) + 1; };
+    var playable = list.filter(function (e) { return e.item.src && kind !== 'photo'; }).map(function (e) {
+      return { video: true, src: e.item.src, caption: e.name, detail: w.guestNo + ' ' + number(e) + ', ' + length(e.item.seconds) };
     });
-    if (!n) box.appendChild(el('p', 'note', guests.length ? (q ? w.noMatch : w.empty) : w.empty));
+    list.forEach(function (e) {
+      box.appendChild(kind === 'photo' ? photoEntry(e, number(e)) : videoEntry(e, number(e), playable));
+    });
+    if (!list.length) box.appendChild(el('p', 'note', q ? w.noMatch : w.empty));
   }
-  document.querySelectorAll('.tab').forEach(function (b) {
-    b.onclick = function () {
-      kind = b.getAttribute('data-kind');
-      document.querySelectorAll('.tab').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
-      render();
-    };
-  });
+  function choose(k) {
+    kind = k;
+    for (var i = 0; i < tabs.length; i++) tabs[i].setAttribute('aria-pressed', String(tabs[i].getAttribute('data-kind') === k));
+    render();
+  }
+  for (var j = 0; j < tabs.length; j++) (function (b) { b.onclick = function () { choose(b.getAttribute('data-kind')); }; })(tabs[j]);
   document.querySelector('.find').addEventListener('input', function (e) { query = e.target.value; render(); });
-  render();
+  choose(kind);
 })();
 `;
 
