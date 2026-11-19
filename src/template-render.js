@@ -247,7 +247,7 @@ export function defaultQr(W, H) {
   return { enabled: true, size, x: W - size - m, y: H - size - m };
 }
 // The link the editor previews with (same length as a real download link, so the size looks the same)
-export const SAMPLE_QR_LINK = 'https://leura-foto.example.workers.dev/f/Ab3dEf9hJk?b=en';
+export const SAMPLE_QR_LINK = 'https://playgroundbooth-foto.example.workers.dev/f/Ab3dEf9hJk?b=en';
 export function drawPrintQr(ctx, qr, text, scale = 1) {
   if (!qr || !qr.enabled || !text) return;
   paintQr(ctx, text, qr.x * scale, qr.y * scale, qr.size * scale);

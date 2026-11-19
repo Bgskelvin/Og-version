@@ -91,8 +91,8 @@ const KASUS = {
     const { panggil, dataDir, db } = nyalakanAplikasi();
     const awal = await panggil('get-settings');
     cek(awal.quizSeconds === 60 && awal.quizRounds === 3 && awal.kiosk === false, 'nilai awal dari config.json', awal);
-    cek(await panggil('login', 'leura', '1234'), 'login awal leura/1234 berhasil');
-    cek(!(await panggil('login', 'leura', '9999')), 'password salah ditolak');
+    cek(await panggil('login', 'admin', '1234'), 'login awal admin/1234 berhasil');
+    cek(!(await panggil('login', 'admin', '9999')), 'password salah ditolak');
     let s = await panggil('save-settings', { quizSeconds: 30, quizRounds: 5, accent: '#7C9A7E' });
     cek(s.quizSeconds === 30 && s.quizRounds === 5 && s.accent === '#7C9A7E', 'pengaturan tersimpan');
     s = await panggil('save-settings', { quizSeconds: 5000, quizRounds: -3, accent: 'merah' });
@@ -112,10 +112,10 @@ const KASUS = {
     );
     cek((await panggil('change-login', '1234', 'bos', 'rahasia')).ok, 'ganti login berhasil');
     cek(
-      !(await panggil('login', 'leura', '1234')) && (await panggil('login', 'BOS', 'rahasia')),
+      !(await panggil('login', 'admin', '1234')) && (await panggil('login', 'BOS', 'rahasia')),
       'login lama tidak berlaku, login baru berlaku',
     );
-    const isiDb = ['leura.db', 'leura.db-wal']
+    const isiDb = ['playgroundbooth.db', 'playgroundbooth.db-wal']
       .map(f => path.join(dataDir, f))
       .filter(f => fs.existsSync(f))
       .map(f => fs.readFileSync(f, 'latin1'))
@@ -177,10 +177,10 @@ const KASUS = {
     );
   },
 
-  async 'database: tersimpan di leura.db, cadangan harian, file rusak dipulihkan'() {
+  async 'database: tersimpan di playgroundbooth.db, cadangan harian, file rusak dipulihkan'() {
     const { panggil, dataDir, db } = nyalakanAplikasi();
     await panggil('save-couple', { name: 'Ayu & Budi', questions: ['a'] });
-    cek(fs.existsSync(path.join(dataDir, 'leura.db')), 'data tersimpan di leura.db');
+    cek(fs.existsSync(path.join(dataDir, 'playgroundbooth.db')), 'data tersimpan di playgroundbooth.db');
     cek(
       !['settings.json', 'couples.json', 'sessions.json', 'upload-queue.json'].some(f =>
         fs.existsSync(path.join(dataDir, f)),
@@ -205,7 +205,7 @@ const KASUS = {
     d.dailyBackup();
     d.saveSession({ id: 8, time: '2026-01-01T00:00:00.000Z', label: 'photo', status: 'photo' });
     d.close();
-    fs.writeFileSync(path.join(lain, 'leura.db'), 'RUSAK'); // simulasi disk rusak
+    fs.writeFileSync(path.join(lain, 'playgroundbooth.db'), 'RUSAK'); // simulasi disk rusak
     database.takeNotes();
     d = database.openDatabase(lain);
     cek(
@@ -214,13 +214,13 @@ const KASUS = {
       d.readSessions(),
     );
     cek(
-      fs.readdirSync(lain).some(n => n.startsWith('leura.db.corrupt-')),
-      'file rusak tidak dibuang (disimpan sebagai leura.db.corrupt-…)',
+      fs.readdirSync(lain).some(n => n.startsWith('playgroundbooth.db.corrupt-')),
+      'file rusak tidak dibuang (disimpan sebagai playgroundbooth.db.corrupt-…)',
     );
-    cek(/copy of leura-/.test(JSON.stringify(database.takeNotes())), 'pemulihan dicatat untuk log');
+    cek(/copy of playgroundbooth-/.test(JSON.stringify(database.takeNotes())), 'pemulihan dicatat untuk log');
     d.close();
     fs.rmSync(path.join(lain, 'backup'), { recursive: true });
-    fs.writeFileSync(path.join(lain, 'leura.db'), 'RUSAK');
+    fs.writeFileSync(path.join(lain, 'playgroundbooth.db'), 'RUSAK');
     d = database.openDatabase(lain);
     cek(d.readCouples() === null, 'rusak tanpa cadangan: aplikasi tetap terbuka (mulai kosong)');
     d.close();
@@ -237,12 +237,12 @@ const KASUS = {
     cek(!db().getSession(99), 'transaksi gagal dibatalkan seluruhnya');
     cek(db().updateSession(12345, { status: 'x' }) === false, 'ubah sesi yang tidak ada: tidak membuat sesi baru');
 
-    // Database dari Leura yang lebih baru tidak disentuh
+    // Database dari PlaygroundBooth yang lebih baru tidak disentuh
     const baru = path.join(dataDir, 'baru');
     d = database.openDatabase(baru);
     d.close();
     const { DatabaseSync } = require('node:sqlite');
-    const raw = new DatabaseSync(path.join(baru, 'leura.db'));
+    const raw = new DatabaseSync(path.join(baru, 'playgroundbooth.db'));
     raw.exec('PRAGMA user_version = 99');
     raw.close();
     let pesan = '';
@@ -252,7 +252,7 @@ const KASUS = {
       pesan = e.message;
     }
     cek(
-      /newer Leura/.test(pesan) && !fs.readdirSync(baru).some(n => n.includes('corrupt')),
+      /newer PlaygroundBooth/.test(pesan) && !fs.readdirSync(baru).some(n => n.includes('corrupt')),
       'database versi lebih baru: ditolak, tidak dianggap rusak',
     );
 
@@ -427,7 +427,7 @@ const KASUS = {
       /^\d{4}-\d\d-\d\d\.txt$/.test(hariIni) &&
         /App opened/.test(isi()) &&
         // from the code folder the version comes from package.json (not Electron's own version)
-        isi().includes(`Leura version ${require(path.join(__dirname, '..', 'package.json')).version} `),
+        isi().includes(`PlaygroundBooth version ${require(path.join(__dirname, '..', 'package.json')).version} `),
       'satu file per hari, dimulai "App opened" + versi',
       hariIni,
     );
@@ -439,7 +439,7 @@ const KASUS = {
         /Recording done \(5 s\): 001 Budi\.webm/.test(isi()),
       'rekaman mulai & selesai tercatat dengan jam',
     );
-    await panggil('login', 'leura', 'salah');
+    await panggil('login', 'admin', 'salah');
     cek(/⚠ Admin login failed/.test(isi()), 'login Admin gagal tercatat sebagai peringatan');
     console.error('uji error proses utama');
     cek(/✗ uji error proses utama/.test(isi()), 'console.error di proses utama masuk catatan (✗)');
@@ -472,7 +472,7 @@ const KASUS = {
     const kirimIsi = fs.readFileSync(electron.__simpanKe, 'utf8');
     cek(
       simpan.ok &&
-        /Leura app log/.test(kirimIsi) &&
+        /PlaygroundBooth app log/.test(kirimIsi) &&
         /===== \d{4}-\d\d-\d\d =====/.test(kirimIsi) &&
         /Recording done/.test(kirimIsi) &&
         electron.__ditunjukkan === electron.__simpanKe,
@@ -918,8 +918,8 @@ const KASUS = {
       cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati');
       return;
     }
-    process.env.LEURA_TEST_FFMPEG = ff;
-    process.env.LEURA_TEST_PART_SIZE = String(96 * 1024); // bagian kecil supaya video kecil pun terkirim dalam beberapa bagian
+    process.env.PLAYGROUNDBOOTH_TEST_FFMPEG = ff;
+    process.env.PLAYGROUNDBOOTH_TEST_PART_SIZE = String(96 * 1024); // bagian kecil supaya video kecil pun terkirim dalam beberapa bagian
     const os = require('os'),
       http = require('http');
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'uji-video-'));
@@ -1108,7 +1108,7 @@ const KASUS = {
       'video quiz: MP4 → teks ditempel → versi HP → terkirim',
       sQ,
     );
-    const teknis = path.join(path.dirname(sQ.dir), '.leura', 'original');
+    const teknis = path.join(path.dirname(sQ.dir), '.playgroundbooth', 'original');
     const nama = sQ.file.replace(/\.mp4$/, '');
     const utama = path.join(sQ.dir, sQ.file),
       asli = path.join(teknis, nama + '_original.mp4');
@@ -1118,7 +1118,7 @@ const KASUS = {
         fs.existsSync(utama) &&
         fs.existsSync(asli) &&
         fs.existsSync(path.join(teknis, nama + '.webm')),
-      'folder acara: 2 Quiz/<no> Sari.mp4 (dengan teks); .leura/original: tanpa teks & rekaman webm asli',
+      'folder acara: 2 Quiz/<no> Sari.mp4 (dengan teks); .playgroundbooth/original: tanpa teks & rekaman webm asli',
       sQ,
     );
     // Warna rata-rata pita bawah video di detik tertentu (teks uji = kotak merah / biru)
@@ -1335,13 +1335,13 @@ const KASUS = {
       cek(true, 'FFmpeg tidak ada di komputer ini: uji video dilewati');
       return;
     }
-    process.env.LEURA_TEST_FFMPEG = ff;
+    process.env.PLAYGROUNDBOOTH_TEST_FFMPEG = ff;
     const os = require('os'),
       http = require('http');
     const akar = fs.mkdtempSync(path.join(os.tmpdir(), 'videobooth-uji-'));
     const data = path.join(akar, 'data'),
-      folder = path.join(akar, 'docs', 'Leura', 'Rina & Dimas');
-    // Data in the format of Leura 1.1.x (Indonesian names): main/migrate.js updates it when the app opens
+      folder = path.join(akar, 'docs', 'PlaygroundBooth', 'Rina & Dimas');
+    // Data in the format of PlaygroundBooth 1.1.x (Indonesian names): main/migrate.js updates it when the app opens
     fs.mkdirSync(path.join(data, 'kapsi'), { recursive: true });
     fs.mkdirSync(folder, { recursive: true });
     const ffmpeg = (...a) => spawnSync(ff, ['-hide_banner', '-y', ...a], { encoding: 'utf8' });
@@ -1496,7 +1496,7 @@ const KASUS = {
         ana.upload === 'sent' &&
         ana.file === '001 Ana.mp4' &&
         path.basename(ana.dir) === '2 Quiz' &&
-        fs.existsSync(path.join(path.dirname(ana.dir), '.leura', 'original', '001 Ana_original.mp4')) &&
+        fs.existsSync(path.join(path.dirname(ana.dir), '.playgroundbooth', 'original', '001 Ana_original.mp4')) &&
         toko.has('video/AnaKode123.mp4'),
       'aplikasi dibuka lagi: teks pertanyaan & unggah video yang terputus dilanjutkan sendiri',
       ana,
@@ -1512,7 +1512,7 @@ const KASUS = {
     const edo2 = await tungguSesi(222, s => s.captionStatus === 'done');
     cek(
       edo2.captionStatus === 'done' &&
-        fs.existsSync(path.join(path.dirname(edo2.dir), '.leura', 'original', '002 Edo_original.mp4')),
+        fs.existsSync(path.join(path.dirname(edo2.dir), '.playgroundbooth', 'original', '002 Edo_original.mp4')),
       'Process again: teks pertanyaan berhasil ditempel',
       edo2,
     );
@@ -1817,8 +1817,9 @@ const KASUS = {
       stTamu,
     );
     cek(
-      /Your Leura moments|Everything from your visit/.test(await (await ambil('/t/' + gk + '?b=en')).text()) &&
-        (await (await ambil('/t/' + gk + '?b=en')).text()).includes(`href="/f/${a}?b=en"`),
+      /Your PlaygroundBooth moments|Everything from your visit/.test(
+        await (await ambil('/t/' + gk + '?b=en')).text(),
+      ) && (await (await ambil('/t/' + gk + '?b=en')).text()).includes(`href="/f/${a}?b=en"`),
       'halaman tamu bahasa Inggris; link hasil tetap bahasa Inggris',
     );
     cek(
@@ -1879,13 +1880,15 @@ const KASUS = {
     await matikan();
   },
 
-  async 'installer Mac (Leura.app): isi paket, program Sony di Resources, versi & lisensi'() {
+  async 'installer Mac (PlaygroundBooth.app): isi paket, program Sony di Resources, versi & lisensi'() {
     const akar = path.join(__dirname, '..');
     const pkg = JSON.parse(fs.readFileSync(path.join(akar, 'package.json'), 'utf8'));
     const b = pkg.build || {};
     cek(
-      pkg.productName === 'Leura' && b.productName === 'Leura' && b.appId === 'com.leura.booth',
-      'nama aplikasi "Leura"',
+      pkg.productName === 'PlaygroundBooth' &&
+        b.productName === 'PlaygroundBooth' &&
+        b.appId === 'com.playgroundbooth.app',
+      'nama aplikasi "PlaygroundBooth"',
     );
     cek(
       pkg.scripts['build:mac'] === 'bash installer/build-mac.sh' &&
@@ -1948,7 +1951,7 @@ const KASUS = {
     const tidakDimuat = semuaSrc.filter(f => !modulTampilan.includes('src/' + f));
     cek(
       !kurang.length && !tidakDimuat.length,
-      'semua file tampilan & proses utama ikut ke Leura.app (termasuk modul yang di-import)',
+      'semua file tampilan & proses utama ikut ke PlaygroundBooth.app (termasuk modul yang di-import)',
       { kurang, tidakDimuat },
     );
     cek(
@@ -1960,20 +1963,25 @@ const KASUS = {
       'skrip lama siapkan-build.js (mengganti nama app) sudah dihapus',
     );
 
-    // Leura.app tiruan: program Sony dicari di Contents/Resources/kamera-sony/bin
+    // PlaygroundBooth.app tiruan: program Sony dicari di Contents/Resources/kamera-sony/bin
     const os = require('os');
-    const res = fs.mkdtempSync(path.join(os.tmpdir(), 'leura-resources-'));
+    const res = fs.mkdtempSync(path.join(os.tmpdir(), 'playgroundbooth-resources-'));
     fs.writeFileSync(path.join(res, 'THIRD-PARTY-NOTICES.txt'), 'notices');
     process.resourcesPath = res;
     delete process.env.SONY_HELPER;
     const { panggil, electron, dataDir } = nyalakanAplikasi({ installed: true, platform: 'darwin' });
     electron.__siap();
     await tunggu(100);
-    cek(fs.existsSync(path.join(dataDir, 'config.json')), 'Leura.app: config.json bawaan disalin ke folder data');
+    cek(
+      fs.existsSync(path.join(dataDir, 'config.json')),
+      'PlaygroundBooth.app: config.json bawaan disalin ke folder data',
+    );
     const st = (await panggil('save-settings', { camera: 'sony' })) && (await panggil('sony-status'));
     cek(
-      !st.connected && /missing from this Leura\.app/.test(st.message) && /npm run build:mac/.test(st.message),
-      'Leura.app tanpa program Sony: pesan jelas (bangun ulang installer)',
+      !st.connected &&
+        /missing from this PlaygroundBooth\.app/.test(st.message) &&
+        /npm run build:mac/.test(st.message),
+      'PlaygroundBooth.app tanpa program Sony: pesan jelas (bangun ulang installer)',
       st.message,
     );
     const info = await panggil('app-info');
@@ -2009,8 +2017,8 @@ const KASUS = {
       'installer asks before installing, makes a desktop shortcut, keeps event data on uninstall',
     );
     cek(
-      /^Leura-Setup-\$\{version\}-\$\{arch\}\.\$\{ext\}$/.test(n.artifactName || ''),
-      'installer file named Leura-Setup-<version>-<arch>.exe (the build script looks for it)',
+      /^PlaygroundBooth-Setup-\$\{version\}-\$\{arch\}\.\$\{ext\}$/.test(n.artifactName || ''),
+      'installer file named PlaygroundBooth-Setup-<version>-<arch>.exe (the build script looks for it)',
     );
     cek(
       !((b.win && b.win.extraResources) || []).some(x => x.from === 'kamera-sony/bin'),
@@ -2038,7 +2046,7 @@ const KASUS = {
       cek(true, 'no FFmpeg on this computer: video encoder test skipped');
       return;
     }
-    process.env.LEURA_TEST_FFMPEG = ff;
+    process.env.PLAYGROUNDBOOTH_TEST_FFMPEG = ff;
     const { dataDir } = nyalakanAplikasi({ platform: 'win32' });
     const vp = require(path.join(__dirname, '..', 'main', 'video-processing.js'));
     cek(
@@ -2255,7 +2263,7 @@ const KASUS = {
     cek(
       ['LUMIX Tether.exe', 'Imaging Edge Desktop.exe', 'lumix-helper.exe', 'sony-helper.exe'].every(n =>
         d.PROCESS_PATTERN.test(n),
-      ) && !['chrome.exe', 'explorer.exe', 'Leura.exe'].some(n => d.PROCESS_PATTERN.test(n)),
+      ) && !['chrome.exe', 'explorer.exe', 'PlaygroundBooth.exe'].some(n => d.PROCESS_PATTERN.test(n)),
       'programs that hold a camera are recognized, ordinary programs are not',
     );
     const lines = await d.snapshot(); // on a computer without these Windows tools: "(none)", never an error
@@ -2423,7 +2431,7 @@ const KASUS = {
     };
     // Recorded from the original generator (before the ES-module refactor); any change here means the QR changed.
     const expected = [
-      ['https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk?b=en', '33 4 2 ad837771964d97a5'],
+      ['https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk?b=en', '33 4 2 5c1aa8555832a4c7'],
       ['https://x.workers.dev/v/K1', '25 2 1 e34f764b92fcc31d'],
       ['A', '21 1 3 2092585037e9da56'],
       ['Halo 👋 ünïcödé', '25 2 2 1d47b907533f9dbf'],
@@ -2443,7 +2451,7 @@ const KASUS = {
     cek(threw, 'text too long for a QR code → error (not a broken code)');
   },
 
-  async 'data from Leura 1.1.x (Indonesian names) is updated when the app opens'() {
+  async 'data from PlaygroundBooth 1.1.x (Indonesian names) is updated when the app opens'() {
     const os = require('os');
     const akar = fs.mkdtempSync(path.join(os.tmpdir(), 'videobooth-uji-'));
     const data = path.join(akar, 'data');
@@ -2452,7 +2460,7 @@ const KASUS = {
       fs.writeFileSync(path.join(data, rel), typeof content === 'string' ? content : JSON.stringify(content));
     };
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
-    // Exactly what Leura 1.1.3 saved
+    // Exactly what PlaygroundBooth 1.1.3 saved
     const oldSettings = {
       quizSeconds: 30,
       pesanCountdown: 5,
@@ -2461,7 +2469,13 @@ const KASUS = {
       tanyaNama: false,
       kamera: 'sony-sim',
       bahasa: 'id',
-      unggah: { aktif: true, url: 'https://leura.example', kunci: 'RAHASIA', video: true, videoKualitas: '1080' },
+      unggah: {
+        aktif: true,
+        url: 'https://playgroundbooth.example',
+        kunci: 'RAHASIA',
+        video: true,
+        videoKualitas: '1080',
+      },
     };
     write('settings.json', oldSettings);
     write('couples.json', {
@@ -2578,7 +2592,7 @@ const KASUS = {
     );
     const u = await panggil('upload-status');
     cek(
-      u.enabled && u.hasKey && u.url === 'https://leura.example' && u.videoQuality === '1080',
+      u.enabled && u.hasKey && u.url === 'https://playgroundbooth.example' && u.videoQuality === '1080',
       'QR settings & booth key kept',
       u,
     );
@@ -2703,7 +2717,7 @@ const KASUS = {
         fs.readdirSync(path.join(dataDir, 'backup')).length === backupCount,
       'second run: nothing changed, no new backup',
     );
-    // An older Leura version was opened again and saved its own files: its new session is taken over,
+    // An older PlaygroundBooth version was opened again and saved its own files: its new session is taken over,
     // but its settings don't replace the ones in the database
     fs.writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({ tanyaNama: true }));
     fs.writeFileSync(
@@ -2752,9 +2766,9 @@ const KASUS = {
   },
 
   async 'QR server setup: Load from setup reads cloud/pasang.sh result, npm run cloud:pasang finds bash'() {
-    const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'leura-setup-result-'));
+    const root = fs.mkdtempSync(path.join(require('os').tmpdir(), 'playgroundbooth-setup-result-'));
     const file = path.join(root, '.hasil-pasang.json');
-    process.env.LEURA_TEST_SETUP_RESULT = file;
+    process.env.PLAYGROUNDBOOTH_TEST_SETUP_RESULT = file;
     const { panggil } = nyalakanAplikasi();
     cek(/No setup result yet/.test((await panggil('upload-setup-result')).error || ''), 'no setup file: clear message');
     // Same shape as cloud/pasang.sh writes
@@ -2922,8 +2936,83 @@ const KASUS = {
     cek(cleanTemplate({ size: 'square' }).qr === null, 'old template without QR: none on prints');
   },
 
+  async 'former name Leura: data folder, login, database file and technical folders move once'() {
+    const os = require('os');
+    const formerName = require(path.join(__dirname, '..', 'main', 'former-name.js'));
+    // Data folder <appData>/leura → <appData>/playgroundbooth
+    const appData = fs.mkdtempSync(path.join(os.tmpdir(), 'playgroundbooth-appdata-'));
+    fs.mkdirSync(path.join(appData, 'leura'));
+    fs.writeFileSync(
+      path.join(appData, 'leura', 'config.json'),
+      JSON.stringify({ login: { id: 'leura', password: 'x' } }),
+    );
+    let notes = formerName.moveDataFolder(appData);
+    const baru = path.join(appData, 'playgroundbooth');
+    cek(
+      fs.existsSync(path.join(baru, 'config.json')) && !fs.existsSync(path.join(appData, 'leura')),
+      'data folder leura → playgroundbooth',
+      notes,
+    );
+    cek(!formerName.moveDataFolder(appData).length, 'run again: nothing to do');
+    fs.mkdirSync(path.join(appData, 'leura'));
+    notes = formerName.moveDataFolder(appData);
+    cek(
+      notes[0].level === 'warn' && fs.existsSync(path.join(baru, 'config.json')),
+      'both folders exist: the new one is never overwritten',
+    );
+    formerName.renameDefaultLogin(baru);
+    const cfg = JSON.parse(fs.readFileSync(path.join(baru, 'config.json'), 'utf8'));
+    cek(cfg.login.id === 'admin' && cfg.login.password === 'x', 'default login ID leura → admin, password kept');
+
+    // leura.db + daily copies, .leura in an event folder, sessions pointing into it
+    const akar = fs.mkdtempSync(path.join(os.tmpdir(), 'playgroundbooth-former-'));
+    const data = path.join(akar, 'data'),
+      acara = path.join(akar, 'docs', 'VideoboothRecordings', '2026-11-01 Rina & Dimas');
+    fs.mkdirSync(path.join(acara, '.leura', 'original'), { recursive: true });
+    fs.mkdirSync(path.join(acara, '2 Quiz'), { recursive: true });
+    fs.writeFileSync(path.join(acara, '2 Quiz', '001 Sari.mp4'), 'quiz');
+    fs.writeFileSync(path.join(acara, '.leura', 'original', '001 Sari_original.mp4'), 'tanpa teks');
+    fs.mkdirSync(path.join(data, 'backup', 'database'), { recursive: true });
+    // A real database made in another folder, copied in under the former name
+    const tmp = path.join(akar, 'tmp');
+    const database = require(path.join(__dirname, '..', 'main', 'database.js'));
+    const d0 = database.openDatabase(tmp);
+    d0.writeSessions([
+      {
+        id: 1,
+        time: new Date().toISOString(),
+        label: 'quiz',
+        file: '001 Sari.mp4',
+        dir: path.join(acara, '2 Quiz'),
+        event: '2026-11-01 Rina & Dimas',
+        seq: 1,
+        originalFile: path.join('..', '.leura', 'original', '001 Sari_original.mp4'),
+      },
+    ]);
+    d0.close();
+    fs.copyFileSync(path.join(tmp, 'playgroundbooth.db'), path.join(data, 'leura.db'));
+    fs.writeFileSync(path.join(data, 'backup', 'database', 'leura-2026-11-01.db'), 'copy');
+    const { sesi } = nyalakanAplikasi({ akar });
+    cek(
+      fs.existsSync(path.join(data, 'playgroundbooth.db')) && !fs.existsSync(path.join(data, 'leura.db')),
+      'leura.db → playgroundbooth.db',
+    );
+    cek(
+      fs.existsSync(path.join(data, 'backup', 'database', 'playgroundbooth-2026-11-01.db')),
+      'daily copies follow the new name',
+    );
+    const s = sesi()[0];
+    cek(
+      !fs.existsSync(path.join(acara, '.leura')) &&
+        fs.existsSync(path.join(acara, '2 Quiz', s.originalFile)) &&
+        s.originalFile.includes('.playgroundbooth'),
+      '.leura → .playgroundbooth, the session still finds its original video',
+      s,
+    );
+  },
+
   async 'event folders: old couple folder is moved into the new layout once, safely'() {
-    const akar = fs.mkdtempSync(path.join(require('os').tmpdir(), 'leura-folders-'));
+    const akar = fs.mkdtempSync(path.join(require('os').tmpdir(), 'playgroundbooth-folders-'));
     const docs = path.join(akar, 'docs'),
       data = path.join(akar, 'data');
     const lama = path.join(docs, 'VideoboothRecordings', 'Rina & Dimas');
@@ -2941,7 +3030,7 @@ const KASUS = {
     tulis('Foto/Print/Budi_print.jpg', 'cetak');
     tulis('catatan-saya.txt', 'file milik operator');
     const t = (h, m) => new Date(2026, 9, 3, h, m).toISOString(); // 3 Oct 2026
-    // An older Leura: database with sessions in the old layout
+    // An older PlaygroundBooth: database with sessions in the old layout
     const { openDatabase } = require(path.join(__dirname, '..', 'main', 'database.js'));
     fs.mkdirSync(data, { recursive: true });
     const db0 = openDatabase(data);
@@ -3018,8 +3107,8 @@ const KASUS = {
       fs.readdirSync(acara),
     );
     cek(
-      ada('.leura/original/001 Budi.webm') && ada('.leura/original/002 Sari_original.mp4'),
-      'technical copies moved to .leura/original',
+      ada('.playgroundbooth/original/001 Budi.webm') && ada('.playgroundbooth/original/002 Sari_original.mp4'),
+      'technical copies moved to .playgroundbooth/original',
     );
     cek(ada('catatan-saya.txt') && !ada('Foto') && !ada('original'), 'unknown files stay, empty old folders removed');
     const s = sesi();

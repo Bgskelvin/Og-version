@@ -39,7 +39,7 @@ Lumix tidak butuh driver tambahan: SDK-nya memakai sistem kamera bawaan Windows 
 1. Sambungkan kamera ke laptop (kabel USB data, langsung tanpa hub), nyalakan
 2. `npm.cmd start` → Admin → Camera and microphone → Source: **Panasonic Lumix (USB, Windows)**
 3. Status di Admin harus "… connected". Coba foto, pesan video, dan quiz.
-4. Catatan aplikasi (log) ada di `%APPDATA%\leura\logs` — baris "Lumix camera …".
+4. Catatan aplikasi (log) ada di `%APPDATA%\playgroundbooth\logs` — baris "Lumix camera …".
 
 Catatan: SDK Lumix tidak memberi info baterai & sisa kartu, jadi Admin hanya menampilkan
 status tersambung. Pindah mode foto/video dari komputer hanya bisa di sebagian model; kalau

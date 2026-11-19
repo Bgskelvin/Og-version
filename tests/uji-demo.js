@@ -1,5 +1,5 @@
 /* =====================================================================
-   uji-demo.js — uji Leura versi DEMO untuk HP (npm run uji:demo)
+   uji-demo.js — uji PlaygroundBooth versi DEMO untuk HP (npm run uji:demo)
    Membangun demo/web, menjalankannya di server kecil, lalu membukanya di
    Chromium dengan ukuran layar HP dan kamera/mic palsu bawaan Chromium.
    Alur: Start → nama → Kirim pesan → Photo booth → Admin → Riwayat → buka ulang.
@@ -102,7 +102,9 @@ async function main() {
     'tombol Start muat di lebar layar HP',
   );
   cek(
-    await pg.evaluate(() => !!(__leura.state.mediaStream && __leura.state.mediaStream.getVideoTracks().length)),
+    await pg.evaluate(
+      () => !!(__playgroundbooth.state.mediaStream && __playgroundbooth.state.mediaStream.getVideoTracks().length),
+    ),
     'kamera HP terbuka',
   );
 
@@ -162,7 +164,10 @@ async function main() {
     'foto hasil terkirim ke server demo (folder demo/)',
   );
   const halUnduh = await (await fetch(URL_DEMO + 'f/' + kodeQR)).text();
-  cek(halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('LEURA'), 'halaman unduh asli Leura menampilkan foto itu');
+  cek(
+    halUnduh.includes('/i/' + kodeQR) && halUnduh.includes('PLAYGROUNDBOOTH'),
+    'halaman unduh asli PlaygroundBooth menampilkan foto itu',
+  );
   cek(
     (await fetch(URL_DEMO + 'u/' + 'BukanJPEG1234', { method: 'PUT', body: 'halo' })).status === 415,
     'server demo menolak file yang bukan foto JPEG',
@@ -194,13 +199,13 @@ async function main() {
   console.log('\n▶ Admin');
   await pg.click('#btnGuestQrDone');
   await tungguLayar('start');
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await tungguLayar('home');
   await tunggu(800); // the menu takes no taps while it animates in after Start
   await pg.click('#btnAdminOpen');
   await tunggu(300);
-  cek(/leura/.test(await pg.textContent('.demo-petunjuk')), 'petunjuk login demo tampil');
-  await pg.fill('#uid', 'leura');
+  cek(/admin/.test(await pg.textContent('.demo-petunjuk')), 'petunjuk login demo tampil');
+  await pg.fill('#uid', 'admin');
   await pg.fill('#pw', '1234');
   await pg.click('#btnLogin');
   await tunggu(500);
@@ -209,11 +214,11 @@ async function main() {
   console.log('\n▶ Tersimpan setelah halaman dibuka ulang');
   await pg.reload();
   await tunggu(1500);
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await tunggu(800); // the menu takes no taps while it animates in after Start
   await pg.click('#btnAdminOpen');
   await tunggu(300);
-  await pg.fill('#uid', 'leura');
+  await pg.fill('#uid', 'admin');
   await pg.fill('#pw', '1234');
   await pg.click('#btnLogin');
   await tunggu(500);
@@ -237,7 +242,7 @@ async function main() {
   console.log('\n▶ Data demo from an older version (Indonesian names) is updated');
   await pg.evaluate(async () => {
     const d = await new Promise(ok => {
-      const r = indexedDB.open('leura-demo', 1);
+      const r = indexedDB.open('playgroundbooth-demo', 1);
       r.onsuccess = () => ok(r.result);
     });
     const put = (k, v) =>

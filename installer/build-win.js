@@ -1,5 +1,5 @@
 // =====================================================================
-// build-win.js — builds the Leura installer for Windows (Leura-Setup-<version>-x64.exe)
+// build-win.js — builds the PlaygroundBooth installer for Windows (PlaygroundBooth-Setup-<version>-x64.exe)
 // Run from the project folder on a Windows computer:   npm run build:win
 // (GitHub also builds it automatically: .github/workflows/installer-windows.yml)
 //
@@ -12,8 +12,8 @@
 //       Sony  kamera-sony/bin-win  → resources/kamera-sony/bin   (npm run build:sony)
 //       Lumix kamera-lumix/bin     → resources/kamera-lumix/bin  (npm run build:lumix)
 // Event data (couples, recordings, settings, QR queue) is NOT inside: it stays in
-//   %APPDATA%\leura — the same folder "npm start" uses, and uninstalling keeps it.
-// Result:  dist/Leura-Setup-<version>-x64.exe  and  dist/win-unpacked/
+//   %APPDATA%\playgroundbooth — the same folder "npm start" uses, and uninstalling keeps it.
+// Result:  dist/PlaygroundBooth-Setup-<version>-x64.exe  and  dist/win-unpacked/
 // =====================================================================
 'use strict';
 const fs = require('fs');
@@ -44,7 +44,7 @@ const runsVersion = file => spawnSync(file, ['-hide_banner', '-version'], { enco
 if (process.platform !== 'win32') fail('The Windows installer can only be built on Windows.');
 const version = require(path.join(ROOT, 'package.json')).version;
 const branch = git(['branch', '--show-current']) || '-';
-console.log(`\nLeura ${version}  ·  branch ${branch}`);
+console.log(`\nPlaygroundBooth ${version}  ·  branch ${branch}`);
 if (git(['status', '--porcelain'])) warn('There are uncommitted changes — the installer uses the folder as it is.');
 if (branch !== 'main' && !process.env.CI)
   warn('Not the main branch: this installer is for trying out, not for events.');
@@ -81,8 +81,9 @@ if (!run('npx', ['electron-builder', '--win', 'nsis', '--x64', '--publish', 'nev
 
 say('Checking the result');
 const unpacked = path.join(ROOT, 'dist', 'win-unpacked');
-if (!fs.existsSync(path.join(unpacked, 'Leura.exe'))) fail('Leura.exe not found in dist/win-unpacked.');
-ok('Leura.exe');
+if (!fs.existsSync(path.join(unpacked, 'PlaygroundBooth.exe')))
+  fail('PlaygroundBooth.exe not found in dist/win-unpacked.');
+ok('PlaygroundBooth.exe');
 const res = path.join(unpacked, 'resources');
 const ffApp = path.join(res, 'app.asar.unpacked', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
 if (!fs.existsSync(ffApp) || !runsVersion(ffApp)) fail('FFmpeg inside the installed app does not run.');
@@ -95,17 +96,17 @@ for (const [name, file, , folder] of HELPERS) {
     fail(`The ${name} camera helper did not go into the app.`);
   ok(`${name} camera helper inside the app`);
 }
-const setup = path.join(ROOT, 'dist', `Leura-Setup-${version}-x64.exe`);
+const setup = path.join(ROOT, 'dist', `PlaygroundBooth-Setup-${version}-x64.exe`);
 if (!fs.existsSync(setup)) fail('Installer not found: ' + setup);
 const mb = (fs.statSync(setup).size / 1024 / 1024).toFixed(0);
 
 console.log('\n✓ Done');
 console.log(`  Installer : ${path.relative(ROOT, setup)} (${mb} MB)`);
-console.log(`  App       : ${path.relative(ROOT, unpacked)}\\Leura.exe\n`);
+console.log(`  App       : ${path.relative(ROOT, unpacked)}\\PlaygroundBooth.exe\n`);
 console.log('Installing:');
-console.log('  1. Close Leura (npm start) if it is running.');
+console.log('  1. Close PlaygroundBooth (npm start) if it is running.');
 console.log(`  2. Open ${path.basename(setup)} and follow the steps.`);
 console.log('     If Windows says "Windows protected your PC": click More info → Run anyway');
 console.log('     (the installer is not signed yet).');
-console.log('  3. Open Leura from the desktop or the Start menu. Allow camera & microphone if Windows asks.');
-console.log('  Event data stays in %APPDATA%\\leura, also after uninstalling.\n');
+console.log('  3. Open PlaygroundBooth from the desktop or the Start menu. Allow camera & microphone if Windows asks.');
+console.log('  Event data stays in %APPDATA%\\playgroundbooth, also after uninstalling.\n');

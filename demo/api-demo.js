@@ -1,9 +1,9 @@
 /* =====================================================================
-   api-demo.js — Leura versi DEMO untuk browser HP (presentasi ke klien)
+   api-demo.js — PlaygroundBooth versi DEMO untuk browser HP (presentasi ke klien)
    Menggantikan bagian Mac (preload.js + folder main/) dengan versi browser:
    - Kamera depan HP, rekaman & foto disimpan di HP itu (IndexedDB).
      Hanya foto hasil photobooth yang dikirim ke server demo (untuk QR).
-   - Admin bisa dibuka (ID: leura, password: 1234). Perubahan hanya di HP ini.
+   - Admin bisa dibuka (ID: admin, password: 1234). Perubahan hanya di HP ini.
    - QR unduh foto jalan sungguhan (lewat demo/server.mjs, foto disimpan 1 hari).
    - Yang tidak ada di demo: kamera Sony, MP4,
      folder penyimpanan, ganti password, tutup aplikasi.
@@ -24,7 +24,7 @@
   function db() {
     if (!dbJanji)
       dbJanji = new Promise((ok, gagal) => {
-        const r = indexedDB.open('leura-demo', 1);
+        const r = indexedDB.open('playgroundbooth-demo', 1);
         r.onupgradeneeded = () => r.result.createObjectStore('kv');
         r.onsuccess = () => ok(r.result);
         r.onerror = () => gagal(r.error);
@@ -80,7 +80,7 @@
     camera: 'webcam',
     language: 'en',
     accent: '#B08D57',
-    loginId: 'leura',
+    loginId: 'admin',
   };
   const BATAS = {
     quizSeconds: [10, 300],
@@ -179,14 +179,14 @@
     LOG.push(`${jam()} ${t === 'error' ? '✗' : t === 'peringatan' ? '⚠' : ' '} ${p}`);
     if (LOG.length > 400) LOG.shift();
   };
-  catat('────────── Leura demo dibuka ──────────');
+  catat('────────── PlaygroundBooth demo dibuka ──────────');
   catat(navigator.userAgent);
   addEventListener('error', e => catat('Error: ' + e.message, 'error'));
 
   /* ---------- Bantuan ---------- */
   const pesanLayar = teks => {
     try {
-      if (window.__leura) window.__leura.setNotice(teks, 3500);
+      if (window.__playgroundbooth) window.__playgroundbooth.setNotice(teks, 3500);
     } catch {
       /* demo: notifikasi hanya pelengkap */
     }
@@ -427,7 +427,7 @@
     },
     login: async (id, pw) => {
       await siap;
-      return String(id).trim().toLowerCase() === 'leura' && String(pw) === '1234';
+      return String(id).trim().toLowerCase() === 'admin' && String(pw) === '1234';
     },
     changeLogin: async () => ({ error: DEMO }),
 
@@ -557,7 +557,7 @@
       const teks = new TextDecoder().decode(bytes);
       let lut;
       try {
-        lut = window.__leura.parseCube(teks);
+        lut = window.__playgroundbooth.parseCube(teks);
       } catch (e) {
         return { error: "This file can't be used: " + e.message };
       }
@@ -762,7 +762,7 @@
     saveLog: async () => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([LOG.join('\n')], { type: 'text/plain' }));
-      a.download = `Leura-demo-catatan-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.download = `PlaygroundBooth-demo-catatan-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       return { ok: true, file: a.download };
     },
@@ -786,7 +786,7 @@
   void cbErrorRekam;
 
   /* ---------- Ukuran tampilan di HP landscape ----------
-     Leura dirancang untuk layar booth (tinggi ±540–800 titik); HP landscape cuma ±390.
+     PlaygroundBooth dirancang untuk layar booth (tinggi ±540–800 titik); HP landscape cuma ±390.
      Seluruh tampilan ada di dalam <div id="skala">: ditata seolah layarnya setinggi
      TINGGI_DASAR, lalu dikecilkan dengan transform supaya pas di layar HP.
      Ukuran vh/vw di CSS sudah diganti var(--vh)/var(--vw) oleh demo/bangun.js. */
@@ -848,7 +848,7 @@
     if (login) {
       const p = document.createElement('p');
       p.className = 'demo-petunjuk';
-      p.textContent = 'Demo — ID: leura · Password: 1234';
+      p.textContent = 'Demo — ID: admin · Password: 1234';
       login.querySelector('.group').before(p);
     }
     // Tanda kecil "DEMO" di pojok

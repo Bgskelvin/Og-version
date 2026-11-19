@@ -43,7 +43,7 @@ say "Menyalin pustaka SDK"
 cp "$SDK"/external/crsdk/*.dylib "$BIN/"
 mkdir -p "$BIN/Contents/Frameworks/CrAdapter"
 cp "$SDK"/external/crsdk/CrAdapter/*.dylib "$BIN/Contents/Frameworks/CrAdapter/"
-# Lisensi pustaka open source di dalam SDK (libusb LGPL, libssh2, OpenSSL) — ikut ke Leura.app
+# Lisensi pustaka open source di dalam SDK (libusb LGPL, libssh2, OpenSSL) — ikut ke PlaygroundBooth.app
 OSS="$PROYEK/sdk/sony/SourceCodeOfOpenSourceSoftware"
 mkdir -p "$BIN/licenses"
 ambilLisensi() { [ -f "$OSS/$1" ] && unzip -p "$OSS/$1" "$2" > "$BIN/licenses/$3" 2>/dev/null || rm -f "$BIN/licenses/$3"; }

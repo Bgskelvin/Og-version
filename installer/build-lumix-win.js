@@ -42,7 +42,7 @@ say('Compiling ' + path.basename(EXE));
 try {
   fs.rmSync(BIN, { recursive: true, force: true });
 } catch (e) {
-  fail(`Could not replace ${path.relative(ROOT, BIN)} (${e.code}): close Leura (npm start) and try again.`);
+  fail(`Could not replace ${path.relative(ROOT, BIN)} (${e.code}): close PlaygroundBooth (npm start) and try again.`);
 }
 fs.rmSync(OBJ, { recursive: true, force: true });
 fs.mkdirSync(BIN, { recursive: true });

@@ -427,7 +427,7 @@ function setSource(m) {
           ? 'A Lumix camera over USB only works on Windows (the Lumix SDK is Windows only).'
           : 'A Sony camera over USB works on a Mac or Windows.'
         : app && app.isPackaged
-          ? `The ${brandName()} camera helper is missing from this ${win() ? 'Leura installation' : 'Leura.app'}. Build the installer again with: ${win() ? 'npm run build:win' : 'npm run build:mac'}`
+          ? `The ${brandName()} camera helper is missing from this ${win() ? 'PlaygroundBooth installation' : 'PlaygroundBooth.app'}. Build the installer again with: ${win() ? 'npm run build:win' : 'npm run build:mac'}`
           : `The ${brandName()} camera helper is not built yet. Run in Terminal: ${h.build}`;
       broadcast();
       return status();

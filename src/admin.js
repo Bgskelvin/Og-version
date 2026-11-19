@@ -86,14 +86,14 @@ export function setupAdmin() {
   // Window ✕ button / ⌘Q: the same dialog (only once even if pressed repeatedly)
   api.onQuitRequest(() => confirmQuit());
   $('btnViewLog').onclick = showAppLog;
-  // About: version (Leura.app) or "development" + Git branch (npm start from the code folder)
+  // About: version (PlaygroundBooth.app) or "development" + Git branch (npm start from the code folder)
   if (api.appInfo)
     api
       .appInfo()
       .then(info => {
         if (!info) return;
         $('infoVersion').textContent = info.demo
-          ? 'Leura Demo for phones (photos stay on this phone)'
+          ? 'PlaygroundBooth Demo for phones (photos stay on this phone)'
           : `Version ${info.version}` +
             (info.installed
               ? ' · installed app'

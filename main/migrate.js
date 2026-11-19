@@ -1,12 +1,12 @@
 /* =====================================================================
-   migrate.js — brings data saved by older Leura versions up to date.
-   Leura 1.1.x and older saved its data with Indonesian field names
+   migrate.js — brings data saved by older PlaygroundBooth versions up to date.
+   PlaygroundBooth 1.1.x and older saved its data with Indonesian field names
    (settings.json: tanyaNama, kamera, unggah.kunci, …; sessions.json: tamu,
    kode, unggah: 'antre', …) and folder names (catatan/, kapsi/, qr-satuan/).
    From 1.2.0 the names are English. This runs when the app opens, before
    any other module reads the data:
    - Every step only renames what is still old, so it is safe to run every
-     time (also after an older Leura version was opened again in between).
+     time (also after an older PlaygroundBooth version was opened again in between).
    - Before the first change, the old files are copied to
      <data folder>/backup/before-english-data-<time>/. Nothing is deleted.
    - A file that is changed is saved the safe way (storage.writeJSON), and
@@ -102,7 +102,7 @@ const RENAMES = [
 /* ---------- Small helpers ---------- */
 const isObject = x => !!x && typeof x === 'object' && !Array.isArray(x);
 // Rename keys in one object. If the old and the new name are both there, the old one wins:
-// that only happens when an older Leura version was used again after this one, and the
+// that only happens when an older PlaygroundBooth version was used again after this one, and the
 // older version then saved the most recent value under the old name.
 function renameKeys(obj, map) {
   if (!isObject(obj)) return false;
@@ -315,7 +315,7 @@ function run({ dataDir = userData } = {}) {
     return old.length;
   });
 
-  // 9. settings, couples, session history and QR upload queue → database (Leura 1.4.0)
+  // 9. settings, couples, session history and QR upload queue → database (PlaygroundBooth 1.4.0)
   step('moved into the database', () => moveIntoDatabase(dataDir, notes));
 
   if (backupDir)
@@ -358,11 +358,11 @@ function moveIntoDatabase(dataDir, notes) {
         n++;
       }
     } else if (settings || couples) {
-      // An older Leura version was opened again after this one and saved its own files.
+      // An older PlaygroundBooth version was opened again after this one and saved its own files.
       // The database has the real data: keep it; the files stay in the backup.
       notes.push({
         level: 'warn',
-        text: 'Settings/couples saved by an older Leura version were not taken over (the database is kept); the files are in the backup folder',
+        text: 'Settings/couples saved by an older PlaygroundBooth version were not taken over (the database is kept); the files are in the backup folder',
       });
     }
     if (Array.isArray(sessions)) {

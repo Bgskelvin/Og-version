@@ -20,7 +20,7 @@ function windowsBashCandidates(env = process.env) {
     env.LOCALAPPDATA && path.join(env.LOCALAPPDATA, 'Programs'),
   ];
   const list = [];
-  if (env.LEURA_BASH) list.push(env.LEURA_BASH);
+  if (env.PLAYGROUNDBOOTH_BASH) list.push(env.PLAYGROUNDBOOTH_BASH);
   for (const root of roots) if (root) list.push(path.win32.join(root, 'Git', 'bin', 'bash.exe'));
   // git.exe on the PATH (…\Git\cmd\git.exe) → …\Git\bin\bash.exe
   for (const dir of String(env.PATH || env.Path || '').split(';')) {
@@ -40,7 +40,7 @@ function main() {
     console.error(
       '\n✗ Git Bash not found. Install Git for Windows (https://git-scm.com/download/win), then run again:\n' +
         '  npm run cloud:pasang\n' +
-        '  (Or set LEURA_BASH to the full path of bash.exe.)\n',
+        '  (Or set PLAYGROUNDBOOTH_BASH to the full path of bash.exe.)\n',
     );
     process.exit(1);
   }

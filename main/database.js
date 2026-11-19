@@ -1,5 +1,5 @@
 /* =====================================================================
-   database.js — the Leura database: one SQLite file, <data folder>/leura.db
+   database.js — the PlaygroundBooth database: one SQLite file, <data folder>/playgroundbooth.db
    (node:sqlite, built into Electron; no extra package).
    Tables:
      settings      Admin settings, one row per setting (value = JSON)
@@ -13,9 +13,9 @@
    - Every change is one transaction: it is saved completely or not at all,
      also when the power goes out halfway (WAL journal + synchronous FULL).
    - Once a day a copy is made in <data folder>/backup/database/ (last 7 days kept).
-   - If the file is damaged, it is kept aside as leura.db.corrupt-<time> and the
+   - If the file is damaged, it is kept aside as playgroundbooth.db.corrupt-<time> and the
      newest daily copy is used, so the app always opens.
-   - The table layout has a version number (PRAGMA user_version). A later Leura
+   - The table layout has a version number (PRAGMA user_version). A later PlaygroundBooth
      version that changes the layout adds a step to SCHEMA; old files are updated
      automatically when they are opened.
    ===================================================================== */
@@ -23,12 +23,15 @@ const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 
-const FILE_NAME = 'leura.db';
+const FILE_NAME = 'playgroundbooth.db';
+const FORMER_FILE_NAME = 'leura.db'; // the app's former name (before 1.11.0)
+const COPY_NAME = /^playgroundbooth-\d{4}-\d{2}-\d{2}\.db$/;
+const FORMER_COPY_NAME = /^leura-\d{4}-\d{2}-\d{2}\.db$/;
 const KEEP_BACKUPS = 7;
 
 // Each step brings the layout one version up. Never change a step that has been released: add a new one.
 const SCHEMA = [
-  // 1 — first database version (Leura 1.4.0)
+  // 1 — first database version (PlaygroundBooth 1.4.0)
   `CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
    CREATE TABLE couples (id TEXT PRIMARY KEY, position INTEGER NOT NULL, data TEXT NOT NULL) STRICT;
    CREATE TABLE sessions (
@@ -77,7 +80,9 @@ function connect(file) {
 function upgrade(db) {
   const version = db.prepare('PRAGMA user_version').get().user_version;
   if (version > SCHEMA.length)
-    throw new Error(`database is from a newer Leura (layout ${version}); this version knows up to ${SCHEMA.length}`);
+    throw new Error(
+      `database is from a newer PlaygroundBooth (layout ${version}); this version knows up to ${SCHEMA.length}`,
+    );
   for (let v = version; v < SCHEMA.length; v++)
     transaction(db, () => {
       db.exec(SCHEMA[v]);
@@ -108,7 +113,7 @@ function backups(dataDir) {
   try {
     return fs
       .readdirSync(backupDir(dataDir))
-      .filter(f => /^leura-\d{4}-\d{2}-\d{2}\.db$/.test(f))
+      .filter(f => COPY_NAME.test(f))
       .sort()
       .map(f => path.join(backupDir(dataDir), f));
   } catch {
@@ -141,17 +146,41 @@ function recover(file, dataDir, err) {
   return connect(file);
 }
 
+/* leura.db (+ -wal, -shm) and its daily copies → the new name, once. Never overwrites. */
+function renameFormerFiles(dataDir, file) {
+  const former = path.join(dataDir, FORMER_FILE_NAME);
+  if (fs.existsSync(former) && !fs.existsSync(file)) {
+    for (const extra of ['-wal', '-shm', ''])
+      if (fs.existsSync(former + extra)) fs.renameSync(former + extra, file + extra);
+    notes.push({
+      level: 'info',
+      text: `Database file renamed from ${FORMER_FILE_NAME} to ${FILE_NAME} (new app name)`,
+    });
+  }
+  let copies;
+  try {
+    copies = fs.readdirSync(backupDir(dataDir)).filter(f => FORMER_COPY_NAME.test(f));
+  } catch {
+    return; // no backup folder yet
+  }
+  for (const f of copies) {
+    const to = path.join(backupDir(dataDir), 'playgroundbooth-' + f.slice('leura-'.length));
+    if (!fs.existsSync(to)) fs.renameSync(path.join(backupDir(dataDir), f), to);
+  }
+}
+
 /* ---------- One open database per data folder ---------- */
 const open = new Map();
 function openDatabase(dataDir) {
   if (open.has(dataDir)) return open.get(dataDir);
   fs.mkdirSync(dataDir, { recursive: true });
   const file = path.join(dataDir, FILE_NAME);
+  renameFormerFiles(dataDir, file);
   let db;
   try {
     db = connect(file);
   } catch (e) {
-    if (/newer Leura/.test(e.message)) throw e; // never set aside the data of a newer version
+    if (/newer PlaygroundBooth/.test(e.message)) throw e; // never set aside the data of a newer version
     db = recover(file, dataDir, e);
   }
   const store = makeStore(db, dataDir, file);
@@ -297,7 +326,7 @@ function makeStore(db, dataDir, file) {
     // Copy of the whole database for today, if there isn't one yet (last KEEP_BACKUPS days kept)
     dailyBackup() {
       const dir = backupDir(dataDir);
-      const target = path.join(dir, `leura-${today()}.db`);
+      const target = path.join(dir, `playgroundbooth-${today()}.db`);
       if (fs.existsSync(target)) return null;
       fs.mkdirSync(dir, { recursive: true });
       const tmp = target + '.tmp';

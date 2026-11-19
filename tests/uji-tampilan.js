@@ -40,7 +40,7 @@ async function saveEvidence(reason) {
     });
     const info = await evidencePage.evaluate(() => ({
       screen: document.querySelector('.screen.on')?.id,
-      busy: window.__leura?.state?.busy,
+      busy: window.__playgroundbooth?.state?.busy,
       log: (window.LOG || []).filter(x => x !== 'chunk').slice(-15),
       text: (document.querySelector('.screen.on')?.innerText || '').slice(0, 300),
       now: Math.round(performance.now()),
@@ -67,7 +67,7 @@ window.CP = { activeId: 'a', couples: [
   { id: 'b', name: 'Ayu & Budi', welcome: '', questions: ['Q'] }] }; window.MODE = { startFail: false, mrThrow: false, endOk: true, endMs: 200 };
 let nextId = 0, errCb = null;
 window.fireRecError = id => errCb && errCb(id, 'ENOSPC: disk penuh');
-const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, fullscreen: false, accent: '#b08d57', loginId: 'leura', messageCountdown: 3, messageMaxSeconds: 0,
+const ST = { quizSeconds: 2, quizRounds: 2, kiosk: false, fullscreen: false, accent: '#b08d57', loginId: 'admin', messageCountdown: 3, messageMaxSeconds: 0,
   photoCountdown: 5, photoPreview: 2, photoFlash: true, enableMessage: true, enableQuiz: true, enablePhoto: true, language: 'id',
   printEnabled: false, printMaxCopies: 4, printer: '' };
 window.api = {
@@ -113,24 +113,24 @@ window.api = {
   recStart: async (label, o) => { window.TAMU_REC = o && o.guest; LOG.push('start ' + label + (o && o.sony ? ' sony' : '')); return MODE.startFail ? { error: 'The storage folder is not writable.' } : { id: ++nextId }; },
   recChunk: () => { LOG.push('chunk'); },
   recEnd: async (id, sec, meta) => { await new Promise(r => setTimeout(r, MODE.endMs)); LOG.push('end ' + id + (meta.aborted ? ' (batal)' : '')); window.META_REC = meta;
-    return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://leura-foto.uji.workers.dev/v/Vid3oKode1', code: 'Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
+    return MODE.endOk ? { ok: true, ...(MODE.qrVideo ? { link: 'https://playgroundbooth-foto.uji.workers.dev/v/Vid3oKode1', code: 'Vid3oKode1' } : {}) } : { ok: false, error: 'ENOSPC' }; },
   recAbort: async id => { LOG.push('abort ' + id); },
   onRecError: cb => { errCb = cb; },
   savePhotos: async p => { window.FOTO = { guest: p.guest, n: p.originals.length, result: p.result.length, meta: p.meta, asli: p.originals.map(o => o.length) };
-    return UNG.st.enabled ? { ok: true, link: 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk', code: 'Ab3dEf9hJk' } : { ok: true, link: null }; },
+    return UNG.st.enabled ? { ok: true, link: 'https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk', code: 'Ab3dEf9hJk' } : { ok: true, link: null }; },
   // One QR per guest (main/upload.js → guestQr): one result = its own link, several = the guest page
   guestQr: async (items, couple) => { window.GQ = { items, couple }; if (!items.length) return null;
-    const u = 'https://leura-foto.uji.workers.dev/';
+    const u = 'https://playgroundbooth-foto.uji.workers.dev/';
     if (items.length === 1) return { link: u + (items[0].kind === 'video' ? 'v/' : 'f/') + items[0].code, count: 1 };
     return { link: u + 't/Gu3stKode1', count: items.length }; },
   uploadStatus: async () => ({ ...UNG.st }),
   saveUploadSettings: async p => { LOG.push('unggah ' + JSON.stringify(p)); Object.assign(UNG.st, p.url != null ? { url: p.url } : {}, p.key ? { hasKey: true } : {}, p.enabled != null ? { enabled: p.enabled } : {}, p.video != null ? { video: p.video } : {}, p.videoQuality ? { videoQuality: p.videoQuality } : {}); return { ...UNG.st }; },
   testUpload: async () => ({ ok: true, days: 7 }),
-  uploadSetupResult: async () => ({ url: 'https://leura-foto.uji.workers.dev', key: 'abc123' }),
+  uploadSetupResult: async () => ({ url: 'https://playgroundbooth-foto.uji.workers.dev', key: 'abc123' }),
   retryUploadNow: async () => { LOG.push('unggah coba'); return { ...UNG.st }; },
   onUploadStatus: cb => { UNG.cb = cb; },
   readLog: async () => ({ file: '2026-11-06', text: '15:01:02   Aplikasi dibuka\\n15:02:10 ✗ Kamera Sony gagal tersambung (0x8208)\\n' }),
-  saveLog: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/Leura-catatan-2026-11-06.txt' }; },
+  saveLog: async () => { LOG.push('simpan catatan'); return { ok: true, file: '/Users/x/Downloads/PlaygroundBooth-catatan-2026-11-06.txt' }; },
   log: () => {},
   onQuitRequest: cb => { window.MINTA_TUTUP = cb; },
   checkQuit: async () => (window.TUTUP || { copying: 0, processing: 0, photos: 0 }),
@@ -149,7 +149,7 @@ window.api = {
   listFilters: async () => (window.FLT || []).map(f => ({ id: f.id, name: f.name, size: f.size })),
   addFilter: async (nama, bytes) => {
     const teks = new TextDecoder().decode(bytes);
-    let lut; try { lut = window.__leura.parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
+    let lut; try { lut = window.__playgroundbooth.parseCube(teks); } catch (e) { return { error: 'This file can\\'t be used: ' + e.message }; }
     const f = { id: 'lut' + ((window.FLT || []).length + 1), name: nama.replace(/\\.cube$/i, ''), size: lut.size, text: teks };
     (window.FLT = window.FLT || []).push(f); return { ok: true, filter: { id: f.id, name: f.name, size: f.size } };
   },
@@ -228,7 +228,7 @@ async function main() {
   // The tests click faster than any guest: no waiting after Start (the wait itself is tested further down)
   const tanpaJeda = () =>
     pg.evaluate(() => {
-      __leura.state.arrivalGuardMs = 0;
+      __playgroundbooth.state.arrivalGuardMs = 0;
     });
   await tanpaJeda();
   const layar = () => pg.evaluate(() => document.querySelector('.screen.on').id);
@@ -245,7 +245,7 @@ async function main() {
   // itself. So tap only if it is still showing, in one step inside the page (no gap for a race).
   const keMenu = async () => {
     await pg.evaluate(() => {
-      if (__leura.state.current === 'thanks') document.getElementById('thanks').click();
+      if (__playgroundbooth.state.current === 'thanks') document.getElementById('thanks').click();
     });
     await tungguLayar('home');
   };
@@ -334,7 +334,7 @@ async function main() {
     !(await pg.evaluate(() => document.getElementById('home').classList.contains('enter'))),
     'animasi menu hanya setelah Terima kasih',
   );
-  await pg.evaluate(() => __leura.show('thanks'));
+  await pg.evaluate(() => __playgroundbooth.show('thanks'));
 
   console.log('\n▶ Rekaman gagal dimulai tidak membuat layar macet');
   await atur({ startFail: true });
@@ -363,7 +363,7 @@ async function main() {
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(4500);
-  await pg.evaluate(() => fireRecError(__leura.state.rec.id));
+  await pg.evaluate(() => fireRecError(__playgroundbooth.state.rec.id));
   await tunggu(600);
   cek(
     (await layar()) === 'home' && /disk/.test(await pg.textContent('#notice')),
@@ -440,7 +440,7 @@ async function main() {
   );
   cek(
     !(await pg.isVisible('#qrCanvas')) &&
-      JSON.stringify(await pg.evaluate(() => __leura.state.guestResults)) ===
+      JSON.stringify(await pg.evaluate(() => __playgroundbooth.state.guestResults)) ===
         '[{"kind":"video","code":"Vid3oKode1","label":"quiz"}]',
     'Terima kasih tanpa QR; kode video quiz disimpan untuk QR tamu',
   );
@@ -456,25 +456,26 @@ async function main() {
   await pg.click('#btnGuestDone');
   await tungguLayar('guestQr');
   cek(
-    (await pg.textContent('#qrLink')) === 'leura-foto.uji.workers.dev/v/Vid3oKode1' &&
+    (await pg.textContent('#qrLink')) === 'playgroundbooth-foto.uji.workers.dev/v/Vid3oKode1' &&
       (await pg.textContent('#gqSummary')) === '1 video quiz' &&
       (await pg.evaluate(() => document.getElementById('qrCanvas').width)) > 200,
     'satu hasil: QR langsung ke halaman videonya',
   );
   await pg.click('#btnGuestQrDone');
   cek(
-    (await layar()) === 'start' && (await pg.evaluate(() => __leura.state.guestResults.length)) === 0,
+    (await layar()) === 'start' && (await pg.evaluate(() => __playgroundbooth.state.guestResults.length)) === 0,
     'Selesai di halaman QR: kembali ke Start, daftar hasil tamu kosong lagi',
   );
   await atur({ qrVideo: false });
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
   await tunggu(4300);
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   cek(
-    (await pg.evaluate(() => __leura.state.guestResults.length)) === 0 && !(await pg.evaluate(() => META_REC.captions)),
+    (await pg.evaluate(() => __playgroundbooth.state.guestResults.length)) === 0 &&
+      !(await pg.evaluate(() => META_REC.captions)),
     'pesan video tanpa QR (QR video mati): tidak ada kode QR, tidak ada teks pertanyaan',
   );
 
@@ -512,7 +513,7 @@ async function main() {
   await pg.click('#btnLoginBack');
   await tungguLayar('home');
   await pg.click('#btnAdminOpen');
-  await pg.fill('#uid', 'leura');
+  await pg.fill('#uid', 'admin');
   await pg.fill('#pw', '1234');
   await pg.click('#btnLogin');
   await pg.waitForSelector('#adminPanel', { state: 'visible', timeout: 5000 }).catch(() => {});
@@ -534,7 +535,7 @@ async function main() {
     await pg.textContent('#diskFree'),
   );
   await atur({ disk: { ok: true, free: 0.5 * 1024 ** 3, total: 500 * 1024 ** 3, level: 'full' } });
-  await pg.evaluate(() => __leura.refreshDiskSpace());
+  await pg.evaluate(() => __playgroundbooth.refreshDiskSpace());
   cek(
     /0\.5 GB of 500 GB/.test(await pg.textContent('#diskFree')) &&
       (await pg.getAttribute('#diskFree', 'class')).includes('full'),
@@ -542,8 +543,8 @@ async function main() {
   );
   cek(/Storage is full/.test(await pg.textContent('#notice')), 'disk penuh: operator mendapat pemberitahuan');
   await pg.click('#btnAdminBack');
-  await pg.evaluate(() => __leura.show('start'));
-  await pg.evaluate(() => __leura.setNotice(''));
+  await pg.evaluate(() => __playgroundbooth.show('start'));
+  await pg.evaluate(() => __playgroundbooth.setNotice(''));
   await pg.click('#btnStart');
   await tunggu(200);
   cek(
@@ -551,9 +552,9 @@ async function main() {
     'disk penuh: tombol Start tidak membuka sesi baru',
   );
   await atur({ disk: null });
-  await pg.evaluate(() => __leura.refreshDiskSpace());
-  await pg.evaluate(() => __leura.setNotice(''));
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.refreshDiskSpace());
+  await pg.evaluate(() => __playgroundbooth.setNotice(''));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(300);
   await pg.locator('#adminPanel').evaluate(e => {
@@ -660,9 +661,9 @@ async function main() {
     (await layar()) === 'tpleditor' && (await pg.locator('.te-slot').count()) === 4,
     'editor template terbuka dengan kotak foto 1-4',
   );
-  const rasioSlot = () => pg.evaluate(() => __leura.te.tpl.slots.map(s => s.w / s.h));
+  const rasioSlot = () => pg.evaluate(() => __playgroundbooth.te.tpl.slots.map(s => s.w / s.h));
   cek(
-    (await pg.evaluate(() => __leura.te.tpl.ratio)) === '3:2' &&
+    (await pg.evaluate(() => __playgroundbooth.te.tpl.ratio)) === '3:2' &&
       (await rasioSlot()).every(r => Math.abs(r - 1.5) < 0.01),
     'template baru memakai rasio 3:2 (sama dengan foto kamera)',
   );
@@ -682,34 +683,43 @@ async function main() {
   );
   await pg.fill('#teName', 'Rustic emas');
   const slot = await pg.locator('.te-slot').first().boundingBox();
-  const x0 = await pg.evaluate(() => __leura.te.tpl.slots[0].x);
+  const x0 = await pg.evaluate(() => __playgroundbooth.te.tpl.slots[0].x);
   await pg.mouse.move(slot.x + slot.width / 2, slot.y + slot.height / 2);
   await pg.mouse.down();
   await pg.mouse.move(slot.x + slot.width / 2 + 40, slot.y + slot.height / 2 + 30, { steps: 5 });
   await pg.mouse.up();
-  cek((await pg.evaluate(() => __leura.te.tpl.slots[0].x)) > x0 + 40, 'kotak foto 1 bisa digeser dengan jari');
+  cek(
+    (await pg.evaluate(() => __playgroundbooth.te.tpl.slots[0].x)) > x0 + 40,
+    'kotak foto 1 bisa digeser dengan jari',
+  );
   const pj = await pg.locator('.te-slot').nth(1).locator('.te-resize').boundingBox();
-  const w0 = await pg.evaluate(() => __leura.te.tpl.slots[1].w);
+  const w0 = await pg.evaluate(() => __playgroundbooth.te.tpl.slots[1].w);
   await pg.mouse.move(pj.x + pj.width / 2, pj.y + pj.height / 2);
   await pg.mouse.down();
   await pg.mouse.move(pj.x - 30, pj.y + pj.height / 2, { steps: 5 });
   await pg.mouse.up();
-  cek((await pg.evaluate(() => __leura.te.tpl.slots[1].w)) < w0, 'ukuran kotak foto bisa diubah dari pojoknya');
   cek(
-    await pg.evaluate(() => Math.abs(__leura.te.tpl.slots[1].w - __leura.te.tpl.slots[1].h) <= 1),
+    (await pg.evaluate(() => __playgroundbooth.te.tpl.slots[1].w)) < w0,
+    'ukuran kotak foto bisa diubah dari pojoknya',
+  );
+  cek(
+    await pg.evaluate(() => Math.abs(__playgroundbooth.te.tpl.slots[1].w - __playgroundbooth.te.tpl.slots[1].h) <= 1),
     'saat diubah ukurannya, rasio kotak foto tetap 1:1',
   );
-  const posisi = await pg.evaluate(() => JSON.stringify(__leura.te.tpl.slots.slice(0, 2)));
+  const posisi = await pg.evaluate(() => JSON.stringify(__playgroundbooth.te.tpl.slots.slice(0, 2)));
   await pg.click('[data-tab="photo"]');
   await pg.locator('#teSlotChoose button').first().click();
   await pg.click('#teSlotSwap');
   cek(
-    await pg.evaluate(p => JSON.stringify([__leura.te.tpl.slots[1], __leura.te.tpl.slots[0]]) === p, posisi),
+    await pg.evaluate(
+      p => JSON.stringify([__playgroundbooth.te.tpl.slots[1], __playgroundbooth.te.tpl.slots[0]]) === p,
+      posisi,
+    ),
     'posisi foto 1 dan 2 bisa ditukar',
   );
   await pg.locator('#teLayout .pe-opt').nth(1).click();
   cek(
-    await pg.evaluate(() => __leura.te.tpl.slots.every(s => s.x === __leura.te.tpl.slots[0].x)),
+    await pg.evaluate(() => __playgroundbooth.te.tpl.slots.every(s => s.x === __playgroundbooth.te.tpl.slots[0].x)),
     'susunan cepat "Kolom" dipakai',
   );
   await pg.click('[data-tab="text"]');
@@ -719,12 +729,12 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        __leura.te.tpl.texts.length === 3 &&
-        __leura.te.tpl.texts[2].text === 'Terima kasih sudah datang' &&
-        __leura.te.tpl.texts[2].font === 'serif',
+        __playgroundbooth.te.tpl.texts.length === 3 &&
+        __playgroundbooth.te.tpl.texts[2].text === 'Terima kasih sudah datang' &&
+        __playgroundbooth.te.tpl.texts[2].font === 'serif',
     ),
     'teks baru ditambahkan & hurufnya bisa diganti',
-    await pg.evaluate(() => __leura.te.tpl.texts.map(t => t.text + '|' + t.font)),
+    await pg.evaluate(() => __playgroundbooth.te.tpl.texts.map(t => t.text + '|' + t.font)),
   );
   await pg.click('[data-tab="design"]');
   await pg.locator('#teSize .pe-opt').nth(2).click();
@@ -732,9 +742,9 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        __leura.te.tpl.W === 600 &&
-        __leura.te.tpl.H === 1800 &&
-        __leura.te.tpl.slots.every(s => s.x + s.w <= 600 && Math.abs(s.w / s.h - 1) < 0.02),
+        __playgroundbooth.te.tpl.W === 600 &&
+        __playgroundbooth.te.tpl.H === 1800 &&
+        __playgroundbooth.te.tpl.slots.every(s => s.x + s.w <= 600 && Math.abs(s.w / s.h - 1) < 0.02),
     ),
     'ganti ukuran ke Strip: posisi menyesuaikan, rasio tetap',
   );
@@ -752,8 +762,12 @@ async function main() {
   cek(/must be a PNG/.test(await pg.textContent('#teMsg')), 'bingkai JPG ditolak dengan pesan jelas');
   // QR for prints: a new template has one in the bottom-right corner; it can be moved, resized, turned off
   await pg.click('[data-tab="print"]');
-  const qrNow = () => pg.evaluate(() => ({ ...__leura.te.tpl.qr }));
-  const q0 = await pg.evaluate(() => ({ ...__leura.te.tpl.qr, W: __leura.te.tpl.W, H: __leura.te.tpl.H }));
+  const qrNow = () => pg.evaluate(() => ({ ...__playgroundbooth.te.tpl.qr }));
+  const q0 = await pg.evaluate(() => ({
+    ...__playgroundbooth.te.tpl.qr,
+    W: __playgroundbooth.te.tpl.W,
+    H: __playgroundbooth.te.tpl.H,
+  }));
   cek(
     (await pg.isChecked('#teQrOn')) && (await pg.locator('.te-qr').count()) === 1 && q0.x > q0.W / 2 && q0.y > q0.H / 2,
     'template baru: QR cetak di pojok kanan bawah',
@@ -820,7 +834,7 @@ async function main() {
     'Batal tidak menyimpan perubahan',
   );
   cek((await pg.evaluate(() => TPL[0].ratio)) === '1:1', 'rasio foto ikut tersimpan di template');
-  await pg.evaluate(() => __leura.openTemplateEditor({ ...TPL[0], id: 'lama', ratio: undefined }));
+  await pg.evaluate(() => __playgroundbooth.openTemplateEditor({ ...TPL[0], id: 'lama', ratio: undefined }));
   await tunggu(300);
   await pg.click('#teSave');
   await tunggu(200);
@@ -877,7 +891,7 @@ async function main() {
   await pg.click('#btnFinish');
   await tungguLayar('thanks');
   await keMenu();
-  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 2 }));
+  await pg.evaluate(() => __playgroundbooth.applySettings({ ...__playgroundbooth.state.cfg, messageMaxSeconds: 2 }));
   await bersihkan();
   await pg.click('#btnToMessage');
   await pg.click('#btnMessageStart');
@@ -892,9 +906,9 @@ async function main() {
   await tungguLayar('thanks');
   await keMenu();
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, messageMaxSeconds: 0 });
-    __leura.state.activeCouple.menu.quiz = true;
-    __leura.applyMenu();
+    __playgroundbooth.applySettings({ ...__playgroundbooth.state.cfg, messageMaxSeconds: 0 });
+    __playgroundbooth.state.activeCouple.menu.quiz = true;
+    __playgroundbooth.applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(/30 detik/.test(await pg.textContent('#quizInfo')), 'waktu jawab baru langsung dipakai quiz');
@@ -954,7 +968,12 @@ async function main() {
     hitung,
   );
   await pg.evaluate(() =>
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 5, photoPreview: 2, photoFlash: true }),
+    __playgroundbooth.applySettings({
+      ...__playgroundbooth.state.cfg,
+      photoCountdown: 5,
+      photoPreview: 2,
+      photoFlash: true,
+    }),
   );
   await pg.evaluate(() => {
     HITUNG.length = 0;
@@ -1030,7 +1049,7 @@ async function main() {
 
   console.log('\n▶ Filter foto (LUT) per template');
   await pg.evaluate(() => {
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
   });
   await pg.locator('#coupleList .cp-row').first().click();
   await tunggu(300);
@@ -1076,8 +1095,8 @@ async function main() {
   );
   const pratinjau = await pg.evaluate(() => {
     // foto contoh di kotak foto editor ikut difilter (warna terbalik)
-    const asli = __leura.sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
-      f = __leura.te.samplePhoto.getContext('2d').getImageData(10, 10, 1, 1).data;
+    const asli = __playgroundbooth.sampleFilterPhoto().getContext('2d').getImageData(10, 10, 1, 1).data,
+      f = __playgroundbooth.te.samplePhoto.getContext('2d').getImageData(10, 10, 1, 1).data;
     return [Math.abs(255 - asli[0] - f[0]), Math.abs(255 - asli[2] - f[2])];
   });
   cek(pratinjau[0] <= 2 && pratinjau[1] <= 2, 'pratinjau editor: foto contoh di kotak foto memakai filter', pratinjau);
@@ -1101,8 +1120,13 @@ async function main() {
   );
   cek(/with filter/.test(await pg.textContent('#tplList')), 'daftar template menandai template berfilter');
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 2, photoPreview: 0, photoFlash: false });
-    __leura.show('home');
+    __playgroundbooth.applySettings({
+      ...__playgroundbooth.state.cfg,
+      photoCountdown: 2,
+      photoPreview: 0,
+      photoFlash: false,
+    });
+    __playgroundbooth.show('home');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -1146,7 +1170,7 @@ async function main() {
 
   console.log('\n▶ Hapus template');
   await pg.evaluate(() => {
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
   });
   await pg.locator('#coupleList .cp-row').first().click();
   await tunggu(300);
@@ -1163,8 +1187,8 @@ async function main() {
     'template terhapus dari daftar',
   );
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0 });
-    __leura.show('home');
+    __playgroundbooth.applySettings({ ...__playgroundbooth.state.cfg, photoCountdown: 3, photoPreview: 0 });
+    __playgroundbooth.show('home');
   });
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
@@ -1182,7 +1206,7 @@ async function main() {
   await keMenu();
 
   console.log('\n▶ Tambah couple baru lalu langsung buat template');
-  await pg.evaluate(() => __leura.show('admin'));
+  await pg.evaluate(() => __playgroundbooth.show('admin'));
   await pg.click('#btnAddCouple');
   await tunggu(200);
   cek(
@@ -1215,7 +1239,7 @@ async function main() {
   await tunggu(300);
   cek(
     /Sari & Andi/.test(await pg.textContent('#teTitle')) &&
-      (await pg.evaluate(() => __leura.fillTemplateText('{couple}'))) === 'Sari & Andi',
+      (await pg.evaluate(() => __playgroundbooth.fillTemplateText('{couple}'))) === 'Sari & Andi',
     'pratinjau {couple} memakai nama couple yang diedit',
   );
   await pg.click('#teSave');
@@ -1241,12 +1265,12 @@ async function main() {
   );
   cek(/and 1 template/.test(await pg.textContent('#coupleMsg')), 'pesan menyebut template yang ikut terhapus');
   cek(
-    (await pg.evaluate(() => __leura.fillTemplateText('{couple}'))) === 'Rina & Dimas',
+    (await pg.evaluate(() => __playgroundbooth.fillTemplateText('{couple}'))) === 'Rina & Dimas',
     'di luar halaman couple, {couple} kembali ke couple aktif',
   );
 
   console.log('\n▶ Kamera Sony');
-  await pg.evaluate(() => __leura.show('admin'));
+  await pg.evaluate(() => __playgroundbooth.show('admin'));
   cek(
     (await pg.inputValue('#camSource')) === 'webcam' && !(await pg.isVisible('#sonyRow')),
     'Admin: sumber kamera bawaan Webcam / HP',
@@ -1254,7 +1278,7 @@ async function main() {
   await pg.selectOption('#camSource', 'sony-sim');
   await tunggu(400);
   cek(
-    await pg.evaluate(() => document.body.classList.contains('sonyOn') && __leura.state.mediaStream === null),
+    await pg.evaluate(() => document.body.classList.contains('sonyOn') && __playgroundbooth.state.mediaStream === null),
     'pilih Sony: webcam & mic komputer dilepas',
   );
   cek(
@@ -1271,8 +1295,13 @@ async function main() {
     'live view tampil di pratinjau Admin',
   );
   await pg.evaluate(() => {
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0, messageCountdown: 0 });
-    __leura.show('home');
+    __playgroundbooth.applySettings({
+      ...__playgroundbooth.state.cfg,
+      photoCountdown: 3,
+      photoPreview: 0,
+      messageCountdown: 0,
+    });
+    __playgroundbooth.show('home');
   });
   await tunggu(400);
   cek((await pg.isVisible('#camLv')) && !(await pg.isVisible('#cam')), 'live view Sony jadi latar Halaman Utama');
@@ -1281,10 +1310,10 @@ async function main() {
   await tunggu(100);
   cek((await log()).includes('mode video'), 'buka Kirim pesan: kamera Sony dipindah ke mode VIDEO');
   await pg.click('#btnMessageBack');
-  await pg.evaluate(() => __leura.show('quiz'));
+  await pg.evaluate(() => __playgroundbooth.show('quiz'));
   await tunggu(100);
   cek((await log()).filter(x => x === 'mode video').length === 2, 'buka Quiz: kamera Sony ke mode VIDEO');
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnToPhoto');
   await tunggu(100);
   cek((await log()).includes('mode photo'), 'buka Photo booth: kamera Sony dipindah ke mode FOTO');
@@ -1298,9 +1327,9 @@ async function main() {
   });
   await pg.click('#btnToMessage');
   await tunggu(150);
-  const n1 = await pg.evaluate(() => __leura.liveViewFrameCount());
+  const n1 = await pg.evaluate(() => __playgroundbooth.liveViewFrameCount());
   await tunggu(400);
-  const n2 = await pg.evaluate(() => __leura.liveViewFrameCount());
+  const n2 = await pg.evaluate(() => __playgroundbooth.liveViewFrameCount());
   cek(
     (await pg.evaluate(() => document.body.classList.contains('lvSwitching'))) && n1 === n2,
     'ganti mode: gambar kamera dibekukan + kabut (blur) selama berganti',
@@ -1308,7 +1337,7 @@ async function main() {
   await tunggu(1800);
   cek(
     !(await pg.evaluate(() => document.body.classList.contains('lvSwitching'))) &&
-      (await pg.evaluate(() => __leura.liveViewFrameCount())) > n2,
+      (await pg.evaluate(() => __playgroundbooth.liveViewFrameCount())) > n2,
     'mode selesai: kabut hilang, gambar kamera jalan lagi',
   );
   await pg.evaluate(() => {
@@ -1317,13 +1346,13 @@ async function main() {
     window.MODE_DELAY = 0;
   });
   await pg.click('#btnMessageBack');
-  await pg.evaluate(() => __leura.show('quiz'));
+  await pg.evaluate(() => __playgroundbooth.show('quiz'));
   await tunggu(100);
   cek(
     !(await pg.evaluate(() => document.body.classList.contains('lvSwitching'))),
     'mode sudah benar (pesan → quiz): tanpa kabut',
   );
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1372,12 +1401,12 @@ async function main() {
     'kamera belum tersambung: rekaman tidak dimulai',
   );
   await pg.evaluate(() => {
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
   });
   await pg.selectOption('#camSource', 'webcam');
   await tunggu(500);
   cek(
-    await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!__leura.state.mediaStream),
+    await pg.evaluate(() => !document.body.classList.contains('sonyOn') && !!__playgroundbooth.state.mediaStream),
     'kembali ke webcam: kamera komputer dibuka lagi',
   );
 
@@ -1425,8 +1454,8 @@ async function main() {
       { id: 6, time: t(0, 18, 24), label: 'message', couple: 'Rina & Dimas', seconds: 1, status: 'done' },
       { id: 7, time: t(1, 18, 30), label: 'message', couple: 'Rina & Dimas', seconds: 30, status: 'done' },
     ];
-    __leura.show('admin');
-    return __leura.loadSessions();
+    __playgroundbooth.show('admin');
+    return __playgroundbooth.loadSessions();
   });
   cek(
     /Rina & Dimas: 5 today · 6 total/.test(await pg.textContent('#historySummary')) &&
@@ -1562,7 +1591,7 @@ async function main() {
   cek((await layar()) === 'admin', 'tombol Admin kembali');
 
   console.log('\n▶ Bahasa layar tamu');
-  await pg.evaluate(() => __leura.show('admin'));
+  await pg.evaluate(() => __playgroundbooth.show('admin'));
   cek((await pg.inputValue('#setGuestLanguage')) === 'id', 'bahasa layar tamu dari pengaturan tampil di Admin');
   // Ganti bahasa tamu ke English
   await pg.selectOption('#setGuestLanguage', 'en');
@@ -1582,8 +1611,8 @@ async function main() {
     'Halaman Utama berbahasa Inggris (ikon tombol tetap ada); sambutan tampil seperti yang diketik',
   );
   await pg.evaluate(() => {
-    __leura.state.activeCouple.menu.quiz = true;
-    __leura.applyMenu();
+    __playgroundbooth.state.activeCouple.menu.quiz = true;
+    __playgroundbooth.applyMenu();
   });
   await pg.click('#btnToQuiz');
   cek(
@@ -1593,7 +1622,7 @@ async function main() {
     'halaman Quiz berbahasa Inggris',
   );
   cek(
-    (await pg.evaluate(() => __leura.state.cfg.quiz[0])) === 'Q satu',
+    (await pg.evaluate(() => __playgroundbooth.state.cfg.quiz[0])) === 'Q satu',
     'pertanyaan quiz tampil seperti yang diketik admin',
   );
   await pg.click('#btnQuizBack');
@@ -1619,7 +1648,7 @@ async function main() {
   cek(
     await pg.evaluate(
       () =>
-        __leura.fillTemplateText('{tanggal}') ===
+        __playgroundbooth.fillTemplateText('{tanggal}') ===
         new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
     ),
     'tanggal di template foto ditulis dalam bahasa Inggris',
@@ -1631,8 +1660,11 @@ async function main() {
       /Your photos have been saved/.test(await pg.textContent('#thanksMsg')),
     'halaman Terima kasih berbahasa Inggris',
   );
-  cek((await pg.evaluate(() => __leura.state.guestResults.length)) === 0, 'QR mati: foto tidak memberi kode QR');
-  await pg.evaluate(() => __leura.state.guestResults.push({ kind: 'photo', code: 'Ab3dEf9hJk' })); // as if QR were on
+  cek(
+    (await pg.evaluate(() => __playgroundbooth.state.guestResults.length)) === 0,
+    'QR mati: foto tidak memberi kode QR',
+  );
+  await pg.evaluate(() => __playgroundbooth.state.guestResults.push({ kind: 'photo', code: 'Ab3dEf9hJk' })); // as if QR were on
   await keMenu();
   cek((await pg.textContent('#guestDoneText')) === 'Finish & get QR', 'tombol "Finish & get QR" berbahasa Inggris');
   await pg.click('#btnGuestDone');
@@ -1643,10 +1675,10 @@ async function main() {
       /\?b=en$/.test(await pg.textContent('#qrLink')),
     'halaman QR tamu berbahasa Inggris (link membuka halaman bahasa Inggris)',
   );
-  await pg.evaluate(() => __leura.show('admin'));
+  await pg.evaluate(() => __playgroundbooth.show('admin'));
   await pg.selectOption('#setGuestLanguage', 'id');
   await tunggu(300);
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   cek(
     /Kirim pesan/.test(await pg.textContent('#btnToMessage')) &&
       (await pg.textContent('#welcome')) === 'Tinggalkan pesan untuk kami',
@@ -1655,8 +1687,8 @@ async function main() {
 
   console.log('\n▶ Unduh foto lewat QR');
   await pg.evaluate(() => {
-    __leura.show('admin');
-    __leura.applySettings({ ...__leura.state.cfg, photoCountdown: 3, photoPreview: 0 });
+    __playgroundbooth.show('admin');
+    __playgroundbooth.applySettings({ ...__playgroundbooth.state.cfg, photoCountdown: 3, photoPreview: 0 });
   });
   await pg.locator('#btnSetPhoto').scrollIntoViewIfNeeded();
   await pg.click('#btnSetPhoto');
@@ -1668,7 +1700,7 @@ async function main() {
   await pg.click('#btnQrSetup');
   await tunggu(200);
   cek(
-    (await pg.inputValue('#setQrUrl')) === 'https://leura-foto.uji.workers.dev' &&
+    (await pg.inputValue('#setQrUrl')) === 'https://playgroundbooth-foto.uji.workers.dev' &&
       /saved/.test(await pg.getAttribute('#setQrKey', 'placeholder')),
     '"Ambil dari hasil pasang" mengisi alamat & kunci',
   );
@@ -1733,8 +1765,8 @@ async function main() {
       const u = UNG.st.url;
       UNG.cb({ ...UNG.st, url: 'https://x.workers.dev' });
       const r = [
-        __leura.sessionLink({ label: 'message', code: 'K1' }),
-        __leura.sessionLink({ label: 'photo', code: 'K2' }),
+        __playgroundbooth.sessionLink({ label: 'message', code: 'K1' }),
+        __playgroundbooth.sessionLink({ label: 'photo', code: 'K2' }),
       ];
       UNG.cb({ ...UNG.st, url: u });
       return r.join();
@@ -1751,7 +1783,7 @@ async function main() {
   await bersihkan();
   await pg.click('#btnQrRetry');
   cek((await log()).includes('unggah coba'), 'Coba kirim sekarang');
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -1784,7 +1816,7 @@ async function main() {
   await pg.click('#btnGuestDone');
   await tungguLayar('guestQr');
   cek(
-    (await pg.textContent('#qrLink')) === 'leura-foto.uji.workers.dev/t/Gu3stKode1' &&
+    (await pg.textContent('#qrLink')) === 'playgroundbooth-foto.uji.workers.dev/t/Gu3stKode1' &&
       (await pg.textContent('#gqSummary')) === '1 pesan video · 1 sesi foto' &&
       JSON.stringify((await pg.evaluate(() => GQ)).items.map(x => x.kind + ':' + x.code)) ===
         '["photo:Ab3dEf9hJk","video:Vid3oKode1"]' &&
@@ -1809,8 +1841,8 @@ async function main() {
 
   console.log('\n▶ Tamu pergi tanpa menekan "Selesai & ambil QR"');
   await pg.evaluate(() => {
-    __leura.state.guestResults = [{ kind: 'photo', code: 'Ab3dEf9hJk' }];
-    __leura.state.guestActivity = 1;
+    __playgroundbooth.state.guestResults = [{ kind: 'photo', code: 'Ab3dEf9hJk' }];
+    __playgroundbooth.state.guestActivity = 1;
   });
   // Open the menu and note every long timer started meanwhile (the idle timer is 20 s or more)
   const timerMenu = await pg.evaluate(() => {
@@ -1821,7 +1853,7 @@ async function main() {
       return asli(fn, ms, ...a);
     };
     try {
-      __leura.show('home'); // show() starts the idle timer of the new page
+      __playgroundbooth.show('home'); // show() starts the idle timer of the new page
     } finally {
       window.setTimeout = asli;
     }
@@ -1830,8 +1862,8 @@ async function main() {
   cek(timerMenu.length === 0, 'halaman utama: tidak kembali sendiri ke Start / QR (tanpa timer diam)', timerMenu);
   // Idle on a guest page (message): the real timer is 60 s; call what it calls
   await pg.evaluate(() => {
-    __leura.show('message');
-    __leura.openGuestQr();
+    __playgroundbooth.show('message');
+    __playgroundbooth.openGuestQr();
   });
   cek((await layar()) === 'guestQr', 'halaman tamu dibiarkan dengan hasil: QR tamu tampil dulu, bukan langsung Start');
   await pg.click('#btnGuestQrDone');
@@ -1852,7 +1884,7 @@ async function main() {
         status: 'photo',
         photos: 4,
         code: 'Ab3dEf9hJk',
-        link: 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk',
+        link: 'https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk',
         upload: 'sent',
       },
       {
@@ -1866,7 +1898,7 @@ async function main() {
         upload: 'waiting',
       },
     );
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
   });
   await bersihkan();
   await pg.click('#btnHistory');
@@ -1874,7 +1906,7 @@ async function main() {
   await pg.click('.hist-row[data-id="20"]');
   await tunggu(200);
   cek(
-    (await pg.textContent('.hist-detail .hist-link')) === 'https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk' &&
+    (await pg.textContent('.hist-detail .hist-link')) === 'https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk' &&
       /guests can download the photos/.test(await pg.textContent('.hist-detail')),
     'detail sesi foto menampilkan link unduh + status QR',
   );
@@ -1884,8 +1916,8 @@ async function main() {
   await tunggu(100);
   const lg = await log();
   cek(
-    lg.includes('salin https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
-      lg.includes('buka https://leura-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
+    lg.includes('salin https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
+      lg.includes('buka https://playgroundbooth-foto.uji.workers.dev/f/Ab3dEf9hJk') &&
       /Link copied/.test(await pg.textContent('#histMsg')),
     'tombol Salin link & Buka link',
   );
@@ -1893,7 +1925,7 @@ async function main() {
   await tunggu(200);
   cek(
     (await pg.isVisible('#rwQR canvas')) &&
-      /leura-foto.uji.workers.dev\/f\/Ab3dEf9hJk/.test(await pg.textContent('#rwQR small')),
+      /playgroundbooth-foto.uji.workers.dev\/f\/Ab3dEf9hJk/.test(await pg.textContent('#rwQR small')),
     'Tampilkan QR: QR besar sesi itu muncul',
   );
   await pg.evaluate(() => {
@@ -1909,14 +1941,14 @@ async function main() {
   await pg.click('.hist-row[data-id="21"]');
   await tunggu(200);
   cek(
-    (await pg.textContent('.hist-detail .hist-link')) === 'https://leura-foto.uji.workers.dev/f/LamaKode99',
+    (await pg.textContent('.hist-detail .hist-link')) === 'https://playgroundbooth-foto.uji.workers.dev/f/LamaKode99',
     'sesi lama (hanya kode) tetap mendapat link dari alamat server',
   );
   await pg.click('#histBack');
   await tunggu(200);
 
   console.log('\n▶ Nama tamu');
-  await pg.evaluate(() => __leura.show('start'));
+  await pg.evaluate(() => __playgroundbooth.show('start'));
   await pg.click('#btnStart');
   cek(
     (await layar()) === 'name' && (await pg.inputValue('#nameInput')) === '',
@@ -1965,32 +1997,32 @@ async function main() {
     'nama bisa diganti lewat tombol kembali',
   );
   await pg.evaluate(() => {
-    __leura.state.guestActivity = 1; // the guest finished a message / quiz / photo (Thank you page)
-    __leura.show('home');
+    __playgroundbooth.state.guestActivity = 1; // the guest finished a message / quiz / photo (Thank you page)
+    __playgroundbooth.show('home');
   });
   cek(!(await pg.isVisible('#btnHomeBack')), 'setelah ada kegiatan: tombol kembali di menu hilang');
   await pg.evaluate(() => {
-    __leura.state.guestActivity = 0;
-    __leura.show('home');
+    __playgroundbooth.state.guestActivity = 0;
+    __playgroundbooth.show('home');
   });
   // Touch screen: one tap reported twice must not go back twice (menu → name → Start); both buttons share a corner
   await pg.evaluate(() => {
-    __leura.state.arrivalGuardMs = 700;
+    __playgroundbooth.state.arrivalGuardMs = 700;
     document.getElementById('btnHomeBack').click();
     document.getElementById('btnNameBack').click(); // the ghost click
-    __leura.state.arrivalGuardMs = 0;
+    __playgroundbooth.state.arrivalGuardMs = 0;
   });
   cek((await layar()) === 'name', 'layar sentuh: ketukan ganda di tombol kembali hanya mundur satu halaman');
   await tunggu(750);
   await pg.click('#btnNameBack');
   cek((await layar()) === 'start', 'halaman nama: tombol kembali ke Start');
-  await pg.evaluate(() => __leura.show('start'));
+  await pg.evaluate(() => __playgroundbooth.show('start'));
   cek(
-    (await pg.evaluate(() => __leura.state.guestName)) === '' && !(await pg.isVisible('#guestGreeting')),
+    (await pg.evaluate(() => __playgroundbooth.state.guestName)) === '' && !(await pg.isVisible('#guestGreeting')),
     'kembali ke Start menghapus nama tamu sebelumnya',
   );
   await pg.evaluate(() => {
-    __leura.setLanguage('en');
+    __playgroundbooth.setLanguage('en');
   });
   await pg.click('#btnStart');
   cek(
@@ -2014,8 +2046,8 @@ async function main() {
   await pg.click('#btnAdminBack');
   cek((await layar()) === 'name', 'Admin dibuka dari halaman nama: kembali ke halaman nama');
   await pg.evaluate(() => {
-    __leura.setLanguage('id');
-    __leura.show('admin');
+    __playgroundbooth.setLanguage('id');
+    __playgroundbooth.show('admin');
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
   });
@@ -2024,7 +2056,7 @@ async function main() {
   await pg.click('#setAskName');
   await tunggu(200);
   cek(/"askName":false/.test((await log()).join(' ')), 'Admin: "Tanya nama tamu" bisa dimatikan');
-  await pg.evaluate(() => __leura.show('start'));
+  await pg.evaluate(() => __playgroundbooth.show('start'));
   await pg.click('#btnStart');
   cek(
     (await layar()) === 'home' && !(await pg.isVisible('#guestGreeting')),
@@ -2035,8 +2067,8 @@ async function main() {
   await pg.click('#btnStart');
   // Touch screen: one finger tap reported twice must not press a menu button of the new page
   await pg.evaluate(() => {
-    __leura.state.arrivalGuardMs = 700;
-    __leura.show('start');
+    __playgroundbooth.state.arrivalGuardMs = 700;
+    __playgroundbooth.show('start');
     document.getElementById('btnStart').click();
     document.getElementById('btnToPhoto').click(); // the ghost click
   });
@@ -2049,12 +2081,12 @@ async function main() {
   await tanpaJeda();
   await pg.click('#btnToPhoto');
   cek((await layar()) === 'photo', 'layar sentuh: setelah sesaat, tombol menu bisa ditekan lagi');
-  await pg.evaluate(() => __leura.show('admin'));
+  await pg.evaluate(() => __playgroundbooth.show('admin'));
   await pg.click('#setAskName');
   await tunggu(200);
 
   console.log('\n▶ Alur tamu: Terima kasih → menu → Selesai');
-  await pg.evaluate(() => __leura.show('start'));
+  await pg.evaluate(() => __playgroundbooth.show('start'));
   await pg.click('#btnStart');
   await pg.fill('#nameInput', 'Rani');
   await pg.press('#nameInput', 'Enter');
@@ -2079,7 +2111,7 @@ async function main() {
   );
   await pg.click('#btnGuestDone');
   cek(
-    (await layar()) === 'start' && (await pg.evaluate(() => __leura.state.guestName)) === '',
+    (await layar()) === 'start' && (await pg.evaluate(() => __playgroundbooth.state.guestName)) === '',
     'Selesai: kembali ke Start, nama tamu dihapus',
   );
   await pg.click('#btnStart');
@@ -2087,12 +2119,12 @@ async function main() {
   await pg.press('#nameInput', 'Enter');
   cek(!(await pg.isVisible('#btnGuestDone')), 'tamu berikutnya: tombol Selesai tersembunyi lagi');
   await pg.evaluate(() => {
-    __leura.state.guestActivity = 1;
-    __leura.show('thanks');
+    __playgroundbooth.state.guestActivity = 1;
+    __playgroundbooth.show('thanks');
   });
   await tungguLayar('home', 8000);
   cek(
-    (await pg.evaluate(() => __leura.state.guestName)) === 'Tono',
+    (await pg.evaluate(() => __playgroundbooth.state.guestName)) === 'Tono',
     'Terima kasih dibiarkan: otomatis kembali ke menu, bukan ke Start',
   );
 
@@ -2115,7 +2147,7 @@ async function main() {
     // count full redraws of the list (rows replaced in #rwList itself; thumbnails only change inside a row)
     window.NGAMBAR = 0;
     new MutationObserver(() => window.NGAMBAR++).observe(document.getElementById('histList'), { childList: true });
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
   });
   await pg.click('#btnHistory');
   await tunggu(800);
@@ -2154,7 +2186,7 @@ async function main() {
 
   console.log('\n▶ Catatan aplikasi di Admin');
   await pg.evaluate(() => {
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
   });
@@ -2171,14 +2203,14 @@ async function main() {
   await tunggu(200);
   cek(
     (await log()).includes('simpan catatan') &&
-      /Log saved: Leura-catatan-2026-11-06\.txt/.test(await pg.textContent('#notice')) &&
+      /Log saved: PlaygroundBooth-catatan-2026-11-06\.txt/.test(await pg.textContent('#notice')) &&
       (await pg.locator('#dlgLog').count()) === 0,
     'Simpan catatan: file tersimpan + pemberitahuan',
   );
 
   console.log('\n▶ Kunci Admin');
   await pg.evaluate(() => {
-    __leura.show('home');
+    __playgroundbooth.show('home');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(300);
@@ -2192,7 +2224,7 @@ async function main() {
     (await pg.isVisible('#adminLogin')) && !(await pg.isVisible('#adminPanel')),
     'setelah dikunci, Admin harus login lagi',
   );
-  await pg.fill('#uid', 'leura');
+  await pg.fill('#uid', 'admin');
   await pg.fill('#pw', '1234');
   await pg.click('#btnLogin');
   await tunggu(300);
@@ -2200,7 +2232,7 @@ async function main() {
 
   console.log('\n▶ Tutup aplikasi dari Admin');
   await pg.evaluate(() => {
-    __leura.show('admin');
+    __playgroundbooth.show('admin');
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminPanel').style.display = 'flex';
   });
@@ -2240,7 +2272,7 @@ async function main() {
   await pg.evaluate(() => document.getElementById('dlgQuit').remove());
   await pg.evaluate(() => {
     window.TUTUP = null;
-    __leura.show('home');
+    __playgroundbooth.show('home');
     window.MINTA_TUTUP();
     window.MINTA_TUTUP();
   });
@@ -2256,17 +2288,17 @@ async function main() {
   console.log('\n▶ Cetak foto: tamu memilih jumlah lembar');
   await pg.evaluate(() => {
     TPL.length = 0; // built-in Grid 2×2: its print QR is at 980,1580 (180 px)
-    Object.assign(UNG.st, { enabled: true, url: 'https://leura-foto.uji.workers.dev', hasKey: true });
-    __leura.applySettings({
-      ...__leura.state.cfg,
+    Object.assign(UNG.st, { enabled: true, url: 'https://playgroundbooth-foto.uji.workers.dev', hasKey: true });
+    __playgroundbooth.applySettings({
+      ...__playgroundbooth.state.cfg,
       photoCountdown: 2,
       photoPreview: 0,
       photoFlash: false,
       printEnabled: true,
       printMaxCopies: 3,
     });
-    __leura.setLanguage('id');
-    __leura.show('home');
+    __playgroundbooth.setLanguage('id');
+    __playgroundbooth.show('home');
   });
   // Dark pixels on the QR layer of the Edit photo page (the QR the print will have)
   const qrDiEdit = () =>
@@ -2368,7 +2400,7 @@ async function main() {
     'Tidak usah cetak: tidak ada yang dicetak',
   );
   await keMenu();
-  await pg.evaluate(() => __leura.applySettings({ ...__leura.state.cfg, printEnabled: false }));
+  await pg.evaluate(() => __playgroundbooth.applySettings({ ...__playgroundbooth.state.cfg, printEnabled: false }));
   await pg.click('#btnToPhoto');
   await pg.click('#pbStart');
   await pg.waitForSelector('#pbFinish', { state: 'visible', timeout: 40000 });
@@ -2381,7 +2413,7 @@ async function main() {
 
   console.log('\n▶ Aplikasi dibuka lagi: Admin harus login lagi');
   await pg.evaluate(() => {
-    __leura.show('home');
+    __playgroundbooth.show('home');
   });
   await pg.click('#btnAdminOpen');
   await tunggu(200);
@@ -2389,7 +2421,7 @@ async function main() {
   await pg.reload();
   await tunggu(1200);
   await tanpaJeda();
-  await pg.evaluate(() => __leura.show('home'));
+  await pg.evaluate(() => __playgroundbooth.show('home'));
   await pg.click('#btnAdminOpen');
   await tunggu(200);
   cek(

@@ -46,7 +46,7 @@ const TEXT = {
     prev: 'Sebelumnya',
     next: 'Berikutnya',
     play: 'Putar',
-    made: 'Dibuat dengan Leura',
+    made: 'Dibuat dengan PlaygroundBooth',
     locale: 'id-ID',
   },
   en: {
@@ -74,7 +74,7 @@ const TEXT = {
     prev: 'Previous',
     next: 'Next',
     play: 'Play',
-    made: 'Made with Leura',
+    made: 'Made with PlaygroundBooth',
     locale: 'en-GB',
   },
 };
