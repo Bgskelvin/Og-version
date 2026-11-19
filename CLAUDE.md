@@ -12,17 +12,17 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 
 ## Struktur
 
-| Folder / file                   | Isi                                                                                                 |
-| ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.                    |
-| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                                      |
-| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).                 |
-| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.            |
-| `kamera-lumix/`                 | Program `lumix-helper.exe` (C++, Lumix Tether SDK, khusus Windows). `npm run build:lumix`.          |
-| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.             |
-| `demo/`                         | PlaygroundBooth Demo untuk HP (`npm run demo:pasang`).                                              |
-| `installer/`                    | `build-mac.sh` → PlaygroundBooth.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows). |
-| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                             |
+| Folder / file                   | Isi                                                                                                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main.js`, `main/`              | Proses utama Electron (Node, CommonJS). Tiap modul punya `register()` untuk IPC.                                                                                                                  |
+| `preload.js`                    | `window.api` lewat contextBridge (contextIsolation + sandbox).                                                                                                                                    |
+| `index.html`, `src/`, `styles/` | Tampilan: ES module, pintu masuk `src/start.js` (lihat "Tampilan `src/`" di bawah).                                                                                                               |
+| `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.                                                                                                          |
+| `kamera-lumix/`                 | Program `lumix-helper.exe` (C++, Lumix Tether SDK, khusus Windows). `npm run build:lumix`.                                                                                                        |
+| `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.                                                                                                           |
+| `demo/`                         | PlaygroundBooth Demo untuk HP (`npm run demo:pasang`).                                                                                                                                            |
+| `installer/`                    | `build-mac.sh` → PlaygroundBooth.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows). Ikon: `make-icons.js` (huruf "P" emas, Bodoni MT) → `installer/icon.png` + `demo/ikon-*.png`. |
+| `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                                                                                                                           |
 
 Data acara ada di `~/Library/Application Support/playgroundbooth` (Windows: `%APPDATA%playgroundbooth`), **bukan** di folder proyek. Pengaturan, couple, riwayat sesi, dan antrean QR ada di database `playgroundbooth.db` (lihat Konvensi kode); rekaman/foto di folder couple; template & filter tetap file JSON + gambar.
 
