@@ -3,7 +3,8 @@
    ===================================================================== */
 const { ipcMain, shell } = require('electron');
 const fs = require('fs');
-const { config, db, readSettings, getOutDir, usableDir, coupleDir } = require('./storage');
+const path = require('path');
+const { config, db, readSettings } = require('./storage');
 const { deleteCoupleTemplates } = require('./template');
 
 /* ---------- Couple data ---------- */
@@ -85,6 +86,7 @@ function register() {
       return { error: 'Quick quiz is on: add at least 1 question, or turn Quick quiz off.' };
     const d = readCouples();
     const i = d.couples.findIndex(x => x.id === c.id);
+    if (i >= 0 && d.couples[i].folder) c.folder = d.couples[i].folder; // the event folder never changes (event-folders.js)
     if (i >= 0) d.couples[i] = c;
     else d.couples.push(c);
     if (!d.activeId) d.activeId = c.id;
@@ -108,16 +110,47 @@ function register() {
     require('./log').write('Active couple: ' + d.couples.find(c => c.id === id).name);
     return { ok: true, data: d };
   });
-  // empty id = the active couple
-  ipcMain.handle('open-couple-folder', (e, id) => {
+  // The couple's event folder (empty id = the active couple). Not made here: only sessions make it.
+  const eventDirOf = id => {
     const data = readCouples();
-    const c = data.couples.find(x => x.id === id);
-    const name = c ? c.name : activeCoupleName();
-    const d = coupleDir(getOutDir(), name);
-    if (!fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
-    if (!usableDir(d)) return 'Folder not available';
+    const c = data.couples.find(x => x.id === id) || data.couples.find(x => x.id === data.activeId);
+    if (!c || !c.folder) return null;
+    const base = require('./event-folders').baseDir();
+    return base ? path.join(base.dir, c.folder) : null;
+  };
+  ipcMain.handle('open-couple-folder', (e, id) => {
+    const d = eventDirOf(id);
+    if (!d || !fs.existsSync(d)) return 'No recordings or photos for this couple yet.';
     return shell.openPath(d);
+  });
+  // Album.html (album.js): status for the couple page, and "Create album" (made, then opened)
+  ipcMain.handle('album-status', (e, id) => {
+    const d = eventDirOf(id);
+    if (!d || !fs.existsSync(d)) return { sessions: 0, made: null, newSince: 0, processing: 0 };
+    return require('./album').albumStatus(d);
+  });
+  // options.anyway: make it even while videos are still being processed
+  ipcMain.handle('create-album', async (e, id, options = {}) => {
+    const d = eventDirOf(id);
+    if (!d || !fs.existsSync(d)) return { error: 'No recordings or photos for this couple yet.' };
+    const album = require('./album');
+    const st = album.albumStatus(d);
+    if (st.processing && !(options && options.anyway)) return { needsConfirm: true, processing: st.processing };
+    const file = album.writeAlbum(d);
+    if (!file) return { error: 'The album could not be made. See the log.' };
+    require('./log').write(`Album created: ${path.basename(d)} (${st.sessions} sessions)`);
+    const err = await shell.openPath(file);
+    return err ? { error: err } : { ok: true, ...album.albumStatus(d) };
   });
 }
 
-module.exports = { readCouples, activeCoupleName, register };
+// Remember a couple's event folder name (event-folders.js), without touching anything else
+function saveCoupleFolder(id, folder) {
+  const d = readCouples();
+  const c = d.couples.find(x => x.id === id);
+  if (!c || c.folder) return;
+  c.folder = folder;
+  writeCouples(d);
+}
+
+module.exports = { readCouples, activeCoupleName, saveCoupleFolder, register };

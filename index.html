@@ -515,15 +515,21 @@
             <div class="group-title">More</div>
             <div class="group">
               <div class="item actions">
+                <button id="btnCoupleAlbum" class="btn sm tint">
+                  <svg class="i"><use href="#i-frame" /></svg><span id="albumLabel">Create album</span>
+                </button>
                 <button id="btnCoupleFolder" class="btn sm tint">
                   <svg class="i"><use href="#i-folder" /></svg>Open couple folder
                 </button>
                 <button id="btnDelCouple" class="btn sm tint danger"><span id="delLabel">Delete couple</span></button>
               </div>
             </div>
+            <p class="pe-hint" id="albumStatus" style="margin: 8px 6px 0"></p>
             <p class="pe-hint" style="margin: 8px 6px 0">
-              Deleting a couple also deletes its photo templates. Recordings and photos already taken stay in the
-              folder.
+              <b>Create album</b> after the event: every guest with their messages, quiz videos and photos, in one page
+              (Album.html in the couple folder). It opens in any browser, also without internet, and goes to the couple
+              with the folder. Press it again to bring it up to date. Deleting a couple also deletes its photo
+              templates. Recordings and photos already taken stay in the folder.
             </p>
             <div class="note ok" id="cpMsg"></div>
           </div>

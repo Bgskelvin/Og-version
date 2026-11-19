@@ -28,6 +28,8 @@ export const store = {
   },
 };
 
+export const newVisitId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
 // ---------- Screens ----------
 // Every page in index.html (div.screen) must be listed here.
 export const SCREENS = [
@@ -62,6 +64,9 @@ export const state = {
   guestActivity: 0, // activities (message/quiz/photo) by this guest; > 0 = Done button shows
   guestName: '', // guest name from the "What's your name?" page (empty = not asked)
   guestResults: [], // this guest's results with a QR code: [{ kind: 'photo' | 'video', code, label }]
+  // One id per guest visit (Start → … → Start): every recording & photo of the visit gets the same guest
+  // number in the event folder (main/event-folders.js)
+  visitId: newVisitId(),
   thanksTimer: null, // Thank you → back to the main menu by itself
   arrivalGuardMs: 700, // Start → name → menu: taps ignored this long while the page animates in (app.js)
 

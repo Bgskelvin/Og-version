@@ -163,6 +163,9 @@ window.api = {
   printRetry: async () => ({ retried: 0 }), printClearFailed: async () => ({ removed: 0 }),
   printTest: async () => { LOG.push('tes cetak'); return { ok: true }; }, onPrintStatus: () => {},
   printSessionSource: async id => ({ image: await buatJpeg(1200, 1800, '#a64') }),
+  albumStatus: async () => ({ sessions: 3, made: null, newSince: 0, processing: 1 }),
+  createAlbum: async (id, o) => { LOG.push('album ' + (o && o.anyway ? 'anyway' : 'ask'));
+    return o && o.anyway ? { ok: true, sessions: 3, made: Date.now(), newSince: 0, processing: 1 } : { needsConfirm: true, processing: 1 }; },
   chooseOutDir: async () => ({ canceled: true }), resetOutDir: async () => ({}), openFolder: async () => '', openCoupleFolder: async id => { LOG.push('folder ' + id); return ''; }
 };
 navigator.mediaDevices.getUserMedia = async () => {
@@ -631,6 +634,25 @@ async function main() {
     (await pg.textContent('#coupleFormTitle')) === 'Rina & Dimas' &&
       /No templates yet/.test(await pg.textContent('#tplList')),
     'template couple Rina & Dimas masih kosong',
+  );
+  // Album after the event: status on the couple page; videos still processing → asks once more
+  cek(
+    /No album yet · 3 sessions · 1 video\(s\) still being processed/.test(await pg.textContent('#albumStatus')),
+    'halaman couple: status album',
+    await pg.textContent('#albumStatus'),
+  );
+  await pg.click('#btnCoupleAlbum');
+  await tunggu(150);
+  cek(
+    (await pg.textContent('#albumLabel')) === 'Create anyway?' &&
+      /still being processed/.test(await pg.textContent('#cpMsg')),
+    'Create album: video masih diproses → minta konfirmasi',
+  );
+  await pg.click('#btnCoupleAlbum');
+  await tunggu(150);
+  cek(
+    (await log()).join(',').includes('album ask,album anyway') && /Album created/.test(await pg.textContent('#cpMsg')),
+    'ditekan lagi: album dibuat',
   );
   await pg.click('#btnTplNew');
   await tunggu(400);

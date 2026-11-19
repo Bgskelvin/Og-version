@@ -209,7 +209,7 @@ async function overlayText(sid) {
   const s = findSession(sid);
   if (!s || !s.captions || !s.captions.length || !s.file) return;
   const main = location(s);
-  const originalDir = path.join(path.dirname(main), 'original');
+  const originalDir = require('./event-folders').originalDirFor(path.dirname(main));
   const original = path.join(originalDir, s.file.replace(/\.mp4$/i, '') + '_original.mp4');
   const temp = path.join(path.dirname(main), '.' + s.file.replace(/\.mp4$/i, '') + '.teks.mp4');
   const source = fs.existsSync(original) ? original : main; // when retried: start again from the original video

@@ -3,7 +3,7 @@
    notices and short form messages
    ===================================================================== */
 import { renderGreeting, startGuest } from './guest-name.js';
-import { $, SCREENS, state } from './state.js';
+import { $, SCREENS, newVisitId, state } from './state.js';
 import { setTemplateCoupleName } from './template-render.js';
 import { getTemplateCouple } from './template-editor.js';
 import { cameraModeForScreen } from './sony-camera.js';
@@ -46,6 +46,7 @@ export function show(name) {
     state.guestName = '';
     state.guestActivity = 0;
     state.guestResults = []; // a new list: a save that finishes late goes to the old guest's list, not this one
+    state.visitId = newVisitId(); // the next guest gets the next number in the event folder
     renderGreeting();
   } // the next guest starts from zero
   if (name === 'thanks') {

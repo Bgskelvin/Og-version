@@ -16,7 +16,7 @@ export async function startRecording(label) {
   // (a failed previous save was already reported when it happened)
   await Promise.race([state.lastSave.catch(() => false), sleep(15000)]);
   const sony = usingSony();
-  const r = await api.recStart(label, { sony, guest: state.guestName });
+  const r = await api.recStart(label, { sony, guest: state.guestName, visit: state.visitId });
   if (!r || r.error) throw new Error((r && r.error) || 'Could not start the recording');
   if (r.fallback) setNotice('The chosen folder is not available, the recording is saved in the default folder', 8000);
   const cur = { id: r.id, label, t0: Date.now(), pending: Promise.resolve(), recorder: null, sony };

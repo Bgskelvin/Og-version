@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('api', {
   setActiveCouple: id => ipcRenderer.invoke('set-active-couple', id),
   openFolder: () => ipcRenderer.invoke('open-folder'),
   openCoupleFolder: id => ipcRenderer.invoke('open-couple-folder', id),
+  albumStatus: id => ipcRenderer.invoke('album-status', id),
+  createAlbum: (id, options) => ipcRenderer.invoke('create-album', id, options),
   getStartupInfo: () => ipcRenderer.invoke('get-startup-info'),
   savePhotos: payload => ipcRenderer.invoke('save-photos', payload),
   printPrinters: () => ipcRenderer.invoke('print-printers'),

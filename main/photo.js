@@ -5,17 +5,8 @@ const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const log = require('./log');
-const {
-  defaultDir,
-  saveSession,
-  getOutDir,
-  usableDir,
-  safeName,
-  coupleDir,
-  stamp,
-  guestFileName,
-  freeBaseName,
-} = require('./storage');
+const { saveSession, guestFileName } = require('./storage');
+const eventFolders = require('./event-folders');
 const { activeCoupleName } = require('./couple');
 const upload = require('./upload');
 
@@ -35,28 +26,20 @@ function register() {
         return { ok: false, error: full };
       }
       const name = activeCoupleName();
-      let base = getOutDir();
-      if (!usableDir(base)) {
-        base = defaultDir;
-        if (!usableDir(base)) return { ok: false, error: 'The storage folder is not writable.' };
-      }
-      const dir = path.join(coupleDir(base, name), 'Foto');
-      if (!usableDir(dir)) return { ok: false, error: 'Could not create the photo folder.' };
-      // File names: the guest's name, e.g. "Budi_hasil.jpg" + "Budi_foto-1.jpg"…; no guest name: "<couple>_<time>_hasil.jpg".
-      // Names already in use are not overwritten: "Budi_2_hasil.jpg".
+      // <event>/3 Foto/003 Budi.jpg + 4 Foto Asli/003 Budi/1.jpg … (event-folders.js)
       const guest = guestFileName(rawGuest);
-      const baseName = guest || (safeName(name) ? safeName(name) + '_' : '') + stamp();
-      const prefix = freeBaseName(
-        baseName,
-        b => fs.existsSync(path.join(dir, `${b}_hasil.jpg`)) || fs.existsSync(path.join(dir, `${b}_foto-1.jpg`)),
-      );
+      const place = eventFolders.target('photo', { guest, visit: payload.visit, ext: 'jpg' });
+      if (!place) return { ok: false, error: 'The storage folder is not writable.' };
+      const dir = place.dir;
+      const originalsDir = path.join(place.event.dir, eventFolders.KIND_DIRS.original, place.base);
+      await fs.promises.mkdir(originalsDir, { recursive: true });
       const files = [];
       for (let i = 0; i < originals.length; i++) {
-        const f = `${prefix}_foto-${i + 1}.jpg`;
-        await fs.promises.writeFile(path.join(dir, f), Buffer.from(originals[i]));
+        const f = `${i + 1}.jpg`;
+        await fs.promises.writeFile(path.join(originalsDir, f), Buffer.from(originals[i]));
         files.push(f);
       }
-      const resultFile = `${prefix}_hasil.jpg`;
+      const resultFile = `${place.base}.jpg`;
       await fs.promises.writeFile(path.join(dir, resultFile), Buffer.from(result));
       // Download by QR (if turned on in Admin): the code & link exist right away, the upload follows in the background
       const sid = Date.now() * 1000 + Math.floor(Math.random() * 1000);
@@ -72,10 +55,14 @@ function register() {
           file: resultFile,
           dir,
           couple: name,
+          event: place.event.folder,
+          seq: place.seq,
+          ...(payload.visit ? { visit: String(payload.visit).slice(0, 40) } : {}),
           ...(guest ? { guest: String(rawGuest).trim().slice(0, 40) } : {}),
           seconds: 0,
           status: 'photo',
           photos: originals.length,
+          originalsDir,
           originalFiles: files,
           ...(qr ? { code: qr.code, link: qr.link, upload: 'queued' } : {}),
           ...meta,

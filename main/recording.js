@@ -18,19 +18,14 @@ const {
   getSession,
   saveSession,
   deleteSession,
-  getOutDir,
-  usableDir,
-  safeName,
-  coupleDir,
-  stamp,
   guestFileName,
-  freeBaseName,
 } = require('./storage');
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./active-window');
 const sony = require('./sony-camera');
 const log = require('./log');
 const videoProcessing = require('./video-processing');
+const eventFolders = require('./event-folders');
 const upload = require('./upload');
 videoProcessing.useUpload(upload);
 
@@ -54,7 +49,7 @@ function convert(id, webmPath) {
     );
     try {
       if (r.ok && fs.existsSync(mp4)) {
-        const od = path.join(path.dirname(webmPath), 'original');
+        const od = require('./event-folders').originalDirFor(path.dirname(webmPath));
         fs.mkdirSync(od, { recursive: true });
         fs.renameSync(webmPath, path.join(od, path.basename(webmPath)));
         updateSession(id, { file: path.basename(mp4), status: 'done' });
@@ -75,11 +70,6 @@ function reserveQr(sid, label, couple) {
   if (!videoProcessing.available() || !upload.videoEnabled()) return null;
   return upload.queueVideo(sid, { couple, label });
 }
-
-// The label ('message' | 'quiz') is also the end of the file name. Message videos keep the
-// file names they always had ("Budi_pesan.mp4"), so the couple's folder looks the same as before.
-const FILE_LABELS = { message: 'pesan' };
-const fileLabel = label => FILE_LABELS[label] || label;
 
 const recs = new Map(); // every recording has its own ID, so two recordings can never get mixed up
 let recSeq = 0;
@@ -315,33 +305,19 @@ function register() {
       return { error: full };
     }
     const name = activeCoupleName();
-    let base = getOutDir(),
-      fallback = false;
-    if (!usableDir(base)) {
-      base = defaultDir;
-      fallback = true;
-      console.log('Chosen folder not available, using the default folder');
-      if (!usableDir(base)) return { error: 'The storage folder is not writable.' };
-    }
-    let dir = coupleDir(base, name);
-    if (!usableDir(dir)) dir = base;
     const ext = useSony ? 'mp4' : 'webm';
-    // File name: the guest's name (from the "What's your name?" screen), e.g. "Budi_pesan.mp4". No guest name: "<couple>_<time>_pesan".
-    // Names already in use (.webm/.mp4 files or sessions whose video isn't copied yet) are not overwritten: "Budi_2_pesan".
+    // <event>/1 Pesan Video/003 Budi.webm (quiz: 2 Quiz/…): the guest's number + name (event-folders.js)
     const guest = guestFileName(options && options.guest);
-    const sessionsInFolder = new Set(
-      readSessions()
-        .filter(s => s.dir === dir)
-        .map(s => String(s.file || '').replace(/\.(webm|mp4)$/i, '')),
-    );
-    const isTaken = b => {
-      const d = guest ? `${b}_${fileLabel(label)}` : b;
-      return sessionsInFolder.has(d) || ['webm', 'mp4'].some(x => fs.existsSync(path.join(dir, `${d}.${x}`)));
-    };
-    const baseName = guest
-      ? freeBaseName(guest, isTaken)
-      : freeBaseName(`${safeName(name) ? safeName(name) + '_' : ''}${stamp()}_${fileLabel(label)}`, isTaken);
-    const file = path.join(dir, `${guest ? `${baseName}_${fileLabel(label)}` : baseName}.${ext}`);
+    const place = eventFolders.target(/^quiz/.test(label) ? 'quiz' : 'message', {
+      guest,
+      visit: options && options.visit,
+      ext,
+    });
+    if (!place) return { error: 'The storage folder is not writable.' };
+    const fallback = place.event.fallback;
+    if (fallback) console.log('Chosen folder not available, using the default folder');
+    const dir = place.dir;
+    const file = path.join(dir, `${place.base}.${ext}`);
 
     const id = ++recSeq;
     const sid = Date.now() * 1000 + (id % 1000);
@@ -370,6 +346,9 @@ function register() {
         file: path.basename(file),
         dir,
         couple: name,
+        event: place.event.folder,
+        seq: place.seq,
+        ...(options && options.visit ? { visit: String(options.visit).slice(0, 40) } : {}),
         ...(guest ? { guest: String(options.guest).trim().slice(0, 40) } : {}),
         seconds: 0,
         status: 'recording',

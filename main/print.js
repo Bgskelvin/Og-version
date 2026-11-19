@@ -20,22 +20,10 @@ const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const log = require('./log');
-const {
-  db,
-  defaultDir,
-  getOutDir,
-  usableDir,
-  coupleDir,
-  safeName,
-  stamp,
-  guestFileName,
-  freeBaseName,
-  readSettings,
-  updateSession,
-  getSession,
-} = require('./storage');
+const { db, usableDir, stamp, guestFileName, readSettings, updateSession, getSession } = require('./storage');
 const { activeCoupleName } = require('./couple');
 const { getWin } = require('./active-window');
+const eventFolders = require('./event-folders');
 
 const STATE_KEY = 'printQueue';
 const MAX_COPIES = 10; // per guest (Admin chooses the limit for guests, up to this)
@@ -243,12 +231,15 @@ function notify() {
   if (win && !win.isDestroyed()) win.webContents.send('print-status', status());
 }
 
-// Where the print files of the active couple go: <storage folder>/<couple>/Foto/Print
-function printDir(couple = activeCoupleName()) {
-  let base = getOutDir();
-  if (!usableDir(base)) base = defaultDir;
-  const dir = path.join(coupleDir(base, couple), 'Foto', 'Print');
-  return usableDir(dir) ? dir : null;
+// Where prints go: <event>/5 Cetak (the session's event when known, else the couple's / active couple's)
+function printDir(couple, session) {
+  const eventDir = eventFolders.eventDirOf(session);
+  if (eventDir) {
+    const dir = path.join(eventDir, eventFolders.KIND_DIRS.print);
+    return usableDir(dir) ? dir : null;
+  }
+  const event = eventFolders.eventFor(couple || null);
+  return event ? eventFolders.kindDir(event, 'print') : null;
 }
 
 /* Add a guest print. payload: { image (JPG bytes), copies, layout, guest, sessionId } */
@@ -264,17 +255,18 @@ function addJob(payload) {
   const layout = LAYOUTS.includes(payload.layout) ? payload.layout : 'portrait';
   // Reprints from Session history go to the folder of that session's couple
   const couple = (typeof payload.couple === 'string' && payload.couple.trim()) || activeCoupleName();
-  const dir = printDir(couple);
+  const session = Number.isSafeInteger(sessionId) ? getSession(sessionId) : null;
+  const dir = printDir(couple, session);
   if (!dir) return { ok: false, error: 'The print folder is not writable.' };
-  const base = freeBaseName(guestFileName(guest) || (safeName(couple) ? safeName(couple) + '_' : '') + stamp(), b =>
-    fs.existsSync(path.join(dir, `${b}_print.jpg`)),
-  );
-  const file = path.join(dir, `${base}_print.jpg`);
+  // 5 Cetak/003 Budi.jpg — named like the session's photo; a reprint gets " (2)"
+  const want = session && session.file ? session.file.replace(/\.[^.]+$/, '') : guestFileName(guest) || stamp();
+  const base = eventFolders.freeName(want, b => fs.existsSync(path.join(dir, `${b}.jpg`)));
+  const file = path.join(dir, `${base}.jpg`);
   fs.writeFileSync(file, bytes);
   const job = {
     id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
     file,
-    pdfFile: path.join(dir, `${base}_print_x${copies}.pdf`),
+    pdfFile: path.join(dir, `${base} x${copies}.pdf`),
     copies,
     layout,
     couple,
@@ -359,13 +351,13 @@ function register() {
   });
   ipcMain.handle('print-test', () => {
     load();
-    const dir = printDir();
+    const dir = printDir(null, null);
     if (!dir) return { ok: false, error: 'The print folder is not writable.' };
     queue.push({
       id: Date.now() * 1000 + Math.floor(Math.random() * 1000),
       test: true,
       file: null,
-      pdfFile: path.join(dir, `Leura-test-print_${stamp()}.pdf`),
+      pdfFile: path.join(dir, `Test print ${stamp()}.pdf`),
       copies: 1,
       layout: 'portrait',
       status: 'waiting',
