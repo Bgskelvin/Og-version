@@ -20,7 +20,7 @@ File ini dibaca Claude di awal setiap session. Gusvin boleh mengubahnya kapan sa
 | `kamera-sony/`                  | Program `sony-helper` (C++, Sony Camera Remote SDK). Dibuat dengan `npm run build:sony`.                                                                                                          |
 | `kamera-lumix/`                 | Program `lumix-helper.exe` (C++, Lumix Tether SDK, khusus Windows). `npm run build:lumix`.                                                                                                        |
 | `cloud/`                        | Server QR (Cloudflare Worker + R2): `worker.mjs`, pasang dengan `npm run cloud:pasang`.                                                                                                           |
-| `demo/`                         | PlaygroundBooth Demo untuk HP (`npm run demo:pasang`).                                                                                                                                            |
+| `demo/`                         | PlaygroundBooth Demo untuk HP (`npm run demo:pasang`). Cetak disimulasikan ("Demo printer", tanpa printer); cetak & QR menyala sejak awal.                                                        |
 | `installer/`                    | `build-mac.sh` → PlaygroundBooth.app + .dmg (`npm run build:mac`); `build-win.js` → .exe (Windows). Ikon: `make-icons.js` (huruf "P" emas, Bodoni MT) → `installer/icon.png` + `demo/ikon-*.png`. |
 | `tests/`                        | Uji otomatis (lihat `tests/README.md`).                                                                                                                                                           |
 
